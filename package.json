@@ -1,0 +1,88 @@
+{
+  "name": "@raydium-io/raydium-sdk",
+  "version": "1.0.1-rc.0",
+  "description": "An SDK for building applications on top of Raydium.",
+  "license": "GPL-3.0",
+  "main": "./lib/index.js",
+  "module": "./lib.ems/index.js",
+  "types": "./lib/index.d.ts",
+  "files": [
+    "./lib",
+    "./src"
+  ],
+  "repository": "https://github.com/raydium-io/raydium-sdk",
+  "keywords": [
+    "raydium",
+    "solana"
+  ],
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged"
+    }
+  },
+  "lint-staged": {
+    "{src}/**/*.ts": [
+      "yarn lint"
+    ]
+  },
+  "scripts": {
+    "lint": "eslint src/**/*.ts",
+    "test": "jest",
+    "rebuild-sharp": "npm rebuild sharp",
+    "check-solana-tokens": "ts-node ./misc/token/check-solana-tokens.ts",
+    "down-icons": "ts-node ./misc/token/down-icons.ts",
+    "build-tokens-json": "ts-node ./misc/token/build-json.ts",
+    "build-liquidity-json": "ts-node ./misc/liquidity/build-json.ts",
+    "build-farm-json": "ts-node ./misc/farm/build-json.ts",
+    "build-json": "yarn build-tokens-json && yarn build-liquidity-json && yarn build-farm-json",
+    "build-docs": "typedoc",
+    "build-docs-watch": "typedoc --watch",
+    "build-dist": "rm -rf dist && mkdir dist && yarn build-docs && cp -r icons ./dist/icons && yarn build-json",
+    "build-lib": "rm -rf lib && tsc",
+    "build-all": "yarn build-dist && yarn build-lib",
+    "install-peers": "ts-node ./misc/install-peers.ts",
+    "build": "yarn build-lib",
+    "push": "yarn build && yarn publish"
+  },
+  "peerDependencies": {
+    "@solana/web3.js": "^1.30.2",
+    "bn.js": "^5.2.0"
+  },
+  "dependencies": {
+    "@solana/buffer-layout": "^3.0.0",
+    "@solana/spl-token": "^0.1.8",
+    "big.js": "^6.1.1",
+    "decimal.js-light": "^2.5.1",
+    "toformat": "^2.0.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.16.0",
+    "@babel/preset-env": "^7.16.0",
+    "@babel/preset-typescript": "^7.16.0",
+    "@solana/spl-token-registry": "^0.2.287",
+    "@types/big.js": "^6.1.2",
+    "@types/bn.js": "^5.1.0",
+    "@types/jest": "^27.0.2",
+    "@types/node": "^16.11.7",
+    "@types/sharp": "^0.29.3",
+    "@typescript-eslint/eslint-plugin": "^5.3.1",
+    "@typescript-eslint/parser": "^5.3.1",
+    "ajv": "^8.7.1",
+    "babel-jest": "^27.3.1",
+    "chalk": "^4.1.2",
+    "consola": "^2.15.3",
+    "dotenv": "^10.0.0",
+    "eslint": "^8.2.0",
+    "eslint-plugin-tsdoc": "^0.2.14",
+    "got": "^11.8.2",
+    "husky": "^7.0.4",
+    "jest": "^27.3.1",
+    "lint-staged": "^11.2.6",
+    "npm-check-updates": "^11.8.5",
+    "prettier": "^2.4.1",
+    "sharp": "^0.29.2",
+    "ts-node": "^10.4.0",
+    "typedoc": "^0.22.8",
+    "typescript": "^4.4.4"
+  }
+}

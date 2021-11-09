@@ -1,0 +1,7 @@
+{
+  "entryPoints": ["./src"],
+  "out": "dist",
+  "githubPages": false,
+  "hideGenerator": true,
+  "preserveWatchOutput": true
+}

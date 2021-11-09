@@ -1,0 +1,8 @@
+{
+  "recommendations": [
+    "esbenp.prettier-vscode",
+    "mike-co.import-sorter",
+    "aaron-bond.better-comments",
+    "salbert.comment-ts"
+  ]
+}

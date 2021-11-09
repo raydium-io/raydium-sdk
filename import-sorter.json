@@ -1,0 +1,52 @@
+{
+  "generalConfiguration.sortOnBeforeSave": true,
+  "importStringConfiguration.tabSize": 2,
+  "importStringConfiguration.tabType": "space",
+  "importSorter.importStringConfiguration.quoteMark": "double",
+  "importSorter.importStringConfiguration.trailingComma": "multiLine",
+  "importSorter.sortConfiguration.customOrderingRules.rules": [
+    {
+      "type": "path",
+      "regex": "^\\w+",
+      "orderLevel": 10
+    },
+    {
+      "type": "importMember",
+      "regex": "^\\w+",
+      "orderLevel": 20
+    },
+
+    {
+      "type": "path",
+      "regex": "^@",
+      "orderLevel": 30
+    },
+    {
+      "type": "importMember",
+      "regex": "^@",
+      "orderLevel": 40
+    },
+
+    {
+      "type": "path",
+      "regex": "^../",
+      "orderLevel": 50
+    },
+    {
+      "type": "importMember",
+      "regex": "^../",
+      "orderLevel": 40
+    },
+
+    {
+      "type": "path",
+      "regex": "^./",
+      "orderLevel": 70
+    },
+    {
+      "type": "importMember",
+      "regex": "^./",
+      "orderLevel": 80
+    }
+  ]
+}
