@@ -4,4 +4,5 @@
 
 - Add `isRaw` param for `TokenAmount`
 - Change directory tree
+- Change exported program ids as `PublicKey`
 - Update dependencies
