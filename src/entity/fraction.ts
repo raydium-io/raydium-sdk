@@ -3,8 +3,8 @@ import BN from "bn.js";
 import _Decimal from "decimal.js-light";
 
 import { Logger } from "../common";
-import toFormat, { WrappedBig } from "../types/to-format";
 import { ONE, Rounding } from "./constant";
+import toFormat, { WrappedBig } from "./to-format";
 
 const logger = new Logger("Entity");
 

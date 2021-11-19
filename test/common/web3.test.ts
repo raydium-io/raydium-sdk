@@ -1,29 +1,10 @@
 import dotenv from "dotenv";
 
 import { Connection, PublicKey } from "@solana/web3.js";
-import {
-  getMultipleAccountsInfo, TOKEN_PROGRAM_ID, validateAndParsePublicKey
-} from "../src/solana";
-import { MAINNET_SPL_TOKENS, WSOL } from "../src/token";
+import { getMultipleAccountsInfo, TOKEN_PROGRAM_ID } from "../../src/common";
+import { MAINNET_SPL_TOKENS, WSOL } from "../../src/token";
 
 dotenv.config();
-
-describe("Test validateAndParsePublicKey", () => {
-  it("should works when use valid pubkey string", () => {
-    const pubkey = validateAndParsePublicKey(WSOL.mint);
-    expect(pubkey.toBase58()).toEqual(WSOL.mint);
-  });
-
-  it("should works when use valid pubkey", () => {
-    const wsol = new PublicKey(WSOL.mint);
-    const pubkey = validateAndParsePublicKey(wsol);
-    expect(pubkey.equals(wsol)).toBeTruthy();
-  });
-
-  it("should revert when use invalid pubkey string", () => {
-    expect(() => validateAndParsePublicKey("1")).toThrow(/invalid public key/);
-  });
-});
 
 describe("Test getMultipleAccountsInfo", () => {
   const endpoint = process.env.RPC_ENDPOINT;

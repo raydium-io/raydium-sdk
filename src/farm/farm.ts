@@ -64,7 +64,7 @@ export class Farm {
       return logger.throwArgumentError("invalid version", "version", version);
     }
 
-    return new PublicKey(programId);
+    return programId;
   }
 
   static getVersion(programId: PublicKeyIsh) {

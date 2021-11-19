@@ -1,6 +1,6 @@
-import { publicKey, struct, u128, u64 } from "../marshmallow";
-import { GetStructureSchema } from "../types/buffer-layout";
+import { GetStructureSchema, publicKey, struct, u128, u64 } from "../marshmallow";
 
+/* ================= state layouts ================= */
 export const LIQUIDITY_STATE_LAYOUT_V4 = struct([
   u64("status"),
   u64("nonce"),
@@ -60,6 +60,7 @@ export type LiquidityStateLayoutV4 = GetStructureSchema<typeof LIQUIDITY_STATE_L
 
 export type LiquidityStateLayout = LiquidityStateLayoutV4;
 
+/* ================= index ================= */
 // version => liquidity state layout
 export const LIQUIDITY_VERSION_TO_STATE_LAYOUT: {
   [key: number]: typeof LIQUIDITY_STATE_LAYOUT_V4;

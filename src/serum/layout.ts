@@ -1,5 +1,6 @@
 import { blob, publicKey, struct, u64 } from "../marshmallow";
 
+/* ================= state layouts ================= */
 export const MARKET_STATE_LAYOUT_V3 = struct([
   blob(5),
 
@@ -38,6 +39,7 @@ export const MARKET_STATE_LAYOUT_V3 = struct([
   blob(7),
 ]);
 
+/* ================= index ================= */
 // version => market state layout
 export const MARKET_VERSION_TO_STATE_LAYOUT: {
   [key: number]: typeof MARKET_STATE_LAYOUT_V3;
