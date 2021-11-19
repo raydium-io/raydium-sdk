@@ -1,4 +1,4 @@
-import { Currency, CurrencyAmount, Fraction, parseBigNumberIsh } from "../src/entity";
+import { Currency, CurrencyAmount, Fraction, parseBigNumberIsh } from "../../src/entity";
 
 describe("Test parseBigNumberIsh", () => {
   it("should works when parse string", () => {

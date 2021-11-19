@@ -1,6 +1,6 @@
+import { JsonFileMetaData } from "../common";
 import { SerumVersion } from "../serum";
 import { LpTokenInfo } from "../token";
-import { JsonFileMetaData } from "../types/json-file";
 
 export type LiquidityVersion = 2 | 3 | 4;
 

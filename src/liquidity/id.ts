@@ -1,18 +1,21 @@
+import { PublicKey } from "@solana/web3.js";
 import { SerumVersion } from "../serum";
 import { LiquidityVersion } from "./type";
 
-export const LIQUIDITY_PROGRAM_ID_V4 = "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8";
+/* ================= program public keys ================= */
+export const _LIQUIDITY_PROGRAM_ID_V4 = "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8";
+export const LIQUIDITY_PROGRAM_ID_V4 = new PublicKey(_LIQUIDITY_PROGRAM_ID_V4);
 
-// liquidity program id => liquidity version
+// liquidity program id string => liquidity version
 export const LIQUIDITY_PROGRAMID_TO_VERSION: {
   [key: string]: LiquidityVersion;
 } = {
-  [LIQUIDITY_PROGRAM_ID_V4]: 4,
+  [_LIQUIDITY_PROGRAM_ID_V4]: 4,
 };
 
 // liquidity version => liquidity program id
-export const LIQUIDITY_VERSION_TO_PROGRAMID: { [key in LiquidityVersion]?: string } & {
-  [K: number]: string;
+export const LIQUIDITY_VERSION_TO_PROGRAMID: { [key in LiquidityVersion]?: PublicKey } & {
+  [K: number]: PublicKey;
 } = {
   4: LIQUIDITY_PROGRAM_ID_V4,
 };

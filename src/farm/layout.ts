@@ -2,12 +2,12 @@ import BN from "bn.js";
 
 import { PublicKey } from "@solana/web3.js";
 import {
-  blob, GetLayoutSchemaFromStructure, GetStructureFromLayoutSchema, publicKey, seq, struct, u128,
-  u64, u8,
+  blob, GetLayoutSchemaFromStructure, GetStructureFromLayoutSchema, GetStructureSchema, publicKey,
+  seq, struct, u128, u64, u8,
 } from "../marshmallow";
-import { GetStructureSchema } from "../types/buffer-layout";
 import { FarmVersion } from "./type";
 
+/* ================= state layouts ================= */
 export const FARM_STATE_LAYOUT_V3 = struct([
   u64("state"),
   u64("nonce"),
@@ -73,6 +73,7 @@ export type FarmStateLayoutV4 = GetStructureSchema<typeof FARM_STATE_LAYOUT_V4>;
 
 export type FarmStateLayout = FarmStateLayoutV3 | FarmStateLayoutV4;
 
+/* ================= ledger layouts ================= */
 export const FARM_LEDGER_LAYOUT_V3 = struct([
   u64("state"),
   publicKey("id"),
@@ -94,6 +95,7 @@ export type FarmLedgerLayoutV4 = GetStructureSchema<typeof FARM_LEDGER_LAYOUT_V4
 
 export type FarmLedgerLayout = FarmLedgerLayoutV3 | FarmLedgerLayoutV4;
 
+/* ================= index ================= */
 // version => farm state layout
 export const FARM_VERSION_TO_STATE_LAYOUT: {
   [key in FarmVersion]?: typeof FARM_STATE_LAYOUT_V3 | typeof FARM_STATE_LAYOUT_V4;

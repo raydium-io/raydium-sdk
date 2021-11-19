@@ -3,9 +3,10 @@ import BN, { isBN } from "bn.js";
 import { PublicKey } from "@solana/web3.js";
 import {
   bits, Blob, blob, Layout, offset as _offset, seq as _seq, Structure as _Structure, u32 as _u32,
-  u8 as _u8, UInt, union as _union, Union as _Union
-} from "../types/buffer-layout";
+  u8 as _u8, UInt, union as _union, Union as _Union,
+} from "./buffer-layout";
 
+export * from "./buffer-layout";
 export { blob };
 
 export class BNLayout<P extends string = ""> extends Layout<BN, P> {

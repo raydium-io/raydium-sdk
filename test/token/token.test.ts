@@ -1,4 +1,4 @@
-import { MAINNET_LP_TOKENS, MAINNET_SPL_TOKENS, TokenList } from "../src/token";
+import { MAINNET_LP_TOKENS, MAINNET_SPL_TOKENS, TokenList } from "../../src/token";
 
 describe("Test token list", () => {
   let tokenList: TokenList;

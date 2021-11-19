@@ -2,10 +2,10 @@ import _Big from "big.js";
 import BN from "bn.js";
 
 import { Logger } from "../common";
-import toFormat, { WrappedBig } from "../types/to-format";
 import { Rounding, TEN } from "./constant";
 import { Currency, currencyEquals, Token } from "./currency";
 import { BigNumberIsh, Fraction, parseBigNumberIsh } from "./fraction";
+import toFormat, { WrappedBig } from "./to-format";
 
 const logger = new Logger("Entity");
 
@@ -105,8 +105,8 @@ export class CurrencyAmount extends Fraction {
 export class TokenAmount extends CurrencyAmount {
   public readonly token: Token;
 
-  public constructor(token: Token, amount: BigNumberIsh) {
-    super(token, amount);
+  public constructor(token: Token, amount: BigNumberIsh, isRaw = true) {
+    super(token, amount, isRaw);
     this.token = token;
   }
 

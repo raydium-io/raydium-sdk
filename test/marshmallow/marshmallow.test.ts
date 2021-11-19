@@ -1,4 +1,4 @@
-import { blob, struct, u32, u64, u8, union } from "../src/marshmallow";
+import { blob, struct, u32, u64, u8, union } from "../../src/marshmallow";
 
 describe("Test marshmallow", () => {
   describe("Encode", () => {
