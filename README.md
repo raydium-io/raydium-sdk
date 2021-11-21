@@ -39,7 +39,7 @@ $ npm install @raydium-io/raydium-sdk --save
 
 - https://sdk.raydium.io/farm/mainnet.json
 
-## Features
+## Usage
 
 ### Marshmallow
 

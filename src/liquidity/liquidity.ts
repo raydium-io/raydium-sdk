@@ -1,7 +1,9 @@
+import { BN } from "bn.js";
+
 import { Connection, PublicKey, TransactionInstruction } from "@solana/web3.js";
 import {
-  AccountMeta, AccountMetaReadonly, findProgramAddress, Logger, PublicKeyIsh, TOKEN_PROGRAM_ID,
-  validateAndParsePublicKey,
+  AccountMeta, AccountMetaReadonly, findProgramAddress, getSimulateLogs, getSimulateValue, Logger,
+  parseSimulateLogs, PublicKeyIsh, TOKEN_PROGRAM_ID, validateAndParsePublicKey,
 } from "../common";
 import { BigNumberIsh, parseBigNumberIsh } from "../entity";
 import { struct, u64, u8 } from "../marshmallow";
@@ -61,16 +63,6 @@ export interface SwapInstructionParamsV4 {
 }
 
 export type SwapInstructionParams = SwapInstructionParamsV4;
-
-/* ================= simulate instruction ================= */
-export interface MakeSimulatePoolInfoInstructionParams {
-  poolKeys: LiquidityPoolKeys;
-}
-
-export interface MakeSimulatePoolInfoTransactionParams {
-  connection: Connection;
-  poolKeys: LiquidityPoolKeys;
-}
 
 export class Liquidity {
   /* ================= static functions ================= */
@@ -322,9 +314,7 @@ export class Liquidity {
   }
 
   /* ================= simulate ================= */
-  static makeSimulatePoolInfoInstruction(params: MakeSimulatePoolInfoInstructionParams) {
-    const { poolKeys } = params;
-
+  static makeSimulatePoolInfoInstruction({ poolKeys }: { poolKeys: LiquidityPoolKeys }) {
     const LAYOUT = struct([u8("instruction"), u8("simulateType")]);
     const data = Buffer.alloc(LAYOUT.span);
     LAYOUT.encode(
@@ -354,5 +344,39 @@ export class Liquidity {
     });
   }
 
-  // static makeSimulatePoolInfoTransaction(connection: Connection) {}
+  static async getInfo({ connection, poolKeys }: { connection: Connection; poolKeys: LiquidityPoolKeys }) {
+    const { logs, err } = await getSimulateLogs(connection, [this.makeSimulatePoolInfoInstruction({ poolKeys })]);
+
+    if (!logs || logs.length === 0) {
+      return logger.throwArgumentError(`get pool's info failed: ${err}`, "id", poolKeys.id.toBase58());
+    }
+
+    const log = parseSimulateLogs(logs, "GetPoolData");
+
+    const status = new BN(getSimulateValue(log, "status"));
+    const baseDecimals = Number(getSimulateValue(log, "coin_decimals"));
+    const quoteDecimals = Number(getSimulateValue(log, "pc_decimals"));
+    const lpDecimals = Number(getSimulateValue(log, "lp_decimals"));
+    const baseBalance = new BN(getSimulateValue(log, "pool_coin_amount"));
+    const quoteBalance = new BN(getSimulateValue(log, "pool_pc_amount"));
+    const lpSupply = new BN(getSimulateValue(log, "pool_lp_supply"));
+
+    // same data type with layouts
+    return {
+      // u64
+      status,
+      // u8
+      baseDecimals,
+      // u8
+      quoteDecimals,
+      // u8
+      lpDecimals,
+      // u64
+      baseBalance,
+      // u64
+      quoteBalance,
+      // u64
+      lpSupply,
+    };
+  }
 }
