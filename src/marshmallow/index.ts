@@ -42,7 +42,7 @@ export class BNLayout<P extends string = ""> extends Layout<BN, P> {
 export class WideBits<P extends string = ""> extends Layout<Record<string, boolean>, P> {
   _lower: any;
   _upper: any;
-  // TODO: nknown
+  // TODO: unknown
   constructor(property?: P) {
     //@ts-expect-error type wrong for super()'s type different from extends , but it desn't matter
     super(8, property);

@@ -3,7 +3,9 @@
 // import { Spl, SPL_ACCOUNT_LAYOUT } from '../spl';
 // import { TOKEN_PROGRAM_ID } from './id';
 
-import { AccountInfo, Commitment, Connection, PublicKey } from "@solana/web3.js";
+import {
+  AccountInfo, Commitment, Connection, PublicKey, Transaction, TransactionInstruction,
+} from "@solana/web3.js";
 import { chunkArray } from "./lodash";
 import { Logger } from "./logger";
 
@@ -168,22 +170,44 @@ export interface GetTokenAccountsByOwnerConfig {
 //   return accounts;
 // }
 
-export class Simulate {
-  public static readonly PAYER = new PublicKey(Buffer.alloc(32));
+const simulatePayer = new PublicKey("RaydiumSimuLateTransaction11111111111111111");
 
-  public static readonly BLOCK_HASH = new PublicKey(Buffer.alloc(32));
+export async function getSimulateLogs(connection: Connection, instructions: TransactionInstruction[]) {
+  // TODO use nonce to fix BlockhashNotFound?
+  const { blockhash } = await connection.getRecentBlockhash("processed");
+  const transaction = new Transaction({ feePayer: simulatePayer, recentBlockhash: blockhash });
 
-  static parseLogs(logs: string[], key: string) {
-    const log = logs.find((l) => l.includes(key));
-    if (!log) {
-      return logger.throwArgumentError("no any log match key", "key", key);
-    }
-
-    const result = log.match(/{["\w:,]+}/g);
-    if (!result) {
-      return logger.throwArgumentError("match log not json format", "key", key);
-    }
-
-    return result;
+  for (const instruction of instructions) {
+    transaction.add(instruction);
   }
+
+  const { value } = await connection.simulateTransaction(transaction);
+  const { logs, err } = value;
+
+  return { logs, err };
+}
+
+export function parseSimulateLogs(logs: string[], key: string) {
+  const log = logs.find((l) => l.includes(key));
+  if (!log) {
+    return logger.throwArgumentError("simulate logs fail to match key", "key", key);
+  }
+
+  const results = log.match(/{["\w:,]+}/g);
+  if (!results || results.length !== 1) {
+    return logger.throwArgumentError("simulate log fail to match json", "key", key);
+  }
+
+  return results[0];
+}
+
+export function getSimulateValue(log: string, key: string) {
+  const reg = new RegExp(`"${key}":(\\d+)`, "g");
+
+  const results = reg.exec(log);
+  if (!results || results.length !== 2) {
+    return logger.throwArgumentError("simulate log fail to match key", "key", key);
+  }
+
+  return results[1];
 }
