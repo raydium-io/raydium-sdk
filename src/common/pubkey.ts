@@ -1,7 +1,7 @@
 import { PublicKey, SystemProgram } from "@solana/web3.js";
 import { Logger } from "./logger";
 
-const logger = new Logger("Common");
+const logger = new Logger("Common.Pubkey");
 
 /* ================= global public keys ================= */
 export { TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID } from "@solana/spl-token";
