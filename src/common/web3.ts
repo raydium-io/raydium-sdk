@@ -34,17 +34,21 @@ export async function getMultipleAccountsInfo(
   publicKeys: PublicKey[],
   config?: GetMultipleAccountsInfoConfig,
 ): Promise<(AccountInfo<Buffer> | null)[]> {
-  const defaultConfig = {
-    batchRequest: false,
+  const { batchRequest, commitment } = {
+    // default
+    ...{
+      batchRequest: false,
+    },
+    // custom
+    ...config,
   };
-  const customConfig = { ...defaultConfig, ...config };
 
   const chunkedKeys = chunkArray(publicKeys, 100);
   let results: (AccountInfo<Buffer> | null)[][] = new Array(chunkedKeys.length).fill([]);
 
-  if (customConfig.batchRequest) {
+  if (batchRequest) {
     const batch = chunkedKeys.map((keys) => {
-      const args = connection._buildArgs([keys.map((key) => key.toBase58())], customConfig.commitment, "base64");
+      const args = connection._buildArgs([keys.map((key) => key.toBase58())], commitment, "base64");
       return {
         methodName: "getMultipleAccounts",
         args,
@@ -82,9 +86,7 @@ export async function getMultipleAccountsInfo(
     });
   } else {
     try {
-      results = await Promise.all(
-        chunkedKeys.map((keys) => connection.getMultipleAccountsInfo(keys, customConfig.commitment)),
-      );
+      results = await Promise.all(chunkedKeys.map((keys) => connection.getMultipleAccountsInfo(keys, commitment)));
     } catch (error) {
       if (error instanceof Error) {
         return logger.throwError("failed to get info for multiple accounts", Logger.errors.RPC_ERROR, {

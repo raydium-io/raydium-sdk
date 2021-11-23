@@ -6,7 +6,7 @@ export type FarmVersion = 3 | 4 | 5;
 export interface FarmPoolBaseInfo {
   readonly id: string;
   readonly lp: LpTokenInfo | SplTokenInfo;
-  readonly version: FarmVersion;
+  readonly version: number;
 }
 
 /* ================= json file ================= */
@@ -15,7 +15,7 @@ export interface FarmPoolJsonInfo {
   readonly lpMint: string;
   readonly rewardMints: string[];
 
-  readonly version: FarmVersion;
+  readonly version: number;
   readonly programId: string;
 
   readonly authority: string;

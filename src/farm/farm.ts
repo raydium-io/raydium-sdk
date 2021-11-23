@@ -11,7 +11,7 @@ import { FARM_PROGRAMID_TO_VERSION, FARM_VERSION_TO_PROGRAMID } from "./id";
 import {
   FARM_VERSION_TO_LEDGER_LAYOUT, FARM_VERSION_TO_STATE_LAYOUT, FarmLedgerLayout, FarmStateLayout,
 } from "./layout";
-import { FarmPoolJsonInfo, FarmVersion } from "./type";
+import { FarmPoolJsonInfo } from "./type";
 
 const logger = new Logger("Farm");
 
@@ -404,7 +404,7 @@ export class Farm {
   static async getMultipleInfo({ connection, pools, owner, config }: GetFarmMultipleInfoParams) {
     const publicKeys: {
       pubkey: PublicKey;
-      version: FarmVersion;
+      version: number;
       key: "state" | "lpVault" | "ledger";
       poolId: PublicKey;
     }[] = [];

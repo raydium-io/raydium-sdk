@@ -1,5 +1,4 @@
 import { JsonFileMetaData } from "../common";
-import { SerumVersion } from "../serum";
 import { LpTokenInfo } from "../token";
 
 export type LiquidityVersion = 2 | 3 | 4;
@@ -18,7 +17,7 @@ export interface LiquidityPoolJsonInfo {
   readonly quoteMint: string;
   readonly lpMint: string;
   // version
-  readonly version: LiquidityVersion;
+  readonly version: number;
   readonly programId: string;
   // keys
   readonly authority: string;
@@ -29,7 +28,7 @@ export interface LiquidityPoolJsonInfo {
   readonly withdrawQueue: string;
   readonly tempLpVault: string;
   // market version
-  readonly marketVersion: SerumVersion;
+  readonly marketVersion: number;
   readonly marketProgramId: string;
   // market keys
   readonly marketId: string;

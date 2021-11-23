@@ -344,11 +344,74 @@ export class Liquidity {
     });
   }
 
+  // static async getPools({
+  //   connection,
+  //   config,
+  // }: {
+  //   connection: Connection;
+  //   config: { commitment?: Commitment; uninitialized?: boolean };
+  // }) {
+  //   const { uninitialized } = {
+  //     // default
+  //     ...{
+  //       uninitialized: false,
+  //     },
+  //     // custom
+  //     ...config,
+  //   };
+
+  //   const supported = Object.keys(LIQUIDITY_VERSION_TO_STATE_LAYOUT).map((v) => {
+  //     const version = Number(v);
+  //     return {
+  //       version,
+  //       programId: this.getProgramId(version),
+  //       layout: this.getStateLayout(version),
+  //     };
+  //   });
+
+  //   let poolAccounts: {
+  //     pubkey: PublicKey;
+  //     account: AccountInfo<Buffer>;
+  //     version: number;
+  //     programId: PublicKey;
+  //   }[][] = [];
+
+  //   try {
+  //     poolAccounts = await Promise.all(
+  //       supported.map(({ programId, layout, version }) =>
+  //         connection
+  //           .getProgramAccounts(programId, {
+  //             filters: [{ dataSize: layout.span }],
+  //           })
+  //           .then((accounts) => {
+  //             return accounts.map((info) => {
+  //               return { ...info, ...{ version, programId } };
+  //             });
+  //           }),
+  //       ),
+  //     );
+  //   } catch (error) {
+  //     if (error instanceof Error) {
+  //       return logger.throwError("failed to get all liquidity pools", Logger.errors.RPC_ERROR, {
+  //         message: error.message,
+  //       });
+  //     }
+  //   }
+
+  //   const poolsInfo: Omit<LiquidityPoolKeys, "marketBaseVault" | "marketQuoteVault">[] = [];
+
+  //   // fetch liquidity pools
+  //   const accountsInfo = await getMultipleAccountsInfo(
+  //     connection,
+  //     poolAccounts.flat().map(({ pubkey }) => pubkey),
+  //   );
+  // }
+
   static async getInfo({ connection, poolKeys }: { connection: Connection; poolKeys: LiquidityPoolKeys }) {
     const { logs, err } = await getSimulateLogs(connection, [this.makeSimulatePoolInfoInstruction({ poolKeys })]);
 
     if (!logs || logs.length === 0) {
-      return logger.throwArgumentError(`get pool's info failed: ${err}`, "id", poolKeys.id.toBase58());
+      return logger.throwArgumentError(`get pool's info failed - ${err}`, "id", poolKeys.id.toBase58());
     }
 
     const log = parseSimulateLogs(logs, "GetPoolData");
