@@ -63,3 +63,5 @@ export function jsonInfo2PoolKeys<T>(jsonInfo: T): ReplaceType<T, string, Public
     return result;
   }, {});
 }
+
+export function poolKeys2JsonInfo2() {}

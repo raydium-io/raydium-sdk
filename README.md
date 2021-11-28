@@ -54,6 +54,9 @@ $ npm install @raydium-io/raydium-sdk --save
 yarn install && yarn install-peers
 ```
 
-## Yarn lifecycle Scripts
+## Reference
 
-https://yarnpkg.com/advanced/lifecycle-scripts
+- https://github.com/ethers-io/ethers.js/tree/master/packages/bignumber
+- https://github.com/pancakeswap/pancake-swap-sdk
+- https://github.com/project-serum/serum-ts
+- https://yarnpkg.com/advanced/lifecycle-scripts
