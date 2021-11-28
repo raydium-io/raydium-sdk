@@ -1,4 +1,4 @@
-import { blob, publicKey, struct, u64 } from "../marshmallow";
+import { blob, GetStructureSchema, publicKey, struct, u64 } from "../marshmallow";
 
 /* ================= state layouts ================= */
 export const MARKET_STATE_LAYOUT_V3 = struct([
@@ -39,10 +39,16 @@ export const MARKET_STATE_LAYOUT_V3 = struct([
   blob(7),
 ]);
 
+export type MarketStateLayoutV3 = typeof MARKET_STATE_LAYOUT_V3;
+export type MarketStateLayout = MarketStateLayoutV3;
+
+export type MarketStateV3 = GetStructureSchema<MarketStateLayoutV3>;
+export type MarketState = MarketStateV3;
+
 /* ================= index ================= */
 // version => market state layout
 export const MARKET_VERSION_TO_STATE_LAYOUT: {
-  [key: number]: typeof MARKET_STATE_LAYOUT_V3;
+  [key: number]: MarketStateLayout;
 } = {
   3: MARKET_STATE_LAYOUT_V3,
 };

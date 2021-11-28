@@ -56,14 +56,16 @@ export const LIQUIDITY_STATE_LAYOUT_V4 = struct([
   publicKey("pnlOwner"),
 ]);
 
-export type LiquidityStateLayoutV4 = GetStructureSchema<typeof LIQUIDITY_STATE_LAYOUT_V4>;
-
+export type LiquidityStateLayoutV4 = typeof LIQUIDITY_STATE_LAYOUT_V4;
 export type LiquidityStateLayout = LiquidityStateLayoutV4;
+
+export type LiquidityStateV4 = GetStructureSchema<LiquidityStateLayoutV4>;
+export type LiquidityState = LiquidityStateV4;
 
 /* ================= index ================= */
 // version => liquidity state layout
 export const LIQUIDITY_VERSION_TO_STATE_LAYOUT: {
-  [key: number]: typeof LIQUIDITY_STATE_LAYOUT_V4;
+  [key: number]: LiquidityStateLayout;
 } = {
   4: LIQUIDITY_STATE_LAYOUT_V4,
 };

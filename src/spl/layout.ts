@@ -10,7 +10,9 @@ export const SPL_MINT_LAYOUT = struct([
   publicKey("freezeAuthority"),
 ]);
 
-export type SplMintLayout = GetStructureSchema<typeof SPL_MINT_LAYOUT>;
+export type SplMintLayout = typeof SPL_MINT_LAYOUT;
+
+export type SplMint = GetStructureSchema<SplMintLayout>;
 
 export const SPL_ACCOUNT_LAYOUT = struct([
   publicKey("mint"),
@@ -26,4 +28,6 @@ export const SPL_ACCOUNT_LAYOUT = struct([
   publicKey("closeAuthority"),
 ]);
 
-export type SplAccountLayout = GetStructureSchema<typeof SPL_ACCOUNT_LAYOUT>;
+export type SplAccountLayout = typeof SPL_ACCOUNT_LAYOUT;
+
+export type SplAccount = GetStructureSchema<SplAccountLayout>;
