@@ -68,10 +68,13 @@ export const FARM_STATE_LAYOUT_V4 = new Proxy(
   },
 );
 
-export type FarmStateLayoutV3 = GetStructureSchema<typeof FARM_STATE_LAYOUT_V3>;
-export type FarmStateLayoutV4 = GetStructureSchema<typeof FARM_STATE_LAYOUT_V4>;
-
+export type FarmStateLayoutV3 = typeof FARM_STATE_LAYOUT_V3;
+export type FarmStateLayoutV4 = typeof FARM_STATE_LAYOUT_V4;
 export type FarmStateLayout = FarmStateLayoutV3 | FarmStateLayoutV4;
+
+export type FarmStateV3 = GetStructureSchema<FarmStateLayoutV3>;
+export type FarmStateV4 = GetStructureSchema<FarmStateLayoutV4>;
+export type FarmState = FarmStateV3 | FarmStateV4;
 
 /* ================= ledger layouts ================= */
 export const FARM_LEDGER_LAYOUT_V3 = struct([
@@ -90,17 +93,20 @@ export const FARM_LEDGER_LAYOUT_V4 = struct([
   seq(u64(), 2, "rewardDebts"),
 ]);
 
-export type FarmLedgerLayoutV3 = GetStructureSchema<typeof FARM_LEDGER_LAYOUT_V3>;
-export type FarmLedgerLayoutV4 = GetStructureSchema<typeof FARM_LEDGER_LAYOUT_V4>;
-
+export type FarmLedgerLayoutV3 = typeof FARM_LEDGER_LAYOUT_V3;
+export type FarmLedgerLayoutV4 = typeof FARM_LEDGER_LAYOUT_V4;
 export type FarmLedgerLayout = FarmLedgerLayoutV3 | FarmLedgerLayoutV4;
+
+export type FarmLedgerV3 = GetStructureSchema<FarmLedgerLayoutV3>;
+export type FarmLedgerV4 = GetStructureSchema<FarmLedgerLayoutV4>;
+export type FarmLedger = FarmLedgerV3 | FarmLedgerV4;
 
 /* ================= index ================= */
 // version => farm state layout
 export const FARM_VERSION_TO_STATE_LAYOUT: {
-  [key in FarmVersion]?: typeof FARM_STATE_LAYOUT_V3 | typeof FARM_STATE_LAYOUT_V4;
+  [key in FarmVersion]?: FarmStateLayout;
 } & {
-  [K: number]: typeof FARM_STATE_LAYOUT_V3 | typeof FARM_STATE_LAYOUT_V4;
+  [K: number]: FarmStateLayout;
 } = {
   3: FARM_STATE_LAYOUT_V3,
   5: FARM_STATE_LAYOUT_V4,
@@ -108,9 +114,9 @@ export const FARM_VERSION_TO_STATE_LAYOUT: {
 
 // version => farm ledger layout
 export const FARM_VERSION_TO_LEDGER_LAYOUT: {
-  [key in FarmVersion]?: typeof FARM_LEDGER_LAYOUT_V3 | typeof FARM_LEDGER_LAYOUT_V4;
+  [key in FarmVersion]?: FarmLedgerLayout;
 } & {
-  [K: number]: typeof FARM_LEDGER_LAYOUT_V3 | typeof FARM_LEDGER_LAYOUT_V4;
+  [K: number]: FarmLedgerLayout;
 } = {
   3: FARM_LEDGER_LAYOUT_V3,
   5: FARM_LEDGER_LAYOUT_V4,

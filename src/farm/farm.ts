@@ -6,10 +6,10 @@ import {
 } from "../common";
 import { BigNumberIsh, parseBigNumberIsh } from "../entity";
 import { struct, u64, u8 } from "../marshmallow";
-import { SPL_ACCOUNT_LAYOUT, SplAccountLayout } from "../spl";
+import { SPL_ACCOUNT_LAYOUT, SplAccount } from "../spl";
 import { FARM_PROGRAMID_TO_VERSION, FARM_VERSION_TO_PROGRAMID } from "./id";
 import {
-  FARM_VERSION_TO_LEDGER_LAYOUT, FARM_VERSION_TO_STATE_LAYOUT, FarmLedgerLayout, FarmStateLayout,
+  FARM_VERSION_TO_LEDGER_LAYOUT, FARM_VERSION_TO_STATE_LAYOUT, FarmLedger, FarmState,
 } from "./layout";
 import { FarmPoolJsonInfo } from "./type";
 
@@ -436,9 +436,9 @@ export class Farm {
 
     const poolsInfo: {
       [key: string]: {
-        state: FarmStateLayout;
-        lpVault: SplAccountLayout;
-        ledger?: FarmLedgerLayout;
+        state: FarmState;
+        lpVault: SplAccount;
+        ledger?: FarmLedger;
       };
     } = {};
 
