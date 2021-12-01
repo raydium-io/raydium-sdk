@@ -10,8 +10,14 @@ describe("Test CurrencyAmount", () => {
   it("should works when pass UI amount", () => {
     expect(new CurrencyAmount(sol, 1, false).toFixed()).toBe("1.000000000");
     expect(new CurrencyAmount(sol, "1", false).toFixed()).toBe("1.000000000");
+
     expect(new CurrencyAmount(sol, 1.1, false).toFixed()).toBe("1.100000000");
     expect(new CurrencyAmount(sol, "1.1", false).toFixed()).toBe("1.100000000");
+
+    expect(new CurrencyAmount(sol, 1.37786, false).toFixed()).toBe("1.377860000");
+    expect(new CurrencyAmount(sol, "1.37786", false).toFixed()).toBe("1.377860000");
+
+    expect(new CurrencyAmount(sol, 1.377865961, false).toFixed()).toBe("1.377865961");
     expect(new CurrencyAmount(sol, "1.377865961", false).toFixed()).toBe("1.377865961");
   });
 });
