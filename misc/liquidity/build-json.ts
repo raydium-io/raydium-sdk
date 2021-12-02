@@ -3,7 +3,7 @@ import consola from "consola";
 import dotenv from "dotenv";
 
 import { Connection } from "@solana/web3.js";
-import { poolKeys2JsonInfo2 } from "../../src/common";
+import { poolKeys2JsonInfo } from "../../src/common";
 import {
   Liquidity, LiquidityPoolJsonInfo, MAINNET_OFFICIAL_LIQUIDITY_POOLS,
 } from "../../src/liquidity";
@@ -25,9 +25,9 @@ async function buildLiquidityPools(connection: Connection) {
 
   for (const poolKeys of poolsKeys) {
     if (MAINNET_OFFICIAL_LIQUIDITY_POOLS.includes(poolKeys.id.toBase58())) {
-      official.push(poolKeys2JsonInfo2(poolKeys));
+      official.push(poolKeys2JsonInfo(poolKeys));
     } else {
-      unOfficial.push(poolKeys2JsonInfo2(poolKeys));
+      unOfficial.push(poolKeys2JsonInfo(poolKeys));
     }
   }
 

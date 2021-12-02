@@ -1,5 +1,25 @@
 # Changelog
 
+### 1.0.1-beta.6 (2021-12-02)
+
+- Change
+  - fix typo
+
+### 1.0.1-beta.5 (2021-12-02)
+
+- Add
+  - `poolKeys2JsonInfo` (convert poolKeys to JsonInfo)
+- Change
+  - fix `CurrencyAmount`
+  - Update dependencies
+
+### 1.0.1-beta.4 (2021-11-29)
+
+- Add
+  - `getOutputAmount` static function for `Liquidity`
+- Change
+  - return variable names of `Liquidity.getInfo`: `baseBalance` -> `baseReserve`, `quoteBalance` -> `quoteReserve`
+
 ### 1.0.1-beta.3 (2021-11-28)
 
 - Add

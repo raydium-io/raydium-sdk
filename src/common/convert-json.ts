@@ -60,7 +60,7 @@ export function jsonInfo2PoolKeys<T>(jsonInfo: T): ReplaceType<T, string, Public
   }, {});
 }
 
-export function poolKeys2JsonInfo2<T>(jsonInfo: T): ReplaceType<T, PublicKey, string> {
+export function poolKeys2JsonInfo<T>(jsonInfo: T): ReplaceType<T, PublicKey, string> {
   // @ts-expect-error no need type for inner code
   return Object.entries(jsonInfo).reduce((result, [key, value]) => {
     if (value instanceof PublicKey) {
