@@ -18,6 +18,7 @@
 - Add
   - `getOutputAmount` static function for `Liquidity`
 - Change
+  - rename and change the types of `MAINNET_LIQUIDITY_POOLS`, `TESTNET_LIQUIDITY_POOLS`, `DEVNET_LIQUIDITY_POOLS`
   - return variable names of `Liquidity.getInfo`: `baseBalance` -> `baseReserve`, `quoteBalance` -> `quoteReserve`
 
 ### 1.0.1-beta.3 (2021-11-28)
