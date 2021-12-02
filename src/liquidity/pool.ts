@@ -1,285 +1,255 @@
-import { MAINNET_LP_TOKENS } from "../token";
-import { LiquidityPoolBaseInfo } from "./type";
-
-export const MAINNET_LIQUIDITY_POOLS: LiquidityPoolBaseInfo[] = [
-  {
-    id: "2dRNngAm729NzLbb1pzgHtfHvPqR4XHFmFyYK78EfEeX",
-    lp: MAINNET_LP_TOKENS.FIDA_RAY_V4,
-  },
-  {
-    id: "B5ZguAWAGC3GXVtJZVfoMtzvEvDnDKBPCevsUKMy4DTZ",
-    lp: MAINNET_LP_TOKENS.OXY_RAY_V4,
-  },
-  {
-    id: "5VyLSjUvaRxsubirbvbfJMbrKZRx1b7JZzuCAfyqgimf",
-    lp: MAINNET_LP_TOKENS.MAPS_RAY_V4,
-  },
-  {
-    id: "6kmMMacvoCKBkBrqssLEdFuEZu2wqtLdNQxh9VjtzfwT",
-    lp: MAINNET_LP_TOKENS.KIN_RAY_V4,
-  },
-  {
-    id: "DVa7Qmb5ct9RCpaU7UTpSaf3GVMYz17vNVU67XpdCRut",
-    lp: MAINNET_LP_TOKENS.RAY_USDT_V4,
-  },
-  {
-    id: "58oQChx4yWmvKdwLLZzBi4ChoCc2fqCUWBkwMihLYQo2",
-    lp: MAINNET_LP_TOKENS.SOL_USDC_V4,
-  },
-  {
-    id: "83xxjVczDseaCzd7D61BRo7LcP7cMXut5n7thhB4rL4d",
-    lp: MAINNET_LP_TOKENS.YFI_USDC_V4,
-  },
-  {
-    id: "8tzS7SkUZyHPQY7gLqsMCXZ5EDCgjESUHcB17tiR1h3Z",
-    lp: MAINNET_LP_TOKENS.SRM_USDC_V4,
-  },
-  {
-    id: "4C2Mz1bVqe42QDDTyJ4HFCFFGsH5YDzo91Cen5w5NGun",
-    lp: MAINNET_LP_TOKENS.FTT_USDC_V4,
-  },
-  {
-    id: "6kbC5epG18DF2DwPEW34tBy5pGFS7pEGALR3v5MGxgc5",
-    lp: MAINNET_LP_TOKENS.BTC_USDC_V4,
-  },
-  {
-    id: "5dHEPTgvscKkAc54R77xUeGdgShdG9Mf6gJ9bwBqyb3V",
-    lp: MAINNET_LP_TOKENS.SUSHI_USDC_V4,
-  },
-  {
-    id: "8mBJC9qdPNDyrpAbrdwGbBpEAjPqwtvZQVmbnKFXXY2P",
-    lp: MAINNET_LP_TOKENS.TOMO_USDC_V4,
-  },
-  {
-    id: "Hr8i6MAm4W5Lwb2fB2CD44A2t3Ag3gGc1rmd6amrWsWC",
-    lp: MAINNET_LP_TOKENS.LINK_USDC_V4,
-  },
-  {
-    id: "AoPebtuJC4f2RweZSxcVCcdeTgaEXY64Uho8b5HdPxAR",
-    lp: MAINNET_LP_TOKENS.ETH_USDC_V4,
-  },
-  {
-    id: "3mYsmBQLB8EZSjRwtWjPbbE8LiM1oCCtNZZKiVBKsePa",
-    lp: MAINNET_LP_TOKENS.xCOPE_USDC_V4,
-  },
-  {
-    id: "7XawhbbxtsRcQA8KTkHT9f9nc6d69UwqCDh6U5EEbEmX",
-    lp: MAINNET_LP_TOKENS.SOL_USDT_V4,
-  },
-  {
-    id: "81PmLJ8j2P8CC5EJAAhWGYA4HgJvoKs4Y94ALZF2uKKG",
-    lp: MAINNET_LP_TOKENS.YFI_USDT_V4,
-  },
-  {
-    id: "af8HJg2ffWoKJ6vKvkWJUJ9iWbRR83WgXs8HPs26WGr",
-    lp: MAINNET_LP_TOKENS.SRM_USDT_V4,
-  },
-  {
-    id: "4fgubfZVL6L8tc5x1j65S14P2Tnxr1YayKtKavQV5MBo",
-    lp: MAINNET_LP_TOKENS.FTT_USDT_V4,
-  },
-  {
-    id: "AMMwkf57c7ZsbbDCXvBit9zFehMr1xRn8ZzaT1iDF18o",
-    lp: MAINNET_LP_TOKENS.BTC_USDT_V4,
-  },
-  {
-    id: "DWvhPYVogsEKEsehHApUtjhP1UFtApkAPFJqFh2HPmWz",
-    lp: MAINNET_LP_TOKENS.SUSHI_USDT_V4,
-  },
-  {
-    id: "GjrXcSvwzGrz1RwKYGVWdbZyXzyotgichSHB95moDmf8",
-    lp: MAINNET_LP_TOKENS.TOMO_USDT_V4,
-  },
-  {
-    id: "E9EvurfzdSQaqCFBUaD4MgV93htuRQ93sghm922Pik88",
-    lp: MAINNET_LP_TOKENS.LINK_USDT_V4,
-  },
-  {
-    id: "He3iAEV5rYjv6Xf7PxKro19eVrC3QAcdic5CF2D2obPt",
-    lp: MAINNET_LP_TOKENS.ETH_USDT_V4,
-  },
-  {
-    id: "GDVhJmDTdSExwHeMT5RvUBUNKLwwXNKhH8ndm1tpTv6B",
-    lp: MAINNET_LP_TOKENS.YFI_SRM_V4,
-  },
-  {
-    id: "21r2zeCacmm5YvbGoPZh9ZoGREuodhcbQHaP5tZmzY14",
-    lp: MAINNET_LP_TOKENS.FTT_SRM_V4,
-  },
-  {
-    id: "DvxLb4NnQUYq1gErk35HVt9g8kxjNbviJfiZX1wqraMv",
-    lp: MAINNET_LP_TOKENS.BTC_SRM_V4,
-  },
-  {
-    id: "BLVjPTgzyfiKSgDujTNKKNzW2GXx7HhdMxgr2LQ2g83s",
-    lp: MAINNET_LP_TOKENS.SUSHI_SRM_V4,
-  },
-  {
-    id: "DkMAuUCQHC6BNgVnjtM5ZTKm1T8MsriQ6bL3Umi6NBtG",
-    lp: MAINNET_LP_TOKENS.TOMO_SRM_V4,
-  },
-  {
-    id: "796pvggjoDCPUtUSVFSCLqPRyes5YPvRiu4zFWX582wf",
-    lp: MAINNET_LP_TOKENS.LINK_SRM_V4,
-  },
-  {
-    id: "3XwxHcbyqcd1xkdczaPv3TNCZsevELD4Zux3pu4sF2D8",
-    lp: MAINNET_LP_TOKENS.ETH_SRM_V4,
-  },
-  {
-    id: "EvWJC2mnmu9C9aQrsJLXw8FhUcwBzFEUQsP1E5Y6a5N7",
-    lp: MAINNET_LP_TOKENS.SRM_SOL_V4,
-  },
-  {
-    id: "4Sx1NLrQiK4b9FdLKe2DhQ9FHvRzJhzKN3LoD6BrEPnf",
-    lp: MAINNET_LP_TOKENS.STEP_USDC_V4,
-  },
-  {
-    id: "94CQopiGxxUXf2avyMZhAFaBdNatd62ttYGoTVQBRGdi",
-    lp: MAINNET_LP_TOKENS.MEDIA_USDC_V4,
-  },
-  {
-    id: "BuS4ScFcZjEBixF1ceCTiXs4rqt4WDfXLoth7VcM2Eoj",
-    lp: MAINNET_LP_TOKENS.ROPE_USDC_V4,
-  },
-  {
-    id: "BkfGDk676QFtTiGxn7TtEpHayJZRr6LgNk9uTV2MH4bR",
-    lp: MAINNET_LP_TOKENS.MER_USDC_V4,
-  },
-  {
-    id: "DiWxV1SPXPNJRCt5Ao1mJRAxjw97hJVyj8qGzZwFbAFb",
-    lp: MAINNET_LP_TOKENS.COPE_USDC_V4,
-  },
-  {
-    id: "GDHXjn9wF2zxW35DBkCegWQdoTfFBC9LXt7D5ovJxQ5B",
-    lp: MAINNET_LP_TOKENS.ALEPH_USDC_V4,
-  },
-  {
-    id: "96hPvuJ3SRT82m7BAc7G1AUVPVcoj8DABAa5gT7wjgzX",
-    lp: MAINNET_LP_TOKENS.TULIP_USDC_V4,
-  },
-  {
-    id: "DSkXJYPZqJ3yHQECyVyh3xiE3HBrt7ARmepwNDA9rREn",
-    lp: MAINNET_LP_TOKENS.WOO_USDC_V4,
-  },
-  {
-    id: "5TgJXpv6H3KJhHCuP7KoDLSCmi8sM8nABizP7CmYAKm1",
-    lp: MAINNET_LP_TOKENS.SNY_USDC_V4,
-  },
-  {
-    id: "SJmR8rJgzzCi4sPjGnrNsqY4akQb3jn5nsxZBhyEifC",
-    lp: MAINNET_LP_TOKENS.BOP_RAY_V4,
-  },
-  {
-    id: "7XXKU8oGDbeGrkPyK5yHKzdsrMJtB7J2TMugjbrXEhB5",
-    lp: MAINNET_LP_TOKENS.SLRS_USDC_V4,
-  },
-  {
-    id: "EyDgEU9BdG7m6ZK4bYERxbN4NCJ129WzPtv23dBkfsLg",
-    lp: MAINNET_LP_TOKENS.SAMO_RAY_V4,
-  },
-  {
-    id: "61JtCkTQKSeBU8ztEScByZiBhS6KAHSXfQduVyA4s1h7",
-    lp: MAINNET_LP_TOKENS.renBTC_USDC_V4,
-  },
-  {
-    id: "34oD4akb2DeNcCw1smKHPsD3iqQQQWmNy3cY81nz7HP8",
-    lp: MAINNET_LP_TOKENS.renDOGE_USDC_V4,
-  },
-  {
-    id: "6UmmUiYoBjSrhakAobJw8BvkmJtDVxaeBtbt7rxWo1mg",
-    lp: MAINNET_LP_TOKENS.RAY_USDC_V4,
-  },
-  {
-    id: "GaqgfieVmnmY4ZsZHHA6L5RSVzCGL3sKx4UgHBaYNy8m",
-    lp: MAINNET_LP_TOKENS.RAY_SRM_V4,
-  },
-  {
-    id: "8iQFhWyceGREsWnLM8NkG9GC8DvZunGZyMzuyUScgkMK",
-    lp: MAINNET_LP_TOKENS.RAY_ETH_V4,
-  },
-  {
-    id: "AVs9TA4nWDzfPJE9gGVNJMVhcQy3V9PGazuz33BfG2RA",
-    lp: MAINNET_LP_TOKENS.RAY_SOL_V4,
-  },
-  {
-    id: "asdEJnE7osjgnSyQkSZJ3e5YezbmXuDQPiyeyiBxoUm",
-    lp: MAINNET_LP_TOKENS.DXL_USDC_V4,
-  },
-  {
-    id: "GmaDNMWsTYWjaXVBjJTHNmCWAKU6cn5hhtWWYEZt4odo",
-    lp: MAINNET_LP_TOKENS.LIKE_USDC_V4,
-  },
-  {
-    id: "ZfvDXXUhZDzDVsapffUyXHj9ByCoPjP4thL6YXcZ9ix",
-    lp: MAINNET_LP_TOKENS.mSOL_USDC_V4,
-  },
-  {
-    id: "EGyhb2uLAsRUbRx9dNFBjMVYnFaASWMvD6RE1aEf2LxL",
-    lp: MAINNET_LP_TOKENS.mSOL_SOL_V4,
-  },
-  {
-    id: "6GUF8Qb5FWmifzYpRdKomFNbSQAsLShhT45GbTGg34VJ",
-    lp: MAINNET_LP_TOKENS.MER_PAI_V4,
-  },
-  {
-    id: "6nJes56KF999Q8VtQTrgWEHJGAfGMuJktGb8x2uWff2u",
-    lp: MAINNET_LP_TOKENS.PORT_USDC_V4,
-  },
-  {
-    id: "34tFULRrRwh4bMcBLPtJaNqqe5pVgGZACi5sR8Xz95KC",
-    lp: MAINNET_LP_TOKENS.MNGO_USDC_V4,
-  },
-  {
-    id: "8Fr3wxZXLtiSozqms5nF4XXGHNSNqcMC6K6MvRqEfk4a",
-    lp: MAINNET_LP_TOKENS.ALEPH_RAY_V4,
-  },
-  {
-    id: "Dm1Q15216uRARmQTbo6VfnyEGVzRvLTm4TfCWWX4MF3F",
-    lp: MAINNET_LP_TOKENS.TULIP_RAY_V4,
-  },
-  {
-    id: "J3CoGcJqHquUdSgS7qAwdGbp3so4EpLX8eVDdGuauvi",
-    lp: MAINNET_LP_TOKENS.SLRS_RAY_V4,
-  },
-  {
-    id: "BKLCqnuk4qc5iHWuJuewMxuvsNZXuTBSUyRT5ftnRb6H",
-    lp: MAINNET_LP_TOKENS.MER_RAY_V4,
-  },
-  {
-    id: "5ZPBHzMr19iQjBaDgFDYGAx2bxaQ3TzWmSS7zAGrHtQJ",
-    lp: MAINNET_LP_TOKENS.MEDIA_RAY_V4,
-  },
-  {
-    id: "Am9FpX73ctZ3HzohcRdyCCv84iT7nugevqLjY5yTSUQP",
-    lp: MAINNET_LP_TOKENS.SNY_RAY_V4,
-  },
-  {
-    id: "DGSnfcE1kw4uDC6jgrsZ3s5CMfsWKN7JNjDNasHdvKfq",
-    lp: MAINNET_LP_TOKENS.LIKE_RAY_V4,
-  },
-  {
-    id: "8hvVAhShYLPThcxrxwMNAWmgRCSjtxygj11EGHp2WHz8",
-    lp: MAINNET_LP_TOKENS.COPE_RAY_V4,
-  },
-  {
-    id: "2bnZ1edbvK3CK3LTNZ5jH9anvXYCmzPR4W2HQ6Ngsv5K",
-    lp: MAINNET_LP_TOKENS.ATLAS_USDC_V4,
-  },
-  {
-    id: "9xyCzsHi1wUWva7t5Z8eAvZDRmUCVhRrbaFfm3VbU4Mf",
-    lp: MAINNET_LP_TOKENS.POLIS_USDC_V4,
-  },
-  {
-    id: "F73euqPynBwrgcZn3fNSEneSnYasDQohPM5aZazW9hp2",
-    lp: MAINNET_LP_TOKENS.ATLAS_RAY_V4,
-  },
-  {
-    id: "5tho4By9RsqTF1rbm9Akiepik3kZBT7ffUzGg8bL1mD",
-    lp: MAINNET_LP_TOKENS.POLIS_RAY_V4,
-  },
+export const MAINNET_OFFICIAL_LIQUIDITY_POOLS = [
+  /* ================= v4 ================= */
+  // FIDA-RAY
+  "2dRNngAm729NzLbb1pzgHtfHvPqR4XHFmFyYK78EfEeX",
+  // OXY-RAY
+  "B5ZguAWAGC3GXVtJZVfoMtzvEvDnDKBPCevsUKMy4DTZ",
+  // MAPS-RAY
+  "5VyLSjUvaRxsubirbvbfJMbrKZRx1b7JZzuCAfyqgimf",
+  // KIN-RAY
+  "6kmMMacvoCKBkBrqssLEdFuEZu2wqtLdNQxh9VjtzfwT",
+  // RAY-USDT
+  "DVa7Qmb5ct9RCpaU7UTpSaf3GVMYz17vNVU67XpdCRut",
+  // SOL-USDC
+  "58oQChx4yWmvKdwLLZzBi4ChoCc2fqCUWBkwMihLYQo2",
+  // YFI-USDC
+  "83xxjVczDseaCzd7D61BRo7LcP7cMXut5n7thhB4rL4d",
+  // SRM-USDC
+  "8tzS7SkUZyHPQY7gLqsMCXZ5EDCgjESUHcB17tiR1h3Z",
+  // FTT-USDC
+  "4C2Mz1bVqe42QDDTyJ4HFCFFGsH5YDzo91Cen5w5NGun",
+  // BTC-USDC
+  "6kbC5epG18DF2DwPEW34tBy5pGFS7pEGALR3v5MGxgc5",
+  // SUSHI-USDC
+  "5dHEPTgvscKkAc54R77xUeGdgShdG9Mf6gJ9bwBqyb3V",
+  // TOMO-USDC
+  "8mBJC9qdPNDyrpAbrdwGbBpEAjPqwtvZQVmbnKFXXY2P",
+  // LINK-USDC
+  "Hr8i6MAm4W5Lwb2fB2CD44A2t3Ag3gGc1rmd6amrWsWC",
+  // ETH-USDC
+  "AoPebtuJC4f2RweZSxcVCcdeTgaEXY64Uho8b5HdPxAR",
+  // xCOPE-USDC
+  "3mYsmBQLB8EZSjRwtWjPbbE8LiM1oCCtNZZKiVBKsePa",
+  // SOL-USDT
+  "7XawhbbxtsRcQA8KTkHT9f9nc6d69UwqCDh6U5EEbEmX",
+  // YFI-USDT
+  "81PmLJ8j2P8CC5EJAAhWGYA4HgJvoKs4Y94ALZF2uKKG",
+  // SRM-USDT
+  "af8HJg2ffWoKJ6vKvkWJUJ9iWbRR83WgXs8HPs26WGr",
+  // FTT-USDT
+  "4fgubfZVL6L8tc5x1j65S14P2Tnxr1YayKtKavQV5MBo",
+  // BTC-USDT
+  "AMMwkf57c7ZsbbDCXvBit9zFehMr1xRn8ZzaT1iDF18o",
+  // SUSHI-USDT
+  "DWvhPYVogsEKEsehHApUtjhP1UFtApkAPFJqFh2HPmWz",
+  // TOMO-USDT
+  "GjrXcSvwzGrz1RwKYGVWdbZyXzyotgichSHB95moDmf8",
+  // LINK-USDT
+  "E9EvurfzdSQaqCFBUaD4MgV93htuRQ93sghm922Pik88",
+  // ETH-USDT
+  "He3iAEV5rYjv6Xf7PxKro19eVrC3QAcdic5CF2D2obPt",
+  // YFI-SRM
+  "GDVhJmDTdSExwHeMT5RvUBUNKLwwXNKhH8ndm1tpTv6B",
+  // FTT-SRM
+  "21r2zeCacmm5YvbGoPZh9ZoGREuodhcbQHaP5tZmzY14",
+  // BTC-SRM
+  "DvxLb4NnQUYq1gErk35HVt9g8kxjNbviJfiZX1wqraMv",
+  // SUSHI-SRM
+  "BLVjPTgzyfiKSgDujTNKKNzW2GXx7HhdMxgr2LQ2g83s",
+  // TOMO-SRM
+  "DkMAuUCQHC6BNgVnjtM5ZTKm1T8MsriQ6bL3Umi6NBtG",
+  // LINK-SRM
+  "796pvggjoDCPUtUSVFSCLqPRyes5YPvRiu4zFWX582wf",
+  // ETH-SRM
+  "3XwxHcbyqcd1xkdczaPv3TNCZsevELD4Zux3pu4sF2D8",
+  // SRM-SOL
+  "EvWJC2mnmu9C9aQrsJLXw8FhUcwBzFEUQsP1E5Y6a5N7",
+  // STEP-USDC
+  "4Sx1NLrQiK4b9FdLKe2DhQ9FHvRzJhzKN3LoD6BrEPnf",
+  // MEDIA-USDC
+  "94CQopiGxxUXf2avyMZhAFaBdNatd62ttYGoTVQBRGdi",
+  // ROPE-USDC
+  "BuS4ScFcZjEBixF1ceCTiXs4rqt4WDfXLoth7VcM2Eoj",
+  // MER-USDC
+  "BkfGDk676QFtTiGxn7TtEpHayJZRr6LgNk9uTV2MH4bR",
+  // COPE-USDC
+  "DiWxV1SPXPNJRCt5Ao1mJRAxjw97hJVyj8qGzZwFbAFb",
+  // ALEPH-USDC
+  "GDHXjn9wF2zxW35DBkCegWQdoTfFBC9LXt7D5ovJxQ5B",
+  // TULIP-USDC
+  "96hPvuJ3SRT82m7BAc7G1AUVPVcoj8DABAa5gT7wjgzX",
+  // WOO-USDC
+  "DSkXJYPZqJ3yHQECyVyh3xiE3HBrt7ARmepwNDA9rREn",
+  // SNY-USDC
+  "5TgJXpv6H3KJhHCuP7KoDLSCmi8sM8nABizP7CmYAKm1",
+  // BOP-RAY
+  "SJmR8rJgzzCi4sPjGnrNsqY4akQb3jn5nsxZBhyEifC",
+  // SLRS-USDC
+  "7XXKU8oGDbeGrkPyK5yHKzdsrMJtB7J2TMugjbrXEhB5",
+  // SAMO-RAY
+  "EyDgEU9BdG7m6ZK4bYERxbN4NCJ129WzPtv23dBkfsLg",
+  // renBTC-USDC
+  "61JtCkTQKSeBU8ztEScByZiBhS6KAHSXfQduVyA4s1h7",
+  // renDOGE-USDC
+  "34oD4akb2DeNcCw1smKHPsD3iqQQQWmNy3cY81nz7HP8",
+  // RAY-USDC
+  "6UmmUiYoBjSrhakAobJw8BvkmJtDVxaeBtbt7rxWo1mg",
+  // RAY-SRM
+  "GaqgfieVmnmY4ZsZHHA6L5RSVzCGL3sKx4UgHBaYNy8m",
+  // RAY-ETH
+  "8iQFhWyceGREsWnLM8NkG9GC8DvZunGZyMzuyUScgkMK",
+  // RAY-SOL
+  "AVs9TA4nWDzfPJE9gGVNJMVhcQy3V9PGazuz33BfG2RA",
+  // DXL-USDC
+  "asdEJnE7osjgnSyQkSZJ3e5YezbmXuDQPiyeyiBxoUm",
+  // LIKE-USDC
+  "GmaDNMWsTYWjaXVBjJTHNmCWAKU6cn5hhtWWYEZt4odo",
+  // mSOL-USDC
+  "ZfvDXXUhZDzDVsapffUyXHj9ByCoPjP4thL6YXcZ9ix",
+  // mSOL-SOL
+  "EGyhb2uLAsRUbRx9dNFBjMVYnFaASWMvD6RE1aEf2LxL",
+  // MER-PAI
+  "6GUF8Qb5FWmifzYpRdKomFNbSQAsLShhT45GbTGg34VJ",
+  // PORT-USDC
+  "6nJes56KF999Q8VtQTrgWEHJGAfGMuJktGb8x2uWff2u",
+  // MNGO-USDC
+  "34tFULRrRwh4bMcBLPtJaNqqe5pVgGZACi5sR8Xz95KC",
+  // ATLAS-USDC
+  "2bnZ1edbvK3CK3LTNZ5jH9anvXYCmzPR4W2HQ6Ngsv5K",
+  // POLIS-USDC
+  "9xyCzsHi1wUWva7t5Z8eAvZDRmUCVhRrbaFfm3VbU4Mf",
+  // ATLAS-RAY
+  "F73euqPynBwrgcZn3fNSEneSnYasDQohPM5aZazW9hp2",
+  // POLIS-RAY
+  "5tho4By9RsqTF1rbm9Akiepik3kZBT7ffUzGg8bL1mD",
+  // ALEPH-RAY
+  "8Fr3wxZXLtiSozqms5nF4XXGHNSNqcMC6K6MvRqEfk4a",
+  // TULIP-RAY
+  "Dm1Q15216uRARmQTbo6VfnyEGVzRvLTm4TfCWWX4MF3F",
+  // SLRS-RAY
+  "J3CoGcJqHquUdSgS7qAwdGbp3so4EpLX8eVDdGuauvi",
+  // MER-RAY
+  "BKLCqnuk4qc5iHWuJuewMxuvsNZXuTBSUyRT5ftnRb6H",
+  // MEDIA-RAY
+  "5ZPBHzMr19iQjBaDgFDYGAx2bxaQ3TzWmSS7zAGrHtQJ",
+  // SNY-RAY
+  "Am9FpX73ctZ3HzohcRdyCCv84iT7nugevqLjY5yTSUQP",
+  // LIKE-RAY
+  "DGSnfcE1kw4uDC6jgrsZ3s5CMfsWKN7JNjDNasHdvKfq",
+  // COPE-RAY
+  "8hvVAhShYLPThcxrxwMNAWmgRCSjtxygj11EGHp2WHz8",
+  // ETH-SOL
+  "9Hm8QX7ZhE9uB8L2arChmmagZZBtBmnzBbpfxzkQp85D",
+  // stSOL-USDC
+  "6a1CsrpeZubDjEJE9s1CMVheB6HWM5d7m1cj2jkhyXhj",
+  // GRAPE-USDC
+  "vVXfY15WdPsCmLvbiP4hWWECPFeAvPTuPNq3Q4BXfhy",
+  // LARIX-USDC
+  "A21ui9aYTSs3CbkscaY6irEMQx3Z59dLrRuZQTt2hJwQ",
+  // RIN-USDC
+  "7qZJTK5NatxQJRTxZvHi3gRu4cZZsKr8ZPzs7BA5JMTC",
+  // APEX-USDC
+  "43UHp4TuwQ7BYsaULN1qfpktmg7GWs9GpR8TDb8ovu9c",
+  // mSOL-RAY
+  "6gpZ9JkLoYvpA5cwdyPZFsDw6tkbPyyXM5FqRqHxMCny",
+  // MNDE-mSOL
+  "2kPA9XUuHUifcCYTnjSuN7ZrC3ma8EKPrtzUhC86zj3m",
+  // LARIX-RAY
+  "EBqQdu9rGe6j3WGJQSyTvDjUMWcRd6uLcxSS4TbFT31t",
+  // LIQ-USDC
+  "33dWwj33J3NUzoTmkMAUq1VdXZL89qezxkdaHdN88vK2",
+  // WAG-USDC
+  "FEFzBbbEK8yDigqyJPgJKMR5X1xZARC25QTCskvudjuK",
+  // ETH-mSOL
+  "Ghj3v2qYbSp6XqmH4NV4KRu4Rrgqoh2Ra7L9jEdsbNzF",
+  // mSOL-USDT
+  "BhuMVCzwFVZMSuc1kBbdcAnXwFg9p4HJp7A9ddwYjsaF",
+  // BTC-mSOL
+  "ynV2H2b7FcRBho2TvE25Zc4gDeuu2N45rUw9DuJYjJ9",
+  // SLIM-SOL
+  "8idN93ZBpdtMp4672aS4GGMDy7LdVWCCXH7FKFdMw9P4",
+  // AURY-USDC
+  "Ek8uoHjADzbNk2yr2HysybwFk1h2j9XXDsWAjAJN38n1",
+  // PRT-SOL
+  "7rVAbPFzqaBmydukTDFAuBiuyBrTVhpa5LpfDRrjX9mr",
+  // LIQ-RAY
+  "HuMDhYhW1BmBjXoJZBdjqaqoD3ehQeCUMbDSiZsaXSDU",
+  // SYP-SOL
+  "D95EzH4ZsGLikvYzp7kmz1RM1xNMo1MXXiXaedQesA2m",
+  // SYP-RAY
+  "3hhSfFhbk7Kd8XrRYKCcGAyUVYRaW9MLhcqAaU9kx6SA",
+  // SYP-USDC
+  "2Tv6eMih3iqxHrLAWn372Nba4A8FT8AxFSbowBmmTuAd",
+  // FAB-USDC
+  "7eM9KWYiJmNfDfeztMoEZE1KPyWD54LRxM9GmRY9ske6",
+  // WOOF-RAY
+  "3HYhQC6ne6SAPVT5sPTKawRUxv9ZpYyLuk1ifrw8baov",
+  // WOOF-USDC
+  "EZRHhpvAP4zEX1wZtTQcf6NP4FLWjs9c6tMRBqfrXgFD",
+  // SLND-USDC
+  "GRM4jGMtx64sEocBFz6ZgdogF2fyTWiixht8thZoHjkK",
+  // FRKT-SOL
+  "H3dhkXcC5MRN7VRXNbWVSvogH8mUQPzpn8PYQL7HfBVg",
+  // whETH-SOL
+  "4yrHms7ekgTBgJg77zJ33TsWrraqHsCXDtuSZqUsuGHb",
+  // whETH-USDC
+  "EoNrn8iUhwgJySD1pHu8Qxm5gSQqLK3za4m8xzD2RuEb",
+  // weUNI-USDC
+  "8J5fa8WBGaDSv8AUpgtqdh9HM5AZuSf2ijvSkKoaCXCi",
+  // weSUSHI-USDC
+  "9SWy6nbSVZ44XuixEvHpona663pZPpVgzXQ3N7muG4ou",
+  // CYS-USDC
+  "661trVCzDWp114gy4PEK4etbjb3u3RNaP4aENa5uN8Vp",
+  // SAMO-USDC
+  "7oYaghDwJ6ZbZwzdzcPqQtW6r4cojSLJDKB6U7tqAK1x",
+  // ABR-USDC
+  "GQJjrG6f8HbxkE3ZVSRpzoyWhQ2RiivT68BybVK9DxME",
+  // IN-USDC
+  "5DECiJuqwmeCptoBEpyJtXKrVfiUrG9nBbBGkxGkPYyF",
+  // weDYDX-USDC
+  "CbGQojcizFEHn3woL7NPu3P9BLL1SWz5a8zkL9gks24q",
+  // STARS-USDC
+  "CWQVga1qUbpZXjrWQRj6U6tmL3HhrFiAT11VYnB8d3CF",
+  // weAXS-USDC
+  "HopVRTvFvRe1ED3dRCQrt1h5onkMvY3tKUHRVQMc7MMH",
+  // weSHIB-USDC
+  "SU7vPveBjEuR5tgQwidRqqTxn1WwraHpydHHBpM2W96",
+  // SBR-USDC
+  "5cmAS6Mj4pG2Vp9hhyu3kpK9yvC7P6ejh9HiobpTE6Jc",
+  // OXS-USDC
+  "8ekXiGjEjtWzd2us3rAsusKv7kKEhPENV7nvzS7RGRYY",
+  // CWAR-USDC
+  "13uCPybNakXHGVd2DDVB7o2uwXuf9GqPFkvJMVgKy6UJ",
+  // UPS-USDC
+  "FSSRqrGrDjDXnojhSDrDBknJeQ83pyACemnaMLaZDD1U",
+  // weSAND-USDC
+  "3cmPpX8kKzEra2umtLCDxMfjma82ELtAMaSYVmdaNLxi",
+  // weMANA-USDC
+  "7Z1c6GHutf3q2MNheyFE8KMNVEALuiPaqoEMyjbCbuku",
+  // CAVE-USDC
+  "2PfKnjEfoUoVDbDS1YwvZ8HuPGBCpN831mnTuqTAJZjH",
+  // GENE-USDC
+  "Enq8vJucRbkzKA1i1PahJNhMyUTzoVL5Cs8n5rC3NLGn",
+  // GENE-RAY
+  "8FrCybrh7UFznP1hVHg8kXZ8bhii37c7BGzmjkdcsGJp",
+  // APT-USDC
+  "4crhN3D8R5rnZd66q9b32P7K649e5XdzCfPMPiTzBceH",
+  // GOFX-USDC
+  "zoouer92idprkptX76yvhp4stK2keTzJpMNkeLqtxAx",
+  // SONAR-USDC
+  "CrWbfKwyAaUfYctXWF9iaDUP4AH5t6k6bbaWnXBL8nHm",
+  // JSOL-SOL
+  "D8pasgJWjP9wy39fzeD8BUjQMvYCZxABzPcnuoDSLHBB",
+  // JSOL-USDC
+  "7e8GrkwsRm5sS5UaKobLJUNu9esmrzg37dqX6aQyuver",
+  // SHILL-USDC
+  "FTyJCLwQ3YvVfanJp8mtC2eqmvZPpzSpmNLqWpaPaXbC",
+  // DFL-USDC
+  "8GJdzPuEBPP3BHJpcspBcfpRZV4moZMFwhTAuXebaPL8",
+  // BOKU-USDC
+  "FsERtRjCEQNyND3ccnMGrd61ntPmJ3tbZs4vvcCzMr1L",
 ];
 
-export const TESTNET_LIQUIDITY_POOLS: LiquidityPoolBaseInfo[] = [];
+export const TESTNET_OFFICIAL_LIQUIDITY_POOLS = [];
 
-export const DEVNET_LIQUIDITY_POOLS: LiquidityPoolBaseInfo[] = [];
+export const DEVNET_OFFICIAL_LIQUIDITY_POOLS = [];

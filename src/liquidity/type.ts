@@ -42,4 +42,5 @@ export interface LiquidityPoolJsonInfo {
 
 export interface LiquidityPoolsJsonFile extends JsonFileMetaData {
   readonly official: LiquidityPoolJsonInfo[];
+  readonly unOfficial: LiquidityPoolJsonInfo[];
 }

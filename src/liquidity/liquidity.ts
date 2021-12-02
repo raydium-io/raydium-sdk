@@ -66,6 +66,9 @@ export interface SwapInstructionParamsV4 {
 
 export type SwapInstructionParams = SwapInstructionParamsV4;
 
+export const LIQUIDITY_FEES_NUMERATOR = new BN(9975);
+export const LIQUIDITY_FEES_DENOMINATOR = new BN(10000);
+
 export class Liquidity {
   /* ================= static functions ================= */
   static getProgramId(version: number) {
@@ -546,8 +549,8 @@ export class Liquidity {
     const baseDecimals = Number(getSimulateValue(log, "coin_decimals"));
     const quoteDecimals = Number(getSimulateValue(log, "pc_decimals"));
     const lpDecimals = Number(getSimulateValue(log, "lp_decimals"));
-    const baseBalance = new BN(getSimulateValue(log, "pool_coin_amount"));
-    const quoteBalance = new BN(getSimulateValue(log, "pool_pc_amount"));
+    const baseReserve = new BN(getSimulateValue(log, "pool_coin_amount"));
+    const quoteReserve = new BN(getSimulateValue(log, "pool_pc_amount"));
     const lpSupply = new BN(getSimulateValue(log, "pool_lp_supply"));
 
     // same data type with layouts
@@ -561,11 +564,27 @@ export class Liquidity {
       // u8
       lpDecimals,
       // u64
-      baseBalance,
+      baseReserve,
       // u64
-      quoteBalance,
+      quoteReserve,
       // u64
       lpSupply,
     };
   }
+
+  static getOutputAmount(inputAmount: BigNumberIsh, inputReserve: BigNumberIsh, outputReserve: BigNumberIsh) {
+    const _inputAmount = parseBigNumberIsh(inputAmount);
+    const _inputReserve = parseBigNumberIsh(inputReserve);
+    const _outputReserve = parseBigNumberIsh(outputReserve);
+
+    const inputAmountWithFee = _inputAmount.mul(LIQUIDITY_FEES_NUMERATOR);
+    const numerator = inputAmountWithFee.mul(_outputReserve);
+    const denominator = _inputReserve.mul(LIQUIDITY_FEES_DENOMINATOR).add(inputAmountWithFee);
+
+    const outputAmount = numerator.div(denominator);
+
+    return outputAmount;
+  }
+
+  // static getInputAmount() {}
 }

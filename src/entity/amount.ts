@@ -12,7 +12,7 @@ const logger = new Logger("Entity");
 const Big = toFormat(_Big);
 type Big = WrappedBig;
 
-export function splitNumber(num: string) {
+export function splitNumber(num: string, decimals: number) {
   let integral = "0";
   let fractional = "0";
 
@@ -20,6 +20,7 @@ export function splitNumber(num: string) {
     const splited = num.split(".");
     if (splited.length === 2) {
       [integral, fractional] = splited;
+      fractional = fractional.padEnd(decimals, "0");
     } else {
       return logger.throwArgumentError("invalid number string", "num", num);
     }
@@ -27,42 +28,43 @@ export function splitNumber(num: string) {
     integral = num;
   }
 
-  return [integral, fractional];
+  return [integral, fractional.substr(0, decimals)];
 }
 
 export class CurrencyAmount extends Fraction {
   public readonly currency: Currency;
 
   public constructor(currency: Currency, amount: BigNumberIsh, isRaw = true) {
-    let integralAmount = new BN(0);
-    let fractionalAmount = new BN(0);
+    let parsedAmount = new BN(0);
+    const multiplier = TEN.pow(new BN(currency.decimals));
 
-    const integralDecimals = TEN.pow(new BN(currency.decimals));
-    const fractionalDecimals = TEN.pow(new BN(currency.decimals - 1));
-
-    // parse fractional string
-    if (typeof amount === "string") {
-      const [integral, fractional] = splitNumber(amount);
-
-      integralAmount = parseBigNumberIsh(integral);
-      fractionalAmount = parseBigNumberIsh(fractional);
-    } else if (typeof amount === "number" || typeof amount === "bigint") {
-      const [integral, fractional] = splitNumber(amount.toString());
-
-      integralAmount = parseBigNumberIsh(integral);
-      fractionalAmount = parseBigNumberIsh(fractional);
+    if (isRaw) {
+      parsedAmount = parseBigNumberIsh(amount);
     } else {
-      integralAmount = parseBigNumberIsh(amount);
+      let integralAmount = new BN(0);
+      let fractionalAmount = new BN(0);
+
+      // parse fractional string
+      if (typeof amount === "string") {
+        const [integral, fractional] = splitNumber(amount, currency.decimals);
+
+        integralAmount = parseBigNumberIsh(integral);
+        fractionalAmount = parseBigNumberIsh(fractional);
+      } else if (typeof amount === "number" || typeof amount === "bigint") {
+        const [integral, fractional] = splitNumber(amount.toString(), currency.decimals);
+
+        integralAmount = parseBigNumberIsh(integral);
+        fractionalAmount = parseBigNumberIsh(fractional);
+      }
+      // else {
+      //   integralAmount = parseBigNumberIsh(amount);
+      // }
+
+      integralAmount = integralAmount.mul(multiplier);
+      parsedAmount = integralAmount.add(fractionalAmount);
     }
 
-    if (!isRaw) {
-      integralAmount = integralAmount.mul(integralDecimals);
-      fractionalAmount = fractionalAmount.mul(fractionalDecimals);
-    }
-
-    const parsedAmount = integralAmount.add(fractionalAmount);
-
-    super(parsedAmount, integralDecimals);
+    super(parsedAmount, multiplier);
     this.currency = currency;
   }
 
