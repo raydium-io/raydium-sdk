@@ -172,6 +172,11 @@ export const MAINNET_FARM_POOLS: FarmPoolBaseInfo[] = [
     lp: MAINNET_LP_TOKENS.POLIS_RAY_V4,
     version: 5,
   },
+  {
+    id: "CZZnmfvSgNVUiDBG4wN2NNcaYbsKDN4kLsc3SN8DMw6i",
+    lp: MAINNET_LP_TOKENS.weSHIB_USDC_V4,
+    version: 5,
+  },
 ];
 
 export const TESTNET_FARM_POOLS: FarmPoolBaseInfo[] = [];

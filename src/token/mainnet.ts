@@ -521,6 +521,15 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
       coingeckoId: "star-atlas-dao",
     },
   },
+  weSHIB: {
+    symbol: "weSHIB",
+    name: "weSHIB",
+    mint: "CiKu4eHsVrc1eueVQeHn7qhXTcVu95gSQmBpX4utjL9z",
+    decimals: 8,
+    extensions: {
+      coingeckoId: "shiba-inu",
+    },
+  },
 };
 
 export const MAINNET_LP_TOKENS: LpTokens = {
@@ -1404,6 +1413,17 @@ export const MAINNET_LP_TOKENS: LpTokens = {
     base: MAINNET_SPL_TOKENS.POLIS,
     quote: MAINNET_SPL_TOKENS.RAY,
     decimals: MAINNET_SPL_TOKENS.POLIS.decimals,
+
+    version: 4,
+  },
+  weSHIB_USDC_V4: {
+    symbol: "weSHIB-USDC",
+    name: "weSHIB-USDC V4 LP",
+    mint: "AcjX5pmTMGSgxkdxc3r82r6WMKBvS6eQXXFz5ck5KKUa",
+
+    base: MAINNET_SPL_TOKENS.weSHIB,
+    quote: MAINNET_SPL_TOKENS.USDC,
+    decimals: MAINNET_SPL_TOKENS.weSHIB.decimals,
 
     version: 4,
   },
