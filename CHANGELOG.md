@@ -1,16 +1,25 @@
 # Changelog
 
+### 1.0.1-beta.7 (2021-12-05)
+
+- Add
+  - Calculate `pendingRewards` for `Farm.getMultipleInfo`
+- Change
+  - Fix `Farm` ledger PDA algorithm
+  - Fix `Farm` layout versions
+  - Update dependencies
+
 ### 1.0.1-beta.6 (2021-12-02)
 
 - Change
-  - fix typo
+  - Fix typo
 
 ### 1.0.1-beta.5 (2021-12-02)
 
 - Add
   - `poolKeys2JsonInfo` (convert poolKeys to JsonInfo)
 - Change
-  - fix `CurrencyAmount`
+  - Fix `CurrencyAmount`
   - Update dependencies
 
 ### 1.0.1-beta.4 (2021-11-29)
@@ -18,8 +27,8 @@
 - Add
   - `getOutputAmount` static function for `Liquidity`
 - Change
-  - rename and change the types of `MAINNET_LIQUIDITY_POOLS`, `TESTNET_LIQUIDITY_POOLS`, `DEVNET_LIQUIDITY_POOLS`
-  - return variable names of `Liquidity.getInfo`: `baseBalance` -> `baseReserve`, `quoteBalance` -> `quoteReserve`
+  - Rename and change the types of `MAINNET_LIQUIDITY_POOLS`, `TESTNET_LIQUIDITY_POOLS`, `DEVNET_LIQUIDITY_POOLS`
+  - Return variable names of `Liquidity.getInfo`: `baseBalance` -> `baseReserve`, `quoteBalance` -> `quoteReserve`
 
 ### 1.0.1-beta.3 (2021-11-28)
 
