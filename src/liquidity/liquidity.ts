@@ -1,4 +1,4 @@
-import { BN } from "bn.js";
+import BN, { BN } from "bn.js";
 
 import { AccountInfo, Connection, PublicKey, TransactionInstruction } from "@solana/web3.js";
 import {
@@ -65,6 +65,12 @@ export interface SwapInstructionParamsV4 {
 }
 
 export type SwapInstructionParams = SwapInstructionParamsV4;
+
+export interface GetLiquidityMultipleInfoParams {
+  connection: Connection;
+  pools: LiquidityPoolKeys[];
+  config?: GetMultipleAccountsInfoConfig;
+}
 
 export const LIQUIDITY_FEES_NUMERATOR = new BN(9975);
 export const LIQUIDITY_FEES_DENOMINATOR = new BN(10000);
@@ -570,6 +576,29 @@ export class Liquidity {
       // u64
       lpSupply,
     };
+  }
+
+  static async getMultipleInfo({ connection, pools, config }: GetLiquidityMultipleInfoParams) {
+    const poolsInfo: {
+      [key: string]: {
+        // u64
+        status: BN;
+        // u8
+        baseDecimals: number;
+        // u8
+        quoteDecimals: number;
+        // u8
+        lpDecimals: number;
+        // u64
+        baseReserve: BN;
+        // u64
+        quoteReserve: BN;
+        // u64
+        lpSupply: BN;
+      };
+    } = {};
+
+    return poolsInfo;
   }
 
   static getOutputAmount(inputAmount: BigNumberIsh, inputReserve: BigNumberIsh, outputReserve: BigNumberIsh) {
