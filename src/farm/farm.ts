@@ -1,10 +1,12 @@
+import BN from "bn.js";
+
 import { Connection, PublicKey, TransactionInstruction } from "@solana/web3.js";
 import {
   AccountMeta, AccountMetaReadonly, findProgramAddress, GetMultipleAccountsInfoConfig,
   getMultipleAccountsInfoWithCustomFlag, Logger, PublicKeyIsh, SYSTEM_PROGRAM_ID,
   SYSVAR_CLOCK_PUBKEY, SYSVAR_RENT_PUBKEY, TOKEN_PROGRAM_ID, validateAndParsePublicKey,
 } from "../common";
-import { BigNumberIsh, parseBigNumberIsh } from "../entity";
+import { BigNumberIsh, parseBigNumberIsh, TEN } from "../entity";
 import { struct, u64, u8 } from "../marshmallow";
 import { SPL_ACCOUNT_LAYOUT, SplAccount } from "../spl";
 import { FARM_PROGRAMID_TO_VERSION, FARM_VERSION_TO_PROGRAMID } from "./id";
@@ -126,7 +128,10 @@ export class Farm {
     poolId: PublicKey;
     owner: PublicKey;
   }) {
-    const { publicKey } = await findProgramAddress([poolId.toBuffer(), owner.toBuffer()], programId);
+    const { publicKey } = await findProgramAddress(
+      [poolId.toBuffer(), owner.toBuffer(), Buffer.from("staker_info_v2_associated_seed", "utf-8")],
+      programId,
+    );
     return publicKey;
   }
 
@@ -439,6 +444,8 @@ export class Farm {
         state: FarmState;
         lpVault: SplAccount;
         ledger?: FarmLedger;
+        // wrapped data
+        wrapped?: { pendingRewards: BN[] };
       };
     } = {};
 
@@ -475,6 +482,29 @@ export class Farm {
             ...{ ledger: LEDGER_LAYOUT.decode(accountInfo.data) },
           };
         }
+      }
+    }
+
+    // wrapped data
+    for (const [poolId, { state, ledger }] of Object.entries(poolsInfo)) {
+      if (ledger) {
+        const multiplier = TEN.pow(new BN(15));
+
+        const pendingRewards: BN[] = [];
+
+        for (const index in state.perShareRewards) {
+          const perShareReward = state.perShareRewards[index];
+          const rewardDebt = ledger.rewardDebts[index];
+
+          const pendingReward = ledger.deposited.mul(perShareReward).div(multiplier).sub(rewardDebt);
+
+          pendingRewards.push(pendingReward);
+        }
+
+        poolsInfo[poolId].wrapped = {
+          ...poolsInfo[poolId].wrapped,
+          pendingRewards,
+        };
       }
     }
 
