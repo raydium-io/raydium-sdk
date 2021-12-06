@@ -4,7 +4,8 @@
 // import { TOKEN_PROGRAM_ID } from './id';
 
 import {
-  AccountInfo, Commitment, Connection, PublicKey, Transaction, TransactionInstruction,
+  AccountInfo, Commitment, Connection, PublicKey, RpcResponseAndContext,
+  SimulatedTransactionResponse, Transaction, TransactionInstruction,
 } from "@solana/web3.js";
 import { chunkArray } from "./lodash";
 import { Logger } from "./logger";
@@ -28,6 +29,8 @@ export interface GetMultipleAccountsInfoConfig {
   batchRequest?: boolean;
   commitment?: Commitment;
 }
+
+// export async function batchGetMultipleAccountsInfo() {}
 
 export async function getMultipleAccountsInfo(
   connection: Connection,
@@ -172,7 +175,7 @@ export interface GetTokenAccountsByOwnerConfig {
 //   return accounts;
 // }
 
-// const PACKET_DATA_SIZE = 1280 - 40 - 8;
+const PACKET_DATA_SIZE = 1280 - 40 - 8;
 
 /**
  * Forecast transaction size
@@ -199,27 +202,52 @@ export function forecastTransactionSize(instructions: TransactionInstruction[], 
   return transactionLength;
 }
 
-export async function getSimulateLogs(connection: Connection, instructions: TransactionInstruction[]) {
-  const transaction = new Transaction({
-    feePayer: new PublicKey("RaydiumSimuLateTransaction11111111111111111"),
-  });
+/**
+ * Simulates multiple instruction
+ */
+export async function simulateMultipleInstruction(connection: Connection, instructions: TransactionInstruction[]) {
+  const feePayer = new PublicKey("RaydiumSimuLateTransaction11111111111111111");
+
+  const transactions: Transaction[] = [];
+
+  let transaction = new Transaction({ feePayer });
 
   for (const instruction of instructions) {
-    transaction.add(instruction);
+    if (forecastTransactionSize([...transaction.instructions, instruction], [feePayer]) > PACKET_DATA_SIZE) {
+      transactions.push(transaction);
+      transaction = new Transaction({ feePayer });
+      transaction.add(instruction);
+    } else {
+      transaction.add(instruction);
+    }
+  }
+  if (transaction.instructions.length > 0) {
+    transactions.push(transaction);
   }
 
-  const { value } = await connection.simulateTransaction(transaction);
-  const { logs, err } = value;
+  let results: RpcResponseAndContext<SimulatedTransactionResponse>[] = [];
 
-  return { logs, err };
+  try {
+    results = await Promise.all(transactions.map((transaction) => connection.simulateTransaction(transaction)));
+  } catch (error) {
+    if (error instanceof Error) {
+      return logger.throwError("failed to simulate for instructions", Logger.errors.RPC_ERROR, {
+        message: error.message,
+      });
+    }
+  }
+
+  const logs: string[] = [];
+  for (const { value } of results) {
+    if (value.logs) {
+      logs.push(...value.logs);
+    }
+  }
+
+  return logs;
 }
 
-export function parseSimulateLogs(logs: string[], key: string) {
-  const log = logs.find((l) => l.includes(key));
-  if (!log) {
-    return logger.throwArgumentError("simulate logs fail to match key", "key", key);
-  }
-
+export function parseSimulateLog(log: string, key: string) {
   const results = log.match(/{["\w:,]+}/g);
   if (!results || results.length !== 1) {
     return logger.throwArgumentError("simulate log fail to match json", "key", key);
@@ -228,7 +256,7 @@ export function parseSimulateLogs(logs: string[], key: string) {
   return results[0];
 }
 
-export function getSimulateValue(log: string, key: string) {
+export function parseSimulateValue(log: string, key: string) {
   const reg = new RegExp(`"${key}":(\\d+)`, "g");
 
   const results = reg.exec(log);
