@@ -1,10 +1,12 @@
 import BN from "bn.js";
 
 import { AccountInfo, Connection, PublicKey, TransactionInstruction } from "@solana/web3.js";
+import { Spl } from "../";
 import {
   AccountMeta, AccountMetaReadonly, findProgramAddress, getMultipleAccountsInfo,
   GetMultipleAccountsInfoConfig, Logger, parseSimulateLog, parseSimulateValue, PublicKeyIsh,
-  simulateMultipleInstruction, TOKEN_PROGRAM_ID, validateAndParsePublicKey,
+  simulateMultipleInstruction, SYSTEM_PROGRAM_ID, SYSVAR_RENT_PUBKEY, TOKEN_PROGRAM_ID,
+  validateAndParsePublicKey,
 } from "../common";
 import { BigNumberIsh, parseBigNumberIsh } from "../entity";
 import { struct, u64, u8 } from "../marshmallow";
@@ -65,6 +67,26 @@ export interface SwapInstructionParamsV4 {
 }
 
 export type SwapInstructionParams = SwapInstructionParamsV4;
+
+export interface CreatePoolInstructionParamsV4 {
+  programId: PublicKey;
+  baseMint: PublicKey;
+  quoteMint: PublicKey;
+  marketId: PublicKey;
+  payer: PublicKey;
+}
+
+export type CreatePoolInstructionParams = CreatePoolInstructionParamsV4;
+
+export interface InitPoolInstructionParamsV4 {
+  programId: PublicKey;
+  baseMint: PublicKey;
+  quoteMint: PublicKey;
+  marketId: PublicKey;
+  payer: PublicKey;
+}
+
+export type InitPoolInstructionParams = InitPoolInstructionParamsV4;
 
 export interface GetLiquidityMultipleInfoParams {
   connection: Connection;
@@ -140,13 +162,101 @@ export class Liquidity {
     return { state: this.getStateLayout(version) };
   }
 
-  static async getAuthority({ programId }: { programId: PublicKey }) {
+  static async getAssociatedId({ programId, marketId }: { programId: PublicKey; marketId: PublicKey }) {
     const { publicKey } = await findProgramAddress(
+      [programId.toBuffer(), marketId.toBuffer(), Buffer.from("amm_associated_seed", "utf-8")],
+      programId,
+    );
+    return publicKey;
+  }
+
+  static getAssociatedAuthority({ programId }: { programId: PublicKey }) {
+    return findProgramAddress(
       // new Uint8Array(Buffer.from('amm authority'.replace('\u00A0', ' '), 'utf-8'))
       [Buffer.from([97, 109, 109, 32, 97, 117, 116, 104, 111, 114, 105, 116, 121])],
       programId,
     );
+  }
+
+  static async getAssociatedBaseVault({ programId, marketId }: { programId: PublicKey; marketId: PublicKey }) {
+    const { publicKey } = await findProgramAddress(
+      [programId.toBuffer(), marketId.toBuffer(), Buffer.from("coin_vault_associated_seed", "utf-8")],
+      programId,
+    );
     return publicKey;
+  }
+
+  static async getAssociatedQuoteVault({ programId, marketId }: { programId: PublicKey; marketId: PublicKey }) {
+    const { publicKey } = await findProgramAddress(
+      [programId.toBuffer(), marketId.toBuffer(), Buffer.from("pc_vault_associated_seed", "utf-8")],
+      programId,
+    );
+    return publicKey;
+  }
+
+  static async getAssociatedLpMint({ programId, marketId }: { programId: PublicKey; marketId: PublicKey }) {
+    const { publicKey } = await findProgramAddress(
+      [programId.toBuffer(), marketId.toBuffer(), Buffer.from("lp_mint_associated_seed", "utf-8")],
+      programId,
+    );
+    return publicKey;
+  }
+
+  static async getAssociatedTempLpVault({ programId, marketId }: { programId: PublicKey; marketId: PublicKey }) {
+    const { publicKey } = await findProgramAddress(
+      [programId.toBuffer(), marketId.toBuffer(), Buffer.from("temp_lp_token_associated_seed", "utf-8")],
+      programId,
+    );
+    return publicKey;
+  }
+
+  static async getAssociatedTargetOrders({ programId, marketId }: { programId: PublicKey; marketId: PublicKey }) {
+    const { publicKey } = await findProgramAddress(
+      [programId.toBuffer(), marketId.toBuffer(), Buffer.from("target_associated_seed", "utf-8")],
+      programId,
+    );
+    return publicKey;
+  }
+
+  static async getAssociatedWithdrawQueue({ programId, marketId }: { programId: PublicKey; marketId: PublicKey }) {
+    const { publicKey } = await findProgramAddress(
+      [programId.toBuffer(), marketId.toBuffer(), Buffer.from("withdraw_associated_seed", "utf-8")],
+      programId,
+    );
+    return publicKey;
+  }
+
+  static async getAssociatedOpenOrders({ programId, marketId }: { programId: PublicKey; marketId: PublicKey }) {
+    const { publicKey } = await findProgramAddress(
+      [programId.toBuffer(), marketId.toBuffer(), Buffer.from("open_order_associated_seed", "utf-8")],
+      programId,
+    );
+    return publicKey;
+  }
+
+  static async getAssociatedPoolKeys(params: { programId: PublicKey; marketId: PublicKey }) {
+    const id = await this.getAssociatedId(params);
+    const { publicKey: authority, nonce } = await this.getAssociatedAuthority(params);
+    const openOrders = await this.getAssociatedOpenOrders(params);
+    const targetOrders = await this.getAssociatedTargetOrders(params);
+    const withdrawQueue = await this.getAssociatedWithdrawQueue(params);
+    const lpMint = await this.getAssociatedLpMint(params);
+    const baseVault = await this.getAssociatedBaseVault(params);
+    const quoteVault = await this.getAssociatedQuoteVault(params);
+    const tempLpVault = await this.getAssociatedTempLpVault(params);
+
+    return {
+      id,
+      lpMint,
+      authority,
+      nonce,
+      openOrders,
+      targetOrders,
+      baseVault,
+      quoteVault,
+      withdrawQueue,
+      tempLpVault,
+    };
   }
 
   /* ================= instructions ================= */
@@ -324,6 +434,133 @@ export class Liquidity {
     });
   }
 
+  /* ================= create pool ================= */
+  static makeCreatePoolInstruction(params: CreatePoolInstructionParams) {
+    const { programId } = params;
+    const version = this.getVersion(programId);
+
+    if (version === 4) {
+      return this.makeCreatePoolInstructionV4(params);
+    }
+
+    return logger.throwArgumentError("Unsupported program id", "params.poolKeys.programId", programId.toBase58());
+  }
+
+  static async makeCreatePoolInstructionV4(params: CreatePoolInstructionParamsV4) {
+    const { publicKey: authority, nonce } = await this.getAssociatedAuthority(params);
+    const targetOrders = await this.getAssociatedTargetOrders(params);
+    const withdrawQueue = await this.getAssociatedWithdrawQueue(params);
+    const lpMint = await this.getAssociatedLpMint(params);
+    const baseVault = await this.getAssociatedBaseVault(params);
+    const quoteVault = await this.getAssociatedQuoteVault(params);
+    const tempLpVault = await this.getAssociatedTempLpVault(params);
+
+    const LAYOUT = struct([u8("instruction"), u8("nonce")]);
+    const data = Buffer.alloc(LAYOUT.span);
+    LAYOUT.encode(
+      {
+        instruction: 10,
+        nonce,
+      },
+      data,
+    );
+
+    const keys = [
+      // spl
+      AccountMetaReadonly(TOKEN_PROGRAM_ID, false),
+      AccountMetaReadonly(SYSTEM_PROGRAM_ID, false),
+      AccountMetaReadonly(SYSVAR_RENT_PUBKEY, false),
+      // amm
+      AccountMeta(targetOrders, false),
+      AccountMeta(withdrawQueue, false),
+      AccountMetaReadonly(authority, false),
+      AccountMeta(lpMint, false),
+      AccountMetaReadonly(params.baseMint, false),
+      AccountMetaReadonly(params.quoteMint, false),
+      AccountMeta(baseVault, false),
+      AccountMeta(quoteVault, false),
+      AccountMeta(tempLpVault, false),
+      // serum
+      AccountMetaReadonly(params.marketId, false),
+      // user
+      AccountMeta(params.payer, true),
+    ];
+
+    return new TransactionInstruction({
+      programId: params.programId,
+      keys,
+      data,
+    });
+  }
+
+  /* ================= initialize pool ================= */
+  static makeInitPoolInstruction(params: InitPoolInstructionParams) {
+    const { programId } = params;
+    const version = this.getVersion(programId);
+
+    if (version === 4) {
+      return this.makeInitPoolInstructionV4(params);
+    }
+
+    return logger.throwArgumentError("Unsupported program id", "params.poolKeys.programId", programId.toBase58());
+  }
+
+  static async makeInitPoolInstructionV4(params: InitPoolInstructionParamsV4) {
+    const id = await this.getAssociatedId(params);
+    const { publicKey: authority, nonce } = await this.getAssociatedAuthority(params);
+    const openOrders = await this.getAssociatedOpenOrders(params);
+    const targetOrders = await this.getAssociatedTargetOrders(params);
+    const withdrawQueue = await this.getAssociatedWithdrawQueue(params);
+    const lpMint = await this.getAssociatedLpMint(params);
+    const baseVault = await this.getAssociatedBaseVault(params);
+    const quoteVault = await this.getAssociatedQuoteVault(params);
+    const lpTokenAccount = await Spl.getAssociatedTokenAccount({ mint: lpMint, owner: params.payer });
+    const tempLpVault = await this.getAssociatedTempLpVault(params);
+    const serumVersion = this.getSerumVersion(params);
+    const serumProgramId = Market.getProgramId(serumVersion);
+
+    const LAYOUT = struct([u8("instruction"), u8("nonce")]);
+    const data = Buffer.alloc(LAYOUT.span);
+    LAYOUT.encode(
+      {
+        instruction: 0,
+        nonce,
+      },
+      data,
+    );
+
+    const keys = [
+      // spl
+      AccountMetaReadonly(TOKEN_PROGRAM_ID, false),
+      AccountMetaReadonly(SYSTEM_PROGRAM_ID, false),
+      AccountMetaReadonly(SYSVAR_RENT_PUBKEY, false),
+      // amm
+      AccountMeta(id, false),
+      AccountMetaReadonly(authority, false),
+      AccountMeta(openOrders, false),
+      AccountMeta(lpMint, false),
+      AccountMetaReadonly(params.baseMint, false),
+      AccountMetaReadonly(params.quoteMint, false),
+      AccountMetaReadonly(baseVault, false),
+      AccountMetaReadonly(quoteVault, false),
+      AccountMeta(withdrawQueue, false),
+      AccountMeta(targetOrders, false),
+      AccountMeta(lpTokenAccount, false),
+      AccountMetaReadonly(tempLpVault, false),
+      // serum
+      AccountMetaReadonly(serumProgramId, false),
+      AccountMetaReadonly(params.marketId, false),
+      // user
+      AccountMeta(params.payer, true),
+    ];
+
+    return new TransactionInstruction({
+      programId: params.programId,
+      keys,
+      data,
+    });
+  }
+
   /* ================= simulate ================= */
   static makeSimulatePoolInfoInstruction({ poolKeys }: { poolKeys: LiquidityPoolKeys }) {
     const LAYOUT = struct([u8("instruction"), u8("simulateType")]);
@@ -456,8 +693,11 @@ export class Liquidity {
         continue;
       }
 
-      const authority = await Liquidity.getAuthority({ programId });
-      const marketVaultSigner = await Market.getVaultSigner({ programId: serumProgramId, marketId });
+      const { publicKey: authority } = await Liquidity.getAssociatedAuthority({ programId });
+      const { publicKey: marketVaultSigner } = await Market.getAssociatedVaultSigner({
+        programId: serumProgramId,
+        marketId,
+      });
 
       tempPoolsKeys.push({
         id: pubkey,

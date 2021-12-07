@@ -10,7 +10,7 @@ import { WSOL } from "../token";
 import { SPL_ACCOUNT_LAYOUT } from "./layout";
 
 export class Spl {
-  static getAssociatedTokenAddress({ mint, owner }: { mint: PublicKey; owner: PublicKey }) {
+  static getAssociatedTokenAccount({ mint, owner }: { mint: PublicKey; owner: PublicKey }) {
     return _Token.getAssociatedTokenAddress(ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID, mint, owner);
   }
 
