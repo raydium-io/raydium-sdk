@@ -1,5 +1,13 @@
 # Changelog
 
+### 1.0.1-beta.8 (2021-12-07)
+
+- Add
+  - getMultipleInfo for `Liquidity`
+- Change
+  - Fix `Farm` v5 instructions
+  - Update dependencies
+
 ### 1.0.1-beta.7 (2021-12-05)
 
 - Add
