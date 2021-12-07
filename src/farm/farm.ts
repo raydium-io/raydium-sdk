@@ -220,7 +220,7 @@ export class Farm {
     const data = Buffer.alloc(LAYOUT.span);
     LAYOUT.encode(
       {
-        instruction: 1,
+        instruction: 11,
         amount: parseBigNumberIsh(amount),
       },
       data,
@@ -335,7 +335,7 @@ export class Farm {
     const data = Buffer.alloc(LAYOUT.span);
     LAYOUT.encode(
       {
-        instruction: 2,
+        instruction: 12,
         amount: parseBigNumberIsh(amount),
       },
       data,
