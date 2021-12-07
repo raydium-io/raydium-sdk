@@ -220,7 +220,7 @@ export class Farm {
     const data = Buffer.alloc(LAYOUT.span);
     LAYOUT.encode(
       {
-        instruction: 1,
+        instruction: 11,
         amount: parseBigNumberIsh(amount),
       },
       data,
@@ -335,7 +335,7 @@ export class Farm {
     const data = Buffer.alloc(LAYOUT.span);
     LAYOUT.encode(
       {
-        instruction: 2,
+        instruction: 12,
         amount: parseBigNumberIsh(amount),
       },
       data,
@@ -490,16 +490,12 @@ export class Farm {
       if (ledger) {
         const multiplier = TEN.pow(new BN(15));
 
-        const pendingRewards: BN[] = [];
-
-        for (const index in state.perShareRewards) {
-          const perShareReward = state.perShareRewards[index];
+        const pendingRewards = state.perShareRewards.map((perShareReward, index) => {
           const rewardDebt = ledger.rewardDebts[index];
-
           const pendingReward = ledger.deposited.mul(perShareReward).div(multiplier).sub(rewardDebt);
 
-          pendingRewards.push(pendingReward);
-        }
+          return pendingReward;
+        });
 
         poolsInfo[poolId].wrapped = {
           ...poolsInfo[poolId].wrapped,

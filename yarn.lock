@@ -1192,9 +1192,9 @@
   dependencies:
     buffer "~6.0.3"
 
-"@solana/spl-token-registry@^0.2.636":
-  version "0.2.636"
-  resolved "https://registry.yarnpkg.com/@solana/spl-token-registry/-/spl-token-registry-0.2.636.tgz#514de619443f50f647461707ecd0a3cb4352675a"
+"@solana/spl-token-registry@^0.2.638":
+  version "0.2.638"
+  resolved "https://registry.yarnpkg.com/@solana/spl-token-registry/-/spl-token-registry-0.2.638.tgz#eaa10f3f4829f007c9aaa4c14d3af06437346ec4"
   dependencies:
     cross-fetch "3.0.6"
 

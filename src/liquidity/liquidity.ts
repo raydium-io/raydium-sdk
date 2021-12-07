@@ -1,10 +1,10 @@
-import { BN } from "bn.js";
+import BN from "bn.js";
 
 import { AccountInfo, Connection, PublicKey, TransactionInstruction } from "@solana/web3.js";
 import {
   AccountMeta, AccountMetaReadonly, findProgramAddress, getMultipleAccountsInfo,
-  GetMultipleAccountsInfoConfig, getSimulateLogs, getSimulateValue, Logger, parseSimulateLogs,
-  PublicKeyIsh, TOKEN_PROGRAM_ID, validateAndParsePublicKey,
+  GetMultipleAccountsInfoConfig, Logger, parseSimulateLog, parseSimulateValue, PublicKeyIsh,
+  simulateMultipleInstruction, TOKEN_PROGRAM_ID, validateAndParsePublicKey,
 } from "../common";
 import { BigNumberIsh, parseBigNumberIsh } from "../entity";
 import { struct, u64, u8 } from "../marshmallow";
@@ -65,6 +65,12 @@ export interface SwapInstructionParamsV4 {
 }
 
 export type SwapInstructionParams = SwapInstructionParamsV4;
+
+export interface GetLiquidityMultipleInfoParams {
+  connection: Connection;
+  pools: LiquidityPoolKeys[];
+  config?: GetMultipleAccountsInfoConfig;
+}
 
 export const LIQUIDITY_FEES_NUMERATOR = new BN(9975);
 export const LIQUIDITY_FEES_DENOMINATOR = new BN(10000);
@@ -536,40 +542,67 @@ export class Liquidity {
     return poolsKeys;
   }
 
-  static async getInfo(connection: Connection, poolKeys: LiquidityPoolKeys) {
-    const { logs, err } = await getSimulateLogs(connection, [this.makeSimulatePoolInfoInstruction({ poolKeys })]);
+  static async getMultipleInfo({ connection, pools, config }: GetLiquidityMultipleInfoParams) {
+    // const poolsInfo: {
+    //   // same data type with layouts
+    //   [key: string]: {
+    //     // u64
+    //     status: BN;
+    //     // u8
+    //     baseDecimals: number;
+    //     // u8
+    //     quoteDecimals: number;
+    //     // u8
+    //     lpDecimals: number;
+    //     // u64
+    //     baseReserve: BN;
+    //     // u64
+    //     quoteReserve: BN;
+    //     // u64
+    //     lpSupply: BN;
+    //   };
+    // } = {};
 
-    if (!logs || logs.length === 0) {
-      return logger.throwArgumentError(`get pool's info failed - ${err}`, "id", poolKeys.id.toBase58());
-    }
+    const instructions = pools.map((pool) => this.makeSimulatePoolInfoInstruction({ poolKeys: pool }));
 
-    const log = parseSimulateLogs(logs, "GetPoolData");
+    const logs = await simulateMultipleInstruction(connection, instructions);
+    const filteredLogs = logs.filter((log) => log && log.includes("GetPoolData"));
 
-    const status = new BN(getSimulateValue(log, "status"));
-    const baseDecimals = Number(getSimulateValue(log, "coin_decimals"));
-    const quoteDecimals = Number(getSimulateValue(log, "pc_decimals"));
-    const lpDecimals = Number(getSimulateValue(log, "lp_decimals"));
-    const baseReserve = new BN(getSimulateValue(log, "pool_coin_amount"));
-    const quoteReserve = new BN(getSimulateValue(log, "pool_pc_amount"));
-    const lpSupply = new BN(getSimulateValue(log, "pool_lp_supply"));
+    const poolsInfo = filteredLogs.map((log) => {
+      const json = parseSimulateLog(log, "GetPoolData");
 
-    // same data type with layouts
-    return {
-      // u64
-      status,
-      // u8
-      baseDecimals,
-      // u8
-      quoteDecimals,
-      // u8
-      lpDecimals,
-      // u64
-      baseReserve,
-      // u64
-      quoteReserve,
-      // u64
-      lpSupply,
-    };
+      const status = new BN(parseSimulateValue(json, "status"));
+      const baseDecimals = Number(parseSimulateValue(json, "coin_decimals"));
+      const quoteDecimals = Number(parseSimulateValue(json, "pc_decimals"));
+      const lpDecimals = Number(parseSimulateValue(json, "lp_decimals"));
+      const baseReserve = new BN(parseSimulateValue(json, "pool_coin_amount"));
+      const quoteReserve = new BN(parseSimulateValue(json, "pool_pc_amount"));
+      const lpSupply = new BN(parseSimulateValue(json, "pool_lp_supply"));
+
+      return {
+        status,
+        baseDecimals,
+        quoteDecimals,
+        lpDecimals,
+        baseReserve,
+        quoteReserve,
+        lpSupply,
+      };
+    });
+
+    // for (const log of logs) {
+    //   const json = parseSimulateLog(log, "GetPoolData");
+
+    //   const status = new BN(parseSimulateValue(json, "status"));
+    //   const baseDecimals = Number(parseSimulateValue(json, "coin_decimals"));
+    //   const quoteDecimals = Number(parseSimulateValue(json, "pc_decimals"));
+    //   const lpDecimals = Number(parseSimulateValue(json, "lp_decimals"));
+    //   const baseReserve = new BN(parseSimulateValue(json, "pool_coin_amount"));
+    //   const quoteReserve = new BN(parseSimulateValue(json, "pool_pc_amount"));
+    //   const lpSupply = new BN(parseSimulateValue(json, "pool_lp_supply"));
+    // }
+
+    return poolsInfo;
   }
 
   static getOutputAmount(inputAmount: BigNumberIsh, inputReserve: BigNumberIsh, outputReserve: BigNumberIsh) {

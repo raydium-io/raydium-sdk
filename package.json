@@ -59,7 +59,7 @@
     "@babel/core": "^7.16.0",
     "@babel/preset-env": "^7.16.4",
     "@babel/preset-typescript": "^7.16.0",
-    "@solana/spl-token-registry": "^0.2.636",
+    "@solana/spl-token-registry": "^0.2.638",
     "@types/big.js": "^6.1.2",
     "@types/bn.js": "^5.1.0",
     "@types/jest": "^27.0.3",
