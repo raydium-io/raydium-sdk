@@ -202,7 +202,7 @@ export class Liquidity {
     return publicKey;
   }
 
-  static async getAssociatedTempLpVault({ programId, marketId }: { programId: PublicKey; marketId: PublicKey }) {
+  static async getAssociatedLpVault({ programId, marketId }: { programId: PublicKey; marketId: PublicKey }) {
     const { publicKey } = await findProgramAddress(
       [programId.toBuffer(), marketId.toBuffer(), Buffer.from("temp_lp_token_associated_seed", "utf-8")],
       programId,
@@ -243,7 +243,7 @@ export class Liquidity {
     const lpMint = await this.getAssociatedLpMint(params);
     const baseVault = await this.getAssociatedBaseVault(params);
     const quoteVault = await this.getAssociatedQuoteVault(params);
-    const tempLpVault = await this.getAssociatedTempLpVault(params);
+    const lpVault = await this.getAssociatedLpVault(params);
 
     return {
       id,
@@ -255,7 +255,7 @@ export class Liquidity {
       baseVault,
       quoteVault,
       withdrawQueue,
-      tempLpVault,
+      lpVault,
     };
   }
 
@@ -351,7 +351,7 @@ export class Liquidity {
       AccountMeta(poolKeys.baseVault, false),
       AccountMeta(poolKeys.quoteVault, false),
       AccountMeta(poolKeys.withdrawQueue, false),
-      AccountMeta(poolKeys.tempLpVault, false),
+      AccountMeta(poolKeys.lpVault, false),
       // serum
       AccountMetaReadonly(poolKeys.marketProgramId, false),
       AccountMeta(poolKeys.marketId, false),
@@ -453,7 +453,7 @@ export class Liquidity {
     const lpMint = await this.getAssociatedLpMint(params);
     const baseVault = await this.getAssociatedBaseVault(params);
     const quoteVault = await this.getAssociatedQuoteVault(params);
-    const tempLpVault = await this.getAssociatedTempLpVault(params);
+    const lpVault = await this.getAssociatedLpVault(params);
 
     const LAYOUT = struct([u8("instruction"), u8("nonce")]);
     const data = Buffer.alloc(LAYOUT.span);
@@ -479,7 +479,7 @@ export class Liquidity {
       AccountMetaReadonly(params.quoteMint, false),
       AccountMeta(baseVault, false),
       AccountMeta(quoteVault, false),
-      AccountMeta(tempLpVault, false),
+      AccountMeta(lpVault, false),
       // serum
       AccountMetaReadonly(params.marketId, false),
       // user
@@ -515,7 +515,7 @@ export class Liquidity {
     const baseVault = await this.getAssociatedBaseVault(params);
     const quoteVault = await this.getAssociatedQuoteVault(params);
     const lpTokenAccount = await Spl.getAssociatedTokenAccount({ mint: lpMint, owner: params.payer });
-    const tempLpVault = await this.getAssociatedTempLpVault(params);
+    const lpVault = await this.getAssociatedLpVault(params);
     const serumVersion = this.getSerumVersion(params);
     const serumProgramId = Market.getProgramId(serumVersion);
 
@@ -546,7 +546,7 @@ export class Liquidity {
       AccountMeta(withdrawQueue, false),
       AccountMeta(targetOrders, false),
       AccountMeta(lpTokenAccount, false),
-      AccountMetaReadonly(tempLpVault, false),
+      AccountMetaReadonly(lpVault, false),
       // serum
       AccountMetaReadonly(serumProgramId, false),
       AccountMetaReadonly(params.marketId, false),
@@ -684,7 +684,7 @@ export class Liquidity {
         baseVault,
         quoteVault,
         withdrawQueue,
-        tempLpVault,
+        lpVault,
         marketId,
       } = LIQUIDITY_STATE_LAYOUT.decode(data);
 
@@ -713,7 +713,7 @@ export class Liquidity {
         baseVault,
         quoteVault,
         withdrawQueue,
-        tempLpVault,
+        lpVault,
         marketVersion: serumVersion,
         marketProgramId: serumProgramId,
         marketId,
