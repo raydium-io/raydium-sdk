@@ -379,7 +379,7 @@ export class Farm {
     const data = Buffer.alloc(LAYOUT.span);
     LAYOUT.encode(
       {
-        instruction: 9,
+        instruction: 10,
       },
       data,
     );
