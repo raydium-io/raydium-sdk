@@ -51,7 +51,7 @@ export const LIQUIDITY_STATE_LAYOUT_V4 = struct([
   publicKey("marketProgramId"),
   publicKey("targetOrders"),
   publicKey("withdrawQueue"),
-  publicKey("tempLpVault"),
+  publicKey("lpVault"),
   publicKey("owner"),
   publicKey("pnlOwner"),
 ]);

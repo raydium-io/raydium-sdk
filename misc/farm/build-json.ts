@@ -50,7 +50,7 @@ async function generateFarmPoolsInfo(connection: Connection, pools: FarmPoolBase
       process.exit(1);
     }
 
-    const authority = await Farm.getAuthority({ programId, poolId: id });
+    const { publicKey: authority } = await Farm.getAssociatedAuthority({ programId, poolId: id });
 
     const { lpVault, rewardVaults } = FARM_STATE_LAYOUT.decode(data);
 

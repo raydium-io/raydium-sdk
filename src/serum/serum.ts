@@ -47,17 +47,17 @@ export class Market {
     return { state: STATE_LAYOUT };
   }
 
-  static async getVaultSigner({ programId, marketId }: { programId: PublicKey; marketId: PublicKey }) {
+  static async getAssociatedVaultSigner({ programId, marketId }: { programId: PublicKey; marketId: PublicKey }) {
     const seeds = [marketId.toBuffer()];
 
     let nonce = 0;
-    let address: PublicKey;
+    let publicKey: PublicKey;
 
     while (nonce < 100) {
       try {
         // Buffer.alloc(7) nonce u64
         const seedsWithNonce = seeds.concat(Buffer.from([nonce]), Buffer.alloc(7));
-        address = await PublicKey.createProgramAddress(seedsWithNonce, programId);
+        publicKey = await PublicKey.createProgramAddress(seedsWithNonce, programId);
       } catch (err) {
         if (err instanceof TypeError) {
           throw err;
@@ -65,7 +65,7 @@ export class Market {
         nonce++;
         continue;
       }
-      return address;
+      return { publicKey, nonce };
     }
 
     return logger.throwArgumentError("unable to find a viable program address nonce", "params", {

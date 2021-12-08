@@ -114,12 +114,11 @@ export class Farm {
     return { state: this.getStateLayout(version), ledger: this.getLedgerLayout(version) };
   }
 
-  static async getAuthority({ programId, poolId }: { programId: PublicKey; poolId: PublicKey }) {
-    const { publicKey } = await findProgramAddress([poolId.toBuffer()], programId);
-    return publicKey;
+  static getAssociatedAuthority({ programId, poolId }: { programId: PublicKey; poolId: PublicKey }) {
+    return findProgramAddress([poolId.toBuffer()], programId);
   }
 
-  static async getAssociatedLedgerAddress({
+  static async getAssociatedLedger({
     programId,
     poolId,
     owner,
@@ -385,7 +384,7 @@ export class Farm {
       data,
     );
 
-    const ledger = await this.getAssociatedLedgerAddress({
+    const ledger = await this.getAssociatedLedger({
       programId: poolKeys.programId,
       poolId: poolKeys.id,
       owner: userKeys.owner,
@@ -431,7 +430,7 @@ export class Farm {
 
       if (owner) {
         publicKeys.push({
-          pubkey: await this.getAssociatedLedgerAddress({ programId: pool.programId, poolId: pool.id, owner }),
+          pubkey: await this.getAssociatedLedger({ programId: pool.programId, poolId: pool.id, owner }),
           version: pool.version,
           key: "ledger",
           poolId: pool.id,

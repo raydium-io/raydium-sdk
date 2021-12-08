@@ -26,7 +26,7 @@ export interface LiquidityPoolJsonInfo {
   readonly baseVault: string;
   readonly quoteVault: string;
   readonly withdrawQueue: string;
-  readonly tempLpVault: string;
+  readonly lpVault: string;
   // market version
   readonly marketVersion: number;
   readonly marketProgramId: string;
