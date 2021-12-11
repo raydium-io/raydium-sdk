@@ -4,6 +4,7 @@
 
 - Change
   - Fix `Spl` functions amount params
+  - Update dev dependencies
 
 ### 1.0.1-beta.9 (2021-12-08)
 

@@ -10,6 +10,7 @@ import { u64 } from "../marshmallow";
 import { WSOL } from "../token";
 import { SPL_ACCOUNT_LAYOUT } from "./layout";
 
+// https://github.com/solana-labs/solana-program-library/tree/master/token/js/client
 export class Spl {
   static getAssociatedTokenAccount({ mint, owner }: { mint: PublicKey; owner: PublicKey }) {
     return _Token.getAssociatedTokenAddress(ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID, mint, owner);
