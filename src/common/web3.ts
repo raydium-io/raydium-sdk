@@ -4,7 +4,7 @@
 // import { TOKEN_PROGRAM_ID } from './id';
 
 import {
-  AccountInfo, Commitment, Connection, PublicKey, RpcResponseAndContext,
+  AccountInfo, Commitment, Connection, PACKET_DATA_SIZE, PublicKey, RpcResponseAndContext,
   SimulatedTransactionResponse, Transaction, TransactionInstruction,
 } from "@solana/web3.js";
 import { chunkArray } from "./lodash";
@@ -174,8 +174,6 @@ export interface GetTokenAccountsByOwnerConfig {
 
 //   return accounts;
 // }
-
-const PACKET_DATA_SIZE = 1280 - 40 - 8;
 
 /**
  * Forecast transaction size

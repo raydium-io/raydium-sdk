@@ -1,5 +1,10 @@
 # Changelog
 
+### 1.0.1-beta.10 (2021-12-11)
+
+- Change
+  - Fix `Spl` functions amount params
+
 ### 1.0.1-beta.9 (2021-12-08)
 
 - Add

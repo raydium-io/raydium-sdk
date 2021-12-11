@@ -1,4 +1,4 @@
-import { Token as _Token } from "@solana/spl-token";
+import { Token as _Token, u64 as _u64 } from "@solana/spl-token";
 import {
   Commitment, Connection, Keypair, PublicKey, Signer, SystemProgram, TransactionInstruction,
 } from "@solana/web3.js";
@@ -6,6 +6,7 @@ import {
   ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID, validateAndParsePublicKey,
 } from "../common";
 import { BigNumberIsh, parseBigNumberIsh } from "../entity";
+import { u64 } from "../marshmallow";
 import { WSOL } from "../token";
 import { SPL_ACCOUNT_LAYOUT } from "./layout";
 
@@ -116,14 +117,11 @@ export class Spl {
     amount: BigNumberIsh;
     multiSigners?: Signer[];
   }) {
-    return _Token.createMintToInstruction(
-      TOKEN_PROGRAM_ID,
-      mint,
-      dest,
-      authority,
-      multiSigners,
-      parseBigNumberIsh(amount),
-    );
+    const LAYOUT = u64("amount");
+    const data = Buffer.alloc(LAYOUT.span);
+    LAYOUT.encode(parseBigNumberIsh(amount), data);
+
+    return _Token.createMintToInstruction(TOKEN_PROGRAM_ID, mint, dest, authority, multiSigners, _u64.fromBuffer(data));
   }
 
   static makeInitAccountInstruction({
@@ -151,13 +149,17 @@ export class Spl {
     amount: BigNumberIsh;
     multiSigners?: Signer[];
   }) {
+    const LAYOUT = u64("amount");
+    const data = Buffer.alloc(LAYOUT.span);
+    LAYOUT.encode(parseBigNumberIsh(amount), data);
+
     return _Token.createTransferInstruction(
       TOKEN_PROGRAM_ID,
       source,
       destination,
       owner,
       multiSigners,
-      parseBigNumberIsh(amount),
+      _u64.fromBuffer(data),
     );
   }
 
