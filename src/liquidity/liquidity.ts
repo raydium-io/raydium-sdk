@@ -1,14 +1,12 @@
 import BN from "bn.js";
 
 import { AccountInfo, Connection, PublicKey, TransactionInstruction } from "@solana/web3.js";
-import { Spl } from "../";
 import {
   AccountMeta, AccountMetaReadonly, findProgramAddress, getMultipleAccountsInfo,
-  GetMultipleAccountsInfoConfig, Logger, parseSimulateLog, parseSimulateValue, PublicKeyIsh,
+  GetMultipleAccountsInfoConfig, Logger, parseSimulateLog, parseSimulateValue,
   simulateMultipleInstruction, SYSTEM_PROGRAM_ID, SYSVAR_RENT_PUBKEY, TOKEN_PROGRAM_ID,
-  validateAndParsePublicKey,
 } from "../common";
-import { BigNumberIsh, parseBigNumberIsh } from "../entity";
+import { BigNumberish, parseBigNumberish } from "../entity";
 import { struct, u64, u8 } from "../marshmallow";
 import { Market } from "../serum";
 import {
@@ -38,8 +36,8 @@ export interface LiquidityUserKeys {
 export interface AddLiquidityInstructionParamsV4 {
   poolKeys: LiquidityPoolKeys;
   userKeys: LiquidityUserKeys;
-  maxBaseAmountIn: BigNumberIsh;
-  maxQuoteAmountIn: BigNumberIsh;
+  maxBaseAmountIn: BigNumberish;
+  maxQuoteAmountIn: BigNumberish;
   fixedSide: "base" | "quote";
 }
 
@@ -49,7 +47,7 @@ export type AddLiquidityInstructionParams = AddLiquidityInstructionParamsV4;
 export interface RemoveLiquidityInstructionParamsV4 {
   poolKeys: LiquidityPoolKeys;
   userKeys: LiquidityUserKeys;
-  amountIn: BigNumberIsh;
+  amountIn: BigNumberish;
 }
 
 export type RemoveLiquidityInstructionParams = RemoveLiquidityInstructionParamsV4;
@@ -58,9 +56,9 @@ export type RemoveLiquidityInstructionParams = RemoveLiquidityInstructionParamsV
 export interface SwapInstructionParamsV4 {
   poolKeys: LiquidityPoolKeys;
   userKeys: Omit<LiquidityUserKeys, "lpTokenAccount">;
-  amountIn: BigNumberIsh;
+  amountIn: BigNumberish;
   // minimum amount out
-  minAmountOut: BigNumberIsh;
+  minAmountOut: BigNumberish;
   // buy: quote => base
   // sell: base => quote
   side: "buy" | "sell";
@@ -68,22 +66,31 @@ export interface SwapInstructionParamsV4 {
 
 export type SwapInstructionParams = SwapInstructionParamsV4;
 
+export interface AssociatedPoolKeysV4
+  extends Omit<
+    LiquidityPoolKeysV4,
+    "marketAuthority" | "marketBaseVault" | "marketQuoteVault" | "marketBids" | "marketAsks" | "marketEventQueue"
+  > {
+  nonce: number;
+}
+
+export type AssociatedPoolKeys = AssociatedPoolKeysV4;
+
 export interface CreatePoolInstructionParamsV4 {
-  programId: PublicKey;
-  baseMint: PublicKey;
-  quoteMint: PublicKey;
-  marketId: PublicKey;
-  payer: PublicKey;
+  poolKeys: AssociatedPoolKeysV4;
+  userKeys: {
+    payer: PublicKey;
+  };
 }
 
 export type CreatePoolInstructionParams = CreatePoolInstructionParamsV4;
 
 export interface InitPoolInstructionParamsV4 {
-  programId: PublicKey;
-  baseMint: PublicKey;
-  quoteMint: PublicKey;
-  marketId: PublicKey;
-  payer: PublicKey;
+  poolKeys: AssociatedPoolKeysV4;
+  userKeys: {
+    lpTokenAccount: PublicKey;
+    payer: PublicKey;
+  };
 }
 
 export type InitPoolInstructionParams = InitPoolInstructionParamsV4;
@@ -108,9 +115,8 @@ export class Liquidity {
     return programId;
   }
 
-  static getVersion(programId: PublicKeyIsh) {
-    const programIdPubKey = validateAndParsePublicKey(programId);
-    const programIdString = programIdPubKey.toBase58();
+  static getVersion(programId: PublicKey) {
+    const programIdString = programId.toBase58();
 
     const version = LIQUIDITY_PROGRAMID_TO_VERSION[programIdString];
     if (!version) {
@@ -120,20 +126,10 @@ export class Liquidity {
     return version;
   }
 
-  static getSerumVersion(params: { version?: number; programId?: PublicKeyIsh }) {
-    let version = 0;
-
-    if (params.programId) {
-      version = this.getVersion(params.programId);
-    }
-
-    if (params.version) {
-      version = params.version;
-    }
-
+  static getSerumVersion(version: number) {
     const serumVersion = LIQUIDITY_VERSION_TO_SERUM_VERSION[version];
     if (!serumVersion) {
-      return logger.throwArgumentError("invalid params", "params", params);
+      return logger.throwArgumentError("invalid version", "version", version);
     }
 
     return serumVersion;
@@ -141,7 +137,6 @@ export class Liquidity {
 
   static getStateLayout(version: number) {
     const STATE_LAYOUT = LIQUIDITY_VERSION_TO_STATE_LAYOUT[version];
-
     if (!STATE_LAYOUT) {
       return logger.throwArgumentError("invalid version", "version", version);
     }
@@ -149,16 +144,7 @@ export class Liquidity {
     return STATE_LAYOUT;
   }
 
-  static getLayouts(params: { version?: number; programId?: PublicKeyIsh }) {
-    let version = 0;
-
-    if (params.programId) {
-      version = this.getVersion(params.programId);
-    }
-    if (params.version) {
-      version = params.version;
-    }
-
+  static getLayouts(version: number) {
     return { state: this.getStateLayout(version) };
   }
 
@@ -234,28 +220,55 @@ export class Liquidity {
     return publicKey;
   }
 
-  static async getAssociatedPoolKeys(params: { programId: PublicKey; marketId: PublicKey }) {
-    const id = await this.getAssociatedId(params);
-    const { publicKey: authority, nonce } = await this.getAssociatedAuthority(params);
-    const openOrders = await this.getAssociatedOpenOrders(params);
-    const targetOrders = await this.getAssociatedTargetOrders(params);
-    const withdrawQueue = await this.getAssociatedWithdrawQueue(params);
-    const lpMint = await this.getAssociatedLpMint(params);
-    const baseVault = await this.getAssociatedBaseVault(params);
-    const quoteVault = await this.getAssociatedQuoteVault(params);
-    const lpVault = await this.getAssociatedLpVault(params);
+  static async getAssociatedPoolKeys({
+    version,
+    marketId,
+    baseMint,
+    quoteMint,
+  }: {
+    version: number;
+    marketId: PublicKey;
+    baseMint: PublicKey;
+    quoteMint: PublicKey;
+  }): Promise<AssociatedPoolKeys> {
+    const programId = this.getProgramId(version);
+
+    const id = await this.getAssociatedId({ programId, marketId });
+    const lpMint = await this.getAssociatedLpMint({ programId, marketId });
+    const { publicKey: authority, nonce } = await this.getAssociatedAuthority({ programId });
+    const baseVault = await this.getAssociatedBaseVault({ programId, marketId });
+    const quoteVault = await this.getAssociatedQuoteVault({ programId, marketId });
+    const lpVault = await this.getAssociatedLpVault({ programId, marketId });
+    const openOrders = await this.getAssociatedOpenOrders({ programId, marketId });
+    const targetOrders = await this.getAssociatedTargetOrders({ programId, marketId });
+    const withdrawQueue = await this.getAssociatedWithdrawQueue({ programId, marketId });
+
+    const serumVersion = this.getSerumVersion(version);
+    const serumProgramId = Market.getProgramId(serumVersion);
 
     return {
+      // base
       id,
+      baseMint,
+      quoteMint,
       lpMint,
+      // version
+      version,
+      programId,
+      // keys
       authority,
       nonce,
-      openOrders,
-      targetOrders,
       baseVault,
       quoteVault,
-      withdrawQueue,
       lpVault,
+      openOrders,
+      targetOrders,
+      withdrawQueue,
+      // market version
+      marketVersion: serumVersion,
+      marketProgramId: serumProgramId,
+      // market keys
+      marketId,
     };
   }
 
@@ -263,27 +276,30 @@ export class Liquidity {
   /* ================= add liquidity ================= */
   static makeAddLiquidityInstruction(params: AddLiquidityInstructionParams) {
     const { poolKeys } = params;
-    const { programId } = poolKeys;
-    const version = this.getVersion(programId);
+    const { version } = poolKeys;
 
     if (version === 4) {
       return this.makeAddLiquidityInstructionV4(params);
     }
 
-    return logger.throwArgumentError("invalid program id", "params.poolKeys.programId", programId.toBase58());
+    return logger.throwArgumentError("invalid version", "poolKeys.version", version);
   }
 
-  static makeAddLiquidityInstructionV4(params: AddLiquidityInstructionParamsV4) {
-    const { poolKeys, userKeys, maxBaseAmountIn, maxQuoteAmountIn, fixedSide } = params;
-
+  static makeAddLiquidityInstructionV4({
+    poolKeys,
+    userKeys,
+    maxBaseAmountIn,
+    maxQuoteAmountIn,
+    fixedSide,
+  }: AddLiquidityInstructionParamsV4) {
     const LAYOUT = struct([u8("instruction"), u64("maxBaseAmountIn"), u64("maxQuoteAmountIn"), u64("fixedSide")]);
     const data = Buffer.alloc(LAYOUT.span);
     LAYOUT.encode(
       {
         instruction: 3,
-        maxBaseAmountIn: parseBigNumberIsh(maxBaseAmountIn),
-        maxQuoteAmountIn: parseBigNumberIsh(maxQuoteAmountIn),
-        fixedSide: parseBigNumberIsh(fixedSide === "base" ? 0 : 1),
+        maxBaseAmountIn: parseBigNumberish(maxBaseAmountIn),
+        maxQuoteAmountIn: parseBigNumberish(maxQuoteAmountIn),
+        fixedSide: parseBigNumberish(fixedSide === "base" ? 0 : 1),
       },
       data,
     );
@@ -317,25 +333,22 @@ export class Liquidity {
   /* ================= remove liquidity ================= */
   static makeRemoveLiquidityInstruction(params: RemoveLiquidityInstructionParams) {
     const { poolKeys } = params;
-    const { programId } = poolKeys;
-    const version = this.getVersion(programId);
+    const { version } = poolKeys;
 
     if (version === 4) {
       return this.makeRemoveLiquidityInstructionV4(params);
     }
 
-    return logger.throwArgumentError("Unsupported program id", "params.poolKeys.programId", programId.toBase58());
+    return logger.throwArgumentError("invalid version", "poolKeys.version", version);
   }
 
-  static makeRemoveLiquidityInstructionV4(params: RemoveLiquidityInstructionParamsV4) {
-    const { poolKeys, userKeys, amountIn } = params;
-
+  static makeRemoveLiquidityInstructionV4({ poolKeys, userKeys, amountIn }: RemoveLiquidityInstructionParamsV4) {
     const LAYOUT = struct([u8("instruction"), u64("amountIn")]);
     const data = Buffer.alloc(LAYOUT.span);
     LAYOUT.encode(
       {
         instruction: 4,
-        amountIn: parseBigNumberIsh(amountIn),
+        amountIn: parseBigNumberish(amountIn),
       },
       data,
     );
@@ -357,12 +370,16 @@ export class Liquidity {
       AccountMeta(poolKeys.marketId, false),
       AccountMeta(poolKeys.marketBaseVault, false),
       AccountMeta(poolKeys.marketQuoteVault, false),
-      AccountMetaReadonly(poolKeys.marketVaultSigner, false),
+      AccountMetaReadonly(poolKeys.marketAuthority, false),
       // user
       AccountMeta(userKeys.lpTokenAccount, false),
       AccountMeta(userKeys.baseTokenAccount, false),
       AccountMeta(userKeys.quoteTokenAccount, false),
       AccountMetaReadonly(userKeys.owner, true),
+      // serum orderbook
+      AccountMeta(poolKeys.marketEventQueue, false),
+      AccountMeta(poolKeys.marketBids, false),
+      AccountMeta(poolKeys.marketAsks, false),
     ];
 
     return new TransactionInstruction({
@@ -375,26 +392,23 @@ export class Liquidity {
   /* ================= swap ================= */
   static makeSwapInstruction(params: SwapInstructionParams) {
     const { poolKeys } = params;
-    const { programId } = poolKeys;
-    const version = this.getVersion(programId);
+    const { version } = poolKeys;
 
     if (version === 4) {
       return this.makeSwapInstructionV4(params);
     }
 
-    return logger.throwArgumentError("Unsupported program id", "params.poolKeys.programId", programId.toBase58());
+    return logger.throwArgumentError("invalid version", "poolKeys.version", version);
   }
 
-  static makeSwapInstructionV4(params: SwapInstructionParamsV4) {
-    const { poolKeys, userKeys, amountIn, minAmountOut, side } = params;
-
+  static makeSwapInstructionV4({ poolKeys, userKeys, amountIn, minAmountOut, side }: SwapInstructionParamsV4) {
     const LAYOUT = struct([u8("instruction"), u64("amountIn"), u64("minAmountOut")]);
     const data = Buffer.alloc(LAYOUT.span);
     LAYOUT.encode(
       {
         instruction: 9,
-        amountIn: parseBigNumberIsh(amountIn),
-        minAmountOut: parseBigNumberIsh(minAmountOut),
+        amountIn: parseBigNumberish(amountIn),
+        minAmountOut: parseBigNumberish(minAmountOut),
       },
       data,
     );
@@ -421,7 +435,7 @@ export class Liquidity {
       AccountMeta(poolKeys.marketEventQueue, false),
       AccountMeta(poolKeys.marketBaseVault, false),
       AccountMeta(poolKeys.marketQuoteVault, false),
-      AccountMetaReadonly(poolKeys.marketVaultSigner, false),
+      AccountMetaReadonly(poolKeys.marketAuthority, false),
       // user
       ...userTokenAccounts.map((tokenAccount) => AccountMeta(tokenAccount, false)),
       AccountMetaReadonly(userKeys.owner, true),
@@ -436,58 +450,50 @@ export class Liquidity {
 
   /* ================= create pool ================= */
   static makeCreatePoolInstruction(params: CreatePoolInstructionParams) {
-    const { programId } = params;
-    const version = this.getVersion(programId);
+    const { poolKeys } = params;
+    const { version } = poolKeys;
 
     if (version === 4) {
       return this.makeCreatePoolInstructionV4(params);
     }
 
-    return logger.throwArgumentError("Unsupported program id", "params.poolKeys.programId", programId.toBase58());
+    return logger.throwArgumentError("invalid version", "poolKeys.version", version);
   }
 
-  static async makeCreatePoolInstructionV4(params: CreatePoolInstructionParamsV4) {
-    const { publicKey: authority, nonce } = await this.getAssociatedAuthority(params);
-    const targetOrders = await this.getAssociatedTargetOrders(params);
-    const withdrawQueue = await this.getAssociatedWithdrawQueue(params);
-    const lpMint = await this.getAssociatedLpMint(params);
-    const baseVault = await this.getAssociatedBaseVault(params);
-    const quoteVault = await this.getAssociatedQuoteVault(params);
-    const lpVault = await this.getAssociatedLpVault(params);
-
+  static async makeCreatePoolInstructionV4({ poolKeys, userKeys }: CreatePoolInstructionParamsV4) {
     const LAYOUT = struct([u8("instruction"), u8("nonce")]);
     const data = Buffer.alloc(LAYOUT.span);
     LAYOUT.encode(
       {
         instruction: 10,
-        nonce,
+        nonce: poolKeys.nonce,
       },
       data,
     );
 
     const keys = [
-      // spl
+      // system
       AccountMetaReadonly(TOKEN_PROGRAM_ID, false),
       AccountMetaReadonly(SYSTEM_PROGRAM_ID, false),
       AccountMetaReadonly(SYSVAR_RENT_PUBKEY, false),
       // amm
-      AccountMeta(targetOrders, false),
-      AccountMeta(withdrawQueue, false),
-      AccountMetaReadonly(authority, false),
-      AccountMeta(lpMint, false),
-      AccountMetaReadonly(params.baseMint, false),
-      AccountMetaReadonly(params.quoteMint, false),
-      AccountMeta(baseVault, false),
-      AccountMeta(quoteVault, false),
-      AccountMeta(lpVault, false),
+      AccountMeta(poolKeys.targetOrders, false),
+      AccountMeta(poolKeys.withdrawQueue, false),
+      AccountMetaReadonly(poolKeys.authority, false),
+      AccountMeta(poolKeys.lpMint, false),
+      AccountMetaReadonly(poolKeys.baseMint, false),
+      AccountMetaReadonly(poolKeys.quoteMint, false),
+      AccountMeta(poolKeys.baseVault, false),
+      AccountMeta(poolKeys.quoteVault, false),
+      AccountMeta(poolKeys.lpVault, false),
       // serum
-      AccountMetaReadonly(params.marketId, false),
+      AccountMetaReadonly(poolKeys.marketId, false),
       // user
-      AccountMeta(params.payer, true),
+      AccountMeta(userKeys.payer, true),
     ];
 
     return new TransactionInstruction({
-      programId: params.programId,
+      programId: poolKeys.programId,
       keys,
       data,
     });
@@ -495,67 +501,54 @@ export class Liquidity {
 
   /* ================= initialize pool ================= */
   static makeInitPoolInstruction(params: InitPoolInstructionParams) {
-    const { programId } = params;
-    const version = this.getVersion(programId);
+    const { poolKeys } = params;
+    const { version } = poolKeys;
 
     if (version === 4) {
       return this.makeInitPoolInstructionV4(params);
     }
 
-    return logger.throwArgumentError("Unsupported program id", "params.poolKeys.programId", programId.toBase58());
+    return logger.throwArgumentError("invalid version", "poolKeys.version", version);
   }
 
-  static async makeInitPoolInstructionV4(params: InitPoolInstructionParamsV4) {
-    const id = await this.getAssociatedId(params);
-    const { publicKey: authority, nonce } = await this.getAssociatedAuthority(params);
-    const openOrders = await this.getAssociatedOpenOrders(params);
-    const targetOrders = await this.getAssociatedTargetOrders(params);
-    const withdrawQueue = await this.getAssociatedWithdrawQueue(params);
-    const lpMint = await this.getAssociatedLpMint(params);
-    const baseVault = await this.getAssociatedBaseVault(params);
-    const quoteVault = await this.getAssociatedQuoteVault(params);
-    const lpTokenAccount = await Spl.getAssociatedTokenAccount({ mint: lpMint, owner: params.payer });
-    const lpVault = await this.getAssociatedLpVault(params);
-    const serumVersion = this.getSerumVersion(params);
-    const serumProgramId = Market.getProgramId(serumVersion);
-
+  static async makeInitPoolInstructionV4({ poolKeys, userKeys }: InitPoolInstructionParamsV4) {
     const LAYOUT = struct([u8("instruction"), u8("nonce")]);
     const data = Buffer.alloc(LAYOUT.span);
     LAYOUT.encode(
       {
         instruction: 0,
-        nonce,
+        nonce: poolKeys.nonce,
       },
       data,
     );
 
     const keys = [
-      // spl
+      // system
       AccountMetaReadonly(TOKEN_PROGRAM_ID, false),
       AccountMetaReadonly(SYSTEM_PROGRAM_ID, false),
       AccountMetaReadonly(SYSVAR_RENT_PUBKEY, false),
       // amm
-      AccountMeta(id, false),
-      AccountMetaReadonly(authority, false),
-      AccountMeta(openOrders, false),
-      AccountMeta(lpMint, false),
-      AccountMetaReadonly(params.baseMint, false),
-      AccountMetaReadonly(params.quoteMint, false),
-      AccountMetaReadonly(baseVault, false),
-      AccountMetaReadonly(quoteVault, false),
-      AccountMeta(withdrawQueue, false),
-      AccountMeta(targetOrders, false),
-      AccountMeta(lpTokenAccount, false),
-      AccountMetaReadonly(lpVault, false),
+      AccountMeta(poolKeys.id, false),
+      AccountMetaReadonly(poolKeys.authority, false),
+      AccountMeta(poolKeys.openOrders, false),
+      AccountMeta(poolKeys.lpMint, false),
+      AccountMetaReadonly(poolKeys.baseMint, false),
+      AccountMetaReadonly(poolKeys.quoteMint, false),
+      AccountMetaReadonly(poolKeys.baseVault, false),
+      AccountMetaReadonly(poolKeys.quoteVault, false),
+      AccountMeta(poolKeys.withdrawQueue, false),
+      AccountMeta(poolKeys.targetOrders, false),
+      AccountMeta(userKeys.lpTokenAccount, false),
+      AccountMetaReadonly(poolKeys.lpVault, false),
       // serum
-      AccountMetaReadonly(serumProgramId, false),
-      AccountMetaReadonly(params.marketId, false),
+      AccountMetaReadonly(poolKeys.marketProgramId, false),
+      AccountMetaReadonly(poolKeys.marketId, false),
       // user
-      AccountMeta(params.payer, true),
+      AccountMeta(userKeys.payer, true),
     ];
 
     return new TransactionInstruction({
-      programId: params.programId,
+      programId: poolKeys.programId,
       keys,
       data,
     });
@@ -603,7 +596,7 @@ export class Liquidity {
     // supported versions
     const supported = Object.keys(LIQUIDITY_VERSION_TO_STATE_LAYOUT).map((v) => {
       const version = Number(v);
-      const serumVersion = this.getSerumVersion({ version });
+      const serumVersion = this.getSerumVersion(version);
       const serumProgramId = Market.getProgramId(serumVersion);
       return {
         version,
@@ -694,7 +687,7 @@ export class Liquidity {
       }
 
       const { publicKey: authority } = await Liquidity.getAssociatedAuthority({ programId });
-      const { publicKey: marketVaultSigner } = await Market.getAssociatedVaultSigner({
+      const { publicKey: marketAuthority } = await Market.getAssociatedAuthority({
         programId: serumProgramId,
         marketId,
       });
@@ -717,7 +710,7 @@ export class Liquidity {
         marketVersion: serumVersion,
         marketProgramId: serumProgramId,
         marketId,
-        marketVaultSigner,
+        marketAuthority,
       });
     }
 
@@ -754,7 +747,7 @@ export class Liquidity {
       }
 
       const { data } = marketInfo;
-      const { state: MARKET_STATE_LAYOUT } = Market.getLayout({ version: marketVersion });
+      const { state: MARKET_STATE_LAYOUT } = Market.getLayouts(marketVersion);
       if (data.length !== MARKET_STATE_LAYOUT.span) {
         return logger.throwArgumentError("invalid market data length", "pool.id", id.toBase58());
       }
@@ -845,10 +838,10 @@ export class Liquidity {
     return poolsInfo;
   }
 
-  static getOutputAmount(inputAmount: BigNumberIsh, inputReserve: BigNumberIsh, outputReserve: BigNumberIsh) {
-    const _inputAmount = parseBigNumberIsh(inputAmount);
-    const _inputReserve = parseBigNumberIsh(inputReserve);
-    const _outputReserve = parseBigNumberIsh(outputReserve);
+  static getOutputAmount(inputAmount: BigNumberish, inputReserve: BigNumberish, outputReserve: BigNumberish) {
+    const _inputAmount = parseBigNumberish(inputAmount);
+    const _inputReserve = parseBigNumberish(inputReserve);
+    const _outputReserve = parseBigNumberish(outputReserve);
 
     const inputAmountWithFee = _inputAmount.mul(LIQUIDITY_FEES_NUMERATOR);
     const numerator = inputAmountWithFee.mul(_outputReserve);

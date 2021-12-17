@@ -3,10 +3,10 @@ import BN from "bn.js";
 import { Connection, PublicKey, TransactionInstruction } from "@solana/web3.js";
 import {
   AccountMeta, AccountMetaReadonly, findProgramAddress, GetMultipleAccountsInfoConfig,
-  getMultipleAccountsInfoWithCustomFlag, Logger, PublicKeyIsh, SYSTEM_PROGRAM_ID,
+  getMultipleAccountsInfoWithCustomFlag, Logger, PublicKeyish, SYSTEM_PROGRAM_ID,
   SYSVAR_CLOCK_PUBKEY, SYSVAR_RENT_PUBKEY, TOKEN_PROGRAM_ID, validateAndParsePublicKey,
 } from "../common";
-import { BigNumberIsh, parseBigNumberIsh, TEN } from "../entity";
+import { BigNumberish, parseBigNumberish, TEN } from "../entity";
 import { struct, u64, u8 } from "../marshmallow";
 import { SPL_ACCOUNT_LAYOUT, SplAccount } from "../spl";
 import { FARM_PROGRAMID_TO_VERSION, FARM_VERSION_TO_PROGRAMID } from "./id";
@@ -28,6 +28,7 @@ export type FarmPoolKeys = {
 
 export interface FarmUserKeys {
   ledger: PublicKey;
+  auxiliaryLedgers?: PublicKey[];
   lpTokenAccount: PublicKey;
   rewardTokenAccounts: PublicKey[];
   owner: PublicKey;
@@ -37,7 +38,7 @@ export interface FarmUserKeys {
 export interface FarmDepositInstructionParams {
   poolKeys: FarmPoolKeys;
   userKeys: FarmUserKeys;
-  amount: BigNumberIsh;
+  amount: BigNumberish;
 }
 
 /* ================= withdraw instruction ================= */
@@ -47,6 +48,7 @@ export type FarmWithdrawInstructionParams = FarmDepositInstructionParams;
 export interface CreateAssociatedLedgerAccountInstructionParams {
   poolKeys: FarmPoolKeys;
   userKeys: {
+    ledger: PublicKey;
     owner: PublicKey;
   };
 }
@@ -69,7 +71,7 @@ export class Farm {
     return programId;
   }
 
-  static getVersion(programId: PublicKeyIsh) {
+  static getVersion(programId: PublicKeyish) {
     const programIdPubKey = validateAndParsePublicKey(programId);
     const programIdString = programIdPubKey.toBase58();
 
@@ -83,7 +85,6 @@ export class Farm {
 
   static getStateLayout(version: number) {
     const STATE_LAYOUT = FARM_VERSION_TO_STATE_LAYOUT[version];
-
     if (!STATE_LAYOUT) {
       return logger.throwArgumentError("invalid version", "version", version);
     }
@@ -93,7 +94,6 @@ export class Farm {
 
   static getLedgerLayout(version: number) {
     const LEDGER_LAYOUT = FARM_VERSION_TO_LEDGER_LAYOUT[version];
-
     if (!LEDGER_LAYOUT) {
       return logger.throwArgumentError("invalid version", "version", version);
     }
@@ -101,16 +101,7 @@ export class Farm {
     return LEDGER_LAYOUT;
   }
 
-  static getLayouts(params: { version?: number; programId?: PublicKeyIsh }) {
-    let version = 0;
-
-    if (params.programId) {
-      version = this.getVersion(params.programId);
-    }
-    if (params.version) {
-      version = params.version;
-    }
-
+  static getLayouts(version: number) {
     return { state: this.getStateLayout(version), ledger: this.getLedgerLayout(version) };
   }
 
@@ -138,8 +129,7 @@ export class Farm {
   /* ================= deposit ================= */
   static makeDepositInstruction(params: FarmDepositInstructionParams) {
     const { poolKeys } = params;
-    const { programId } = poolKeys;
-    const version = this.getVersion(programId);
+    const { version } = poolKeys;
 
     if (version === 3) {
       return this.makeDepositInstructionV3(params);
@@ -147,36 +137,27 @@ export class Farm {
       return this.makeDepositInstructionV5(params);
     }
 
-    return logger.throwArgumentError("invalid program id", "params.poolKeys.programId", programId.toBase58());
+    return logger.throwArgumentError("invalid version", "poolKeys.version", version);
   }
 
-  static makeDepositInstructionV3(params: FarmDepositInstructionParams) {
-    const { poolKeys, userKeys, amount } = params;
-
-    const { rewardVaults } = poolKeys;
-    const { rewardTokenAccounts } = userKeys;
-
-    if (rewardTokenAccounts.length !== 1) {
+  static makeDepositInstructionV3({ poolKeys, userKeys, amount }: FarmDepositInstructionParams) {
+    if (userKeys.rewardTokenAccounts.length !== 1) {
       return logger.throwArgumentError(
-        "rewardTokenAccounts lengths not equal 1",
-        "params.userKeys.rewardTokenAccounts",
-        rewardTokenAccounts,
+        "lengths not equal 1",
+        "userKeys.rewardTokenAccounts",
+        userKeys.rewardTokenAccounts,
       );
     }
-    if (rewardVaults.length !== 1) {
-      return logger.throwArgumentError(
-        "rewardVaults lengths not equal 1",
-        "params.poolKeys.rewardVaults",
-        rewardVaults,
-      );
+    if (poolKeys.rewardVaults.length !== 1) {
+      return logger.throwArgumentError("lengths not equal 1", "poolKeys.rewardVaults", poolKeys.rewardVaults);
     }
 
     const LAYOUT = struct([u8("instruction"), u64("amount")]);
     const data = Buffer.alloc(LAYOUT.span);
     LAYOUT.encode(
       {
-        instruction: 1,
-        amount: parseBigNumberIsh(amount),
+        instruction: 10,
+        amount: parseBigNumberish(amount),
       },
       data,
     );
@@ -188,11 +169,17 @@ export class Farm {
       AccountMetaReadonly(userKeys.owner, true),
       AccountMeta(userKeys.lpTokenAccount, false),
       AccountMeta(poolKeys.lpVault, false),
-      AccountMeta(rewardTokenAccounts[0], false),
-      AccountMeta(rewardVaults[0], false),
+      AccountMeta(userKeys.rewardTokenAccounts[0], false),
+      AccountMeta(poolKeys.rewardVaults[0], false),
       AccountMetaReadonly(SYSVAR_CLOCK_PUBKEY, false),
       AccountMetaReadonly(TOKEN_PROGRAM_ID, false),
     ];
+
+    if (userKeys.auxiliaryLedgers) {
+      for (const auxiliaryLedger of userKeys.auxiliaryLedgers) {
+        keys.push(AccountMeta(auxiliaryLedger, false));
+      }
+    }
 
     return new TransactionInstruction({
       programId: poolKeys.programId,
@@ -201,17 +188,12 @@ export class Farm {
     });
   }
 
-  static makeDepositInstructionV5(params: FarmDepositInstructionParams) {
-    const { poolKeys, userKeys, amount } = params;
-
-    const { rewardVaults } = poolKeys;
-    const { rewardTokenAccounts } = userKeys;
-
-    if (rewardTokenAccounts.length !== rewardVaults.length) {
+  static makeDepositInstructionV5({ poolKeys, userKeys, amount }: FarmDepositInstructionParams) {
+    if (userKeys.rewardTokenAccounts.length !== poolKeys.rewardVaults.length) {
       return logger.throwArgumentError(
-        "rewardTokenAccounts lengths not equal with params.poolKeys.rewardVaults",
-        "params.userKeys.rewardTokenAccounts",
-        rewardTokenAccounts,
+        "lengths not equal with poolKeys.rewardVaults",
+        "userKeys.rewardTokenAccounts",
+        userKeys.rewardTokenAccounts,
       );
     }
 
@@ -220,7 +202,7 @@ export class Farm {
     LAYOUT.encode(
       {
         instruction: 11,
-        amount: parseBigNumberIsh(amount),
+        amount: parseBigNumberish(amount),
       },
       data,
     );
@@ -232,15 +214,21 @@ export class Farm {
       AccountMetaReadonly(userKeys.owner, true),
       AccountMeta(userKeys.lpTokenAccount, false),
       AccountMeta(poolKeys.lpVault, false),
-      AccountMeta(rewardTokenAccounts[0], false),
-      AccountMeta(rewardVaults[0], false),
+      AccountMeta(userKeys.rewardTokenAccounts[0], false),
+      AccountMeta(poolKeys.rewardVaults[0], false),
       AccountMetaReadonly(SYSVAR_CLOCK_PUBKEY, false),
       AccountMetaReadonly(TOKEN_PROGRAM_ID, false),
     ];
 
-    for (let index = 1; index < rewardVaults.length; index++) {
-      keys.push(AccountMeta(rewardTokenAccounts[index], false));
-      keys.push(AccountMeta(rewardVaults[index], false));
+    for (let index = 1; index < poolKeys.rewardVaults.length; index++) {
+      keys.push(AccountMeta(userKeys.rewardTokenAccounts[index], false));
+      keys.push(AccountMeta(poolKeys.rewardVaults[index], false));
+    }
+
+    if (userKeys.auxiliaryLedgers) {
+      for (const auxiliaryLedger of userKeys.auxiliaryLedgers) {
+        keys.push(AccountMeta(auxiliaryLedger, false));
+      }
     }
 
     return new TransactionInstruction({
@@ -253,8 +241,7 @@ export class Farm {
   /* ================= withdraw ================= */
   static makeWithdrawInstruction(params: FarmWithdrawInstructionParams) {
     const { poolKeys } = params;
-    const { programId } = poolKeys;
-    const version = this.getVersion(programId);
+    const { version } = poolKeys;
 
     if (version === 3) {
       return this.makeWithdrawInstructionV3(params);
@@ -262,36 +249,27 @@ export class Farm {
       return this.makeWithdrawInstructionV5(params);
     }
 
-    return logger.throwArgumentError("Unsupported program id", "params.poolKeys.programId", programId.toBase58());
+    return logger.throwArgumentError("invalid version", "poolKeys.version", version);
   }
 
-  static makeWithdrawInstructionV3(params: FarmWithdrawInstructionParams) {
-    const { poolKeys, userKeys, amount } = params;
-
-    const { rewardVaults } = poolKeys;
-    const { rewardTokenAccounts } = userKeys;
-
-    if (rewardTokenAccounts.length !== 1) {
+  static makeWithdrawInstructionV3({ poolKeys, userKeys, amount }: FarmWithdrawInstructionParams) {
+    if (userKeys.rewardTokenAccounts.length !== 1) {
       return logger.throwArgumentError(
-        "rewardTokenAccounts lengths not equal 1",
-        "params.userKeys.rewardTokenAccounts",
-        rewardTokenAccounts,
+        "lengths not equal 1",
+        "userKeys.rewardTokenAccounts",
+        userKeys.rewardTokenAccounts,
       );
     }
-    if (rewardVaults.length !== 1) {
-      return logger.throwArgumentError(
-        "rewardVaults lengths not equal 1",
-        "params.poolKeys.rewardVaults",
-        rewardVaults,
-      );
+    if (poolKeys.rewardVaults.length !== 1) {
+      return logger.throwArgumentError("lengths not equal 1", "poolKeys.rewardVaults", poolKeys.rewardVaults);
     }
 
     const LAYOUT = struct([u8("instruction"), u64("amount")]);
     const data = Buffer.alloc(LAYOUT.span);
     LAYOUT.encode(
       {
-        instruction: 2,
-        amount: parseBigNumberIsh(amount),
+        instruction: 11,
+        amount: parseBigNumberish(amount),
       },
       data,
     );
@@ -303,11 +281,17 @@ export class Farm {
       AccountMetaReadonly(userKeys.owner, true),
       AccountMeta(userKeys.lpTokenAccount, false),
       AccountMeta(poolKeys.lpVault, false),
-      AccountMeta(rewardTokenAccounts[0], false),
-      AccountMeta(rewardVaults[0], false),
+      AccountMeta(userKeys.rewardTokenAccounts[0], false),
+      AccountMeta(poolKeys.rewardVaults[0], false),
       AccountMetaReadonly(SYSVAR_CLOCK_PUBKEY, false),
       AccountMetaReadonly(TOKEN_PROGRAM_ID, false),
     ];
+
+    if (userKeys.auxiliaryLedgers) {
+      for (const auxiliaryLedger of userKeys.auxiliaryLedgers) {
+        keys.push(AccountMeta(auxiliaryLedger, false));
+      }
+    }
 
     return new TransactionInstruction({
       programId: poolKeys.programId,
@@ -316,17 +300,12 @@ export class Farm {
     });
   }
 
-  static makeWithdrawInstructionV5(params: FarmWithdrawInstructionParams) {
-    const { poolKeys, userKeys, amount } = params;
-
-    const { rewardVaults } = poolKeys;
-    const { rewardTokenAccounts } = userKeys;
-
-    if (rewardTokenAccounts.length !== rewardVaults.length) {
+  static makeWithdrawInstructionV5({ poolKeys, userKeys, amount }: FarmWithdrawInstructionParams) {
+    if (userKeys.rewardTokenAccounts.length !== poolKeys.rewardVaults.length) {
       return logger.throwArgumentError(
-        "rewardTokenAccounts lengths not equal with params.poolKeys.rewardVaults",
-        "params.userKeys.rewardTokenAccounts",
-        rewardTokenAccounts,
+        "lengths not equal with params.poolKeys.rewardVaults",
+        "userKeys.rewardTokenAccounts",
+        userKeys.rewardTokenAccounts,
       );
     }
 
@@ -335,7 +314,7 @@ export class Farm {
     LAYOUT.encode(
       {
         instruction: 12,
-        amount: parseBigNumberIsh(amount),
+        amount: parseBigNumberish(amount),
       },
       data,
     );
@@ -347,15 +326,21 @@ export class Farm {
       AccountMetaReadonly(userKeys.owner, true),
       AccountMeta(userKeys.lpTokenAccount, false),
       AccountMeta(poolKeys.lpVault, false),
-      AccountMeta(rewardTokenAccounts[0], false),
-      AccountMeta(rewardVaults[0], false),
+      AccountMeta(userKeys.rewardTokenAccounts[0], false),
+      AccountMeta(poolKeys.rewardVaults[0], false),
       AccountMetaReadonly(SYSVAR_CLOCK_PUBKEY, false),
       AccountMetaReadonly(TOKEN_PROGRAM_ID, false),
     ];
 
-    for (let index = 1; index < rewardVaults.length; index++) {
-      keys.push(AccountMeta(rewardTokenAccounts[index], false));
-      keys.push(AccountMeta(rewardVaults[index], false));
+    for (let index = 1; index < poolKeys.rewardVaults.length; index++) {
+      keys.push(AccountMeta(userKeys.rewardTokenAccounts[index], false));
+      keys.push(AccountMeta(poolKeys.rewardVaults[index], false));
+    }
+
+    if (userKeys.auxiliaryLedgers) {
+      for (const auxiliaryLedger of userKeys.auxiliaryLedgers) {
+        keys.push(AccountMeta(auxiliaryLedger, false));
+      }
     }
 
     return new TransactionInstruction({
@@ -366,15 +351,51 @@ export class Farm {
   }
 
   /* ================= create associated ledger account ================= */
-  static async makeCreateAssociatedLedgerAccountInstruction(params: CreateAssociatedLedgerAccountInstructionParams) {
-    const { poolKeys, userKeys } = params;
-    const { programId } = poolKeys;
-    const version = this.getVersion(programId);
+  static makeCreateAssociatedLedgerAccountInstruction(params: CreateAssociatedLedgerAccountInstructionParams) {
+    const { poolKeys } = params;
+    const { version } = poolKeys;
 
-    if (version !== 3 && version !== 5) {
-      return logger.throwArgumentError("invalid program id", "params.poolKeys.programId", programId.toBase58());
+    if (version === 3) {
+      return this.makeCreateAssociatedLedgerAccountInstructionV3(params);
+    } else if (version === 5) {
+      return this.makeCreateAssociatedLedgerAccountInstructionV5(params);
     }
 
+    return logger.throwArgumentError("invalid version", "poolKeys.version", version);
+  }
+
+  static makeCreateAssociatedLedgerAccountInstructionV3({
+    poolKeys,
+    userKeys,
+  }: CreateAssociatedLedgerAccountInstructionParams) {
+    const LAYOUT = struct([u8("instruction")]);
+    const data = Buffer.alloc(LAYOUT.span);
+    LAYOUT.encode(
+      {
+        instruction: 9,
+      },
+      data,
+    );
+
+    const keys = [
+      AccountMeta(poolKeys.id, false),
+      AccountMetaReadonly(userKeys.ledger, false),
+      AccountMetaReadonly(userKeys.owner, true),
+      AccountMetaReadonly(SYSTEM_PROGRAM_ID, false),
+      AccountMetaReadonly(SYSVAR_RENT_PUBKEY, false),
+    ];
+
+    return new TransactionInstruction({
+      programId: poolKeys.programId,
+      keys,
+      data,
+    });
+  }
+
+  static makeCreateAssociatedLedgerAccountInstructionV5({
+    poolKeys,
+    userKeys,
+  }: CreateAssociatedLedgerAccountInstructionParams) {
     const LAYOUT = struct([u8("instruction")]);
     const data = Buffer.alloc(LAYOUT.span);
     LAYOUT.encode(
@@ -384,15 +405,9 @@ export class Farm {
       data,
     );
 
-    const ledger = await this.getAssociatedLedger({
-      programId: poolKeys.programId,
-      poolId: poolKeys.id,
-      owner: userKeys.owner,
-    });
-
     const keys = [
       AccountMeta(poolKeys.id, false),
-      AccountMetaReadonly(ledger, false),
+      AccountMetaReadonly(userKeys.ledger, false),
       AccountMetaReadonly(userKeys.owner, true),
       AccountMetaReadonly(SYSTEM_PROGRAM_ID, false),
       AccountMetaReadonly(SYSVAR_RENT_PUBKEY, false),
@@ -439,7 +454,7 @@ export class Farm {
     }
 
     const poolsInfo: {
-      [key: string]: {
+      [id: string]: {
         state: FarmState;
         lpVault: SplAccount;
         ledger?: FarmLedger;
@@ -503,6 +518,6 @@ export class Farm {
       }
     }
 
-    return Object.values(poolsInfo);
+    return poolsInfo;
   }
 }

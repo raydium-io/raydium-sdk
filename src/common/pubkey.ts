@@ -11,9 +11,9 @@ export const SYSTEM_PROGRAM_ID = SystemProgram.programId;
 export const MEMO_PROGRAM_ID = new PublicKey("Memo1UhkJRfHyvLMcVucJwxXeuD728EqVDDwQDxFMNo");
 
 /* ================= validate public key ================= */
-export type PublicKeyIsh = PublicKey | string;
+export type PublicKeyish = PublicKey | string;
 
-export function validateAndParsePublicKey(publicKey: PublicKeyIsh) {
+export function validateAndParsePublicKey(publicKey: PublicKeyish) {
   if (publicKey instanceof PublicKey) {
     return publicKey;
   }

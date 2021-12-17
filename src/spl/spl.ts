@@ -5,7 +5,7 @@ import {
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID, validateAndParsePublicKey,
 } from "../common";
-import { BigNumberIsh, parseBigNumberIsh } from "../entity";
+import { BigNumberish, parseBigNumberish } from "../entity";
 import { u64 } from "../marshmallow";
 import { WSOL } from "../token";
 import { SPL_ACCOUNT_LAYOUT } from "./layout";
@@ -48,7 +48,7 @@ export class Spl {
     connection: Connection;
     owner: PublicKey;
     payer: PublicKey;
-    amount: BigNumberIsh;
+    amount: BigNumberish;
     commitment?: Commitment;
   }) {
     const instructions: TransactionInstruction[] = [];
@@ -73,7 +73,7 @@ export class Spl {
       SystemProgram.transfer({
         fromPubkey: payer,
         toPubkey: newAccount.publicKey,
-        lamports: parseBigNumberIsh(amount).toNumber(),
+        lamports: parseBigNumberish(amount).toNumber(),
       }),
     );
 
@@ -115,12 +115,12 @@ export class Spl {
     mint: PublicKey;
     dest: PublicKey;
     authority: PublicKey;
-    amount: BigNumberIsh;
+    amount: BigNumberish;
     multiSigners?: Signer[];
   }) {
     const LAYOUT = u64("amount");
     const data = Buffer.alloc(LAYOUT.span);
-    LAYOUT.encode(parseBigNumberIsh(amount), data);
+    LAYOUT.encode(parseBigNumberish(amount), data);
 
     return _Token.createMintToInstruction(TOKEN_PROGRAM_ID, mint, dest, authority, multiSigners, _u64.fromBuffer(data));
   }
@@ -147,12 +147,12 @@ export class Spl {
     source: PublicKey;
     destination: PublicKey;
     owner: PublicKey;
-    amount: BigNumberIsh;
+    amount: BigNumberish;
     multiSigners?: Signer[];
   }) {
     const LAYOUT = u64("amount");
     const data = Buffer.alloc(LAYOUT.span);
-    LAYOUT.encode(parseBigNumberIsh(amount), data);
+    LAYOUT.encode(parseBigNumberish(amount), data);
 
     return _Token.createTransferInstruction(
       TOKEN_PROGRAM_ID,

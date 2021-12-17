@@ -4,7 +4,7 @@ import BN from "bn.js";
 import { Logger } from "../common";
 import { Rounding, TEN } from "./constant";
 import { Currency, currencyEquals, Token } from "./currency";
-import { BigNumberIsh, Fraction, parseBigNumberIsh } from "./fraction";
+import { BigNumberish, Fraction, parseBigNumberish } from "./fraction";
 import toFormat, { WrappedBig } from "./to-format";
 
 const logger = new Logger("Entity");
@@ -34,12 +34,12 @@ export function splitNumber(num: string, decimals: number) {
 export class CurrencyAmount extends Fraction {
   public readonly currency: Currency;
 
-  public constructor(currency: Currency, amount: BigNumberIsh, isRaw = true) {
+  public constructor(currency: Currency, amount: BigNumberish, isRaw = true) {
     let parsedAmount = new BN(0);
     const multiplier = TEN.pow(new BN(currency.decimals));
 
     if (isRaw) {
-      parsedAmount = parseBigNumberIsh(amount);
+      parsedAmount = parseBigNumberish(amount);
     } else {
       let integralAmount = new BN(0);
       let fractionalAmount = new BN(0);
@@ -48,16 +48,16 @@ export class CurrencyAmount extends Fraction {
       if (typeof amount === "string") {
         const [integral, fractional] = splitNumber(amount, currency.decimals);
 
-        integralAmount = parseBigNumberIsh(integral);
-        fractionalAmount = parseBigNumberIsh(fractional);
+        integralAmount = parseBigNumberish(integral);
+        fractionalAmount = parseBigNumberish(fractional);
       } else if (typeof amount === "number" || typeof amount === "bigint") {
         const [integral, fractional] = splitNumber(amount.toString(), currency.decimals);
 
-        integralAmount = parseBigNumberIsh(integral);
-        fractionalAmount = parseBigNumberIsh(fractional);
+        integralAmount = parseBigNumberish(integral);
+        fractionalAmount = parseBigNumberish(fractional);
       }
       // else {
-      //   integralAmount = parseBigNumberIsh(amount);
+      //   integralAmount = parseBigNumberish(amount);
       // }
 
       integralAmount = integralAmount.mul(multiplier);
@@ -107,7 +107,7 @@ export class CurrencyAmount extends Fraction {
 export class TokenAmount extends CurrencyAmount {
   public readonly token: Token;
 
-  public constructor(token: Token, amount: BigNumberIsh, isRaw = true) {
+  public constructor(token: Token, amount: BigNumberish, isRaw = true) {
     super(token, amount, isRaw);
     this.token = token;
   }

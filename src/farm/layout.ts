@@ -77,7 +77,7 @@ export type FarmStateV5 = GetStructureSchema<FarmStateLayoutV5>;
 export type FarmState = FarmStateV3 | FarmStateV5;
 
 /* ================= ledger layouts ================= */
-export const FARM_LEDGER_LAYOUT_V3 = struct([
+export const FARM_LEDGER_LAYOUT_V3_1 = struct([
   u64("state"),
   publicKey("id"),
   publicKey("owner"),
@@ -85,7 +85,16 @@ export const FARM_LEDGER_LAYOUT_V3 = struct([
   seq(u64(), 1, "rewardDebts"),
 ]);
 
-export const FARM_LEDGER_LAYOUT_V5 = struct([
+export const FARM_LEDGER_LAYOUT_V3_2 = struct([
+  u64("state"),
+  publicKey("id"),
+  publicKey("owner"),
+  u64("deposited"),
+  seq(u128(), 1, "rewardDebts"),
+  seq(u64(), 17),
+]);
+
+export const FARM_LEDGER_LAYOUT_V5_1 = struct([
   u64("state"),
   publicKey("id"),
   publicKey("owner"),
@@ -93,7 +102,7 @@ export const FARM_LEDGER_LAYOUT_V5 = struct([
   seq(u64(), 2, "rewardDebts"),
 ]);
 
-export const FARM_LEDGER_LAYOUT_V5_1 = struct([
+export const FARM_LEDGER_LAYOUT_V5_2 = struct([
   u64("state"),
   publicKey("id"),
   publicKey("owner"),
@@ -102,22 +111,28 @@ export const FARM_LEDGER_LAYOUT_V5_1 = struct([
   seq(u64(), 17),
 ]);
 
-export type FarmLedgerLayoutV3 = typeof FARM_LEDGER_LAYOUT_V3;
-export type FarmLedgerLayoutV5 = typeof FARM_LEDGER_LAYOUT_V5;
+export type FarmLedgerLayoutV3_1 = typeof FARM_LEDGER_LAYOUT_V3_1;
+export type FarmLedgerLayoutV3_2 = typeof FARM_LEDGER_LAYOUT_V3_2;
 export type FarmLedgerLayoutV5_1 = typeof FARM_LEDGER_LAYOUT_V5_1;
-export type FarmLedgerLayout = FarmLedgerLayoutV3 | FarmLedgerLayoutV5;
+export type FarmLedgerLayoutV5_2 = typeof FARM_LEDGER_LAYOUT_V5_2;
+export type FarmLedgerLayout =
+  | FarmLedgerLayoutV3_1
+  | FarmLedgerLayoutV3_2
+  | FarmLedgerLayoutV5_1
+  | FarmLedgerLayoutV5_2;
 
-export type FarmLedgerV3 = GetStructureSchema<FarmLedgerLayoutV3>;
-export type FarmLedgerV5 = GetStructureSchema<FarmLedgerLayoutV5>;
+export type FarmLedgerV3_1 = GetStructureSchema<FarmLedgerLayoutV3_1>;
+export type FarmLedgerV3_2 = GetStructureSchema<FarmLedgerLayoutV3_2>;
 export type FarmLedgerV5_1 = GetStructureSchema<FarmLedgerLayoutV5_1>;
-export type FarmLedger = FarmLedgerV3 | FarmLedgerV5 | FarmLedgerV5_1;
+export type FarmLedgerV5_2 = GetStructureSchema<FarmLedgerLayoutV5_2>;
+export type FarmLedger = FarmLedgerV3_1 | FarmLedgerV3_2 | FarmLedgerV5_1 | FarmLedgerV5_2;
 
 /* ================= index ================= */
 // version => farm state layout
 export const FARM_VERSION_TO_STATE_LAYOUT: {
-  [key in FarmVersion]?: FarmStateLayout;
+  [version in FarmVersion]?: FarmStateLayout;
 } & {
-  [K: number]: FarmStateLayout;
+  [version: number]: FarmStateLayout;
 } = {
   3: FARM_STATE_LAYOUT_V3,
   5: FARM_STATE_LAYOUT_V5,
@@ -125,10 +140,10 @@ export const FARM_VERSION_TO_STATE_LAYOUT: {
 
 // version => farm ledger layout
 export const FARM_VERSION_TO_LEDGER_LAYOUT: {
-  [key in FarmVersion]?: FarmLedgerLayout;
+  [version in FarmVersion]?: FarmLedgerLayout;
 } & {
-  [K: number]: FarmLedgerLayout;
+  [version: number]: FarmLedgerLayout;
 } = {
-  3: FARM_LEDGER_LAYOUT_V3,
-  5: FARM_LEDGER_LAYOUT_V5_1,
+  3: FARM_LEDGER_LAYOUT_V3_2,
+  5: FARM_LEDGER_LAYOUT_V5_2,
 };

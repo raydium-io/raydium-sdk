@@ -13,7 +13,7 @@ type Big = WrappedBig;
 
 const Decimal = toFormat(_Decimal);
 
-export type BigNumberIsh = BN | string | number | bigint;
+export type BigNumberish = BN | string | number | bigint;
 
 const MAX_SAFE = 0x1fffffffffffff;
 
@@ -29,7 +29,7 @@ const toFixedRounding = {
   [Rounding.ROUND_UP]: Big.roundUp,
 };
 
-export function parseBigNumberIsh(value: unknown) {
+export function parseBigNumberish(value: unknown) {
   // BN
   if (value instanceof BN) {
     return value;
@@ -41,17 +41,17 @@ export function parseBigNumberIsh(value: unknown) {
       return new BN(value);
     }
 
-    return logger.throwArgumentError("invalid BigNumberIsh string", "value", value);
+    return logger.throwArgumentError("invalid BigNumberish string", "value", value);
   }
 
   // number
   if (typeof value === "number") {
     if (value % 1) {
-      return logger.throwArgumentError("BigNumberIsh number underflow", "value", value);
+      return logger.throwArgumentError("BigNumberish number underflow", "value", value);
     }
 
     if (value >= MAX_SAFE || value <= -MAX_SAFE) {
-      return logger.throwArgumentError("BigNumberIsh number overflow", "value", value);
+      return logger.throwArgumentError("BigNumberish number overflow", "value", value);
     }
 
     return new BN(String(value));
@@ -62,16 +62,16 @@ export function parseBigNumberIsh(value: unknown) {
     return new BN(value.toString());
   }
 
-  return logger.throwArgumentError("invalid BigNumberIsh value", "value", value);
+  return logger.throwArgumentError("invalid BigNumberish value", "value", value);
 }
 
 export class Fraction {
   public readonly numerator: BN;
   public readonly denominator: BN;
 
-  public constructor(numerator: BigNumberIsh, denominator: BigNumberIsh = ONE) {
-    this.numerator = parseBigNumberIsh(numerator);
-    this.denominator = parseBigNumberIsh(denominator);
+  public constructor(numerator: BigNumberish, denominator: BigNumberish = ONE) {
+    this.numerator = parseBigNumberish(numerator);
+    this.denominator = parseBigNumberish(denominator);
   }
 
   // performs floor division
@@ -84,8 +84,8 @@ export class Fraction {
   }
 
   // +
-  public add(other: Fraction | BigNumberIsh): Fraction {
-    const otherParsed = other instanceof Fraction ? other : new Fraction(parseBigNumberIsh(other));
+  public add(other: Fraction | BigNumberish): Fraction {
+    const otherParsed = other instanceof Fraction ? other : new Fraction(parseBigNumberish(other));
 
     if (this.denominator.eq(otherParsed.denominator)) {
       return new Fraction(this.numerator.add(otherParsed.numerator), this.denominator);
@@ -98,8 +98,8 @@ export class Fraction {
   }
 
   // -
-  public sub(other: Fraction | BigNumberIsh): Fraction {
-    const otherParsed = other instanceof Fraction ? other : new Fraction(parseBigNumberIsh(other));
+  public sub(other: Fraction | BigNumberish): Fraction {
+    const otherParsed = other instanceof Fraction ? other : new Fraction(parseBigNumberish(other));
 
     if (this.denominator.eq(otherParsed.denominator)) {
       return new Fraction(this.numerator.sub(otherParsed.numerator), this.denominator);
@@ -112,15 +112,15 @@ export class Fraction {
   }
 
   // ×
-  public mul(other: Fraction | BigNumberIsh) {
-    const otherParsed = other instanceof Fraction ? other : new Fraction(parseBigNumberIsh(other));
+  public mul(other: Fraction | BigNumberish) {
+    const otherParsed = other instanceof Fraction ? other : new Fraction(parseBigNumberish(other));
 
     return new Fraction(this.numerator.mul(otherParsed.numerator), this.denominator.mul(otherParsed.denominator));
   }
 
   // ÷
-  public div(other: Fraction | BigNumberIsh) {
-    const otherParsed = other instanceof Fraction ? other : new Fraction(parseBigNumberIsh(other));
+  public div(other: Fraction | BigNumberish) {
+    const otherParsed = other instanceof Fraction ? other : new Fraction(parseBigNumberish(other));
 
     return new Fraction(this.numerator.mul(otherParsed.denominator), this.denominator.mul(otherParsed.numerator));
   }
