@@ -1,5 +1,18 @@
 # Changelog
 
+### 1.0.1-beta.11 (2021-12-17)
+
+- Add
+  - ledger PDA for `Farm v3`
+- Change
+  - Raising the priority of `version` parameters
+  - Don't calculate ATA / PDA in function
+  - Rename type `PublicKeyIsh` to `PublicKeyish`
+  - Rename type `BigNumberIsh` to `BigNumberish`
+  - Rename `marketVaultSigner` to `marketAuthority` for `poolKeys`
+  - Rename `getAssociatedVaultSigner` to `getAssociatedAuthority` for `Market`
+  - Update dev dependencies
+
 ### 1.0.1-beta.10 (2021-12-11)
 
 - Change
@@ -14,7 +27,7 @@
   - Rename all getAssociated functions
   - Rename `tempLpVault` to `lpVault`
   - Rename `getAssociatedTokenAddress` to `getAssociatedTokenAccount` of `Spl`
-  - Return `nonce` for `getAssociatedAuthority`
+  - Return `nonce` for `Liquidity.getAssociatedAuthority`
   - Fix `Farm` ledger PDA
   - Update dev dependencies
 
