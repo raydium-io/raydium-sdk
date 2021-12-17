@@ -65,7 +65,7 @@ export type LiquidityState = LiquidityStateV4;
 /* ================= index ================= */
 // version => liquidity state layout
 export const LIQUIDITY_VERSION_TO_STATE_LAYOUT: {
-  [key: number]: LiquidityStateLayout;
+  [version: number]: LiquidityStateLayout;
 } = {
   4: LIQUIDITY_STATE_LAYOUT_V4,
 };

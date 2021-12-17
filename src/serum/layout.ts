@@ -48,7 +48,7 @@ export type MarketState = MarketStateV3;
 /* ================= index ================= */
 // version => market state layout
 export const MARKET_VERSION_TO_STATE_LAYOUT: {
-  [key: number]: MarketStateLayout;
+  [version: number]: MarketStateLayout;
 } = {
   3: MARKET_STATE_LAYOUT_V3,
 };

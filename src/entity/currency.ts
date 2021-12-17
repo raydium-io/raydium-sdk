@@ -1,5 +1,5 @@
 import { PublicKey } from "@solana/web3.js";
-import { PublicKeyIsh, validateAndParsePublicKey } from "../common";
+import { PublicKeyish, validateAndParsePublicKey } from "../common";
 import { SOL, WSOL } from "../token";
 
 /**
@@ -42,7 +42,7 @@ export class Token extends Currency {
    */
   public static readonly WSOL: Currency = new Token(WSOL.mint, WSOL.decimals, SOL.symbol, SOL.name);
 
-  public constructor(mint: PublicKeyIsh, decimals: number, symbol?: string, name?: string) {
+  public constructor(mint: PublicKeyish, decimals: number, symbol?: string, name?: string) {
     super(decimals, symbol, name);
 
     this.mint = validateAndParsePublicKey(mint);

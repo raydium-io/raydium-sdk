@@ -3,7 +3,7 @@ import BN from "bn.js";
 import { Logger } from "../common";
 import { Rounding, TEN } from "./constant";
 import { Currency, currencyEquals } from "./currency";
-import { BigNumberIsh, Fraction } from "./fraction";
+import { BigNumberish, Fraction } from "./fraction";
 
 const logger = new Logger("Entity");
 
@@ -17,8 +17,8 @@ export class Price extends Fraction {
   public constructor(
     baseCurrency: Currency,
     quoteCurrency: Currency,
-    denominator: BigNumberIsh,
-    numerator: BigNumberIsh,
+    denominator: BigNumberish,
+    numerator: BigNumberish,
   ) {
     super(numerator, denominator);
 

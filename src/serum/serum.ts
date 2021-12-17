@@ -1,5 +1,5 @@
 import { PublicKey } from "@solana/web3.js";
-import { Logger, PublicKeyIsh, validateAndParsePublicKey } from "../common";
+import { Logger } from "../common";
 import { SERUM_PROGRAMID_TO_VERSION, SERUM_VERSION_TO_PROGRAMID } from "./id";
 import { MARKET_VERSION_TO_STATE_LAYOUT } from "./layout";
 
@@ -16,9 +16,8 @@ export class Market {
     return programId;
   }
 
-  static getVersion(programId: PublicKeyIsh) {
-    const programIdPubKey = validateAndParsePublicKey(programId);
-    const programIdString = programIdPubKey.toBase58();
+  static getVersion(programId: PublicKey) {
+    const programIdString = programId.toBase58();
 
     const version = SERUM_PROGRAMID_TO_VERSION[programIdString];
     if (!version) {
@@ -28,26 +27,20 @@ export class Market {
     return version;
   }
 
-  static getLayout(params: { version?: number; programId?: PublicKeyIsh }) {
-    let version = 0;
-
-    if (params.programId) {
-      version = this.getVersion(params.programId);
-    }
-
-    if (params.version) {
-      version = params.version;
-    }
-
+  static getStateLayout(version: number) {
     const STATE_LAYOUT = MARKET_VERSION_TO_STATE_LAYOUT[version];
     if (!STATE_LAYOUT) {
-      return logger.throwArgumentError("invalid params", "params", params);
+      return logger.throwArgumentError("invalid version", "version", version);
     }
 
-    return { state: STATE_LAYOUT };
+    return STATE_LAYOUT;
   }
 
-  static async getAssociatedVaultSigner({ programId, marketId }: { programId: PublicKey; marketId: PublicKey }) {
+  static getLayouts(version: number) {
+    return { state: this.getStateLayout(version) };
+  }
+
+  static async getAssociatedAuthority({ programId, marketId }: { programId: PublicKey; marketId: PublicKey }) {
     const seeds = [marketId.toBuffer()];
 
     let nonce = 0;

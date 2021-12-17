@@ -66,6 +66,8 @@
   - Change version types to `number` in all `poolKeys`
   - Update peer dependencies
   - Update dev dependencies
+- Remove
+  - `getInfo` static function for `Liquidity`
 
 ### 1.0.1-beta.1 (2021-11-21)
 

@@ -21,18 +21,18 @@ export interface LiquidityPoolJsonInfo {
   readonly programId: string;
   // keys
   readonly authority: string;
-  readonly openOrders: string;
-  readonly targetOrders: string;
   readonly baseVault: string;
   readonly quoteVault: string;
-  readonly withdrawQueue: string;
   readonly lpVault: string;
+  readonly openOrders: string;
+  readonly targetOrders: string;
+  readonly withdrawQueue: string;
   // market version
   readonly marketVersion: number;
   readonly marketProgramId: string;
   // market keys
   readonly marketId: string;
-  readonly marketVaultSigner: string;
+  readonly marketAuthority: string;
   readonly marketBaseVault: string;
   readonly marketQuoteVault: string;
   readonly marketBids: string;
