@@ -134,51 +134,6 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
       coingeckoId: "cream-2",
     },
   },
-  UBXT: {
-    symbol: "UBXT",
-    name: "Wrapped UBXT",
-    mint: "873KLxCbz7s9Kc4ZzgYRtNmhfkQrhfyWGZJBmyCbC3ei",
-    decimals: 6,
-    extensions: {
-      coingeckoId: "upbots",
-    },
-  },
-  HNT: {
-    symbol: "HNT",
-    name: "Wrapped HNT",
-    mint: "HqB7uswoVg4suaQiDP3wjxob1G5WdZ144zhdStwMCq7e",
-    decimals: 6,
-    extensions: {
-      coingeckoId: "helium",
-    },
-  },
-  FRONT: {
-    symbol: "FRONT",
-    name: "Wrapped FRONT",
-    mint: "9S4t2NEAiJVMvPdRYKVrfJpBafPBLtvbvyS3DecojQHw",
-    decimals: 6,
-    extensions: {
-      coingeckoId: "frontier-token",
-    },
-  },
-  AKRO: {
-    symbol: "AKRO",
-    name: "Wrapped AKRO",
-    mint: "6WNVCuxCGJzNjmMZoKyhZJwvJ5tYpsLyAtagzYASqBoF",
-    decimals: 6,
-    extensions: {
-      coingeckoId: "akropolis",
-    },
-  },
-  HXRO: {
-    symbol: "HXRO",
-    name: "Wrapped HXRO",
-    mint: "DJafV9qemGp7mLMEn5wrfqaFwxsbLgUsGVS16zKRk9kc",
-    decimals: 6,
-    extensions: {
-      coingeckoId: "hxro",
-    },
-  },
   UNI: {
     symbol: "UNI",
     name: "Wrapped UNI",
@@ -521,141 +476,466 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
       coingeckoId: "star-atlas-dao",
     },
   },
+  GRAPE: {
+    symbol: "GRAPE",
+    name: "GRAPE",
+    mint: "8upjSpvjcdpuzhfR1zriwg5NXkwDruejqNE9WNbPRtyA",
+    decimals: 6,
+    extensions: {},
+  },
+  GENE: {
+    symbol: "GENE",
+    name: "Genopets",
+    mint: "GENEtH5amGSi8kHAtQoezp1XEXwZJ8vcuePYnXdKrMYz",
+    decimals: 9,
+    extensions: {},
+  },
+  DFL: {
+    symbol: "DFL",
+    name: "DeFi Land",
+    mint: "DFL1zNkaGPWm1BqAVqRjCZvHmwTFrEaJtbzJWgseoNJh",
+    decimals: 9,
+    extensions: {},
+  },
+  CHEEMS: {
+    symbol: "CHEEMS",
+    name: "CHEEMS",
+    mint: "3FoUAsGDbvTD6YZ4wVKJgTB76onJUKz7GPEBNiR5b8wc",
+    decimals: 4,
+    extensions: {},
+  },
+  stSOL: {
+    symbol: "stSOL",
+    name: "stSOL",
+    mint: "7dHbWXmci3dT8UFYWYZweBLXgycu7Y3iL6trKn1Y7ARj",
+    decimals: 9,
+    extensions: {},
+  },
+  LARIX: {
+    symbol: "LARIX",
+    name: "LARIX",
+    mint: "Lrxqnh6ZHKbGy3dcrCED43nsoLkM1LTzU2jRfWe8qUC",
+    decimals: 6,
+    extensions: {},
+  },
+  RIN: {
+    symbol: "RIN",
+    name: "RIN",
+    mint: "E5ndSkaB17Dm7CsD22dvcjfrYSDLCxFcMd6z8ddCk5wp",
+    decimals: 9,
+    extensions: {},
+  },
+  APEX: {
+    symbol: "APEX",
+    name: "APEX",
+    mint: "51tMb3zBKDiQhNwGqpgwbavaGH54mk8fXFzxTc1xnasg",
+    decimals: 9,
+    extensions: {},
+  },
+  MNDE: {
+    symbol: "MNDE",
+    name: "MNDE",
+    mint: "MNDEFzGvMt87ueuHvVU9VcTqsAP5b3fTGPsHuuPA5ey",
+    decimals: 9,
+    extensions: {},
+  },
+  LIQ: {
+    symbol: "LIQ",
+    name: "LIQ",
+    mint: "4wjPQJ6PrkC4dHhYghwJzGBVP78DkBzA2U3kHoFNBuhj",
+    decimals: 6,
+    extensions: {},
+  },
+  WAG: {
+    symbol: "WAG",
+    name: "WAG",
+    mint: "5tN42n9vMi6ubp67Uy4NnmM5DMZYN8aS8GeB3bEDHr6E",
+    decimals: 9,
+    extensions: {},
+  },
+  wLDO: {
+    symbol: "wLDO",
+    name: "wLDO",
+    mint: "HZRCwxP2Vq9PCpPXooayhJ2bxTpo5xfpQrwB1svh332p",
+    decimals: 8,
+    extensions: {},
+  },
+  SLIM: {
+    symbol: "SLIM",
+    name: "SLIM",
+    mint: "xxxxa1sKNGwFtw2kFn8XauW9xq8hBZ5kVtcSesTT9fW",
+    decimals: 6,
+    extensions: {},
+  },
+  PRT: {
+    symbol: "PRT",
+    name: "PRT",
+    mint: "PRT88RkA4Kg5z7pKnezeNH4mafTvtQdfFgpQTGRjz44",
+    decimals: 6,
+    extensions: {},
+  },
+  SBR: {
+    symbol: "SBR",
+    name: "SBR",
+    mint: "Saber2gLauYim4Mvftnrasomsv6NvAuncvMEZwcLpD1",
+    decimals: 6,
+    extensions: {},
+  },
+  FAB: {
+    symbol: "FAB",
+    name: "FAB",
+    mint: "EdAhkbj5nF9sRM7XN7ewuW8C9XEUMs8P7cnoQ57SYE96",
+    decimals: 9,
+    extensions: {},
+  },
+  ABR: {
+    symbol: "ABR",
+    name: "ABR",
+    mint: "a11bdAAuV8iB2fu7X6AxAvDTo1QZ8FXB3kk5eecdasp",
+    decimals: 9,
+    extensions: {},
+  },
+  IVN: {
+    symbol: "IVN",
+    name: "IVN",
+    mint: "iVNcrNE9BRZBC9Aqf753iZiZfbszeAVUoikgT9yvr2a",
+    decimals: 6,
+    extensions: {},
+  },
+  CYS: {
+    symbol: "CYS",
+    name: "CYS",
+    mint: "BRLsMczKuaR5w9vSubF4j8HwEGGprVAyyVgS4EX7DKEg",
+    decimals: 6,
+    extensions: {},
+  },
+  FRKT: {
+    symbol: "FRKT",
+    name: "FRKT",
+    mint: "ErGB9xa24Szxbk1M28u2Tx8rKPqzL6BroNkkzk5rG4zj",
+    decimals: 8,
+    extensions: {},
+  },
+  AURY: {
+    symbol: "AURY",
+    name: "AURY",
+    mint: "AURYydfxJib1ZkTir1Jn1J9ECYUtjb6rKQVmtYaixWPP",
+    decimals: 9,
+    extensions: {},
+  },
+  SYP: {
+    symbol: "SYP",
+    name: "SYP",
+    mint: "FnKE9n6aGjQoNWRBZXy4RW6LZVao7qwBonUbiD7edUmZ",
+    decimals: 9,
+    extensions: {},
+  },
+  WOOF: {
+    symbol: "WOOF",
+    name: "WOOF",
+    mint: "9nEqaUcb16sQ3Tn1psbkWqyhPdLmfHWjKGymREjsAgTE",
+    decimals: 6,
+    extensions: {},
+  },
+  ORCA: {
+    symbol: "ORCA",
+    name: "ORCA",
+    mint: "orcaEKTdK7LKz57vaAYr9QeNsVEPfiu6QeMU1kektZE",
+    decimals: 6,
+    extensions: {},
+  },
+  SLND: {
+    symbol: "SLND",
+    name: "SLND",
+    mint: "SLNDpmoWTVADgEdndyvWzroNL7zSi1dF9PC3xHGtPwp",
+    decimals: 6,
+    extensions: {},
+  },
+  weWETH: {
+    symbol: "weWETH",
+    name: "weWETH",
+    mint: "7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs",
+    decimals: 8,
+    extensions: {},
+  },
+  weUNI: {
+    symbol: "weUNI",
+    name: "weUNI",
+    mint: "8FU95xFJhUUkyyCLU13HSzDLs7oC4QZdXQHL6SCeab36",
+    decimals: 8,
+    extensions: {},
+  },
+  weSUSHI: {
+    symbol: "weSUSHI",
+    name: "weSUSHI",
+    mint: "ChVzxWRmrTeSgwd3Ui3UumcN8KX7VK3WaD4KGeSKpypj",
+    decimals: 8,
+    extensions: {},
+  },
+  GOFX: {
+    symbol: "GOFX",
+    name: "GOFX",
+    mint: "GFX1ZjR2P15tmrSwow6FjyDYcEkoFb4p4gJCpLBjaxHD",
+    decimals: 9,
+    extensions: {},
+  },
+  IN: {
+    symbol: "IN",
+    name: "IN",
+    mint: "inL8PMVd6iiW3RCBJnr5AsrRN6nqr4BTrcNuQWQSkvY",
+    decimals: 9,
+    extensions: {},
+  },
+  weDYDX: {
+    symbol: "weDYDX",
+    name: "weDYDX",
+    mint: "4Hx6Bj56eGyw8EJrrheM6LBQAvVYRikYCWsALeTrwyRU",
+    decimals: 8,
+    extensions: {},
+  },
+  STARS: {
+    symbol: "STARS",
+    name: "STARS",
+    mint: "HCgybxq5Upy8Mccihrp7EsmwwFqYZtrHrsmsKwtGXLgW",
+    decimals: 6,
+    extensions: {},
+  },
+  weAXS: {
+    symbol: "weAXS",
+    name: "weAXS",
+    mint: "HysWcbHiYY9888pHbaqhwLYZQeZrcQMXKQWRqS7zcPK5",
+    decimals: 8,
+    extensions: {},
+  },
   weSHIB: {
     symbol: "weSHIB",
     name: "weSHIB",
     mint: "CiKu4eHsVrc1eueVQeHn7qhXTcVu95gSQmBpX4utjL9z",
     decimals: 8,
-    extensions: {
-      coingeckoId: "shiba-inu",
-    },
+    extensions: {},
+  },
+  OXS: {
+    symbol: "OXS",
+    name: "OXS",
+    mint: "4TGxgCSJQx2GQk9oHZ8dC5m3JNXTYZHjXumKAW3vLnNx",
+    decimals: 9,
+    extensions: {},
+  },
+  CWAR: {
+    symbol: "CWAR",
+    name: "CWAR",
+    mint: "HfYFjMKNZygfMC8LsQ8LtpPsPxEJoXJx4M6tqi75Hajo",
+    decimals: 9,
+    extensions: {},
+  },
+  UPS: {
+    symbol: "UPS",
+    name: "UPS",
+    mint: "EwJN2GqUGXXzYmoAciwuABtorHczTA5LqbukKXV1viH7",
+    decimals: 6,
+    extensions: {},
+  },
+  weSAND: {
+    symbol: "weSAND",
+    name: "weSAND",
+    mint: "49c7WuCZkQgc3M4qH8WuEUNXfgwupZf1xqWkDQ7gjRGt",
+    decimals: 8,
+    extensions: {},
+  },
+  weMANA: {
+    symbol: "weMANA",
+    name: "weMANA",
+    mint: "7dgHoN8wBZCc5wbnQ2C47TDnBMAxG4Q5L3KjP67z8kNi",
+    decimals: 8,
+    extensions: {},
+  },
+  CAVE: {
+    symbol: "CAVE",
+    name: "CAVE",
+    mint: "4SZjjNABoqhbd4hnapbvoEPEqT8mnNkfbEoAwALf1V8t",
+    decimals: 6,
+    extensions: {},
+  },
+  JSOL: {
+    symbol: "JSOL",
+    name: "JSOL",
+    mint: "7Q2afV64in6N6SeZsAAB81TJzwDoD6zpqmHkzi9Dcavn",
+    decimals: 9,
+    extensions: {},
+  },
+  APT: {
+    symbol: "APT",
+    name: "APT",
+    mint: "APTtJyaRX5yGTsJU522N4VYWg3vCvSb65eam5GrPT5Rt",
+    decimals: 6,
+    extensions: {},
+  },
+  SONAR: {
+    symbol: "SONAR",
+    name: "SONAR",
+    mint: "sonarX4VtVkQemriJeLm6CKeW3GDMyiBnnAEMw1MRAE",
+    decimals: 9,
+    extensions: {},
+  },
+  SHILL: {
+    symbol: "SHILL",
+    name: "SHILL",
+    mint: "6cVgJUqo4nmvQpbgrDZwyfd6RwWw5bfnCamS3M9N1fd",
+    decimals: 6,
+    extensions: {},
+  },
+  TTT: {
+    symbol: "TTT",
+    name: "TabTrader",
+    mint: "FNFKRV3V8DtA3gVJN6UshMiLGYA8izxFwkNWmJbFjmRj",
+    decimals: 6,
+    extensions: {},
+  },
+  BOKU: {
+    symbol: "BOKU",
+    name: "BOKU",
+    mint: "CN7qFa5iYkHz99PTctvT4xXUHnxwjQ5MHxCuTJtPN5uS",
+    decimals: 9,
+    extensions: {},
+  },
+  MIMO: {
+    symbol: "MIMO",
+    name: "MIMO",
+    mint: "9TE7ebz1dsFo1uQ2T4oYAKSm39Y6fWuHrd6Uk6XaiD16",
+    decimals: 9,
+    extensions: {},
+  },
+  wbWBNB: {
+    symbol: "wbWBNB",
+    name: "wbWBNB",
+    mint: "9gP2kCy3wA1ctvYWQk75guqXuHfrEomqydHLtcTCqiLa",
+    decimals: 8,
+    extensions: {},
+  },
+  wePEOPLE: {
+    symbol: "wePEOPLE",
+    name: "wePEOPLE",
+    mint: "CobcsUrt3p91FwvULYKorQejgsm5HoQdv5T8RUZ6PnLA",
+    decimals: 8,
+    extensions: {},
+  },
+  XTAG: {
+    symbol: "XTAG",
+    name: "XTAG",
+    mint: "5gs8nf4wojB5EXgDUWNLwXpknzgV2YWDhveAeBZpVLbp",
+    decimals: 6,
+    extensions: {},
+  },
+  KKO: {
+    symbol: "KKO",
+    name: "KKO",
+    mint: "kiNeKo77w1WBEzFFCXrTDRWGRWGP8yHvKC9rX6dqjQh",
+    decimals: 9,
+    extensions: {},
+  },
+  VI: {
+    symbol: "VI",
+    name: "VI",
+    mint: "7zBWymxbZt7PVHQzfi3i85frc1YRiQc23K7bh3gos8ZC",
+    decimals: 9,
+    extensions: {},
+  },
+  SOLC: {
+    symbol: "SOLC",
+    name: "SOLC",
+    mint: "Bx1fDtvTN6NvE4kjdPHQXtmGSg582bZx9fGy4DQNMmAT",
+    decimals: 9,
+    extensions: {},
+  },
+  STR: {
+    symbol: "STR",
+    name: "STR",
+    mint: "9zoqdwEBKWEi9G5Ze8BSkdmppxGgVv1Kw4LuigDiNr9m",
+    decimals: 9,
+    extensions: {},
+  },
+  SPWN: {
+    symbol: "SPWN",
+    name: "SPWN",
+    mint: "5U9QqCPhqXAJcEv9uyzFJd5zhN93vuPk1aNNkXnUfPnt",
+    decimals: 9,
+    extensions: {},
+  },
+  ISOLA: {
+    symbol: "ISOLA",
+    name: "ISOLA",
+    mint: "333iHoRM2Awhf9uVZtSyTfU8AekdGrgQePZsKMFPgKmS",
+    decimals: 6,
+    extensions: {},
+  },
+  RUN: {
+    symbol: "RUN",
+    name: "RUN",
+    mint: "6F9XriABHfWhit6zmMUYAQBSy6XK5VF1cHXuW5LDpRtC",
+    decimals: 9,
+    extensions: {},
+  },
+  REAL: {
+    symbol: "REAL",
+    name: "REAL",
+    mint: "AD27ov5fVU2XzwsbvnFvb1JpCBaCB5dRXrczV9CqSVGb",
+    decimals: 9,
+    extensions: {},
+  },
+  CRWNY: {
+    symbol: "CRWNY",
+    name: "CRWNY",
+    mint: "CRWNYkqdgvhGGae9CKfNka58j6QQkaD5bLhKXvUYqnc1",
+    decimals: 6,
+    extensions: {},
+  },
+  BLOCK: {
+    symbol: "BLOCK",
+    name: "BLOCK",
+    mint: "NFTUkR4u7wKxy9QLaX2TGvd9oZSWoMo4jqSJqdMb7Nk",
+    decimals: 6,
+    extensions: {},
+  },
+  SOLAR: {
+    symbol: "SOLAR",
+    name: "SOLAR",
+    mint: "2wmKXX1xsxLfrvjEPrt2UHiqj8Gbzwxvffr9qmNjsw8g",
+    decimals: 9,
+    extensions: {},
+  },
+  BASIS: {
+    symbol: "BASIS",
+    name: "BASIS",
+    mint: "Basis9oJw9j8cw53oMV7iqsgo6ihi9ALw4QR31rcjUJa",
+    decimals: 6,
+    extensions: {},
+  },
+  SOLX: {
+    symbol: "SOLX",
+    name: "SOLX",
+    mint: "CH74tuRLTYcxG7qNJCsV9rghfLXJCQJbsu7i52a8F1Gn",
+    decimals: 9,
+    extensions: {},
+  },
+  CHICKS: {
+    symbol: "CHICKS",
+    name: "CHICKS",
+    mint: "cxxShYRVcepDudXhe7U62QHvw8uBJoKFifmzggGKVC2",
+    decimals: 9,
+    extensions: {},
+  },
+  GST: {
+    symbol: "GST",
+    name: "GST",
+    mint: "AFbX8oGjGpmVFywbVouvhQSRmiW2aR1mohfahi4Y2AdB",
+    decimals: 9,
+    extensions: {},
   },
 };
 
 export const MAINNET_LP_TOKENS: LpTokens = {
   *[Symbol.iterator]() {
     yield* Object.values(this);
-  },
-  RAY_WUSDT_V2: {
-    symbol: "RAY-WUSDT",
-    name: "RAY-WUSDT V2 LP",
-    mint: "CzPDyvotTcxNqtPne32yUiEVQ6jk42HZi1Y3hUu7qf7f",
-
-    base: MAINNET_SPL_TOKENS.RAY,
-    quote: MAINNET_SPL_TOKENS.WUSDT,
-    decimals: MAINNET_SPL_TOKENS.RAY.decimals,
-
-    version: 2,
-  },
-  RAY_SOL_V2: {
-    symbol: "RAY-SOL",
-    name: "RAY-SOL V2 LP",
-    mint: "134Cct3CSdRCbYgq5SkwmHgfwjJ7EM5cG9PzqffWqECx",
-
-    base: MAINNET_SPL_TOKENS.RAY,
-    quote: MAINNET_SPL_TOKENS.WSOL,
-    decimals: MAINNET_SPL_TOKENS.RAY.decimals,
-
-    version: 2,
-  },
-  LINK_WUSDT_V2: {
-    symbol: "LINK-WUSDT",
-    name: "LINK-WUSDT V2 LP",
-    mint: "EVDmwajM5U73PD34bYPugwiA4Eqqbrej4mLXXv15Z5qR",
-
-    base: MAINNET_SPL_TOKENS.LINK,
-    quote: MAINNET_SPL_TOKENS.WUSDT,
-    decimals: MAINNET_SPL_TOKENS.LINK.decimals,
-
-    version: 2,
-  },
-  ETH_WUSDT_V2: {
-    symbol: "ETH-WUSDT",
-    name: "ETH-WUSDT V2 LP",
-    mint: "KY4XvwHy7JPzbWYAbk23jQvEb4qWJ8aCqYWREmk1Q7K",
-
-    base: MAINNET_SPL_TOKENS.ETH,
-    quote: MAINNET_SPL_TOKENS.WUSDT,
-    decimals: MAINNET_SPL_TOKENS.ETH.decimals,
-
-    version: 2,
-  },
-  RAY_USDC_V2: {
-    symbol: "RAY-USDC",
-    name: "RAY-USDC V2 LP",
-    mint: "FgmBnsF5Qrnv8X9bomQfEtQTQjNNiBCWRKGpzPnE5BDg",
-
-    base: MAINNET_SPL_TOKENS.RAY,
-    quote: MAINNET_SPL_TOKENS.USDC,
-    decimals: MAINNET_SPL_TOKENS.RAY.decimals,
-
-    version: 2,
-  },
-  RAY_SRM_V2: {
-    symbol: "RAY-SRM",
-    name: "RAY-SRM V2 LP",
-    mint: "5QXBMXuCL7zfAk39jEVVEvcrz1AvBGgT9wAhLLHLyyUJ",
-
-    base: MAINNET_SPL_TOKENS.RAY,
-    quote: MAINNET_SPL_TOKENS.SRM,
-    decimals: MAINNET_SPL_TOKENS.RAY.decimals,
-
-    version: 2,
-  },
-  RAY_WUSDT_V3: {
-    symbol: "RAY-WUSDT",
-    name: "RAY-WUSDT V3 LP",
-    mint: "FdhKXYjCou2jQfgKWcNY7jb8F2DPLU1teTTTRfLBD2v1",
-
-    base: MAINNET_SPL_TOKENS.RAY,
-    quote: MAINNET_SPL_TOKENS.WUSDT,
-    decimals: MAINNET_SPL_TOKENS.RAY.decimals,
-
-    version: 3,
-  },
-  RAY_USDC_V3: {
-    symbol: "RAY-USDC",
-    name: "RAY-USDC V3 LP",
-    mint: "BZFGfXMrjG2sS7QT2eiCDEevPFnkYYF7kzJpWfYxPbcx",
-
-    base: MAINNET_SPL_TOKENS.RAY,
-    quote: MAINNET_SPL_TOKENS.USDC,
-    decimals: MAINNET_SPL_TOKENS.RAY.decimals,
-
-    version: 3,
-  },
-  RAY_SRM_V3: {
-    symbol: "RAY-SRM",
-    name: "RAY-SRM V3 LP",
-    mint: "DSX5E21RE9FB9hM8Nh8xcXQfPK6SzRaJiywemHBSsfup",
-
-    base: MAINNET_SPL_TOKENS.RAY,
-    quote: MAINNET_SPL_TOKENS.SRM,
-    decimals: MAINNET_SPL_TOKENS.RAY.decimals,
-
-    version: 3,
-  },
-  RAY_SOL_V3: {
-    symbol: "RAY-SOL",
-    name: "RAY-SOL V3 LP",
-    mint: "F5PPQHGcznZ2FxD9JaxJMXaf7XkaFFJ6zzTBcW8osQjw",
-
-    base: MAINNET_SPL_TOKENS.RAY,
-    quote: MAINNET_SPL_TOKENS.WSOL,
-    decimals: MAINNET_SPL_TOKENS.RAY.decimals,
-
-    version: 3,
-  },
-  RAY_ETH_V3: {
-    symbol: "RAY-ETH",
-    name: "RAY-ETH V3 LP",
-    mint: "8Q6MKy5Yxb9vG1mWzppMtMb2nrhNuCRNUkJTeiE3fuwD",
-
-    base: MAINNET_SPL_TOKENS.RAY,
-    quote: MAINNET_SPL_TOKENS.ETH,
-    decimals: MAINNET_SPL_TOKENS.RAY.decimals,
-
-    version: 3,
   },
   FIDA_RAY_V4: {
     symbol: "FIDA-RAY",
@@ -697,6 +977,7 @@ export const MAINNET_LP_TOKENS: LpTokens = {
 
     base: MAINNET_SPL_TOKENS.KIN,
     quote: MAINNET_SPL_TOKENS.RAY,
+    // mistake, a special one
     decimals: 6,
 
     version: 4,
@@ -1284,6 +1565,50 @@ export const MAINNET_LP_TOKENS: LpTokens = {
 
     version: 4,
   },
+  ATLAS_USDC_V4: {
+    symbol: "ATLAS-USDC",
+    name: "ATLAS-USDC V4 LP",
+    mint: "9shGU9f1EsxAbiR567MYZ78WUiS6ZNCYbHe53WUULQ7n",
+
+    base: MAINNET_SPL_TOKENS.ATLAS,
+    quote: MAINNET_SPL_TOKENS.USDC,
+    decimals: MAINNET_SPL_TOKENS.ATLAS.decimals,
+
+    version: 4,
+  },
+  POLIS_USDC_V4: {
+    symbol: "POLIS-USDC",
+    name: "POLIS-USDC V4 LP",
+    mint: "8MbKSBpyXs8fVneKgt71jfHrn5SWtX8n4wMLpiVfF9So",
+
+    base: MAINNET_SPL_TOKENS.POLIS,
+    quote: MAINNET_SPL_TOKENS.USDC,
+    decimals: MAINNET_SPL_TOKENS.POLIS.decimals,
+
+    version: 4,
+  },
+  ATLAS_RAY_V4: {
+    symbol: "ATLAS-RAY",
+    name: "ATLAS-RAY V4 LP",
+    mint: "418MFhkaYQtbn529wmjLLqL6uKxDz7j4eZBaV1cobkyd",
+
+    base: MAINNET_SPL_TOKENS.ATLAS,
+    quote: MAINNET_SPL_TOKENS.RAY,
+    decimals: MAINNET_SPL_TOKENS.ATLAS.decimals,
+
+    version: 4,
+  },
+  POLIS_RAY_V4: {
+    symbol: "POLIS-RAY",
+    name: "POLIS-RAY V4 LP",
+    mint: "9ysGKUH6WqzjQEUT4dxqYCUaFNVK9QFEa24pGzjFq8xg",
+
+    base: MAINNET_SPL_TOKENS.POLIS,
+    quote: MAINNET_SPL_TOKENS.RAY,
+    decimals: MAINNET_SPL_TOKENS.POLIS.decimals,
+
+    version: 4,
+  },
   ALEPH_RAY_V4: {
     symbol: "ALEPH-RAY",
     name: "ALEPH-RAY V4 LP",
@@ -1372,47 +1697,410 @@ export const MAINNET_LP_TOKENS: LpTokens = {
 
     version: 4,
   },
-  ATLAS_USDC_V4: {
-    symbol: "ATLAS-USDC",
-    name: "ATLAS-USDC V4 LP",
-    mint: "9shGU9f1EsxAbiR567MYZ78WUiS6ZNCYbHe53WUULQ7n",
+  ETH_SOL_V4: {
+    symbol: "ETH-SOL",
+    name: "ETH-SOL V4 LP",
+    mint: "GKfgC86iJoMjwAtcyiLu6nWnjggqUXsDQihXkP14fDez",
 
-    base: MAINNET_SPL_TOKENS.ATLAS,
+    base: MAINNET_SPL_TOKENS.ETH,
+    quote: MAINNET_SPL_TOKENS.WSOL,
+    decimals: MAINNET_SPL_TOKENS.ETH.decimals,
+
+    version: 4,
+  },
+  stSOL_USDC_V4: {
+    symbol: "stSOL-USDC",
+    name: "stSOL-USDC V4 LP",
+    mint: "HDUJMwYZkjUZre63xUeDhdCi8c6LgUDiBqxmP3QC3VPX",
+
+    base: MAINNET_SPL_TOKENS.stSOL,
     quote: MAINNET_SPL_TOKENS.USDC,
-    decimals: MAINNET_SPL_TOKENS.ATLAS.decimals,
+    decimals: MAINNET_SPL_TOKENS.stSOL.decimals,
 
     version: 4,
   },
-  POLIS_USDC_V4: {
-    symbol: "POLIS-USDC",
-    name: "POLIS-USDC V4 LP",
-    mint: "8MbKSBpyXs8fVneKgt71jfHrn5SWtX8n4wMLpiVfF9So",
+  GRAPE_USDC_V4: {
+    symbol: "GRAPE-USDC",
+    name: "GRAPE-USDC V4 LP",
+    mint: "A8ZYmnZ1vwxUa4wpJVUaJgegsuTEz5TKy5CiJXffvmpt",
 
-    base: MAINNET_SPL_TOKENS.POLIS,
+    base: MAINNET_SPL_TOKENS.GRAPE,
     quote: MAINNET_SPL_TOKENS.USDC,
-    decimals: MAINNET_SPL_TOKENS.POLIS.decimals,
+    decimals: MAINNET_SPL_TOKENS.GRAPE.decimals,
 
     version: 4,
   },
-  ATLAS_RAY_V4: {
-    symbol: "ATLAS-RAY",
-    name: "ATLAS-RAY V4 LP",
-    mint: "418MFhkaYQtbn529wmjLLqL6uKxDz7j4eZBaV1cobkyd",
+  LARIX_USDC_V4: {
+    symbol: "LARIX-USDC",
+    name: "LARIX-USDC V4 LP",
+    mint: "7yieit4YsNsZ9CAK8H5ZEMvvk35kPEHHeXwp6naoWU9V",
 
-    base: MAINNET_SPL_TOKENS.ATLAS,
-    quote: MAINNET_SPL_TOKENS.RAY,
-    decimals: MAINNET_SPL_TOKENS.ATLAS.decimals,
+    base: MAINNET_SPL_TOKENS.LARIX,
+    quote: MAINNET_SPL_TOKENS.USDC,
+    decimals: MAINNET_SPL_TOKENS.LARIX.decimals,
 
     version: 4,
   },
-  POLIS_RAY_V4: {
-    symbol: "POLIS-RAY",
-    name: "POLIS-RAY V4 LP",
-    mint: "9ysGKUH6WqzjQEUT4dxqYCUaFNVK9QFEa24pGzjFq8xg",
+  RIN_USDC_V4: {
+    symbol: "RIN-USDC",
+    name: "RIN-USDC V4 LP",
+    mint: "GfCWfrZez7BDmCSEeMERVDVUaaM2TEreyYUgb2cpuS3w",
 
-    base: MAINNET_SPL_TOKENS.POLIS,
+    base: MAINNET_SPL_TOKENS.RIN,
+    quote: MAINNET_SPL_TOKENS.USDC,
+    decimals: MAINNET_SPL_TOKENS.RIN.decimals,
+
+    version: 4,
+  },
+  APEX_USDC_V4: {
+    symbol: "APEX-USDC",
+    name: "APEX-USDC V4 LP",
+    mint: "444cVqYyDxJNo6FqiMb9qQWFUd7tYzFRdDuJRFrSAGnU",
+
+    base: MAINNET_SPL_TOKENS.APEX,
+    quote: MAINNET_SPL_TOKENS.USDC,
+    decimals: MAINNET_SPL_TOKENS.APEX.decimals,
+
+    version: 4,
+  },
+  mSOL_RAY_V4: {
+    symbol: "mSOL-RAY",
+    name: "mSOL-RAY V4 LP",
+    mint: "De2EHBAdkgfc72DpShqDGG42cV3iDWh8wvvZdPsiEcqP",
+
+    base: MAINNET_SPL_TOKENS.mSOL,
     quote: MAINNET_SPL_TOKENS.RAY,
-    decimals: MAINNET_SPL_TOKENS.POLIS.decimals,
+    decimals: MAINNET_SPL_TOKENS.mSOL.decimals,
+
+    version: 4,
+  },
+  MNDE_mSOL_V4: {
+    symbol: "MNDE-mSOL",
+    name: "MNDE-mSOL V4 LP",
+    mint: "4bh8XCzTHSbqbWN8o1Jn4ueBdz1LvJFoEasN6K6CQ8Ny",
+
+    base: MAINNET_SPL_TOKENS.MNDE,
+    quote: MAINNET_SPL_TOKENS.mSOL,
+    decimals: MAINNET_SPL_TOKENS.MNDE.decimals,
+
+    version: 4,
+  },
+  LARIX_RAY_V4: {
+    symbol: "LARIX-RAY",
+    name: "LARIX-RAY V4 LP",
+    mint: "ZRDfSLgWGeaYSmhdPvFNKQQhDcYdZQaue2N8YDmHX4q",
+
+    base: MAINNET_SPL_TOKENS.LARIX,
+    quote: MAINNET_SPL_TOKENS.RAY,
+    decimals: MAINNET_SPL_TOKENS.LARIX.decimals,
+
+    version: 4,
+  },
+  LIQ_USDC_V4: {
+    symbol: "LIQ-USDC",
+    name: "LIQ-USDC V4 LP",
+    mint: "GWpD3eTfhJB5KDCcnE85dBQrjAk2CsrgDF9b52R9CrjV",
+
+    base: MAINNET_SPL_TOKENS.LIQ,
+    quote: MAINNET_SPL_TOKENS.USDC,
+    decimals: MAINNET_SPL_TOKENS.LIQ.decimals,
+
+    version: 4,
+  },
+  WAG_USDC_V4: {
+    symbol: "WAG-USDC",
+    name: "WAG-USDC V4 LP",
+    mint: "4yykyPugitUVRewNPXXCviRvxGfsfsRMoP32z3b6FmUC",
+
+    base: MAINNET_SPL_TOKENS.WAG,
+    quote: MAINNET_SPL_TOKENS.USDC,
+    decimals: MAINNET_SPL_TOKENS.WAG.decimals,
+
+    version: 4,
+  },
+  ETH_mSOL_V4: {
+    symbol: "ETH-mSOL",
+    name: "ETH-mSOL V4 LP",
+    mint: "HYv3grQfi8QbV7nG7EFgNK1aJSrsJ7HynXJKJVPLL2Uh",
+
+    base: MAINNET_SPL_TOKENS.ETH,
+    quote: MAINNET_SPL_TOKENS.mSOL,
+    decimals: MAINNET_SPL_TOKENS.ETH.decimals,
+
+    version: 4,
+  },
+  mSOL_USDT_V4: {
+    symbol: "mSOL-USDT",
+    name: "mSOL-USDT V4 LP",
+    mint: "69NCmEW9mGpiWLjAcAWHq51k4ionJZmzgRfRT3wQaCCf",
+
+    base: MAINNET_SPL_TOKENS.mSOL,
+    quote: MAINNET_SPL_TOKENS.USDT,
+    decimals: MAINNET_SPL_TOKENS.mSOL.decimals,
+
+    version: 4,
+  },
+  BTC_mSOL_V4: {
+    symbol: "BTC-mSOL",
+    name: "BTC-mSOL V4 LP",
+    mint: "92bcERNtUmuaJ6mwLSxYHZYSph37jdKxRdoYNxpcYNPp",
+
+    base: MAINNET_SPL_TOKENS.BTC,
+    quote: MAINNET_SPL_TOKENS.mSOL,
+    decimals: MAINNET_SPL_TOKENS.BTC.decimals,
+
+    version: 4,
+  },
+  SLIM_SOL_V4: {
+    symbol: "SLIM-SOL",
+    name: "SLIM-SOL V4 LP",
+    mint: "9X4EK8E59VAVi6ChnNvvd39m6Yg9RtkBbAPq1mDVJT57",
+
+    base: MAINNET_SPL_TOKENS.SLIM,
+    quote: MAINNET_SPL_TOKENS.WSOL,
+    decimals: MAINNET_SPL_TOKENS.SLIM.decimals,
+
+    version: 4,
+  },
+  AURY_USDC_V4: {
+    symbol: "AURY-USDC",
+    name: "AURY-USDC V4 LP",
+    mint: "Gub5dvTy4nzP82qpmpNkBxmRqjtqRddBTBqHSdNcf2oS",
+
+    base: MAINNET_SPL_TOKENS.AURY,
+    quote: MAINNET_SPL_TOKENS.USDC,
+    decimals: MAINNET_SPL_TOKENS.AURY.decimals,
+
+    version: 4,
+  },
+  PRT_SOL_V4: {
+    symbol: "PRT-SOL",
+    name: "PRT-SOL V4 LP",
+    mint: "EcJ8Wgwt1AzSPiDpVr6aaSur8TKAsNTPmmzRACeqT68Z",
+
+    base: MAINNET_SPL_TOKENS.PRT,
+    quote: MAINNET_SPL_TOKENS.WSOL,
+    decimals: MAINNET_SPL_TOKENS.PRT.decimals,
+
+    version: 4,
+  },
+  LIQ_RAY_V4: {
+    symbol: "LIQ-RAY",
+    name: "LIQ-RAY V4 LP",
+    mint: "49YUsDrThJosHSagCn1F59Uc9NRxbr9thVrZikUnQDXy",
+
+    base: MAINNET_SPL_TOKENS.LIQ,
+    quote: MAINNET_SPL_TOKENS.RAY,
+    decimals: MAINNET_SPL_TOKENS.LIQ.decimals,
+
+    version: 4,
+  },
+  SYP_SOL_V4: {
+    symbol: "SYP-SOL",
+    name: "SYP-SOL V4 LP",
+    mint: "KHV6dfj2bDntzJ9z1S26cDfqWfUZdJRFmteLR6LxHwW",
+
+    base: MAINNET_SPL_TOKENS.SYP,
+    quote: MAINNET_SPL_TOKENS.WSOL,
+    decimals: MAINNET_SPL_TOKENS.SYP.decimals,
+
+    version: 4,
+  },
+  SYP_RAY_V4: {
+    symbol: "SYP-RAY",
+    name: "SYP-RAY V4 LP",
+    mint: "FT2KZqxxM8F2h9pZtTF4PyjK88bM4YbuBzd7ZPwQ5wMB",
+
+    base: MAINNET_SPL_TOKENS.SYP,
+    quote: MAINNET_SPL_TOKENS.RAY,
+    decimals: MAINNET_SPL_TOKENS.SYP.decimals,
+
+    version: 4,
+  },
+  SYP_USDC_V4: {
+    symbol: "SYP-USDC",
+    name: "SYP-USDC V4 LP",
+    mint: "2xJGuLAivAR1WkARRA6zP1v4jaA9jV2Qis8JfMNvrVyZ",
+
+    base: MAINNET_SPL_TOKENS.SYP,
+    quote: MAINNET_SPL_TOKENS.USDC,
+    decimals: MAINNET_SPL_TOKENS.SYP.decimals,
+
+    version: 4,
+  },
+  FAB_USDC_V4: {
+    symbol: "FAB-USDC",
+    name: "FAB-USDC V4 LP",
+    mint: "5rTCvZq6BcApsC3VV1EEUuTJfaVd8uYhcGjwTy1By6P8",
+
+    base: MAINNET_SPL_TOKENS.FAB,
+    quote: MAINNET_SPL_TOKENS.USDC,
+    decimals: MAINNET_SPL_TOKENS.FAB.decimals,
+
+    version: 4,
+  },
+  WOOF_RAY_V4: {
+    symbol: "WOOF-RAY",
+    name: "WOOF-RAY V4 LP",
+    mint: "H2FAnazDaGFutcmnrwDxhmdncR1Bd7GG4mhPCSUiamDX",
+
+    base: MAINNET_SPL_TOKENS.WOOF,
+    quote: MAINNET_SPL_TOKENS.RAY,
+    decimals: MAINNET_SPL_TOKENS.WOOF.decimals,
+
+    version: 4,
+  },
+  WOOF_USDC_V4: {
+    symbol: "WOOF-USDC",
+    name: "WOOF-USDC V4 LP",
+    mint: "EFSu5TMc1ijRevaYCxUkS7uGvbhsymDHEaTK3UVdNE3q",
+
+    base: MAINNET_SPL_TOKENS.WOOF,
+    quote: MAINNET_SPL_TOKENS.USDC,
+    decimals: MAINNET_SPL_TOKENS.WOOF.decimals,
+
+    version: 4,
+  },
+  SLND_USDC_V4: {
+    symbol: "SLND-USDC",
+    name: "SLND-USDC V4 LP",
+    mint: "EunE9uDh2cGsyJcsGuGKc6wte7kBn8iye2gzC4w2ePHn",
+
+    base: MAINNET_SPL_TOKENS.SLND,
+    quote: MAINNET_SPL_TOKENS.USDC,
+    decimals: MAINNET_SPL_TOKENS.SLND.decimals,
+
+    version: 4,
+  },
+  FRKT_SOL_V4: {
+    symbol: "FRKT-SOL",
+    name: "FRKT-SOL V4 LP",
+    mint: "HYUKXgpjaxMXHttyrFYtv3z2rdhZ1U9QDH8zEc8BooQC",
+
+    base: MAINNET_SPL_TOKENS.FRKT,
+    quote: MAINNET_SPL_TOKENS.WSOL,
+    decimals: MAINNET_SPL_TOKENS.FRKT.decimals,
+
+    version: 4,
+  },
+  weWETH_SOL_V4: {
+    symbol: "weWETH-SOL",
+    name: "weWETH-SOL V4 LP",
+    mint: "3hbozt2Por7bcrGod8N7kEeJNMocFFjCJrQR16TQGBrE",
+
+    base: MAINNET_SPL_TOKENS.weWETH,
+    quote: MAINNET_SPL_TOKENS.WSOL,
+    decimals: MAINNET_SPL_TOKENS.weWETH.decimals,
+
+    version: 4,
+  },
+  weWETH_USDC_V4: {
+    symbol: "weWETH-USDC",
+    name: "weWETH-USDC V4 LP",
+    mint: "3529SBnMCDW3S3xQ52aABbRHo7PcHvpQA4no8J12L5eK",
+
+    base: MAINNET_SPL_TOKENS.weWETH,
+    quote: MAINNET_SPL_TOKENS.USDC,
+    decimals: MAINNET_SPL_TOKENS.weWETH.decimals,
+
+    version: 4,
+  },
+  weUNI_USDC_V4: {
+    symbol: "weUNI-USDC",
+    name: "weUNI-USDC V4 LP",
+    mint: "EEC4QnT41py39QaYnzQnoYQEtDUDNa6Se8SBDgfPSN2a",
+
+    base: MAINNET_SPL_TOKENS.weUNI,
+    quote: MAINNET_SPL_TOKENS.USDC,
+    decimals: MAINNET_SPL_TOKENS.weUNI.decimals,
+
+    version: 4,
+  },
+  weSUSHI_USDC_V4: {
+    symbol: "weSUSHI-USDC",
+    name: "weSUSHI-USDC V4 LP",
+    mint: "3wVrtQZsiDNp5yTPyfEzQHPU6iuJoMmpnWg6CTt4V8sR",
+
+    base: MAINNET_SPL_TOKENS.weSUSHI,
+    quote: MAINNET_SPL_TOKENS.USDC,
+    decimals: MAINNET_SPL_TOKENS.weSUSHI.decimals,
+
+    version: 4,
+  },
+  CYS_USDC_V4: {
+    symbol: "CYS-USDC",
+    name: "CYS-USDC V4 LP",
+    mint: "GfV3QDzzdVUwCNSdfn6PjhmyJvjw18tn51RingWZYwk3",
+
+    base: MAINNET_SPL_TOKENS.CYS,
+    quote: MAINNET_SPL_TOKENS.USDC,
+    decimals: MAINNET_SPL_TOKENS.CYS.decimals,
+
+    version: 4,
+  },
+  SAMO_USDC_V4: {
+    symbol: "SAMO-USDC",
+    name: "SAMO-USDC V4 LP",
+    mint: "B2PjGEP3vPf1999fUD14pYdxvSDRVBk43hxB2rgthwEY",
+
+    base: MAINNET_SPL_TOKENS.SAMO,
+    quote: MAINNET_SPL_TOKENS.USDC,
+    decimals: MAINNET_SPL_TOKENS.SAMO.decimals,
+
+    version: 4,
+  },
+  ABR_USDC_V4: {
+    symbol: "ABR-USDC",
+    name: "ABR-USDC V4 LP",
+    mint: "ECHfxkf5zjjZFTX95QfFahNyzG7feyEKcfTdjsdrMSGU",
+
+    base: MAINNET_SPL_TOKENS.ABR,
+    quote: MAINNET_SPL_TOKENS.USDC,
+    decimals: MAINNET_SPL_TOKENS.ABR.decimals,
+
+    version: 4,
+  },
+  IN_USDC_V4: {
+    symbol: "IN-USDC",
+    name: "IN-USDC V4 LP",
+    mint: "GbmJtVgg9fRmmmjKUYGMZeSt8wZ47cDDXasg5Y3iF4kz",
+
+    base: MAINNET_SPL_TOKENS.IN,
+    quote: MAINNET_SPL_TOKENS.USDC,
+    decimals: MAINNET_SPL_TOKENS.IN.decimals,
+
+    version: 4,
+  },
+  weDYDX_USDC_V4: {
+    symbol: "weDYDX-USDC",
+    name: "weDYDX-USDC V4 LP",
+    mint: "BjkkMZnnzmgLqzGErzDbkk15ozv48iVKQuunpeM2Hqnk",
+
+    base: MAINNET_SPL_TOKENS.weDYDX,
+    quote: MAINNET_SPL_TOKENS.USDC,
+    decimals: MAINNET_SPL_TOKENS.weDYDX.decimals,
+
+    version: 4,
+  },
+  STARS_USDC_V4: {
+    symbol: "STARS-USDC",
+    name: "STARS-USDC V4 LP",
+    mint: "FJ68q7NChhETcGVdinMbM2FF1Cy79dpmUi6HC83K55Hv",
+
+    base: MAINNET_SPL_TOKENS.STARS,
+    quote: MAINNET_SPL_TOKENS.USDC,
+    decimals: MAINNET_SPL_TOKENS.STARS.decimals,
+
+    version: 4,
+  },
+  weAXS_USDC_V4: {
+    symbol: "weAXS-USDC",
+    name: "weAXS-USDC V4 LP",
+    mint: "6PSoJQ7myQ1BJtbQC6oiWR8HSecQGyoWsPYTZRJo2ci3",
+
+    base: MAINNET_SPL_TOKENS.weAXS,
+    quote: MAINNET_SPL_TOKENS.USDC,
+    decimals: MAINNET_SPL_TOKENS.weAXS.decimals,
 
     version: 4,
   },
@@ -1424,6 +2112,380 @@ export const MAINNET_LP_TOKENS: LpTokens = {
     base: MAINNET_SPL_TOKENS.weSHIB,
     quote: MAINNET_SPL_TOKENS.USDC,
     decimals: MAINNET_SPL_TOKENS.weSHIB.decimals,
+
+    version: 4,
+  },
+  SBR_USDC_V4: {
+    symbol: "SBR-USDC",
+    name: "SBR-USDC V4 LP",
+    mint: "9FC8xTFRbgTpuZZYAYnZLxgnQ8r7FwfSBM1SWvGwgF7s",
+
+    base: MAINNET_SPL_TOKENS.SBR,
+    quote: MAINNET_SPL_TOKENS.USDC,
+    decimals: MAINNET_SPL_TOKENS.SBR.decimals,
+
+    version: 4,
+  },
+  OXS_USDC_V4: {
+    symbol: "OXS-USDC",
+    name: "OXS-USDC V4 LP",
+    mint: "et9pdjWm97rbmsJoN183GkFV5qzTGru79GE1Zhe7NTU",
+
+    base: MAINNET_SPL_TOKENS.OXS,
+    quote: MAINNET_SPL_TOKENS.USDC,
+    decimals: MAINNET_SPL_TOKENS.OXS.decimals,
+
+    version: 4,
+  },
+  CWAR_USDC_V4: {
+    symbol: "CWAR-USDC",
+    name: "CWAR-USDC V4 LP",
+    mint: "HjR23bxn2gtRDB2P1Tm3DLepAPPZgazsWJpLG9wqjnYR",
+
+    base: MAINNET_SPL_TOKENS.CWAR,
+    quote: MAINNET_SPL_TOKENS.USDC,
+    decimals: MAINNET_SPL_TOKENS.CWAR.decimals,
+
+    version: 4,
+  },
+  UPS_USDC_V4: {
+    symbol: "UPS-USDC",
+    name: "UPS-USDC V4 LP",
+    mint: "9hSUZdREEsbaYaKY4FouvXr7xyAqtpdHRDoYCb6Mb28a",
+
+    base: MAINNET_SPL_TOKENS.UPS,
+    quote: MAINNET_SPL_TOKENS.USDC,
+    decimals: MAINNET_SPL_TOKENS.UPS.decimals,
+
+    version: 4,
+  },
+  weSAND_USDC_V4: {
+    symbol: "weSAND-USDC",
+    name: "weSAND-USDC V4 LP",
+    mint: "3dADrQa7utyiCsaFeVk9r7oebW1WheowhKo5soBYKBVT",
+
+    base: MAINNET_SPL_TOKENS.weSAND,
+    quote: MAINNET_SPL_TOKENS.USDC,
+    decimals: MAINNET_SPL_TOKENS.weSAND.decimals,
+
+    version: 4,
+  },
+  weMANA_USDC_V4: {
+    symbol: "weMANA-USDC",
+    name: "weMANA-USDC V4 LP",
+    mint: "HpUkVAPRJ5zNRuJ1ZwMXEhbMHL3gSuPb2QuSER9YUd3a",
+
+    base: MAINNET_SPL_TOKENS.weMANA,
+    quote: MAINNET_SPL_TOKENS.USDC,
+    decimals: MAINNET_SPL_TOKENS.weMANA.decimals,
+
+    version: 4,
+  },
+  CAVE_USDC_V4: {
+    symbol: "CAVE-USDC",
+    name: "CAVE-USDC V4 LP",
+    mint: "5Gba1k3fU7Vh7UtAiBmie9vhQNNq1JfEwgn1DPGZ7NKQ",
+
+    base: MAINNET_SPL_TOKENS.CAVE,
+    quote: MAINNET_SPL_TOKENS.USDC,
+    decimals: MAINNET_SPL_TOKENS.CAVE.decimals,
+
+    version: 4,
+  },
+  GENE_USDC_V4: {
+    symbol: "GENE-USDC",
+    name: "GENE-USDC V4 LP",
+    mint: "7GKvfHEXenNiWYbJBKae89mdaMPr5gGMYwZmyC8gBNVG",
+
+    base: MAINNET_SPL_TOKENS.GENE,
+    quote: MAINNET_SPL_TOKENS.USDC,
+    decimals: MAINNET_SPL_TOKENS.GENE.decimals,
+
+    version: 4,
+  },
+  GENE_RAY_V4: {
+    symbol: "GENE-RAY",
+    name: "GENE-RAY V4 LP",
+    mint: "3HzXnc1qZ8mGqun18Ck3KA616XnZNqF1RWbgYE2nGRMA",
+
+    base: MAINNET_SPL_TOKENS.GENE,
+    quote: MAINNET_SPL_TOKENS.RAY,
+    decimals: MAINNET_SPL_TOKENS.GENE.decimals,
+
+    version: 4,
+  },
+  APT_USDC_V4: {
+    symbol: "APT-USDC",
+    name: "APT-USDC V4 LP",
+    mint: "Hk8mDAJFq4E9kF3DtNgPFwzbo5kbeiusNFJgWmo3LoQ5",
+
+    base: MAINNET_SPL_TOKENS.APT,
+    quote: MAINNET_SPL_TOKENS.USDC,
+    decimals: MAINNET_SPL_TOKENS.APT.decimals,
+
+    version: 4,
+  },
+  GOFX_USDC_V4: {
+    symbol: "GOFX-USDC",
+    name: "GOFX-USDC V4 LP",
+    mint: "4svqAwrLPGRDCQuuieYTmtLXF75wiahjeK2rEN9tY1YL",
+
+    base: MAINNET_SPL_TOKENS.GOFX,
+    quote: MAINNET_SPL_TOKENS.USDC,
+    decimals: MAINNET_SPL_TOKENS.GOFX.decimals,
+
+    version: 4,
+  },
+  SONAR_USDC_V4: {
+    symbol: "SONAR-USDC",
+    name: "SONAR-USDC V4 LP",
+    mint: "2tAcfqJ1YYjpGLqwh76kyNt9VaNFDd4fJySfH6SmWfKt",
+
+    base: MAINNET_SPL_TOKENS.SONAR,
+    quote: MAINNET_SPL_TOKENS.USDC,
+    decimals: MAINNET_SPL_TOKENS.SONAR.decimals,
+
+    version: 4,
+  },
+  JSOL_SOL_V4: {
+    symbol: "JSOL-SOL",
+    name: "JSOL-SOL V4 LP",
+    mint: "61z37rpHsU6d3Fq5sUjJ85K6tXGzkoYKDAG3kPJQNDRo",
+
+    base: MAINNET_SPL_TOKENS.JSOL,
+    quote: MAINNET_SPL_TOKENS.WSOL,
+    decimals: MAINNET_SPL_TOKENS.JSOL.decimals,
+
+    version: 4,
+  },
+  JSOL_USDC_V4: {
+    symbol: "JSOL-USDC",
+    name: "JSOL-USDC V4 LP",
+    mint: "3JZqf2VPNxj1kDZQsfzC7myM6spsGQbGuFv1gVfdYosN",
+
+    base: MAINNET_SPL_TOKENS.JSOL,
+    quote: MAINNET_SPL_TOKENS.USDC,
+    decimals: MAINNET_SPL_TOKENS.JSOL.decimals,
+
+    version: 4,
+  },
+  SHILL_USDC_V4: {
+    symbol: "SHILL-USDC",
+    name: "SHILL-USDC V4 LP",
+    mint: "CnUhYBtQEbSBZ76bgxAouVCTCb8rofZzwerVF5z5LREJ",
+
+    base: MAINNET_SPL_TOKENS.SHILL,
+    quote: MAINNET_SPL_TOKENS.USDC,
+    decimals: MAINNET_SPL_TOKENS.SHILL.decimals,
+
+    version: 4,
+  },
+  DFL_USDC_V4: {
+    symbol: "DFL-USDC",
+    name: "DFL-USDC V4 LP",
+    mint: "Fffijd6UVJdQeLVXhenS8YcsnMUdWJqpbBeH42LFkXgS",
+
+    base: MAINNET_SPL_TOKENS.DFL,
+    quote: MAINNET_SPL_TOKENS.USDC,
+    decimals: MAINNET_SPL_TOKENS.DFL.decimals,
+
+    version: 4,
+  },
+  BOKU_USDC_V4: {
+    symbol: "BOKU-USDC",
+    name: "BOKU-USDC V4 LP",
+    mint: "8jjQn5Yagb6Nm2WGAxPW1bcGqrTWpg5adf6QukXEarcP",
+
+    base: MAINNET_SPL_TOKENS.BOKU,
+    quote: MAINNET_SPL_TOKENS.USDC,
+    decimals: MAINNET_SPL_TOKENS.BOKU.decimals,
+
+    version: 4,
+  },
+  MIMO_SOL_V4: {
+    symbol: "MIMO-SOL",
+    name: "MIMO-SOL V4 LP",
+    mint: "HUJ1opSk8AiPfDT47r7n4hTiK2EXgrR3Msy7T8q1BywS",
+
+    base: MAINNET_SPL_TOKENS.MIMO,
+    quote: MAINNET_SPL_TOKENS.WSOL,
+    decimals: MAINNET_SPL_TOKENS.MIMO.decimals,
+
+    version: 4,
+  },
+  wbWBNB_USDC_V4: {
+    symbol: "wbWBNB-USDC",
+    name: "wbWBNB-USDC V4 LP",
+    mint: "FEsEfEJJSfiMQcshUgZ5UigfytfGRQ3z5puyF6DXDp9C",
+
+    base: MAINNET_SPL_TOKENS.wbWBNB,
+    quote: MAINNET_SPL_TOKENS.USDC,
+    decimals: MAINNET_SPL_TOKENS.wbWBNB.decimals,
+
+    version: 4,
+  },
+  wePEOPLE_USDC_V4: {
+    symbol: "wePEOPLE-USDC",
+    name: "wePEOPLE-USDC V4 LP",
+    mint: "3e5ZCKi4etorpV4pv1fSckP5iJD67xcUkx3RtFCZhbzD",
+
+    base: MAINNET_SPL_TOKENS.wePEOPLE,
+    quote: MAINNET_SPL_TOKENS.USDC,
+    decimals: MAINNET_SPL_TOKENS.wePEOPLE.decimals,
+
+    version: 4,
+  },
+  ISOLA_USDT_V4: {
+    symbol: "ISOLA-USDT",
+    name: "ISOLA-USDT V4 LP",
+    mint: "H8s1wQsZpRK61pyLF3XwyQc6E8vNUnwRDhy3TBDCDENQ",
+
+    base: MAINNET_SPL_TOKENS.ISOLA,
+    quote: MAINNET_SPL_TOKENS.USDT,
+    decimals: MAINNET_SPL_TOKENS.ISOLA.decimals,
+
+    version: 4,
+  },
+  SPWN_USDC_V4: {
+    symbol: "SPWN-USDC",
+    name: "SPWN-USDC V4 LP",
+    mint: "B5uyCAQcX6nAjZypLgiivbEKabSptgUb8JK9tkaSnqdW",
+
+    base: MAINNET_SPL_TOKENS.SPWN,
+    quote: MAINNET_SPL_TOKENS.USDC,
+    decimals: MAINNET_SPL_TOKENS.SPWN.decimals,
+
+    version: 4,
+  },
+  STR_USDC_V4: {
+    symbol: "STR-USDC",
+    name: "STR-USDC V4 LP",
+    mint: "8uDVKmVwNmbXHDB7rNKqtpcT9VAsFHTJ5pPYxjyoBbNg",
+
+    base: MAINNET_SPL_TOKENS.STR,
+    quote: MAINNET_SPL_TOKENS.USDC,
+    decimals: MAINNET_SPL_TOKENS.STR.decimals,
+
+    version: 4,
+  },
+  SOLC_USDT_V4: {
+    symbol: "SOLC-USDT",
+    name: "SOLC-USDT V4 LP",
+    mint: "2g9JzTWycLzK4KEBBHsponAtZRee2ii63bRrJ8tefEyt",
+
+    base: MAINNET_SPL_TOKENS.SOLC,
+    quote: MAINNET_SPL_TOKENS.USDT,
+    decimals: MAINNET_SPL_TOKENS.SOLC.decimals,
+
+    version: 4,
+  },
+  VI_USDC_V4: {
+    symbol: "VI-USDC",
+    name: "VI-USDC V4 LP",
+    mint: "3MwHyHCRfVqtH3ABFtdKXdY9dwemr9GGxQFaBkeq6NjY",
+
+    base: MAINNET_SPL_TOKENS.VI,
+    quote: MAINNET_SPL_TOKENS.USDC,
+    decimals: MAINNET_SPL_TOKENS.VI.decimals,
+
+    version: 4,
+  },
+  KKO_USDC_V4: {
+    symbol: "KKO-USDC",
+    name: "KKO-USDC V4 LP",
+    mint: "7xr1Doc1NiMWbUg99YVFqQSLfYXNzo6YvacXUsSgBMNW",
+
+    base: MAINNET_SPL_TOKENS.KKO,
+    quote: MAINNET_SPL_TOKENS.USDC,
+    decimals: MAINNET_SPL_TOKENS.KKO.decimals,
+
+    version: 4,
+  },
+  XTAG_USDC_V4: {
+    symbol: "XTAG-USDC",
+    name: "XTAG-USDC V4 LP",
+    mint: "GCEQbLg4ik5YJ4CMcbtuVqEc4sjLdSGy34rFk1CtGjdg",
+
+    base: MAINNET_SPL_TOKENS.XTAG,
+    quote: MAINNET_SPL_TOKENS.USDC,
+    decimals: MAINNET_SPL_TOKENS.XTAG.decimals,
+
+    version: 4,
+  },
+  TTT_USDC_V4: {
+    symbol: "TTT-USDC",
+    name: "TTT-USDC V4 LP",
+    mint: "84fmrerHGohoRf4iLPDQ1KG4CjSjCRksYWGzjWfCRM8a",
+
+    base: MAINNET_SPL_TOKENS.TTT,
+    quote: MAINNET_SPL_TOKENS.USDC,
+    decimals: MAINNET_SPL_TOKENS.TTT.decimals,
+
+    version: 4,
+  },
+  RUN_USDC_V4: {
+    symbol: "RUN-USDC",
+    name: "RUN-USDC V4 LP",
+    mint: "CjTLvvKSQdEujcSzeZRYgk4w1DpuXBbMppLHaxZyz11Y",
+
+    base: MAINNET_SPL_TOKENS.RUN,
+    quote: MAINNET_SPL_TOKENS.USDC,
+    decimals: MAINNET_SPL_TOKENS.RUN.decimals,
+
+    version: 4,
+  },
+  CRWNY_USDC_V4: {
+    symbol: "CRWNY-USDC",
+    name: "CRWNY-USDC V4 LP",
+    mint: "H3D9Gyi4frRLW6bS9vBthDVDJyzyRJ6XhhpP6PJGWaDC",
+
+    base: MAINNET_SPL_TOKENS.CRWNY,
+    quote: MAINNET_SPL_TOKENS.USDC,
+    decimals: MAINNET_SPL_TOKENS.CRWNY.decimals,
+
+    version: 4,
+  },
+  CRWNY_RAY_V4: {
+    symbol: "CRWNY-RAY",
+    name: "CRWNY-RAY V4 LP",
+    mint: "5Cz9wGStNjiUg81q8t6sJJeckuT2C14CYSfyQbtYirSX",
+
+    base: MAINNET_SPL_TOKENS.CRWNY,
+    quote: MAINNET_SPL_TOKENS.RAY,
+    decimals: MAINNET_SPL_TOKENS.CRWNY.decimals,
+
+    version: 4,
+  },
+  BLOCK_USDC_V4: {
+    symbol: "BLOCK-USDC",
+    name: "BLOCK-USDC V4 LP",
+    mint: "8i44Y23GkkwDYZ5iSkVEqmrXUfwNmwo9grguTDWKM8wg",
+
+    base: MAINNET_SPL_TOKENS.BLOCK,
+    quote: MAINNET_SPL_TOKENS.USDC,
+    decimals: MAINNET_SPL_TOKENS.BLOCK.decimals,
+
+    version: 4,
+  },
+  REAL_USDC_V4: {
+    symbol: "REAL-USDC",
+    name: "REAL-USDC V4 LP",
+    mint: "EN43tp8xdkcM8RYSJ4msFHMPTJRXKhUteVYBDJLwTvr3",
+
+    base: MAINNET_SPL_TOKENS.REAL,
+    quote: MAINNET_SPL_TOKENS.USDC,
+    decimals: MAINNET_SPL_TOKENS.REAL.decimals,
+
+    version: 4,
+  },
+  FRKT_USDC_V4: {
+    symbol: "FRKT-USDC",
+    name: "FRKT-USDC V4 LP",
+    mint: "7MgzqVTGeA4wENme81QPTrPy45NJMKVL9XGwxmNT87cG",
+
+    base: MAINNET_SPL_TOKENS.FRKT,
+    quote: MAINNET_SPL_TOKENS.USDC,
+    decimals: MAINNET_SPL_TOKENS.FRKT.decimals,
 
     version: 4,
   },

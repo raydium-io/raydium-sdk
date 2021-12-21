@@ -190,9 +190,9 @@ export const MAINNET_OFFICIAL_LIQUIDITY_POOLS = [
   "GRM4jGMtx64sEocBFz6ZgdogF2fyTWiixht8thZoHjkK",
   // FRKT-SOL
   "H3dhkXcC5MRN7VRXNbWVSvogH8mUQPzpn8PYQL7HfBVg",
-  // whETH-SOL
+  // weWETH-SOL
   "4yrHms7ekgTBgJg77zJ33TsWrraqHsCXDtuSZqUsuGHb",
-  // whETH-USDC
+  // weWETH-USDC
   "EoNrn8iUhwgJySD1pHu8Qxm5gSQqLK3za4m8xzD2RuEb",
   // weUNI-USDC
   "8J5fa8WBGaDSv8AUpgtqdh9HM5AZuSf2ijvSkKoaCXCi",
@@ -248,6 +248,38 @@ export const MAINNET_OFFICIAL_LIQUIDITY_POOLS = [
   "8GJdzPuEBPP3BHJpcspBcfpRZV4moZMFwhTAuXebaPL8",
   // BOKU-USDC
   "FsERtRjCEQNyND3ccnMGrd61ntPmJ3tbZs4vvcCzMr1L",
+  // MIMO-SOL
+  "DqYSvijBXydSx9GfvVDjEzUg5StLLrkqZVPzsU2FeVZ2",
+  // wbWBNB-USDC
+  "Fb1WR1kYvG1tHu4pwAxXQpdKT8Grh9i7ES9rZusLg7D6",
+  // wePEOPLE-USDC
+  "GfvqUB36CPfqZDz5ntQ2YsoKRwg1MCewmurhc7jw3P5s",
+  // XTAG-USDC
+  "Hv1BFhyADPjYXTqEeMgwzoybnNwYrHXNv7U2VjcAuEDr",
+  // KKO-USDC
+  "FvN7dJz7GX1XB1BTk6jD5rEKRxQc3ZwNkWJKai5sBJWS",
+  // VI-USDC
+  "MphbxYtji1FSkm7G2FNGpUUz5AWn7iRPNFAvEqD4mzE",
+  // SOLC-USDT
+  "783kPvwHwDXaU32kV8NK5dB4JVeMWQwe8a3WUNZFpupr",
+  // STR-USDC
+  "E9Z2JeEKS2WGGyA18mGU33rnQskK9moPhM4tdzrv24fh",
+  // SPWN-USDC
+  "Bhw7DbVwWMcTBXoKaWgsCaofL6QqmQQ65FCSGfgCEawm",
+  // ISOLA-USDT
+  "69Mo81rUPDgru4UbigPQovx7cYBxpEm44qQok8wcut4M",
+  // TTT-USDC
+  "HcqHvH27wk42L1ND5YPhLDJu7oGsU7HGSreMiXdq5LNK",
+  // RUN-USDC
+  "zuivKkgkNFFkV9jfNpsU1p5tWNbDWUEx5XX16m4k2Ej",
+  // CRWNY-USDC
+  "4ELBQuq3ivhLamfCT36As5sXLkQDWRJw1pJ9JVFLp6gK",
+  // CRWNY-RAY
+  "HARRXESCwid3xMi2qThag1PXzmp6rDhAzMR9THhFRQGf",
+  // BLOCK-USDC
+  "CfBSfVTcYFJsD8vZ2fTiMGkUYFim2rv8weAoqHxUU2pn",
+  // REAL-USDC
+  "A7ZxDrK9LSkVXhfRTu2pRCinwYfdxW2kK6DaJk12jRWw",
 ];
 
 export const TESTNET_OFFICIAL_LIQUIDITY_POOLS = [];

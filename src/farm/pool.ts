@@ -13,11 +13,6 @@ export const MAINNET_FARM_POOLS: FarmPoolBaseInfo[] = [
     version: 3,
   },
   {
-    id: "FgApVk6mASrkuWNxmsFvsaAYkFKqdiwMTvYZK36A2DaC",
-    lp: MAINNET_LP_TOKENS.KIN_RAY_V4,
-    version: 5,
-  },
-  {
     id: "XnRBbNMf6YcWvC1u2vBXXuMcagmRBRLu1y84mpqnKwW",
     lp: MAINNET_LP_TOKENS.xCOPE_USDC_V4,
     version: 5,
@@ -173,8 +168,258 @@ export const MAINNET_FARM_POOLS: FarmPoolBaseInfo[] = [
     version: 5,
   },
   {
+    id: "8GBa1cK1NxevoxiRNK6YW9tWuo2xftcA3as9Cu4nhFL7",
+    lp: MAINNET_LP_TOKENS.GRAPE_USDC_V4,
+    version: 5,
+  },
+  {
+    id: "HzxveT6pUMwYByqnScvTbpUv4avzkUDrDpS9D7DToEry",
+    lp: MAINNET_LP_TOKENS.LARIX_USDC_V4,
+    version: 5,
+  },
+  {
+    id: "Fbwy4XWMjXuP1nXg4xph4RJ9E9twVXeknXokF38PVgG1",
+    lp: MAINNET_LP_TOKENS.LARIX_RAY_V4,
+    version: 5,
+  },
+  {
+    id: "5gzQgxaKAU13SZeffmjjE2y9HwMJ42FxQkqJhJ5nqHeh",
+    lp: MAINNET_LP_TOKENS.stSOL_USDC_V4,
+    version: 5,
+  },
+  {
+    id: "914jyHBQFiroKFVCpKkzjGSaZyr4gMwgxE7snbNfGjnL",
+    lp: MAINNET_LP_TOKENS.BTC_mSOL_V4,
+    version: 5,
+  },
+  {
+    id: "54vUWjEmg9wfCsZF7wwq2HJu5BU3cfDFAQQQgXPECcwE",
+    lp: MAINNET_LP_TOKENS.ETH_mSOL_V4,
+    version: 5,
+  },
+  {
+    id: "HxhxYASqdLcR6yehT9hB9HUpgcF1R2t9HtkHdngGZ2Dh",
+    lp: MAINNET_LP_TOKENS.mSOL_USDT_V4,
+    version: 5,
+  },
+  {
+    id: "97N6tPMVCrAunC9embwTcffye9xC95fA5y3LauhNZ444",
+    lp: MAINNET_LP_TOKENS.MNDE_mSOL_V4,
+    version: 5,
+  },
+  {
+    id: "DjtZxyFBgifzpaZEzfsWXogNX5zUCnTRXJqarGe9CiSv",
+    lp: MAINNET_LP_TOKENS.mSOL_USDC_V4,
+    version: 5,
+  },
+  {
+    id: "7wNhbTS6XQczXs52wcVmfiodRMPfycB3YaG52dWWY6SD",
+    lp: MAINNET_LP_TOKENS.mSOL_RAY_V4,
+    version: 5,
+  },
+  {
+    id: "CzKUrVbP7hH8EjcHNc55ZFW33rJyLQ2r52bxCzaGTpz",
+    lp: MAINNET_LP_TOKENS.LIQ_USDC_V4,
+    version: 5,
+  },
+  {
+    id: "5XdeFdcJoCAPMfgYndMPcsijFBKFp2cPSCjrCZzmpTE5",
+    lp: MAINNET_LP_TOKENS.LIQ_RAY_V4,
+    version: 5,
+  },
+  {
+    id: "Gf3qFzKnGvMCVMQZERW2Qso5uEYxd9B9kWZZHsrMmmHj",
+    lp: MAINNET_LP_TOKENS.SYP_RAY_V4,
+    version: 5,
+  },
+  {
+    id: "2pQQnoNpm5LoG6sZs5toNBXi4m1Pj3ExXdggPQYyiP2x",
+    lp: MAINNET_LP_TOKENS.SYP_SOL_V4,
+    version: 5,
+  },
+  {
+    id: "Byt2kL5qi45pMpdAsNNciKZ8HLp7oU5jizCbyARLtQJy",
+    lp: MAINNET_LP_TOKENS.SYP_USDC_V4,
+    version: 5,
+  },
+  {
+    id: "8W2TqGCiFiqR1JD4sbW8uTRjV2HvFjLhkZ2tAQTYE4Gc",
+    lp: MAINNET_LP_TOKENS.WOOF_RAY_V4,
+    version: 5,
+  },
+  {
+    id: "FgApVk6mASrkuWNxmsFvsaAYkFKqdiwMTvYZK36A2DaC",
+    lp: MAINNET_LP_TOKENS.KIN_RAY_V4,
+    version: 5,
+  },
+  {
+    id: "AwUDfg4NYbLQRAcFipoJwyZTpqNvw5v6C7EypryL12Y6",
+    lp: MAINNET_LP_TOKENS.STARS_USDC_V4,
+    version: 5,
+  },
+  {
+    id: "Gi3Z6TXeH1ZhCCbwg6oJL8SE4LcmxmGRNhhfA6NZhwTK",
+    lp: MAINNET_LP_TOKENS.weWETH_SOL_V4,
+    version: 5,
+  },
+  {
+    id: "8JJSdD1ca5SDtGCEm3yBbQKek2FvJ1EbNt9q2ET3E9Jt",
+    lp: MAINNET_LP_TOKENS.weWETH_USDC_V4,
+    version: 5,
+  },
+  {
+    id: "6X495xkPWkw9SQFYf7yL1K8QooZyaeEQ6u7yMWNNZxNV",
+    lp: MAINNET_LP_TOKENS.weUNI_USDC_V4,
+    version: 5,
+  },
+  {
+    id: "AuyqPBiY6sNUpH6jx415NGcdvNdYbkbYsyVabUqEVdkj",
+    lp: MAINNET_LP_TOKENS.weSUSHI_USDC_V4,
+    version: 5,
+  },
+  {
+    id: "7fe8QcJ6W2kHKL1h1HMYYJoGXz2LUcwCjkxX6MX35orK",
+    lp: MAINNET_LP_TOKENS.weAXS_USDC_V4,
+    version: 5,
+  },
+  {
+    id: "C8BjS9DGDvC2zS3n6fTvm1rjPbA33uZ7CAvEUZ3tg7aM",
+    lp: MAINNET_LP_TOKENS.weDYDX_USDC_V4,
+    version: 5,
+  },
+  {
     id: "CZZnmfvSgNVUiDBG4wN2NNcaYbsKDN4kLsc3SN8DMw6i",
     lp: MAINNET_LP_TOKENS.weSHIB_USDC_V4,
+    version: 5,
+  },
+  {
+    id: "FAKzZoGVCEBDRuHN4gDswAx7PsocCorDqH6dQaxnyorT",
+    lp: MAINNET_LP_TOKENS.weSAND_USDC_V4,
+    version: 5,
+  },
+  {
+    id: "EBS8tc4proQE2Fj6HxU4piiZP8oiDrvyJUijDCX7P7QN",
+    lp: MAINNET_LP_TOKENS.weMANA_USDC_V4,
+    version: 5,
+  },
+  {
+    id: "6AxxjJhAz6APspTQM4vVCHgfzEyZgBTCogJLdai7bXYE",
+    lp: MAINNET_LP_TOKENS.wbWBNB_USDC_V4,
+    version: 5,
+  },
+  {
+    id: "3HGPRHH3XFFu972MR1EdS65qc1nN9sM7miZtFTi6QcEd",
+    lp: MAINNET_LP_TOKENS.wePEOPLE_USDC_V4,
+    version: 5,
+  },
+  {
+    id: "27bysJaX5eu5Urb5kftR66otiVc6DKK7TnifKwnpNzYu",
+    lp: MAINNET_LP_TOKENS.SRM_USDC_V4,
+    version: 5,
+  },
+  {
+    id: "FDnxy4NkJVG3GNMMrtUZmUmoYeYE34YRDwCYTi1yBTM",
+    lp: MAINNET_LP_TOKENS.CAVE_USDC_V4,
+    version: 5,
+  },
+  {
+    id: "DDRNVVJBEXEemcprVVUcrTbYnR88JyN6jjT2ypgAQHC8",
+    lp: MAINNET_LP_TOKENS.GENE_USDC_V4,
+    version: 5,
+  },
+  {
+    id: "GVfLbXA3dpEHPvc4do9HvMZ8TACxm3x54BVrHPMEixcr",
+    lp: MAINNET_LP_TOKENS.GENE_RAY_V4,
+    version: 5,
+  },
+  {
+    id: "7NZ18KhsSdJBQkJEJwhEHfdaPRNdbMd17CMoxsKxavEo",
+    lp: MAINNET_LP_TOKENS.CWAR_USDC_V4,
+    version: 5,
+  },
+  {
+    id: "5Mdq5o3KKPyeVVBsbnivVk9qCATjfEQ22oysXVsd2DvJ",
+    lp: MAINNET_LP_TOKENS.SONAR_USDC_V4,
+    version: 5,
+  },
+  {
+    id: "7W8BKbMgcVpGYvTgEK758pJgDRZJ9WafKfgkV1XCkP33",
+    lp: MAINNET_LP_TOKENS.APT_USDC_V4,
+    version: 5,
+  },
+  {
+    id: "CgokwBwwdYsgo8hbUMtJ3GoNM3bVjvMcmaPrVvCw4sBi",
+    lp: MAINNET_LP_TOKENS.SHILL_USDC_V4,
+    version: 5,
+  },
+  {
+    id: "AWbmotuJS7NLBmra9ctbfVR1BnoHmiG1HGW6hm49TuRZ",
+    lp: MAINNET_LP_TOKENS.DFL_USDC_V4,
+    version: 5,
+  },
+  {
+    id: "665VvECKsLpXN4fLy8GYbyQpGJRNkxRx56X93U9FVSbv",
+    lp: MAINNET_LP_TOKENS.BOKU_USDC_V4,
+    version: 5,
+  },
+  {
+    id: "7yk1XUWmZpWMCoFpUT985z61UNTypyBGgZF3JpKgcwmL",
+    lp: MAINNET_LP_TOKENS.MIMO_SOL_V4,
+    version: 5,
+  },
+  {
+    id: "E5L4Bx3Lsif7bDb9XMWi5guHUt4kkYpbqQ4CbmnRjHs1",
+    lp: MAINNET_LP_TOKENS.XTAG_USDC_V4,
+    version: 5,
+  },
+  {
+    id: "HtvQ5AEvu8sDM7C1oB4r5fJ5E2Q1wsJ4TADwNMqR9ccF",
+    lp: MAINNET_LP_TOKENS.TTT_USDC_V4,
+    version: 5,
+  },
+  {
+    id: "GUzaohfNuFbBqQTnPgPSNciv3aUvriXYjQduRE3ZkqFw",
+    lp: MAINNET_LP_TOKENS.SOL_USDC_V4,
+    version: 5,
+  },
+  {
+    id: "5r878BSWPtoXgnqaeFJi7BCycKZ5CodBB2vS9SeiV8q",
+    lp: MAINNET_LP_TOKENS.SOL_USDT_V4,
+    version: 5,
+  },
+  {
+    id: "3J3SYLeFZWKnUCsrPzikw9bcD9vRs7YNGfmg7ZSg3tsK",
+    lp: MAINNET_LP_TOKENS.RUN_USDC_V4,
+    version: 5,
+  },
+  {
+    id: "BYmeWrwA4ixvJhNrxWzQsA3Fsz6EtUDJTo39WYZ6o1FS",
+    lp: MAINNET_LP_TOKENS.CRWNY_RAY_V4,
+    version: 5,
+  },
+  {
+    id: "6VNF4rF7ESUohzNeRf3aTg61dyFjbab749RGUHCTDFQL",
+    lp: MAINNET_LP_TOKENS.CRWNY_USDC_V4,
+    version: 5,
+  },
+  {
+    id: "7RQDGZ1cvHcREu211R35WSKHFjTxM5dmJHeFAWag29BA",
+    lp: MAINNET_LP_TOKENS.REAL_USDC_V4,
+    version: 5,
+  },
+  {
+    id: "ELovJ3jDKMiWhCUCdZzPfTeVmQwhj4cvYuGwS8FfhEtJ",
+    lp: MAINNET_LP_TOKENS.BLOCK_USDC_V4,
+    version: 5,
+  },
+  {
+    id: "36Rf8dzq5gy4Ew2bLQEgKoCKVTku4EJPLqFYG6mzFrkr",
+    lp: MAINNET_LP_TOKENS.FRKT_SOL_V4,
+    version: 5,
+  },
+  {
+    id: "HXpQJeAcBCKfGY6YhZgBocZGgV4xApPVK7r8CPXfvCin",
+    lp: MAINNET_LP_TOKENS.FRKT_USDC_V4,
     version: 5,
   },
 ];
