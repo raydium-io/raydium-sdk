@@ -502,7 +502,11 @@ export class Farm {
     // wrapped data
     for (const [poolId, { state, ledger }] of Object.entries(poolsInfo)) {
       if (ledger) {
-        const multiplier = TEN.pow(new BN(15));
+        let multiplier = TEN.pow(new BN(15));
+        // for stake pool
+        if (state.perShareRewards.length === 1) {
+          multiplier = TEN.pow(new BN(9));
+        }
 
         const pendingRewards = state.perShareRewards.map((perShareReward, index) => {
           const rewardDebt = ledger.rewardDebts[index];

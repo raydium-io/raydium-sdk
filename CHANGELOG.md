@@ -1,11 +1,17 @@
 # Changelog
 
+### 1.0.1-beta.14 (2021-12-21)
+
+- Change
+  - Fix `pendingRewards` calculating for `Farm` stake pool
+
 ### 1.0.1-beta.11 (2021-12-17)
 
 - Add
   - ledger PDA for `Farm v3`
 - Change
   - Raising the priority of `version` parameters
+  - Return `Object` instead of `Array` whenever possible, but the order of the `Object` will be consistent with the `Array`, use a unique value for the key, such as `id` or `mint` or something else, etc.
   - Don't calculate ATA / PDA in function
   - Rename type `PublicKeyIsh` to `PublicKeyish`
   - Rename type `BigNumberIsh` to `BigNumberish`
