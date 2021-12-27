@@ -4,7 +4,7 @@ import got from "got";
 import sharp from "sharp";
 
 import {
-  tokens as SolanaTokens
+  tokens as SolanaTokens,
 } from "@solana/spl-token-registry/dist/main/tokens/solana.tokenlist.json";
 import { MAINNET_SPL_TOKENS } from "../../src/token";
 import { mkdirIfNotExists } from "../util";
@@ -37,7 +37,7 @@ import { mkdirIfNotExists } from "../util";
           consola.info(`${mint} icon downloading...`);
 
           try {
-            const response = await got(token.logoURI);
+            const response = await got(token.logoURI, { retry: 0 });
             const { rawBody } = response;
             await sharp(rawBody)
               // preserving aspect ratio, resize the image to be as large as possible while ensuring its dimensions are less than or equal to both those specified
@@ -47,7 +47,7 @@ import { mkdirIfNotExists } from "../util";
               .png()
               .toFile(iconFileName);
           } catch (error) {
-            consola.error(`Icon url not exist: ${mint}`);
+            consola.error(`Icon url not exist: ${mint} ${token.logoURI}`);
           }
         }
       } else {
