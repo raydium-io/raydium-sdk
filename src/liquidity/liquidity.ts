@@ -6,7 +6,7 @@ import {
   parseSimulateLog, parseSimulateValue, simulateMultipleInstruction, SYSTEM_PROGRAM_ID, SYSVAR_RENT_PUBKEY,
   TOKEN_PROGRAM_ID,
 } from "../common";
-import { BigNumberish, parseBigNumberish } from "../entity";
+import { _100, BigNumberish, parseBigNumberish, Percent } from "../entity";
 import { struct, u64, u8 } from "../marshmallow";
 import { Market } from "../serum";
 
@@ -76,6 +76,7 @@ export interface AssociatedPoolKeysV4
 
 export type AssociatedPoolKeys = AssociatedPoolKeysV4;
 
+/* ================= create pool instruction ================= */
 export interface CreatePoolInstructionParamsV4 {
   poolKeys: AssociatedPoolKeysV4;
   userKeys: {
@@ -85,6 +86,7 @@ export interface CreatePoolInstructionParamsV4 {
 
 export type CreatePoolInstructionParams = CreatePoolInstructionParamsV4;
 
+/* ================= init pool instruction ================= */
 export interface InitPoolInstructionParamsV4 {
   poolKeys: AssociatedPoolKeysV4;
   userKeys: {
@@ -99,6 +101,18 @@ export interface GetLiquidityMultipleInfoParams {
   connection: Connection;
   pools: LiquidityPoolKeys[];
   config?: GetMultipleAccountsInfoConfig;
+}
+
+export interface GetQuoteParams {
+  amount: BigNumberish;
+  fixedSide: "base" | "quote";
+  baseReserve: BigNumberish;
+  quoteReserve: BigNumberish;
+}
+
+export interface GetAmountBParams extends Omit<GetQuoteParams, "amount"> {
+  amountA: BigNumberish;
+  slippage: Percent;
 }
 
 export const LIQUIDITY_FEES_NUMERATOR = new BN(9975);
@@ -838,19 +852,34 @@ export class Liquidity {
     return poolsInfo;
   }
 
-  static getOutputAmount(inputAmount: BigNumberish, inputReserve: BigNumberish, outputReserve: BigNumberish) {
-    const _inputAmount = parseBigNumberish(inputAmount);
-    const _inputReserve = parseBigNumberish(inputReserve);
-    const _outputReserve = parseBigNumberish(outputReserve);
+  static getQuote({ amount, fixedSide, baseReserve, quoteReserve }: GetQuoteParams) {
+    const _amount = parseBigNumberish(amount);
+    const _baseReserve = parseBigNumberish(baseReserve);
+    const _quoteReserve = parseBigNumberish(quoteReserve);
 
-    const inputAmountWithFee = _inputAmount.mul(LIQUIDITY_FEES_NUMERATOR);
-    const numerator = inputAmountWithFee.mul(_outputReserve);
-    const denominator = _inputReserve.mul(LIQUIDITY_FEES_DENOMINATOR).add(inputAmountWithFee);
+    if (fixedSide === "base") {
+      return _amount.mul(_quoteReserve).div(_baseReserve);
+    } else if (fixedSide === "quote") {
+      return _amount.mul(_baseReserve).div(_quoteReserve);
+    }
 
-    const outputAmount = numerator.div(denominator);
-
-    return outputAmount;
+    return logger.throwArgumentError("invalid fixedSide", "fixedSide", fixedSide);
   }
 
-  // static getInputAmount() {}
+  /**
+   * @example
+   * ```
+   * Liquidity.getAmountB({
+   *   // 1%
+   *   slippage: new Percent(1, 100)
+   * })
+   * ```
+   */
+  static getAmountB({ amountA, fixedSide, baseReserve, quoteReserve, slippage }: GetAmountBParams) {
+    const _slippage = new Percent(slippage.numerator.add(slippage.denominator), slippage.denominator);
+
+    return this.getQuote({ amount: amountA, fixedSide, baseReserve, quoteReserve })
+      .mul(_slippage.numerator)
+      .div(_slippage.denominator);
+  }
 }
