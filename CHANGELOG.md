@@ -1,5 +1,16 @@
 # Changelog
 
+### 1.0.1-beta.15 (2022-01-09)
+
+- Add
+  - `getQuote` for `Liquidity`
+  - `getAmountB` for `Liquidity`
+  - `getAmountOut` for `Liquidity`
+  - `getAmountIn` for `Liquidity`
+- Change
+  - Update dev dependencies
+  - Rename `getOutputAmount` to `getAmountOut` of `Liquidity`
+
 ### 1.0.1-beta.14 (2021-12-21)
 
 - Change

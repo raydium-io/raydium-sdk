@@ -6,7 +6,7 @@ import {
   parseSimulateLog, parseSimulateValue, simulateMultipleInstruction, SYSTEM_PROGRAM_ID, SYSVAR_RENT_PUBKEY,
   TOKEN_PROGRAM_ID,
 } from "../common";
-import { _100, BigNumberish, parseBigNumberish, Percent } from "../entity";
+import { BigNumberish, ONE, parseBigNumberish, Percent } from "../entity";
 import { struct, u64, u8 } from "../marshmallow";
 import { Market } from "../serum";
 
@@ -117,6 +117,20 @@ export interface GetAmountBParams extends Omit<GetQuoteParams, "amount"> {
 
 export const LIQUIDITY_FEES_NUMERATOR = new BN(9975);
 export const LIQUIDITY_FEES_DENOMINATOR = new BN(10000);
+
+export interface GetAmountOutParams {
+  amountIn: BigNumberish;
+  baseReserve: BigNumberish;
+  quoteReserve: BigNumberish;
+  // buy: quote => base
+  // sell: base => quote
+  side: "buy" | "sell";
+  slippage?: Percent;
+}
+
+export interface GetAmountInParams extends Omit<GetAmountOutParams, "amountIn"> {
+  amountOut: BigNumberish;
+}
 
 export class Liquidity {
   /* ================= static functions ================= */
@@ -867,6 +881,7 @@ export class Liquidity {
   }
 
   /**
+   * Get the amount of add liquidity
    * @example
    * ```
    * Liquidity.getAmountB({
@@ -876,10 +891,63 @@ export class Liquidity {
    * ```
    */
   static getAmountB({ amountA, fixedSide, baseReserve, quoteReserve, slippage }: GetAmountBParams) {
-    const _slippage = new Percent(slippage.numerator.add(slippage.denominator), slippage.denominator);
+    const slippageAdjustedAmount = new Percent(ONE)
+      .add(slippage)
+      .mul(this.getQuote({ amount: amountA, fixedSide, baseReserve, quoteReserve })).quotient;
 
-    return this.getQuote({ amount: amountA, fixedSide, baseReserve, quoteReserve })
-      .mul(_slippage.numerator)
-      .div(_slippage.denominator);
+    return slippageAdjustedAmount;
+  }
+
+  /**
+   * Get output amount of swap
+   */
+  static getAmountOut({ amountIn, baseReserve, quoteReserve, side, slippage }: GetAmountOutParams) {
+    const _amountIn = parseBigNumberish(amountIn);
+
+    const reserves = [parseBigNumberish(baseReserve), parseBigNumberish(quoteReserve)];
+    if (side === "buy") {
+      reserves.reverse();
+    }
+    const [reserveIn, reserveOut] = reserves;
+
+    let _slippage = new Percent(ONE);
+    if (slippage) {
+      _slippage = _slippage.add(slippage);
+    }
+
+    const amountInWithFee = _amountIn.mul(LIQUIDITY_FEES_NUMERATOR);
+    const numerator = amountInWithFee.mul(reserveOut);
+    const denominator = reserveIn.mul(LIQUIDITY_FEES_DENOMINATOR).add(amountInWithFee);
+
+    const amountOut = numerator.div(denominator);
+    const minAmountOut = _slippage.invert().mul(amountOut).quotient;
+
+    return { amountOut, minAmountOut };
+  }
+
+  /**
+   * Get input amount of swap
+   */
+  static getAmountIn({ amountOut, baseReserve, quoteReserve, side, slippage }: GetAmountInParams) {
+    const _amountOut = parseBigNumberish(amountOut);
+
+    const reserves = [parseBigNumberish(baseReserve), parseBigNumberish(quoteReserve)];
+    if (side === "buy") {
+      reserves.reverse();
+    }
+    const [reserveIn, reserveOut] = reserves;
+
+    let _slippage = new Percent(ONE);
+    if (slippage) {
+      _slippage = _slippage.add(slippage);
+    }
+
+    const numerator = reserveIn.mul(_amountOut).mul(LIQUIDITY_FEES_DENOMINATOR);
+    const denominator = reserveOut.sub(_amountOut).mul(LIQUIDITY_FEES_NUMERATOR);
+
+    const amountIn = numerator.div(denominator).add(ONE);
+    const maxAmountIn = _slippage.mul(amountIn).quotient;
+
+    return { amountIn, maxAmountIn };
   }
 }

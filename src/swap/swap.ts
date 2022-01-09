@@ -1,1 +1,3 @@
-export class Swap {}
+export class Swap {
+  static getAmountOut() {}
+}
