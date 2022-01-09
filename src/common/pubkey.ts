@@ -1,10 +1,11 @@
 import { PublicKey, SystemProgram } from "@solana/web3.js";
+
 import { Logger } from "./logger";
 
 const logger = new Logger("Common.Pubkey");
 
 /* ================= global public keys ================= */
-export { TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID } from "@solana/spl-token";
+export { ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 export { SYSVAR_CLOCK_PUBKEY, SYSVAR_RENT_PUBKEY } from "@solana/web3.js";
 
 export const SYSTEM_PROGRAM_ID = SystemProgram.programId;

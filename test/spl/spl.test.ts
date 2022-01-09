@@ -1,4 +1,5 @@
 import { PublicKey } from "@solana/web3.js";
+
 import { Spl } from "../../src/spl";
 
 const ACCOUNT = new PublicKey("1".repeat(32));

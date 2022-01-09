@@ -1,7 +1,7 @@
+import { Connection, PublicKey } from "@solana/web3.js";
 import chalk from "chalk";
 import consola from "consola";
 
-import { Connection, PublicKey } from "@solana/web3.js";
 import { getMultipleAccountsInfo } from "../../src/common";
 import { SPL_MINT_LAYOUT } from "../../src/spl";
 

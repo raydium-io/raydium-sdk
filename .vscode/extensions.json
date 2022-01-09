@@ -1,8 +1,9 @@
 {
   "recommendations": [
     "esbenp.prettier-vscode",
-    "mike-co.import-sorter",
+    "dozerg.tsimportsorter",
     "aaron-bond.better-comments",
-    "salbert.comment-ts"
+    "salbert.comment-ts",
+    "richie5um2.vscode-sort-json"
   ]
 }

@@ -1,17 +1,17 @@
+import { AccountInfo, Connection, PublicKey, TransactionInstruction } from "@solana/web3.js";
 import BN from "bn.js";
 
-import { AccountInfo, Connection, PublicKey, TransactionInstruction } from "@solana/web3.js";
 import {
-  AccountMeta, AccountMetaReadonly, findProgramAddress, getMultipleAccountsInfo,
-  GetMultipleAccountsInfoConfig, Logger, parseSimulateLog, parseSimulateValue,
-  simulateMultipleInstruction, SYSTEM_PROGRAM_ID, SYSVAR_RENT_PUBKEY, TOKEN_PROGRAM_ID,
+  AccountMeta, AccountMetaReadonly, findProgramAddress, getMultipleAccountsInfo, GetMultipleAccountsInfoConfig, Logger,
+  parseSimulateLog, parseSimulateValue, simulateMultipleInstruction, SYSTEM_PROGRAM_ID, SYSVAR_RENT_PUBKEY,
+  TOKEN_PROGRAM_ID,
 } from "../common";
 import { BigNumberish, parseBigNumberish } from "../entity";
 import { struct, u64, u8 } from "../marshmallow";
 import { Market } from "../serum";
+
 import {
-  LIQUIDITY_PROGRAMID_TO_VERSION, LIQUIDITY_VERSION_TO_PROGRAMID,
-  LIQUIDITY_VERSION_TO_SERUM_VERSION,
+  LIQUIDITY_PROGRAMID_TO_VERSION, LIQUIDITY_VERSION_TO_PROGRAMID, LIQUIDITY_VERSION_TO_SERUM_VERSION,
 } from "./id";
 import { LIQUIDITY_VERSION_TO_STATE_LAYOUT, LiquidityStateLayout } from "./layout";
 import { LiquidityPoolJsonInfo } from "./type";

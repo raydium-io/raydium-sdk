@@ -1,8 +1,8 @@
+import { Connection, PublicKey } from "@solana/web3.js";
 import chalk from "chalk";
 import consola from "consola";
 import dotenv from "dotenv";
 
-import { Connection, PublicKey } from "@solana/web3.js";
 import { getMultipleAccountsInfo } from "../../src/common";
 import { Farm, FarmPoolBaseInfo, FarmPoolJsonInfo, MAINNET_FARM_POOLS } from "../../src/farm";
 import { SPL_ACCOUNT_LAYOUT } from "../../src/spl";

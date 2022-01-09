@@ -1,12 +1,6 @@
 {
-  "tabWidth": 2,
-  "useTabs": false,
-  "singleQuote": false,
-  "semi": true,
-  "bracketSpacing": true,
-  "trailingComma": "all",
-  "printWidth": 120,
   "arrowParens": "always",
+  "bracketSpacing": true,
   "eslintIntegration": true,
   "overrides": [
     {
@@ -15,5 +9,11 @@
         "parser": "typescript"
       }
     }
-  ]
+  ],
+  "printWidth": 120,
+  "semi": true,
+  "singleQuote": false,
+  "tabWidth": 2,
+  "trailingComma": "all",
+  "useTabs": false
 }

@@ -2,12 +2,12 @@ import { Token as _Token, u64 as _u64 } from "@solana/spl-token";
 import {
   Commitment, Connection, Keypair, PublicKey, Signer, SystemProgram, TransactionInstruction,
 } from "@solana/web3.js";
-import {
-  ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID, validateAndParsePublicKey,
-} from "../common";
+
+import { ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID, validateAndParsePublicKey } from "../common";
 import { BigNumberish, parseBigNumberish } from "../entity";
 import { u64 } from "../marshmallow";
 import { WSOL } from "../token";
+
 import { SPL_ACCOUNT_LAYOUT } from "./layout";
 
 // https://github.com/solana-labs/solana-program-library/tree/master/token/js/client

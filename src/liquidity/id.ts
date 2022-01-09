@@ -1,5 +1,7 @@
 import { PublicKey } from "@solana/web3.js";
+
 import { SerumVersion } from "../serum";
+
 import { LiquidityVersion } from "./type";
 
 /* ================= program public keys ================= */

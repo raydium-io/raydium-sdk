@@ -1,12 +1,10 @@
+import { Connection } from "@solana/web3.js";
 import chalk from "chalk";
 import consola from "consola";
 import dotenv from "dotenv";
 
-import { Connection } from "@solana/web3.js";
 import { poolKeys2JsonInfo } from "../../src/common";
-import {
-  Liquidity, LiquidityPoolJsonInfo, MAINNET_OFFICIAL_LIQUIDITY_POOLS,
-} from "../../src/liquidity";
+import { Liquidity, LiquidityPoolJsonInfo, MAINNET_OFFICIAL_LIQUIDITY_POOLS } from "../../src/liquidity";
 import { getTimestamp, mkdirIfNotExists, writeJsonFile } from "../util";
 
 dotenv.config();

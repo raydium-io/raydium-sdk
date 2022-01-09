@@ -1,6 +1,7 @@
 import BN from "bn.js";
 
 import { Logger } from "../common";
+
 import { Rounding, TEN } from "./constant";
 import { Currency, currencyEquals } from "./currency";
 import { BigNumberish, Fraction } from "./fraction";

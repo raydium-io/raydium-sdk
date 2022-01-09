@@ -1,13 +1,13 @@
+import { Connection } from "@solana/web3.js";
 import chalk from "chalk";
 import consola from "consola";
 import dotenv from "dotenv";
 
-import { Connection } from "@solana/web3.js";
 import {
-  LpTokenInfo, LpTokens, LpTokensJsonInfo, MAINNET_LP_TOKENS, MAINNET_SPL_TOKENS, SplTokenInfo,
-  SplTokensJsonInfo,
+  LpTokenInfo, LpTokens, LpTokensJsonInfo, MAINNET_LP_TOKENS, MAINNET_SPL_TOKENS, SplTokenInfo, SplTokensJsonInfo,
 } from "../../src/token";
 import { getTimestamp, mkdirIfNotExists, writeJsonFile } from "../util";
+
 import { checkTokenList } from "./util";
 
 dotenv.config();

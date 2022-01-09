@@ -1,11 +1,9 @@
+import { tokens as SolanaTokens } from "@solana/spl-token-registry/dist/main/tokens/solana.tokenlist.json";
 import consola from "consola";
 import fs from "fs";
 import got from "got";
 import sharp from "sharp";
 
-import {
-  tokens as SolanaTokens,
-} from "@solana/spl-token-registry/dist/main/tokens/solana.tokenlist.json";
 import { MAINNET_SPL_TOKENS } from "../../src/token";
 import { mkdirIfNotExists } from "../util";
 

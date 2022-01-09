@@ -4,9 +4,10 @@
 // import { TOKEN_PROGRAM_ID } from './id';
 
 import {
-  AccountInfo, Commitment, Connection, PACKET_DATA_SIZE, PublicKey, RpcResponseAndContext,
-  SimulatedTransactionResponse, Transaction, TransactionInstruction,
+  AccountInfo, Commitment, Connection, PACKET_DATA_SIZE, PublicKey, RpcResponseAndContext, SimulatedTransactionResponse,
+  Transaction, TransactionInstruction,
 } from "@solana/web3.js";
+
 import { chunkArray } from "./lodash";
 import { Logger } from "./logger";
 

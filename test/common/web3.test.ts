@@ -1,6 +1,6 @@
+import { Connection, PublicKey } from "@solana/web3.js";
 import dotenv from "dotenv";
 
-import { Connection, PublicKey } from "@solana/web3.js";
 import { getMultipleAccountsInfo, TOKEN_PROGRAM_ID } from "../../src/common";
 import { MAINNET_SPL_TOKENS, WSOL } from "../../src/token";
 

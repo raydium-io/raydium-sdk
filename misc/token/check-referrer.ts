@@ -1,7 +1,7 @@
+import { Connection, Keypair, PublicKey, Transaction } from "@solana/web3.js";
 import chalk from "chalk";
 import dotenv from "dotenv";
 
-import { Connection, Keypair, PublicKey, Transaction } from "@solana/web3.js";
 import { getMultipleAccountsInfo } from "../../src/common";
 import { Spl } from "../../src/spl";
 import { MAINNET_SPL_TOKENS } from "../../src/token";

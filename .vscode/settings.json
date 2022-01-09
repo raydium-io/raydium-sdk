@@ -3,11 +3,13 @@
   "editor.defaultFormatter": "esbenp.prettier-vscode",
   "editor.tabSize": 2,
   "editor.codeActionsOnSave": {
-    "source.fixAll.eslint": true
+    "source.fixAll.eslint": true,
+    "source.fixAll.sortJSON": true
   },
-
   "eslint.validate": ["typescript"],
-
+  "[json]": {
+    "editor.defaultFormatter": "vscode.json-language-features"
+  },
   "better-comments.multilineComments": true,
   "better-comments.tags": [
     {
@@ -55,5 +57,19 @@
       "bold": false,
       "italic": false
     }
-  ]
+  ],
+  // https://marketplace.visualstudio.com/items?itemName=dozerg.tsimportsorter
+  "tsImportSorter.configuration.groupRules": [
+    ["^@\\w", "^\\w"],
+    ["^@/"],
+    ["^\\.\\."],
+    ["^\\."],
+    { "flags": "scripts" }
+  ],
+  "tsImportSorter.configuration.keepUnused": [".*"],
+  "tsImportSorter.configuration.wrappingStyle": {
+    "maxNamesPerWrappedLine": 0,
+    "maxBindingNamesPerLine": 0,
+    "maxDefaultAndBindingNamesPerLine": 0
+  }
 }

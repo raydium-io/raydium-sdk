@@ -1,10 +1,8 @@
+import { tokens as SolanaTokens } from "@solana/spl-token-registry/dist/main/tokens/solana.tokenlist.json";
+import { Connection } from "@solana/web3.js";
 import consola from "consola";
 import dotenv from "dotenv";
 
-import {
-  tokens as SolanaTokens,
-} from "@solana/spl-token-registry/dist/main/tokens/solana.tokenlist.json";
-import { Connection } from "@solana/web3.js";
 import { checkTokenList } from "./util";
 
 dotenv.config();

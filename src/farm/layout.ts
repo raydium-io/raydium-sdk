@@ -1,10 +1,11 @@
+import { PublicKey } from "@solana/web3.js";
 import BN from "bn.js";
 
-import { PublicKey } from "@solana/web3.js";
 import {
-  blob, GetLayoutSchemaFromStructure, GetStructureFromLayoutSchema, GetStructureSchema, publicKey,
-  seq, struct, u128, u64, u8,
+  blob, GetLayoutSchemaFromStructure, GetStructureFromLayoutSchema, GetStructureSchema, publicKey, seq, struct, u128,
+  u64, u8,
 } from "../marshmallow";
+
 import { FarmVersion } from "./type";
 
 /* ================= state layouts ================= */
