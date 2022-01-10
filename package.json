@@ -49,7 +49,7 @@
     "bn.js": "^5.2.0"
   },
   "dependencies": {
-    "@solana/buffer-layout": "^3.0.0",
+    "@solana/buffer-layout": "^4.0.0",
     "@solana/spl-token": "^0.1.8",
     "big.js": "^6.1.1",
     "decimal.js-light": "^2.5.1",
