@@ -481,77 +481,99 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
     name: "GRAPE",
     mint: "8upjSpvjcdpuzhfR1zriwg5NXkwDruejqNE9WNbPRtyA",
     decimals: 6,
-    extensions: {},
+    extensions: {
+      coingeckoId: "grape-2",
+    },
   },
   GENE: {
     symbol: "GENE",
     name: "Genopets",
     mint: "GENEtH5amGSi8kHAtQoezp1XEXwZJ8vcuePYnXdKrMYz",
     decimals: 9,
-    extensions: {},
+    extensions: {
+      coingeckoId: "genopets",
+    },
   },
   DFL: {
     symbol: "DFL",
     name: "DeFi Land",
     mint: "DFL1zNkaGPWm1BqAVqRjCZvHmwTFrEaJtbzJWgseoNJh",
     decimals: 9,
-    extensions: {},
+    extensions: {
+      coingeckoId: "defi-land",
+    },
   },
   CHEEMS: {
     symbol: "CHEEMS",
     name: "CHEEMS",
     mint: "3FoUAsGDbvTD6YZ4wVKJgTB76onJUKz7GPEBNiR5b8wc",
     decimals: 4,
-    extensions: {},
+    extensions: {
+      coingeckoId: "cheems",
+    },
   },
   stSOL: {
     symbol: "stSOL",
     name: "stSOL",
     mint: "7dHbWXmci3dT8UFYWYZweBLXgycu7Y3iL6trKn1Y7ARj",
     decimals: 9,
-    extensions: {},
+    extensions: {
+      coingeckoId: "lido-staked-sol",
+    },
   },
   LARIX: {
     symbol: "LARIX",
     name: "LARIX",
     mint: "Lrxqnh6ZHKbGy3dcrCED43nsoLkM1LTzU2jRfWe8qUC",
     decimals: 6,
-    extensions: {},
+    extensions: {
+      coingeckoId: "larix",
+    },
   },
   RIN: {
     symbol: "RIN",
     name: "RIN",
     mint: "E5ndSkaB17Dm7CsD22dvcjfrYSDLCxFcMd6z8ddCk5wp",
     decimals: 9,
-    extensions: {},
+    extensions: {
+      coingeckoId: "aldrin",
+    },
   },
   APEX: {
     symbol: "APEX",
     name: "APEX",
     mint: "51tMb3zBKDiQhNwGqpgwbavaGH54mk8fXFzxTc1xnasg",
     decimals: 9,
-    extensions: {},
+    extensions: {
+      coingeckoId: "apexit-finance",
+    },
   },
   MNDE: {
     symbol: "MNDE",
     name: "MNDE",
     mint: "MNDEFzGvMt87ueuHvVU9VcTqsAP5b3fTGPsHuuPA5ey",
     decimals: 9,
-    extensions: {},
+    extensions: {
+      coingeckoId: "marinade",
+    },
   },
   LIQ: {
     symbol: "LIQ",
     name: "LIQ",
     mint: "4wjPQJ6PrkC4dHhYghwJzGBVP78DkBzA2U3kHoFNBuhj",
     decimals: 6,
-    extensions: {},
+    extensions: {
+      coingeckoId: "liq-protocol",
+    },
   },
   WAG: {
     symbol: "WAG",
     name: "WAG",
     mint: "5tN42n9vMi6ubp67Uy4NnmM5DMZYN8aS8GeB3bEDHr6E",
     decimals: 9,
-    extensions: {},
+    extensions: {
+      coingeckoId: "waggle-network",
+    },
   },
   wLDO: {
     symbol: "wLDO",
@@ -565,14 +587,18 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
     name: "SLIM",
     mint: "xxxxa1sKNGwFtw2kFn8XauW9xq8hBZ5kVtcSesTT9fW",
     decimals: 6,
-    extensions: {},
+    extensions: {
+      coingeckoId: "solanium",
+    },
   },
   PRT: {
     symbol: "PRT",
     name: "PRT",
     mint: "PRT88RkA4Kg5z7pKnezeNH4mafTvtQdfFgpQTGRjz44",
     decimals: 6,
-    extensions: {},
+    extensions: {
+      coingeckoId: "parrot-protocol",
+    },
   },
   SBR: {
     symbol: "SBR",
@@ -586,70 +612,90 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
     name: "FAB",
     mint: "EdAhkbj5nF9sRM7XN7ewuW8C9XEUMs8P7cnoQ57SYE96",
     decimals: 9,
-    extensions: {},
+    extensions: {
+      coingeckoId: "fabric",
+    },
   },
   ABR: {
     symbol: "ABR",
     name: "ABR",
     mint: "a11bdAAuV8iB2fu7X6AxAvDTo1QZ8FXB3kk5eecdasp",
     decimals: 9,
-    extensions: {},
+    extensions: {
+      coingeckoId: "allbridge",
+    },
   },
   IVN: {
     symbol: "IVN",
     name: "IVN",
     mint: "iVNcrNE9BRZBC9Aqf753iZiZfbszeAVUoikgT9yvr2a",
     decimals: 6,
-    extensions: {},
+    extensions: {
+      coingeckoId: "investin",
+    },
   },
   CYS: {
     symbol: "CYS",
     name: "CYS",
     mint: "BRLsMczKuaR5w9vSubF4j8HwEGGprVAyyVgS4EX7DKEg",
     decimals: 6,
-    extensions: {},
+    extensions: {
+      coingeckoId: "cyclos",
+    },
   },
   FRKT: {
     symbol: "FRKT",
     name: "FRKT",
     mint: "ErGB9xa24Szxbk1M28u2Tx8rKPqzL6BroNkkzk5rG4zj",
     decimals: 8,
-    extensions: {},
+    extensions: {
+      coingeckoId: "frakt-token",
+    },
   },
   AURY: {
     symbol: "AURY",
     name: "AURY",
     mint: "AURYydfxJib1ZkTir1Jn1J9ECYUtjb6rKQVmtYaixWPP",
     decimals: 9,
-    extensions: {},
+    extensions: {
+      coingeckoId: "aurory",
+    },
   },
   SYP: {
     symbol: "SYP",
     name: "SYP",
     mint: "FnKE9n6aGjQoNWRBZXy4RW6LZVao7qwBonUbiD7edUmZ",
     decimals: 9,
-    extensions: {},
+    extensions: {
+      coingeckoId: "sypool",
+    },
   },
   WOOF: {
     symbol: "WOOF",
     name: "WOOF",
     mint: "9nEqaUcb16sQ3Tn1psbkWqyhPdLmfHWjKGymREjsAgTE",
     decimals: 6,
-    extensions: {},
+    extensions: {
+      coingeckoId: "woof-token",
+    },
   },
   ORCA: {
     symbol: "ORCA",
     name: "ORCA",
     mint: "orcaEKTdK7LKz57vaAYr9QeNsVEPfiu6QeMU1kektZE",
     decimals: 6,
-    extensions: {},
+    extensions: {
+      coingeckoId: "orca",
+    },
   },
   SLND: {
     symbol: "SLND",
     name: "SLND",
     mint: "SLNDpmoWTVADgEdndyvWzroNL7zSi1dF9PC3xHGtPwp",
     decimals: 6,
-    extensions: {},
+    extensions: {
+      coingeckoId: "solend",
+    },
   },
   weWETH: {
     symbol: "weWETH",
@@ -677,14 +723,18 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
     name: "GOFX",
     mint: "GFX1ZjR2P15tmrSwow6FjyDYcEkoFb4p4gJCpLBjaxHD",
     decimals: 9,
-    extensions: {},
+    extensions: {
+      coingeckoId: "goosefx",
+    },
   },
   IN: {
     symbol: "IN",
     name: "IN",
     mint: "inL8PMVd6iiW3RCBJnr5AsrRN6nqr4BTrcNuQWQSkvY",
     decimals: 9,
-    extensions: {},
+    extensions: {
+      coingeckoId: "invictus",
+    },
   },
   weDYDX: {
     symbol: "weDYDX",
@@ -698,7 +748,9 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
     name: "STARS",
     mint: "HCgybxq5Upy8Mccihrp7EsmwwFqYZtrHrsmsKwtGXLgW",
     decimals: 6,
-    extensions: {},
+    extensions: {
+      coingeckoId: "starlaunch",
+    },
   },
   weAXS: {
     symbol: "weAXS",
@@ -719,21 +771,27 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
     name: "OXS",
     mint: "4TGxgCSJQx2GQk9oHZ8dC5m3JNXTYZHjXumKAW3vLnNx",
     decimals: 9,
-    extensions: {},
+    extensions: {
+      coingeckoId: "oxbull-solana",
+    },
   },
   CWAR: {
     symbol: "CWAR",
     name: "CWAR",
     mint: "HfYFjMKNZygfMC8LsQ8LtpPsPxEJoXJx4M6tqi75Hajo",
     decimals: 9,
-    extensions: {},
+    extensions: {
+      coingeckoId: "cryowar-token",
+    },
   },
   UPS: {
     symbol: "UPS",
     name: "UPS",
     mint: "EwJN2GqUGXXzYmoAciwuABtorHczTA5LqbukKXV1viH7",
     decimals: 6,
-    extensions: {},
+    extensions: {
+      coingeckoId: "upfi-network",
+    },
   },
   weSAND: {
     symbol: "weSAND",
@@ -754,56 +812,72 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
     name: "CAVE",
     mint: "4SZjjNABoqhbd4hnapbvoEPEqT8mnNkfbEoAwALf1V8t",
     decimals: 6,
-    extensions: {},
+    extensions: {
+      coingeckoId: "cave",
+    },
   },
   JSOL: {
     symbol: "JSOL",
     name: "JSOL",
     mint: "7Q2afV64in6N6SeZsAAB81TJzwDoD6zpqmHkzi9Dcavn",
     decimals: 9,
-    extensions: {},
+    extensions: {
+      coingeckoId: "jpool",
+    },
   },
   APT: {
     symbol: "APT",
     name: "APT",
     mint: "APTtJyaRX5yGTsJU522N4VYWg3vCvSb65eam5GrPT5Rt",
     decimals: 6,
-    extensions: {},
+    extensions: {
+      coingeckoId: "apricot",
+    },
   },
   SONAR: {
     symbol: "SONAR",
     name: "SONAR",
     mint: "sonarX4VtVkQemriJeLm6CKeW3GDMyiBnnAEMw1MRAE",
     decimals: 9,
-    extensions: {},
+    extensions: {
+      coingeckoId: "sonarwatch",
+    },
   },
   SHILL: {
     symbol: "SHILL",
     name: "SHILL",
     mint: "6cVgJUqo4nmvQpbgrDZwyfd6RwWw5bfnCamS3M9N1fd",
     decimals: 6,
-    extensions: {},
+    extensions: {
+      coingeckoId: "shill-token",
+    },
   },
   TTT: {
     symbol: "TTT",
     name: "TabTrader",
     mint: "FNFKRV3V8DtA3gVJN6UshMiLGYA8izxFwkNWmJbFjmRj",
     decimals: 6,
-    extensions: {},
+    extensions: {
+      coingeckoId: "tabtrader",
+    },
   },
   BOKU: {
     symbol: "BOKU",
     name: "BOKU",
     mint: "CN7qFa5iYkHz99PTctvT4xXUHnxwjQ5MHxCuTJtPN5uS",
     decimals: 9,
-    extensions: {},
+    extensions: {
+      coingeckoId: "boku",
+    },
   },
   MIMO: {
     symbol: "MIMO",
     name: "MIMO",
     mint: "9TE7ebz1dsFo1uQ2T4oYAKSm39Y6fWuHrd6Uk6XaiD16",
     decimals: 9,
-    extensions: {},
+    extensions: {
+      coingeckoId: "million-monke",
+    },
   },
   wbWBNB: {
     symbol: "wbWBNB",
@@ -824,63 +898,81 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
     name: "XTAG",
     mint: "5gs8nf4wojB5EXgDUWNLwXpknzgV2YWDhveAeBZpVLbp",
     decimals: 6,
-    extensions: {},
+    extensions: {
+      coingeckoId: "xhashtag",
+    },
   },
   KKO: {
     symbol: "KKO",
     name: "KKO",
     mint: "kiNeKo77w1WBEzFFCXrTDRWGRWGP8yHvKC9rX6dqjQh",
     decimals: 9,
-    extensions: {},
+    extensions: {
+      coingeckoId: "kineko",
+    },
   },
   VI: {
     symbol: "VI",
     name: "VI",
     mint: "7zBWymxbZt7PVHQzfi3i85frc1YRiQc23K7bh3gos8ZC",
     decimals: 9,
-    extensions: {},
+    extensions: {
+      coingeckoId: "vybit",
+    },
   },
   SOLC: {
     symbol: "SOLC",
     name: "SOLC",
     mint: "Bx1fDtvTN6NvE4kjdPHQXtmGSg582bZx9fGy4DQNMmAT",
     decimals: 9,
-    extensions: {},
+    extensions: {
+      coingeckoId: "solcubator",
+    },
   },
   STR: {
     symbol: "STR",
     name: "STR",
     mint: "9zoqdwEBKWEi9G5Ze8BSkdmppxGgVv1Kw4LuigDiNr9m",
     decimals: 9,
-    extensions: {},
+    extensions: {
+      coingeckoId: "solster",
+    },
   },
   SPWN: {
     symbol: "SPWN",
     name: "SPWN",
     mint: "5U9QqCPhqXAJcEv9uyzFJd5zhN93vuPk1aNNkXnUfPnt",
     decimals: 9,
-    extensions: {},
+    extensions: {
+      coingeckoId: "bitspawn",
+    },
   },
   ISOLA: {
     symbol: "ISOLA",
     name: "ISOLA",
     mint: "333iHoRM2Awhf9uVZtSyTfU8AekdGrgQePZsKMFPgKmS",
     decimals: 6,
-    extensions: {},
+    extensions: {
+      coingeckoId: "intersola",
+    },
   },
   RUN: {
     symbol: "RUN",
     name: "RUN",
     mint: "6F9XriABHfWhit6zmMUYAQBSy6XK5VF1cHXuW5LDpRtC",
     decimals: 9,
-    extensions: {},
+    extensions: {
+      coingeckoId: "run",
+    },
   },
   REAL: {
     symbol: "REAL",
     name: "REAL",
     mint: "AD27ov5fVU2XzwsbvnFvb1JpCBaCB5dRXrczV9CqSVGb",
     decimals: 9,
-    extensions: {},
+    extensions: {
+      coingeckoId: "realy-metaverse",
+    },
   },
   CRWNY: {
     symbol: "CRWNY",
@@ -894,42 +986,117 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
     name: "BLOCK",
     mint: "NFTUkR4u7wKxy9QLaX2TGvd9oZSWoMo4jqSJqdMb7Nk",
     decimals: 6,
-    extensions: {},
+    extensions: {
+      coingeckoId: "blockasset",
+    },
   },
   SOLAR: {
     symbol: "SOLAR",
     name: "SOLAR",
     mint: "2wmKXX1xsxLfrvjEPrt2UHiqj8Gbzwxvffr9qmNjsw8g",
     decimals: 9,
-    extensions: {},
+    extensions: {
+      coingeckoId: "solar",
+    },
   },
   BASIS: {
     symbol: "BASIS",
     name: "BASIS",
     mint: "Basis9oJw9j8cw53oMV7iqsgo6ihi9ALw4QR31rcjUJa",
     decimals: 6,
-    extensions: {},
+    extensions: {
+      coingeckoId: "basis-markets",
+    },
   },
   SOLX: {
     symbol: "SOLX",
     name: "SOLX",
     mint: "CH74tuRLTYcxG7qNJCsV9rghfLXJCQJbsu7i52a8F1Gn",
     decimals: 9,
-    extensions: {},
+    extensions: {
+      coingeckoId: "soldex",
+    },
   },
   CHICKS: {
     symbol: "CHICKS",
     name: "CHICKS",
     mint: "cxxShYRVcepDudXhe7U62QHvw8uBJoKFifmzggGKVC2",
     decimals: 9,
-    extensions: {},
+    extensions: {
+      coingeckoId: "solchicks-token",
+    },
   },
   GST: {
     symbol: "GST",
     name: "GST",
     mint: "AFbX8oGjGpmVFywbVouvhQSRmiW2aR1mohfahi4Y2AdB",
     decimals: 9,
-    extensions: {},
+    extensions: {
+      coingeckoId: "gst",
+    },
+  },
+  MBS: {
+    symbol: "MBS",
+    name: "MBS",
+    mint: "Fm9rHUTF5v3hwMLbStjZXqNBBoZyGriQaFM6sTFz3K8A",
+    decimals: 6,
+    extensions: {
+      coingeckoId: "monkeyball",
+    },
+  },
+  PRISM: {
+    symbol: "PRISM",
+    name: "PRISM",
+    mint: "PRSMNsEPqhGVCH1TtWiJqPjJyh2cKrLostPZTNy1o5x",
+    decimals: 6,
+    extensions: {
+      coingeckoId: "prism",
+    },
+  },
+  MEAN: {
+    symbol: "MEAN",
+    name: "MEAN",
+    mint: "MEANeD3XDdUmNMsRGjASkSWdC8prLYsoRJ61pPeHctD",
+    decimals: 6,
+    extensions: {
+      coingeckoId: "meanfi",
+    },
+  },
+  TINY: {
+    symbol: "TINY",
+    name: "TINY",
+    mint: "HKfs24UEDQpHS5hUyKYkHd9q7GY5UQ679q2bokeL2whu",
+    decimals: 6,
+    extensions: {
+      coingeckoId: "tiny-colony",
+    },
+  },
+  SHDW: {
+    symbol: "SHDW",
+    name: "SHDW",
+    mint: "SHDWyBxihqiCj6YekG2GUr7wqKLeLAMK1gHZck9pL6y",
+    decimals: 9,
+    extensions: {
+      coingeckoId: "genesysgo-shadow",
+    },
+  },
+  SCY: {
+    symbol: "SCY",
+    name: "SCY",
+    mint: "SCYfrGCw8aDiqdgcpdGjV6jp4UVVQLuphxTDLNWu36f",
+    decimals: 9,
+    extensions: {
+      coingeckoId: "synchrony",
+    },
+  },
+  SLC: {
+    symbol: "SLC",
+    name: "SLC",
+    mint: "METAmTMXwdb8gYzyCPfXXFmZZw4rUsXX58PNsDg7zjL",
+    decimals: 6,
+    extensions: {
+      coingeckoId: "solice",
+    },
   },
 };
 
@@ -2486,6 +2653,72 @@ export const MAINNET_LP_TOKENS: LpTokens = {
     base: MAINNET_SPL_TOKENS.FRKT,
     quote: MAINNET_SPL_TOKENS.USDC,
     decimals: MAINNET_SPL_TOKENS.FRKT.decimals,
+
+    version: 4,
+  },
+  MBS_USDC_V4: {
+    symbol: "MBS-USDC",
+    name: "MBS-USDC V4 LP",
+    mint: "BAgSWaPZpsQKyZJdvB5KyvmCNj6hzczzentt5FhDCVHb",
+
+    base: MAINNET_SPL_TOKENS.MBS,
+    quote: MAINNET_SPL_TOKENS.USDC,
+    decimals: MAINNET_SPL_TOKENS.MBS.decimals,
+
+    version: 4,
+  },
+  PRISM_USDC_V4: {
+    symbol: "PRISM-USDC",
+    name: "PRISM-USDC V4 LP",
+    mint: "3baYkTcudvSFMe25UpZcBfdp4FA5kL2E4pfaeJ8AiYJB",
+
+    base: MAINNET_SPL_TOKENS.PRISM,
+    quote: MAINNET_SPL_TOKENS.USDC,
+    decimals: MAINNET_SPL_TOKENS.PRISM.decimals,
+
+    version: 4,
+  },
+  CHICKS_USDC_V4: {
+    symbol: "CHICKS-USDC",
+    name: "CHICKS-USDC V4 LP",
+    mint: "CPzmcw81a6PDasSXhVLfDRKuTJXZPUqocS9VFf5zCFhs",
+
+    base: MAINNET_SPL_TOKENS.CHICKS,
+    quote: MAINNET_SPL_TOKENS.USDC,
+    decimals: MAINNET_SPL_TOKENS.CHICKS.decimals,
+
+    version: 4,
+  },
+  MEAN_RAY_V4: {
+    symbol: "MEAN-RAY",
+    name: "MEAN-RAY V4 LP",
+    mint: "H9wUyrxpAErmdNVPitpHSXgwoomoh91ggJKPWtQQoCn1",
+
+    base: MAINNET_SPL_TOKENS.MEAN,
+    quote: MAINNET_SPL_TOKENS.RAY,
+    decimals: MAINNET_SPL_TOKENS.MEAN.decimals,
+
+    version: 4,
+  },
+  TINY_USDC_V4: {
+    symbol: "TINY-USDC",
+    name: "TINY-USDC V4 LP",
+    mint: "Hho6ZzRDj49L4z6zog8nQZFaxMSz6FX6wNzVpMeAMen",
+
+    base: MAINNET_SPL_TOKENS.TINY,
+    quote: MAINNET_SPL_TOKENS.USDC,
+    decimals: MAINNET_SPL_TOKENS.TINY.decimals,
+
+    version: 4,
+  },
+  SCY_USDC_V4: {
+    symbol: "SCY-USDC",
+    name: "SCY-USDC V4 LP",
+    mint: "EcYk7t6Vw59HDnY2u6H1KDPkk8juMeA1NpGpHiGk1LDf",
+
+    base: MAINNET_SPL_TOKENS.SCY,
+    quote: MAINNET_SPL_TOKENS.USDC,
+    decimals: MAINNET_SPL_TOKENS.SCY.decimals,
 
     version: 4,
   },

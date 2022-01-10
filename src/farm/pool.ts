@@ -423,6 +423,36 @@ export const MAINNET_FARM_POOLS: FarmPoolBaseInfo[] = [
     lp: MAINNET_LP_TOKENS.FRKT_USDC_V4,
     version: 5,
   },
+  {
+    id: "Eqn7unnxmneDuTuXQ7EAN1wBkHMFD4LgCCAkCdPA9KbV",
+    lp: MAINNET_LP_TOKENS.MBS_USDC_V4,
+    version: 5,
+  },
+  {
+    id: "DtU5pZB99rVtxe5qe5hQa2rRpw7poFiqaHvMAbPgT2TM",
+    lp: MAINNET_LP_TOKENS.PRISM_USDC_V4,
+    version: 5,
+  },
+  {
+    id: "Gue2c9J2aRtY3aJ1HEwabQznwg2MUt9d9kUyr6otujR",
+    lp: MAINNET_LP_TOKENS.CHICKS_USDC_V4,
+    version: 5,
+  },
+  {
+    id: "Ej7iBkW79EdF26RxaRQfGo58PqRdzHzRmE4C2e3z3dPY",
+    lp: MAINNET_LP_TOKENS.MEAN_RAY_V4,
+    version: 5,
+  },
+  {
+    id: "Bd1hAsMAghtCjK38Ut4m938Ep7zyEp2TydQ7G35nPvUj",
+    lp: MAINNET_LP_TOKENS.TINY_USDC_V4,
+    version: 5,
+  },
+  {
+    id: "2G7qTQzw3KXm7WEMJf2izqFQWh8CLZ1wFbQVP5qo3ME9",
+    lp: MAINNET_LP_TOKENS.SCY_USDC_V4,
+    version: 5,
+  },
 ];
 
 export const TESTNET_FARM_POOLS: FarmPoolBaseInfo[] = [];
