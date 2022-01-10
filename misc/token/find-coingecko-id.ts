@@ -14,6 +14,7 @@ interface CoingeckoCoinPlatforms {
 }
 
 interface CoingeckoCoinInfo {
+  name: string;
   platforms: CoingeckoCoinPlatforms;
 }
 
@@ -39,7 +40,7 @@ async function sleep(ms: number) {
 
       while (!requested) {
         try {
-          const { platforms }: CoingeckoCoinInfo = await got(`${coingeckoApi}/coins/${coingeckoId}`).json();
+          const { name, platforms }: CoingeckoCoinInfo = await got(`${coingeckoApi}/coins/${coingeckoId}`).json();
           requested = true;
 
           if (platforms.solana === splInfo.mint) {
@@ -50,6 +51,7 @@ async function sleep(ms: number) {
                 {
                   ...splInfo,
                   ...{
+                    name,
                     extensions: {
                       coingeckoId,
                     },

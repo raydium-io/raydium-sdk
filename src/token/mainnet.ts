@@ -10,7 +10,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   BTC: {
     symbol: "BTC",
-    name: "Wrapped Bitcoin",
+    name: "Bitcoin",
     mint: "9n4nbM75f5Ui33ZbPYXn59EwSgE8CGsHtAeTH5YFeJ9E",
     decimals: 6,
     extensions: {
@@ -19,7 +19,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   ETH: {
     symbol: "ETH",
-    name: "Wrapped Ethereum",
+    name: "Ethereum",
     mint: "2FPyTwcZLUg1MDrwsyoP4D6s1tM7hAkHYRjkNb5w6Pxk",
     decimals: 6,
     extensions: {
@@ -28,7 +28,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   USDT: {
     symbol: "USDT",
-    name: "USDT",
+    name: "Tether",
     mint: "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB",
     decimals: 6,
     extensions: {
@@ -46,7 +46,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   USDC: {
     symbol: "USDC",
-    name: "USDC",
+    name: "USD Coin",
     mint: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
     decimals: 6,
     extensions: {
@@ -64,7 +64,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   YFI: {
     symbol: "YFI",
-    name: "Wrapped YFI",
+    name: "YFI",
     mint: "3JSf5tPeuscJGtaCp5giEiDhv51gQ4v3zWg8DGgyLfAB",
     decimals: 6,
     extensions: {
@@ -73,7 +73,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   LINK: {
     symbol: "LINK",
-    name: "Wrapped Chainlink",
+    name: "Chainlink",
     mint: "CWE8jPTUYhdCTZYWPTe1o5DFqfdjzWKc9WKz6rSjQUdG",
     decimals: 6,
     extensions: {
@@ -82,7 +82,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   XRP: {
     symbol: "XRP",
-    name: "Wrapped XRP",
+    name: "XRP",
     mint: "Ga2AXHpfAF6mv2ekZwcsJFqu7wB4NV331qNH7fW9Nst8",
     decimals: 6,
     extensions: {
@@ -91,7 +91,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   SUSHI: {
     symbol: "SUSHI",
-    name: "Wrapped SUSHI",
+    name: "SUSHI",
     mint: "AR1Mtgh7zAtxuxGd2XPovXPVjcSdY3i4rQYisNadjfKy",
     decimals: 6,
     extensions: {
@@ -100,7 +100,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   ALEPH: {
     symbol: "ALEPH",
-    name: "Wrapped ALEPH",
+    name: "ALEPH",
     mint: "CsZ5LZkDS7h9TDKjrbL7VAwQZ9nsRu8vJLhRYfmGaN8K",
     decimals: 6,
     extensions: {
@@ -109,7 +109,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   SXP: {
     symbol: "SXP",
-    name: "Wrapped SXP",
+    name: "SXP",
     mint: "SF3oTvfWzEP3DTwGSvUXRrGTvr75pdZNnBLAH9bzMuX",
     decimals: 6,
     extensions: {
@@ -118,7 +118,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   HGET: {
     symbol: "HGET",
-    name: "Wrapped HGET",
+    name: "HGET",
     mint: "BtZQfWqDGbk9Wf2rXEiWyQBdBY1etnUUn6zEphvVS7yN",
     decimals: 6,
     extensions: {
@@ -127,7 +127,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   CREAM: {
     symbol: "CREAM",
-    name: "Wrapped CREAM",
+    name: "CREAM",
     mint: "5Fu5UUgbjpUvdBveb3a1JTNirL8rXtiYeSMWvKjtUNQv",
     decimals: 6,
     extensions: {
@@ -136,7 +136,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   UNI: {
     symbol: "UNI",
-    name: "Wrapped UNI",
+    name: "UNI",
     mint: "DEhAasscXF4kEGxFgJ3bq4PpVGp5wyUxMRvn6TzGVHaw",
     decimals: 6,
     extensions: {
@@ -154,7 +154,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   FTT: {
     symbol: "FTT",
-    name: "Wrapped FTT",
+    name: "FTX Token",
     mint: "AGFEad2et2ZJif9jaGpdMixQqvW5i81aBdvKe7PHNfz3",
     decimals: 6,
     extensions: {
@@ -172,7 +172,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   TOMO: {
     symbol: "TOMO",
-    name: "Wrapped TOMO",
+    name: "TOMO",
     mint: "GXMvfY2jpQctDqZ9RoU3oWPhufKiCcFEfchvYumtX7jd",
     decimals: 6,
     extensions: {
@@ -181,7 +181,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   KARMA: {
     symbol: "KARMA",
-    name: "Wrapped KARMA",
+    name: "KARMA",
     mint: "EcqExpGNFBve2i1cMJUTR4bPXj4ZoqmDD2rTkeCcaTFX",
     decimals: 4,
     extensions: {
@@ -190,7 +190,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   LUA: {
     symbol: "LUA",
-    name: "Wrapped LUA",
+    name: "LUA",
     mint: "EqWCKXfs3x47uVosDpTRgFniThL9Y8iCztJaapxbEaVX",
     decimals: 6,
     extensions: {
@@ -199,7 +199,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   MATH: {
     symbol: "MATH",
-    name: "Wrapped MATH",
+    name: "MATH",
     mint: "GeDS162t9yGJuLEHPWXXGrb1zwkzinCgRwnT8vHYjKza",
     decimals: 6,
     extensions: {
@@ -208,7 +208,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   KEEP: {
     symbol: "KEEP",
-    name: "Wrapped KEEP",
+    name: "KEEP",
     mint: "GUohe4DJUA5FKPWo3joiPgsB7yzer7LpDmt1Vhzy3Zht",
     decimals: 6,
     extensions: {
@@ -217,7 +217,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   SWAG: {
     symbol: "SWAG",
-    name: "Wrapped SWAG",
+    name: "SWAG",
     mint: "9F9fNTT6qwjsu4X4yWYKZpsbw5qT7o6yR2i57JF2jagy",
     decimals: 6,
     extensions: {
@@ -235,7 +235,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   KIN: {
     symbol: "KIN",
-    name: "KIN",
+    name: "Kin",
     mint: "kinXdEcpDQeHPEuQnqmUgtYykqKGVFq6CeVX5iAHJq6",
     decimals: 5,
     extensions: {
@@ -253,7 +253,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   OXY: {
     symbol: "OXY",
-    name: "OXY",
+    name: "Oxygen",
     mint: "z3dn17yLaGMKffVogeFHQ9zWVcXgqgf3PQnDsNs2g6M",
     decimals: 6,
     extensions: {
@@ -280,7 +280,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   COPE: {
     symbol: "COPE",
-    name: "COPE",
+    name: "Cope",
     mint: "8HGyAAB1yoM1ttS7pXjHMa3dukTFGQggnFFH3hJZgzQh",
     decimals: 6,
     extensions: {
@@ -289,7 +289,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   STEP: {
     symbol: "STEP",
-    name: "STEP",
+    name: "Step Finance",
     mint: "StepAscQoEioFxxWGnh2sLBDFp9d8rvKz2Yp39iDpyT",
     decimals: 9,
     extensions: {
@@ -298,7 +298,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   MEDIA: {
     symbol: "MEDIA",
-    name: "MEDIA",
+    name: "Media Network",
     mint: "ETAtLmCmsoiEEKfNrHKJ2kYy3MoABhU6NQvpSfij5tDs",
     decimals: 6,
     extensions: {
@@ -307,7 +307,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   ROPE: {
     symbol: "ROPE",
-    name: "ROPE",
+    name: "Rope Token",
     mint: "8PMHT4swUMtBzgHnh5U564N5sjPSiUz2cjEQzFnnP1Fo",
     decimals: 9,
     extensions: {
@@ -325,7 +325,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   TULIP: {
     symbol: "TULIP",
-    name: "TULIP",
+    name: "Tulip Protocol",
     mint: "TuLipcqtGVXP9XR62wM8WWCm6a9vhLs7T1uoWBk6FDs",
     decimals: 6,
     extensions: {
@@ -352,7 +352,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   WOO: {
     symbol: "WOO",
-    name: "Wootrade Network",
+    name: "WOO Network",
     mint: "E5rk3nmgLUuKUiS94gg4bpWwWwyjCMtddsAXkTFLtHEy",
     decimals: 6,
     extensions: {
@@ -370,7 +370,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   SAMO: {
     symbol: "SAMO",
-    name: "Samoyed Coin",
+    name: "Samoyedcoin",
     mint: "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU",
     decimals: 9,
     extensions: {
@@ -397,7 +397,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   LIKE: {
     symbol: "LIKE",
-    name: "LIKE",
+    name: "Only1",
     mint: "3bRTivrVsitbmCTGtqwp7hxXPsybkjn4XLNtPsHqa3zR",
     decimals: 9,
     extensions: {
@@ -406,7 +406,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   DXL: {
     symbol: "DXL",
-    name: "DXL",
+    name: "Dexlab",
     mint: "GsNzxJfFn6zQdJGeYsupJWzUAm57Ba7335mfhWvFiE9Z",
     decimals: 6,
     extensions: {
@@ -424,7 +424,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   PAI: {
     symbol: "PAI",
-    name: "Parrot",
+    name: "Parrot USD",
     mint: "Ea5SjE2Y6yvCeW5dYTn7PYMuW5ikXkvbGdcmSnXeaLjS",
     decimals: 6,
     extensions: {
@@ -433,7 +433,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   PORT: {
     symbol: "PORT",
-    name: "PORT",
+    name: "Port Finance",
     mint: "PoRTjZMPXb9T7dyU7tpLEZRQj7e6ssfAE62j2oQuc6y",
     decimals: 6,
     extensions: {
@@ -451,7 +451,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   CRP: {
     symbol: "CRP",
-    name: "CRP",
+    name: "CropperFinance",
     mint: "DubwWZNWiNGMMeeQHPnMATNj77YZPZSAz2WVR5WjLJqz",
     decimals: 9,
     extensions: {
@@ -460,7 +460,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   ATLAS: {
     symbol: "ATLAS",
-    name: "ATLAS",
+    name: "Star Atlas",
     mint: "ATLASXmbPQxBUYbxPsV97usA3fPQYEqzQBUHgiFCUsXx",
     decimals: 8,
     extensions: {
@@ -469,7 +469,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   POLIS: {
     symbol: "POLIS",
-    name: "POLIS",
+    name: "Star Atlas DAO",
     mint: "poLisWXnNRwC6oBu1vHiuKQzFjGL4XDSu4g9qjz9qVk",
     decimals: 8,
     extensions: {
@@ -478,7 +478,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   GRAPE: {
     symbol: "GRAPE",
-    name: "GRAPE",
+    name: "Grape Protocol",
     mint: "8upjSpvjcdpuzhfR1zriwg5NXkwDruejqNE9WNbPRtyA",
     decimals: 6,
     extensions: {
@@ -505,7 +505,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   CHEEMS: {
     symbol: "CHEEMS",
-    name: "CHEEMS",
+    name: "Cheems",
     mint: "3FoUAsGDbvTD6YZ4wVKJgTB76onJUKz7GPEBNiR5b8wc",
     decimals: 4,
     extensions: {
@@ -514,7 +514,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   stSOL: {
     symbol: "stSOL",
-    name: "stSOL",
+    name: "Lido Staked SOL",
     mint: "7dHbWXmci3dT8UFYWYZweBLXgycu7Y3iL6trKn1Y7ARj",
     decimals: 9,
     extensions: {
@@ -523,7 +523,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   LARIX: {
     symbol: "LARIX",
-    name: "LARIX",
+    name: "Larix",
     mint: "Lrxqnh6ZHKbGy3dcrCED43nsoLkM1LTzU2jRfWe8qUC",
     decimals: 6,
     extensions: {
@@ -532,7 +532,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   RIN: {
     symbol: "RIN",
-    name: "RIN",
+    name: "Aldrin",
     mint: "E5ndSkaB17Dm7CsD22dvcjfrYSDLCxFcMd6z8ddCk5wp",
     decimals: 9,
     extensions: {
@@ -541,7 +541,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   APEX: {
     symbol: "APEX",
-    name: "APEX",
+    name: "ApeXit Finance",
     mint: "51tMb3zBKDiQhNwGqpgwbavaGH54mk8fXFzxTc1xnasg",
     decimals: 9,
     extensions: {
@@ -550,7 +550,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   MNDE: {
     symbol: "MNDE",
-    name: "MNDE",
+    name: "Marinade",
     mint: "MNDEFzGvMt87ueuHvVU9VcTqsAP5b3fTGPsHuuPA5ey",
     decimals: 9,
     extensions: {
@@ -559,7 +559,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   LIQ: {
     symbol: "LIQ",
-    name: "LIQ",
+    name: "LIQ Protocol",
     mint: "4wjPQJ6PrkC4dHhYghwJzGBVP78DkBzA2U3kHoFNBuhj",
     decimals: 6,
     extensions: {
@@ -568,7 +568,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   WAG: {
     symbol: "WAG",
-    name: "WAG",
+    name: "Waggle Network",
     mint: "5tN42n9vMi6ubp67Uy4NnmM5DMZYN8aS8GeB3bEDHr6E",
     decimals: 9,
     extensions: {
@@ -584,7 +584,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   SLIM: {
     symbol: "SLIM",
-    name: "SLIM",
+    name: "Solanium",
     mint: "xxxxa1sKNGwFtw2kFn8XauW9xq8hBZ5kVtcSesTT9fW",
     decimals: 6,
     extensions: {
@@ -593,7 +593,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   PRT: {
     symbol: "PRT",
-    name: "PRT",
+    name: "Parrot Protocol",
     mint: "PRT88RkA4Kg5z7pKnezeNH4mafTvtQdfFgpQTGRjz44",
     decimals: 6,
     extensions: {
@@ -609,7 +609,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   FAB: {
     symbol: "FAB",
-    name: "FAB",
+    name: "Fabric",
     mint: "EdAhkbj5nF9sRM7XN7ewuW8C9XEUMs8P7cnoQ57SYE96",
     decimals: 9,
     extensions: {
@@ -618,7 +618,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   ABR: {
     symbol: "ABR",
-    name: "ABR",
+    name: "Allbridge",
     mint: "a11bdAAuV8iB2fu7X6AxAvDTo1QZ8FXB3kk5eecdasp",
     decimals: 9,
     extensions: {
@@ -627,7 +627,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   IVN: {
     symbol: "IVN",
-    name: "IVN",
+    name: "Investin",
     mint: "iVNcrNE9BRZBC9Aqf753iZiZfbszeAVUoikgT9yvr2a",
     decimals: 6,
     extensions: {
@@ -636,7 +636,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   CYS: {
     symbol: "CYS",
-    name: "CYS",
+    name: "Cyclos",
     mint: "BRLsMczKuaR5w9vSubF4j8HwEGGprVAyyVgS4EX7DKEg",
     decimals: 6,
     extensions: {
@@ -645,7 +645,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   FRKT: {
     symbol: "FRKT",
-    name: "FRKT",
+    name: "FRAKT Token",
     mint: "ErGB9xa24Szxbk1M28u2Tx8rKPqzL6BroNkkzk5rG4zj",
     decimals: 8,
     extensions: {
@@ -654,7 +654,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   AURY: {
     symbol: "AURY",
-    name: "AURY",
+    name: "Aurory",
     mint: "AURYydfxJib1ZkTir1Jn1J9ECYUtjb6rKQVmtYaixWPP",
     decimals: 9,
     extensions: {
@@ -663,7 +663,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   SYP: {
     symbol: "SYP",
-    name: "SYP",
+    name: "Sypool",
     mint: "FnKE9n6aGjQoNWRBZXy4RW6LZVao7qwBonUbiD7edUmZ",
     decimals: 9,
     extensions: {
@@ -681,7 +681,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   ORCA: {
     symbol: "ORCA",
-    name: "ORCA",
+    name: "Orca",
     mint: "orcaEKTdK7LKz57vaAYr9QeNsVEPfiu6QeMU1kektZE",
     decimals: 6,
     extensions: {
@@ -690,7 +690,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   SLND: {
     symbol: "SLND",
-    name: "SLND",
+    name: "Solend",
     mint: "SLNDpmoWTVADgEdndyvWzroNL7zSi1dF9PC3xHGtPwp",
     decimals: 6,
     extensions: {
@@ -720,7 +720,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   GOFX: {
     symbol: "GOFX",
-    name: "GOFX",
+    name: "GooseFX",
     mint: "GFX1ZjR2P15tmrSwow6FjyDYcEkoFb4p4gJCpLBjaxHD",
     decimals: 9,
     extensions: {
@@ -729,7 +729,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   IN: {
     symbol: "IN",
-    name: "IN",
+    name: "Invictus",
     mint: "inL8PMVd6iiW3RCBJnr5AsrRN6nqr4BTrcNuQWQSkvY",
     decimals: 9,
     extensions: {
@@ -745,7 +745,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   STARS: {
     symbol: "STARS",
-    name: "STARS",
+    name: "StarLaunch",
     mint: "HCgybxq5Upy8Mccihrp7EsmwwFqYZtrHrsmsKwtGXLgW",
     decimals: 6,
     extensions: {
@@ -768,7 +768,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   OXS: {
     symbol: "OXS",
-    name: "OXS",
+    name: "Oxbull Solana",
     mint: "4TGxgCSJQx2GQk9oHZ8dC5m3JNXTYZHjXumKAW3vLnNx",
     decimals: 9,
     extensions: {
@@ -777,7 +777,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   CWAR: {
     symbol: "CWAR",
-    name: "CWAR",
+    name: "Cryowar",
     mint: "HfYFjMKNZygfMC8LsQ8LtpPsPxEJoXJx4M6tqi75Hajo",
     decimals: 9,
     extensions: {
@@ -786,7 +786,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   UPS: {
     symbol: "UPS",
-    name: "UPS",
+    name: "UPFI Network",
     mint: "EwJN2GqUGXXzYmoAciwuABtorHczTA5LqbukKXV1viH7",
     decimals: 6,
     extensions: {
@@ -809,7 +809,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   CAVE: {
     symbol: "CAVE",
-    name: "CAVE",
+    name: "Crypto Cavemen",
     mint: "4SZjjNABoqhbd4hnapbvoEPEqT8mnNkfbEoAwALf1V8t",
     decimals: 6,
     extensions: {
@@ -818,7 +818,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   JSOL: {
     symbol: "JSOL",
-    name: "JSOL",
+    name: "JPool",
     mint: "7Q2afV64in6N6SeZsAAB81TJzwDoD6zpqmHkzi9Dcavn",
     decimals: 9,
     extensions: {
@@ -827,7 +827,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   APT: {
     symbol: "APT",
-    name: "APT",
+    name: "Apricot",
     mint: "APTtJyaRX5yGTsJU522N4VYWg3vCvSb65eam5GrPT5Rt",
     decimals: 6,
     extensions: {
@@ -836,7 +836,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   SONAR: {
     symbol: "SONAR",
-    name: "SONAR",
+    name: "SonarWatch",
     mint: "sonarX4VtVkQemriJeLm6CKeW3GDMyiBnnAEMw1MRAE",
     decimals: 9,
     extensions: {
@@ -845,7 +845,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   SHILL: {
     symbol: "SHILL",
-    name: "SHILL",
+    name: "SHILL Token",
     mint: "6cVgJUqo4nmvQpbgrDZwyfd6RwWw5bfnCamS3M9N1fd",
     decimals: 6,
     extensions: {
@@ -863,7 +863,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   BOKU: {
     symbol: "BOKU",
-    name: "BOKU",
+    name: "Boryoku Dragonz",
     mint: "CN7qFa5iYkHz99PTctvT4xXUHnxwjQ5MHxCuTJtPN5uS",
     decimals: 9,
     extensions: {
@@ -872,7 +872,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   MIMO: {
     symbol: "MIMO",
-    name: "MIMO",
+    name: "Million Monke",
     mint: "9TE7ebz1dsFo1uQ2T4oYAKSm39Y6fWuHrd6Uk6XaiD16",
     decimals: 9,
     extensions: {
@@ -895,7 +895,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   XTAG: {
     symbol: "XTAG",
-    name: "XTAG",
+    name: "xHashtag",
     mint: "5gs8nf4wojB5EXgDUWNLwXpknzgV2YWDhveAeBZpVLbp",
     decimals: 6,
     extensions: {
@@ -904,7 +904,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   KKO: {
     symbol: "KKO",
-    name: "KKO",
+    name: "Kineko",
     mint: "kiNeKo77w1WBEzFFCXrTDRWGRWGP8yHvKC9rX6dqjQh",
     decimals: 9,
     extensions: {
@@ -913,7 +913,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   VI: {
     symbol: "VI",
-    name: "VI",
+    name: "Vybit",
     mint: "7zBWymxbZt7PVHQzfi3i85frc1YRiQc23K7bh3gos8ZC",
     decimals: 9,
     extensions: {
@@ -922,7 +922,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   SOLC: {
     symbol: "SOLC",
-    name: "SOLC",
+    name: "Solcubator",
     mint: "Bx1fDtvTN6NvE4kjdPHQXtmGSg582bZx9fGy4DQNMmAT",
     decimals: 9,
     extensions: {
@@ -931,7 +931,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   STR: {
     symbol: "STR",
-    name: "STR",
+    name: "Solster",
     mint: "9zoqdwEBKWEi9G5Ze8BSkdmppxGgVv1Kw4LuigDiNr9m",
     decimals: 9,
     extensions: {
@@ -940,7 +940,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   SPWN: {
     symbol: "SPWN",
-    name: "SPWN",
+    name: "Bitspawn",
     mint: "5U9QqCPhqXAJcEv9uyzFJd5zhN93vuPk1aNNkXnUfPnt",
     decimals: 9,
     extensions: {
@@ -949,7 +949,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   ISOLA: {
     symbol: "ISOLA",
-    name: "ISOLA",
+    name: "Intersola",
     mint: "333iHoRM2Awhf9uVZtSyTfU8AekdGrgQePZsKMFPgKmS",
     decimals: 6,
     extensions: {
@@ -958,7 +958,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   RUN: {
     symbol: "RUN",
-    name: "RUN",
+    name: "Run",
     mint: "6F9XriABHfWhit6zmMUYAQBSy6XK5VF1cHXuW5LDpRtC",
     decimals: 9,
     extensions: {
@@ -967,7 +967,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   REAL: {
     symbol: "REAL",
-    name: "REAL",
+    name: "Realy Metaverse",
     mint: "AD27ov5fVU2XzwsbvnFvb1JpCBaCB5dRXrczV9CqSVGb",
     decimals: 9,
     extensions: {
@@ -983,7 +983,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   BLOCK: {
     symbol: "BLOCK",
-    name: "BLOCK",
+    name: "Blockasset",
     mint: "NFTUkR4u7wKxy9QLaX2TGvd9oZSWoMo4jqSJqdMb7Nk",
     decimals: 6,
     extensions: {
@@ -992,7 +992,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   SOLAR: {
     symbol: "SOLAR",
-    name: "SOLAR",
+    name: "Solar",
     mint: "2wmKXX1xsxLfrvjEPrt2UHiqj8Gbzwxvffr9qmNjsw8g",
     decimals: 9,
     extensions: {
@@ -1001,7 +1001,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   BASIS: {
     symbol: "BASIS",
-    name: "BASIS",
+    name: "basis.markets",
     mint: "Basis9oJw9j8cw53oMV7iqsgo6ihi9ALw4QR31rcjUJa",
     decimals: 6,
     extensions: {
@@ -1010,7 +1010,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   SOLX: {
     symbol: "SOLX",
-    name: "SOLX",
+    name: "Soldex",
     mint: "CH74tuRLTYcxG7qNJCsV9rghfLXJCQJbsu7i52a8F1Gn",
     decimals: 9,
     extensions: {
@@ -1019,7 +1019,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   CHICKS: {
     symbol: "CHICKS",
-    name: "CHICKS",
+    name: "SolChicks Token",
     mint: "cxxShYRVcepDudXhe7U62QHvw8uBJoKFifmzggGKVC2",
     decimals: 9,
     extensions: {
@@ -1037,7 +1037,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   MBS: {
     symbol: "MBS",
-    name: "MBS",
+    name: "MonkeyBall",
     mint: "Fm9rHUTF5v3hwMLbStjZXqNBBoZyGriQaFM6sTFz3K8A",
     decimals: 6,
     extensions: {
@@ -1046,7 +1046,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   PRISM: {
     symbol: "PRISM",
-    name: "PRISM",
+    name: "Prism",
     mint: "PRSMNsEPqhGVCH1TtWiJqPjJyh2cKrLostPZTNy1o5x",
     decimals: 6,
     extensions: {
@@ -1055,7 +1055,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   MEAN: {
     symbol: "MEAN",
-    name: "MEAN",
+    name: "Meanfi",
     mint: "MEANeD3XDdUmNMsRGjASkSWdC8prLYsoRJ61pPeHctD",
     decimals: 6,
     extensions: {
@@ -1064,7 +1064,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   TINY: {
     symbol: "TINY",
-    name: "TINY",
+    name: "Tiny Colony",
     mint: "HKfs24UEDQpHS5hUyKYkHd9q7GY5UQ679q2bokeL2whu",
     decimals: 6,
     extensions: {
@@ -1073,7 +1073,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   SHDW: {
     symbol: "SHDW",
-    name: "SHDW",
+    name: "GenesysGo Shadow",
     mint: "SHDWyBxihqiCj6YekG2GUr7wqKLeLAMK1gHZck9pL6y",
     decimals: 9,
     extensions: {
@@ -1082,7 +1082,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   SCY: {
     symbol: "SCY",
-    name: "SCY",
+    name: "Synchrony",
     mint: "SCYfrGCw8aDiqdgcpdGjV6jp4UVVQLuphxTDLNWu36f",
     decimals: 9,
     extensions: {
@@ -1091,7 +1091,7 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
   },
   SLC: {
     symbol: "SLC",
-    name: "SLC",
+    name: "Solice",
     mint: "METAmTMXwdb8gYzyCPfXXFmZZw4rUsXX58PNsDg7zjL",
     decimals: 6,
     extensions: {

@@ -1,5 +1,14 @@
 # Changelog
 
+### 1.0.1-beta.17 (2022-01-10)
+
+- Add
+  - `makeSwapFixedOutInstructionV4` for `Liquidity`
+- Change
+  - Rename `makeSwapInstructionV4` to `makeSwapFixedInInstructionV4` of `Liquidity`
+  - Rename params `side` to `tradeSide` of `Liquidity.makeSwapInstruction`
+  - Update dev dependencies
+
 ### 1.0.1-beta.15 (2022-01-09)
 
 - Add
@@ -8,8 +17,8 @@
   - `getAmountOut` for `Liquidity`
   - `getAmountIn` for `Liquidity`
 - Change
-  - Update dev dependencies
   - Rename `getOutputAmount` to `getAmountOut` of `Liquidity`
+  - Update dev dependencies
 
 ### 1.0.1-beta.14 (2021-12-21)
 

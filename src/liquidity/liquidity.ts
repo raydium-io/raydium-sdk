@@ -18,6 +18,12 @@ import { LiquidityPoolJsonInfo } from "./type";
 
 const logger = new Logger("Liquidity");
 
+// buy: quote => base
+// sell: base => quote
+export type TradeSide = "buy" | "sell";
+
+export type FixedSide = "base" | "quote";
+
 /* ================= pool keys ================= */
 export type LiquidityPoolKeysV4 = {
   [T in keyof LiquidityPoolJsonInfo]: LiquidityPoolJsonInfo[T] extends string ? PublicKey : LiquidityPoolJsonInfo[T];
@@ -38,7 +44,7 @@ export interface AddLiquidityInstructionParamsV4 {
   userKeys: LiquidityUserKeys;
   maxBaseAmountIn: BigNumberish;
   maxQuoteAmountIn: BigNumberish;
-  fixedSide: "base" | "quote";
+  fixedSide: FixedSide;
 }
 
 export type AddLiquidityInstructionParams = AddLiquidityInstructionParamsV4;
@@ -53,18 +59,32 @@ export interface RemoveLiquidityInstructionParamsV4 {
 export type RemoveLiquidityInstructionParams = RemoveLiquidityInstructionParamsV4;
 
 /* ================= swap instruction ================= */
-export interface SwapInstructionParamsV4 {
+export type SwapFixedInInstructionParamsV4 = {
   poolKeys: LiquidityPoolKeys;
   userKeys: Omit<LiquidityUserKeys, "lpTokenAccount">;
   amountIn: BigNumberish;
   // minimum amount out
   minAmountOut: BigNumberish;
-  // buy: quote => base
-  // sell: base => quote
-  side: "buy" | "sell";
-}
+  tradeSide: TradeSide;
+};
 
-export type SwapInstructionParams = SwapInstructionParamsV4;
+export type SwapFixedOutInstructionParamsV4 = {
+  poolKeys: LiquidityPoolKeys;
+  userKeys: Omit<LiquidityUserKeys, "lpTokenAccount">;
+  // maximum amount in
+  maxAmountIn: BigNumberish;
+  amountOut: BigNumberish;
+  tradeSide: TradeSide;
+};
+
+// https://github.com/maninak/ts-xor
+type Without<T, U> = { [P in Exclude<keyof T, keyof U>]?: never };
+type XOR<T, U> = T | U extends object ? (Without<T, U> & U) | (Without<U, T> & T) : T | U;
+
+export type SwapInstructionParams = { fixedSide: FixedSide } & XOR<
+  SwapFixedInInstructionParamsV4,
+  SwapFixedOutInstructionParamsV4
+>;
 
 export interface AssociatedPoolKeysV4
   extends Omit<
@@ -105,7 +125,7 @@ export interface GetLiquidityMultipleInfoParams {
 
 export interface GetQuoteParams {
   amount: BigNumberish;
-  fixedSide: "base" | "quote";
+  fixedSide: FixedSide;
   baseReserve: BigNumberish;
   quoteReserve: BigNumberish;
 }
@@ -122,9 +142,7 @@ export interface GetAmountOutParams {
   amountIn: BigNumberish;
   baseReserve: BigNumberish;
   quoteReserve: BigNumberish;
-  // buy: quote => base
-  // sell: base => quote
-  side: "buy" | "sell";
+  tradeSide: TradeSide;
   slippage?: Percent;
 }
 
@@ -419,17 +437,35 @@ export class Liquidity {
 
   /* ================= swap ================= */
   static makeSwapInstruction(params: SwapInstructionParams) {
-    const { poolKeys } = params;
+    const { poolKeys, userKeys, amountIn, minAmountOut, maxAmountIn, amountOut, tradeSide, fixedSide } = params;
     const { version } = poolKeys;
 
     if (version === 4) {
-      return this.makeSwapInstructionV4(params);
+      if (
+        ((tradeSide === "buy" && fixedSide === "quote") || (tradeSide === "sell" && fixedSide === "base")) &&
+        amountIn &&
+        minAmountOut
+      )
+        return this.makeSwapFixedInInstructionV4({ poolKeys, userKeys, amountIn, minAmountOut, tradeSide });
+      else if (
+        ((tradeSide === "buy" && fixedSide === "base") || (tradeSide === "sell" && fixedSide === "quote")) &&
+        maxAmountIn &&
+        amountOut
+      )
+        return this.makeSwapFixedOutInstructionV4({ poolKeys, userKeys, maxAmountIn, amountOut, tradeSide });
+      else logger.throwArgumentError("invalid params", "params", params);
     }
 
     return logger.throwArgumentError("invalid version", "poolKeys.version", version);
   }
 
-  static makeSwapInstructionV4({ poolKeys, userKeys, amountIn, minAmountOut, side }: SwapInstructionParamsV4) {
+  static makeSwapFixedInInstructionV4({
+    poolKeys,
+    userKeys,
+    amountIn,
+    minAmountOut,
+    tradeSide,
+  }: SwapFixedInInstructionParamsV4) {
     const LAYOUT = struct([u8("instruction"), u64("amountIn"), u64("minAmountOut")]);
     const data = Buffer.alloc(LAYOUT.span);
     LAYOUT.encode(
@@ -442,7 +478,60 @@ export class Liquidity {
     );
 
     const userTokenAccounts = [userKeys.baseTokenAccount, userKeys.quoteTokenAccount];
-    if (side === "buy") {
+    if (tradeSide === "buy") {
+      userTokenAccounts.reverse();
+    }
+
+    const keys = [
+      AccountMetaReadonly(TOKEN_PROGRAM_ID, false),
+      // amm
+      AccountMeta(poolKeys.id, false),
+      AccountMetaReadonly(poolKeys.authority, false),
+      AccountMeta(poolKeys.openOrders, false),
+      AccountMeta(poolKeys.targetOrders, false),
+      AccountMeta(poolKeys.baseVault, false),
+      AccountMeta(poolKeys.quoteVault, false),
+      // serum
+      AccountMetaReadonly(poolKeys.marketProgramId, false),
+      AccountMeta(poolKeys.marketId, false),
+      AccountMeta(poolKeys.marketBids, false),
+      AccountMeta(poolKeys.marketAsks, false),
+      AccountMeta(poolKeys.marketEventQueue, false),
+      AccountMeta(poolKeys.marketBaseVault, false),
+      AccountMeta(poolKeys.marketQuoteVault, false),
+      AccountMetaReadonly(poolKeys.marketAuthority, false),
+      // user
+      ...userTokenAccounts.map((tokenAccount) => AccountMeta(tokenAccount, false)),
+      AccountMetaReadonly(userKeys.owner, true),
+    ];
+
+    return new TransactionInstruction({
+      programId: poolKeys.programId,
+      keys,
+      data,
+    });
+  }
+
+  static makeSwapFixedOutInstructionV4({
+    poolKeys,
+    userKeys,
+    maxAmountIn,
+    amountOut,
+    tradeSide,
+  }: SwapFixedOutInstructionParamsV4) {
+    const LAYOUT = struct([u8("instruction"), u64("maxAmountIn"), u64("amountOut")]);
+    const data = Buffer.alloc(LAYOUT.span);
+    LAYOUT.encode(
+      {
+        instruction: 11,
+        maxAmountIn: parseBigNumberish(maxAmountIn),
+        amountOut: parseBigNumberish(amountOut),
+      },
+      data,
+    );
+
+    const userTokenAccounts = [userKeys.baseTokenAccount, userKeys.quoteTokenAccount];
+    if (tradeSide === "buy") {
       userTokenAccounts.reverse();
     }
 
@@ -901,11 +990,11 @@ export class Liquidity {
   /**
    * Get output amount of swap
    */
-  static getAmountOut({ amountIn, baseReserve, quoteReserve, side, slippage }: GetAmountOutParams) {
+  static getAmountOut({ amountIn, baseReserve, quoteReserve, tradeSide, slippage }: GetAmountOutParams) {
     const _amountIn = parseBigNumberish(amountIn);
 
     const reserves = [parseBigNumberish(baseReserve), parseBigNumberish(quoteReserve)];
-    if (side === "buy") {
+    if (tradeSide === "buy") {
       reserves.reverse();
     }
     const [reserveIn, reserveOut] = reserves;
@@ -928,11 +1017,11 @@ export class Liquidity {
   /**
    * Get input amount of swap
    */
-  static getAmountIn({ amountOut, baseReserve, quoteReserve, side, slippage }: GetAmountInParams) {
+  static getAmountIn({ amountOut, baseReserve, quoteReserve, tradeSide, slippage }: GetAmountInParams) {
     const _amountOut = parseBigNumberish(amountOut);
 
     const reserves = [parseBigNumberish(baseReserve), parseBigNumberish(quoteReserve)];
-    if (side === "buy") {
+    if (tradeSide === "buy") {
       reserves.reverse();
     }
     const [reserveIn, reserveOut] = reserves;
