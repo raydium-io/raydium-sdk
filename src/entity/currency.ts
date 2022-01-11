@@ -41,7 +41,7 @@ export class Token extends Currency {
   /**
    * The only instance of the base class `Token`.
    */
-  public static readonly WSOL: Currency = new Token(WSOL.mint, WSOL.decimals, SOL.symbol, SOL.name);
+  public static readonly WSOL: Token = new Token(WSOL.mint, WSOL.decimals, SOL.symbol, SOL.name);
 
   public constructor(mint: PublicKeyish, decimals: number, symbol?: string, name?: string) {
     super(decimals, symbol, name);

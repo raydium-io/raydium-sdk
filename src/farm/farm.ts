@@ -3,7 +3,7 @@ import BN from "bn.js";
 
 import {
   AccountMeta, AccountMetaReadonly, findProgramAddress, GetMultipleAccountsInfoConfig,
-  getMultipleAccountsInfoWithCustomFlag, Logger, PublicKeyish, SYSTEM_PROGRAM_ID, SYSVAR_CLOCK_PUBKEY,
+  getMultipleAccountsInfoWithCustomFlags, Logger, PublicKeyish, SYSTEM_PROGRAM_ID, SYSVAR_CLOCK_PUBKEY,
   SYSVAR_RENT_PUBKEY, TOKEN_PROGRAM_ID, validateAndParsePublicKey,
 } from "../common";
 import { BigNumberish, parseBigNumberish, TEN } from "../entity";
@@ -63,9 +63,7 @@ export class Farm {
   /* ================= static functions ================= */
   static getProgramId(version: number) {
     const programId = FARM_VERSION_TO_PROGRAMID[version];
-    if (!programId) {
-      return logger.throwArgumentError("invalid version", "version", version);
-    }
+    logger.assertArgument(!!programId, "invalid version", "version", version);
 
     return programId;
   }
@@ -75,27 +73,21 @@ export class Farm {
     const programIdString = programIdPubKey.toBase58();
 
     const version = FARM_PROGRAMID_TO_VERSION[programIdString];
-    if (!version) {
-      return logger.throwArgumentError("invalid program id", "programId", programIdString);
-    }
+    logger.assertArgument(!!version, "invalid program id", "programId", programIdString);
 
     return version;
   }
 
   static getStateLayout(version: number) {
     const STATE_LAYOUT = FARM_VERSION_TO_STATE_LAYOUT[version];
-    if (!STATE_LAYOUT) {
-      return logger.throwArgumentError("invalid version", "version", version);
-    }
+    logger.assertArgument(!!STATE_LAYOUT, "invalid version", "version", version);
 
     return STATE_LAYOUT;
   }
 
   static getLedgerLayout(version: number) {
     const LEDGER_LAYOUT = FARM_VERSION_TO_LEDGER_LAYOUT[version];
-    if (!LEDGER_LAYOUT) {
-      return logger.throwArgumentError("invalid version", "version", version);
-    }
+    logger.assertArgument(!!LEDGER_LAYOUT, "invalid version", "version", version);
 
     return LEDGER_LAYOUT;
   }
@@ -140,16 +132,18 @@ export class Farm {
   }
 
   static makeDepositInstructionV3({ poolKeys, userKeys, amount }: FarmDepositInstructionParams) {
-    if (userKeys.rewardTokenAccounts.length !== 1) {
-      return logger.throwArgumentError(
-        "lengths not equal 1",
-        "userKeys.rewardTokenAccounts",
-        userKeys.rewardTokenAccounts,
-      );
-    }
-    if (poolKeys.rewardVaults.length !== 1) {
-      return logger.throwArgumentError("lengths not equal 1", "poolKeys.rewardVaults", poolKeys.rewardVaults);
-    }
+    logger.assertArgument(
+      poolKeys.rewardVaults.length === 1,
+      "lengths not equal 1",
+      "poolKeys.rewardVaults",
+      poolKeys.rewardVaults,
+    );
+    logger.assertArgument(
+      userKeys.rewardTokenAccounts.length === 1,
+      "lengths not equal 1",
+      "userKeys.rewardTokenAccounts",
+      userKeys.rewardTokenAccounts,
+    );
 
     const LAYOUT = struct([u8("instruction"), u64("amount")]);
     const data = Buffer.alloc(LAYOUT.span);
@@ -188,13 +182,12 @@ export class Farm {
   }
 
   static makeDepositInstructionV5({ poolKeys, userKeys, amount }: FarmDepositInstructionParams) {
-    if (userKeys.rewardTokenAccounts.length !== poolKeys.rewardVaults.length) {
-      return logger.throwArgumentError(
-        "lengths not equal with poolKeys.rewardVaults",
-        "userKeys.rewardTokenAccounts",
-        userKeys.rewardTokenAccounts,
-      );
-    }
+    logger.assertArgument(
+      userKeys.rewardTokenAccounts.length === poolKeys.rewardVaults.length,
+      "lengths not equal with poolKeys.rewardVaults",
+      "userKeys.rewardTokenAccounts",
+      userKeys.rewardTokenAccounts,
+    );
 
     const LAYOUT = struct([u8("instruction"), u64("amount")]);
     const data = Buffer.alloc(LAYOUT.span);
@@ -252,16 +245,18 @@ export class Farm {
   }
 
   static makeWithdrawInstructionV3({ poolKeys, userKeys, amount }: FarmWithdrawInstructionParams) {
-    if (userKeys.rewardTokenAccounts.length !== 1) {
-      return logger.throwArgumentError(
-        "lengths not equal 1",
-        "userKeys.rewardTokenAccounts",
-        userKeys.rewardTokenAccounts,
-      );
-    }
-    if (poolKeys.rewardVaults.length !== 1) {
-      return logger.throwArgumentError("lengths not equal 1", "poolKeys.rewardVaults", poolKeys.rewardVaults);
-    }
+    logger.assertArgument(
+      poolKeys.rewardVaults.length === 1,
+      "lengths not equal 1",
+      "poolKeys.rewardVaults",
+      poolKeys.rewardVaults,
+    );
+    logger.assertArgument(
+      userKeys.rewardTokenAccounts.length === 1,
+      "lengths not equal 1",
+      "userKeys.rewardTokenAccounts",
+      userKeys.rewardTokenAccounts,
+    );
 
     const LAYOUT = struct([u8("instruction"), u64("amount")]);
     const data = Buffer.alloc(LAYOUT.span);
@@ -300,13 +295,12 @@ export class Farm {
   }
 
   static makeWithdrawInstructionV5({ poolKeys, userKeys, amount }: FarmWithdrawInstructionParams) {
-    if (userKeys.rewardTokenAccounts.length !== poolKeys.rewardVaults.length) {
-      return logger.throwArgumentError(
-        "lengths not equal with params.poolKeys.rewardVaults",
-        "userKeys.rewardTokenAccounts",
-        userKeys.rewardTokenAccounts,
-      );
-    }
+    logger.assertArgument(
+      userKeys.rewardTokenAccounts.length === poolKeys.rewardVaults.length,
+      "lengths not equal with params.poolKeys.rewardVaults",
+      "userKeys.rewardTokenAccounts",
+      userKeys.rewardTokenAccounts,
+    );
 
     const LAYOUT = struct([u8("instruction"), u64("amount")]);
     const data = Buffer.alloc(LAYOUT.span);
@@ -462,7 +456,7 @@ export class Farm {
       };
     } = {};
 
-    const accountsInfo = await getMultipleAccountsInfoWithCustomFlag(connection, publicKeys, config);
+    const accountsInfo = await getMultipleAccountsInfoWithCustomFlags(connection, publicKeys, config);
     for (const { pubkey, version, key, poolId, accountInfo } of accountsInfo) {
       if (key === "state") {
         const STATE_LAYOUT = this.getStateLayout(version);
@@ -486,9 +480,12 @@ export class Farm {
       } else if (key === "ledger") {
         const LEDGER_LAYOUT = this.getLedgerLayout(version);
         if (accountInfo && accountInfo.data) {
-          if (accountInfo.data.length !== LEDGER_LAYOUT.span) {
-            return logger.throwArgumentError("invalid farm ledger account info", "ledger", pubkey.toBase58());
-          }
+          logger.assertArgument(
+            accountInfo.data.length === LEDGER_LAYOUT.span,
+            "invalid farm ledger account info",
+            "ledger",
+            pubkey.toBase58(),
+          );
 
           poolsInfo[poolId.toBase58()] = {
             ...poolsInfo[poolId.toBase58()],

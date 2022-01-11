@@ -32,11 +32,8 @@ export class TokenList {
     }
 
     const token = result[0];
-    if (tokenType === "spl" && "version" in token) {
-      return logger.throwArgumentError("invalid SPL token mint", "mint", mint);
-    } else if (tokenType === "lp" && !("version" in token)) {
-      return logger.throwArgumentError("invalid LP token mint", "mint", mint);
-    }
+    logger.assertArgument(tokenType === "spl" && !("version" in token), "invalid SPL token mint", "mint", mint);
+    logger.assertArgument(tokenType === "lp" && "version" in token, "invalid LP token mint", "mint", mint);
 
     return token as T extends "all" ? SplTokenInfo | LpTokenInfo : T extends "spl" ? SplTokenInfo : LpTokenInfo;
   };

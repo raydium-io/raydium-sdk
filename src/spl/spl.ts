@@ -1,6 +1,6 @@
 import { Token as _Token, u64 as _u64 } from "@solana/spl-token";
 import {
-  Commitment, Connection, Keypair, PublicKey, Signer, SystemProgram, TransactionInstruction,
+  Commitment, Connection, Keypair, PublicKey, Signer, SystemProgram, Transaction, TransactionInstruction,
 } from "@solana/web3.js";
 
 import { ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID, validateAndParsePublicKey } from "../common";
@@ -13,7 +13,7 @@ import { SPL_ACCOUNT_LAYOUT } from "./layout";
 // https://github.com/solana-labs/solana-program-library/tree/master/token/js/client
 export class Spl {
   static getAssociatedTokenAccount({ mint, owner }: { mint: PublicKey; owner: PublicKey }) {
-    return _Token.getAssociatedTokenAddress(ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID, mint, owner);
+    return _Token.getAssociatedTokenAddress(ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID, mint, owner, true);
   }
 
   static makeCreateAssociatedTokenAccountInstruction({
@@ -89,6 +89,37 @@ export class Spl {
     );
 
     return { newAccount, instructions };
+  }
+
+  static async insertCreateWrappedNativeAccountInstructions({
+    connection,
+    owner,
+    payer,
+    amount,
+    instructions,
+    signers,
+    commitment,
+  }: {
+    connection: Connection;
+    owner: PublicKey;
+    payer: PublicKey;
+    amount: BigNumberish;
+    instructions: TransactionInstruction[];
+    signers: Signer[];
+    commitment?: Commitment;
+  }) {
+    const { newAccount, instructions: newInstructions } = await this.makeCreateWrappedNativeAccountInstructions({
+      connection,
+      owner,
+      payer,
+      amount,
+      commitment,
+    });
+
+    instructions.push(...newInstructions);
+    signers.push(newAccount);
+
+    return newAccount.publicKey;
   }
 
   static makeInitMintInstruction({

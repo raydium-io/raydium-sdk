@@ -1,14 +1,15 @@
-import { AccountInfo, Connection, PublicKey, TransactionInstruction } from "@solana/web3.js";
+import { AccountInfo, Connection, PublicKey, Signer, Transaction, TransactionInstruction } from "@solana/web3.js";
 import BN from "bn.js";
 
 import {
   AccountMeta, AccountMetaReadonly, findProgramAddress, getMultipleAccountsInfo, GetMultipleAccountsInfoConfig, Logger,
-  parseSimulateLog, parseSimulateValue, simulateMultipleInstruction, SYSTEM_PROGRAM_ID, SYSVAR_RENT_PUBKEY,
-  TOKEN_PROGRAM_ID,
+  parseSimulateLogToJson, parseSimulateValue, simulateMultipleInstruction, SYSTEM_PROGRAM_ID, SYSVAR_RENT_PUBKEY,
+  TOKEN_PROGRAM_ID, XOR,
 } from "../common";
-import { BigNumberish, ONE, parseBigNumberish, Percent } from "../entity";
+import { BigNumberish, CurrencyAmount, divCeil, ONE, parseBigNumberish, Percent, Token, TokenAmount } from "../entity";
 import { struct, u64, u8 } from "../marshmallow";
 import { Market } from "../serum";
+import { Spl } from "../spl";
 
 import {
   LIQUIDITY_PROGRAMID_TO_VERSION, LIQUIDITY_VERSION_TO_PROGRAMID, LIQUIDITY_VERSION_TO_SERUM_VERSION,
@@ -22,15 +23,56 @@ const logger = new Logger("Liquidity");
 // sell: base => quote
 export type TradeSide = "buy" | "sell";
 
-export type FixedSide = "base" | "quote";
+export type SwapSide = "input" | "output";
+export type LiquiditySide = "a" | "b";
+// for inner instruction
+export type AmountSide = "base" | "quote";
 
 /* ================= pool keys ================= */
 export type LiquidityPoolKeysV4 = {
   [T in keyof LiquidityPoolJsonInfo]: LiquidityPoolJsonInfo[T] extends string ? PublicKey : LiquidityPoolJsonInfo[T];
 };
 
+/**
+ * Full liquidity pool keys that build transaction need
+ */
 export type LiquidityPoolKeys = LiquidityPoolKeysV4;
 
+export interface AssociatedPoolKeysV4
+  extends Omit<
+    LiquidityPoolKeysV4,
+    "marketBaseVault" | "marketQuoteVault" | "marketBids" | "marketAsks" | "marketEventQueue"
+  > {
+  nonce: number;
+}
+
+/**
+ * Associated liquidity pool keys
+ * @remarks
+ * without partial markets keys
+ */
+export type AssociatedPoolKeys = AssociatedPoolKeysV4;
+
+/* ================= pool info ================= */
+/**
+ * Liquidity pool info
+ * @remarks
+ * same data type with layouts
+ */
+export interface LiquidityPoolInfo {
+  status: BN;
+  baseDecimals: number;
+  quoteDecimals: number;
+  lpDecimals: number;
+  baseReserve: BN;
+  quoteReserve: BN;
+  lpSupply: BN;
+}
+
+/* ================= user keys ================= */
+/**
+ * Full user keys that build transaction need
+ */
 export interface LiquidityUserKeys {
   baseTokenAccount: PublicKey;
   quoteTokenAccount: PublicKey;
@@ -38,65 +80,84 @@ export interface LiquidityUserKeys {
   owner: PublicKey;
 }
 
-/* ================= add liquidity instruction ================= */
+// liquidity class
+// export interface LiquidityLoadParams {
+//   connection: Connection;
+//   poolKeys: LiquidityPoolKeys;
+//   poolInfo?: LiquidityPoolInfo;
+// }
+
+// export type LiquidityConstructParams = Required<LiquidityLoadParams>;
+
+/* ================= make instruction and transaction ================= */
 export interface AddLiquidityInstructionParamsV4 {
   poolKeys: LiquidityPoolKeys;
   userKeys: LiquidityUserKeys;
   maxBaseAmountIn: BigNumberish;
   maxQuoteAmountIn: BigNumberish;
-  fixedSide: FixedSide;
+  fixedSide: AmountSide;
 }
 
+/**
+ * Add liquidity instruction params
+ */
 export type AddLiquidityInstructionParams = AddLiquidityInstructionParamsV4;
 
-/* ================= remove liquidity instruction ================= */
+export interface makeAddLiquidityTransactionParams
+  extends Omit<AddLiquidityInstructionParams, "userKeys" | "maxBaseAmountIn" | "maxQuoteAmountIn" | "fixedSide"> {
+  connection: Connection;
+  userKeys: {
+    tokenAccountA?: PublicKey;
+    tokenAccountB?: PublicKey;
+    lpTokenAccount?: PublicKey;
+    owner: PublicKey;
+    payer?: PublicKey;
+  };
+  tokenAmountA: CurrencyAmount | TokenAmount;
+  tokenAmountB: CurrencyAmount | TokenAmount;
+  fixedSide: LiquiditySide;
+  config?: {
+    bypassAssociatedCheck?: boolean;
+  };
+}
+
 export interface RemoveLiquidityInstructionParamsV4 {
   poolKeys: LiquidityPoolKeys;
   userKeys: LiquidityUserKeys;
   amountIn: BigNumberish;
 }
 
+/**
+ * Remove liquidity instruction params
+ */
 export type RemoveLiquidityInstructionParams = RemoveLiquidityInstructionParamsV4;
 
-/* ================= swap instruction ================= */
-export type SwapFixedInInstructionParamsV4 = {
+export interface SwapFixedInInstructionParamsV4 {
   poolKeys: LiquidityPoolKeys;
   userKeys: Omit<LiquidityUserKeys, "lpTokenAccount">;
   amountIn: BigNumberish;
   // minimum amount out
   minAmountOut: BigNumberish;
   tradeSide: TradeSide;
-};
+}
 
-export type SwapFixedOutInstructionParamsV4 = {
+export interface SwapFixedOutInstructionParamsV4 {
   poolKeys: LiquidityPoolKeys;
   userKeys: Omit<LiquidityUserKeys, "lpTokenAccount">;
   // maximum amount in
   maxAmountIn: BigNumberish;
   amountOut: BigNumberish;
   tradeSide: TradeSide;
-};
+}
 
-// https://github.com/maninak/ts-xor
-type Without<T, U> = { [P in Exclude<keyof T, keyof U>]?: never };
-type XOR<T, U> = T | U extends object ? (Without<T, U> & U) | (Without<U, T> & T) : T | U;
-
-export type SwapInstructionParams = { fixedSide: FixedSide } & XOR<
+/**
+ * Swap instruction params
+ */
+export type SwapInstructionParams = { fixedSide: AmountSide } & XOR<
   SwapFixedInInstructionParamsV4,
   SwapFixedOutInstructionParamsV4
 >;
 
-export interface AssociatedPoolKeysV4
-  extends Omit<
-    LiquidityPoolKeysV4,
-    "marketAuthority" | "marketBaseVault" | "marketQuoteVault" | "marketBids" | "marketAsks" | "marketEventQueue"
-  > {
-  nonce: number;
-}
-
-export type AssociatedPoolKeys = AssociatedPoolKeysV4;
-
-/* ================= create pool instruction ================= */
 export interface CreatePoolInstructionParamsV4 {
   poolKeys: AssociatedPoolKeysV4;
   userKeys: {
@@ -104,9 +165,11 @@ export interface CreatePoolInstructionParamsV4 {
   };
 }
 
+/**
+ * Create pool instruction params
+ */
 export type CreatePoolInstructionParams = CreatePoolInstructionParamsV4;
 
-/* ================= init pool instruction ================= */
 export interface InitPoolInstructionParamsV4 {
   poolKeys: AssociatedPoolKeysV4;
   userKeys: {
@@ -115,48 +178,75 @@ export interface InitPoolInstructionParamsV4 {
   };
 }
 
+/**
+ * Init pool instruction params
+ */
 export type InitPoolInstructionParams = InitPoolInstructionParamsV4;
 
-export interface GetLiquidityMultipleInfoParams {
+/* ================= fetch data ================= */
+/**
+ * Fetch liquidity pool info params
+ */
+export interface FetchLiquidityInfoParams {
+  connection: Connection;
+  poolKeys: LiquidityPoolKeys;
+}
+
+/**
+ * Fetch liquidity multiple pool info params
+ */
+export interface FetchLiquidityMultipleInfoParams {
   connection: Connection;
   pools: LiquidityPoolKeys[];
   config?: GetMultipleAccountsInfoConfig;
 }
 
-export interface GetQuoteParams {
-  amount: BigNumberish;
-  fixedSide: FixedSide;
-  baseReserve: BigNumberish;
-  quoteReserve: BigNumberish;
-}
-
-export interface GetAmountBParams extends Omit<GetQuoteParams, "amount"> {
-  amountA: BigNumberish;
-  slippage: Percent;
+/* ================= compute data ================= */
+export interface ComputeAnotherTokenAmountParams {
+  poolKeys: LiquidityPoolKeys;
+  poolInfo: LiquidityPoolInfo;
+  tokenAmount: CurrencyAmount | TokenAmount;
+  anotherToken?: Token;
+  slippage?: Percent;
 }
 
 export const LIQUIDITY_FEES_NUMERATOR = new BN(9975);
 export const LIQUIDITY_FEES_DENOMINATOR = new BN(10000);
 
-export interface GetAmountOutParams {
-  amountIn: BigNumberish;
-  baseReserve: BigNumberish;
-  quoteReserve: BigNumberish;
-  tradeSide: TradeSide;
+export interface ComputeTokenAmountOutParams {
+  poolKeys: LiquidityPoolKeys;
+  poolInfo: LiquidityPoolInfo;
+  tokenAmountIn: CurrencyAmount | TokenAmount;
+  tokenOut?: Token;
   slippage?: Percent;
 }
 
-export interface GetAmountInParams extends Omit<GetAmountOutParams, "amountIn"> {
-  amountOut: BigNumberish;
+export interface ComputeTokenAmountInParams extends Omit<ComputeTokenAmountOutParams, "tokenAmountIn" | "tokenOut"> {
+  tokenAmountOut: CurrencyAmount | TokenAmount;
+  tokenIn?: Token;
 }
 
 export class Liquidity {
-  /* ================= static functions ================= */
+  // public connection: Connection;
+  // public poolKeys: LiquidityPoolKeys;
+  // public poolInfo: LiquidityPoolInfo;
+
+  // constructor({ connection, poolKeys, poolInfo }: LiquidityConstructParams) {
+  //   this.connection = connection;
+  //   this.poolKeys = poolKeys;
+  //   this.poolInfo = poolInfo;
+  // }
+
+  // static async load({ connection, poolKeys, poolInfo }: LiquidityLoadParams) {
+  //   const _poolInfo = poolInfo || (await this.fetchInfo({ connection, poolKeys }));
+
+  //   return new Liquidity({ connection, poolKeys, poolInfo: _poolInfo });
+  // }
+
+  /* ================= get version and program id ================= */
   static getProgramId(version: number) {
     const programId = LIQUIDITY_VERSION_TO_PROGRAMID[version];
-    if (!programId) {
-      return logger.throwArgumentError("invalid version", "version", version);
-    }
+    logger.assertArgument(!!programId, "invalid version", "version", version);
 
     return programId;
   }
@@ -165,27 +255,22 @@ export class Liquidity {
     const programIdString = programId.toBase58();
 
     const version = LIQUIDITY_PROGRAMID_TO_VERSION[programIdString];
-    if (!version) {
-      return logger.throwArgumentError("invalid program id", "programId", programIdString);
-    }
+    logger.assertArgument(!!version, "invalid program id", "programId", programIdString);
 
     return version;
   }
 
   static getSerumVersion(version: number) {
     const serumVersion = LIQUIDITY_VERSION_TO_SERUM_VERSION[version];
-    if (!serumVersion) {
-      return logger.throwArgumentError("invalid version", "version", version);
-    }
+    logger.assertArgument(!!serumVersion, "invalid version", "version", version);
 
     return serumVersion;
   }
 
+  /* ================= get layout ================= */
   static getStateLayout(version: number) {
     const STATE_LAYOUT = LIQUIDITY_VERSION_TO_STATE_LAYOUT[version];
-    if (!STATE_LAYOUT) {
-      return logger.throwArgumentError("invalid version", "version", version);
-    }
+    logger.assertArgument(!!STATE_LAYOUT, "invalid version", "version", version);
 
     return STATE_LAYOUT;
   }
@@ -194,6 +279,7 @@ export class Liquidity {
     return { state: this.getStateLayout(version) };
   }
 
+  /* ================= get key ================= */
   static async getAssociatedId({ programId, marketId }: { programId: PublicKey; marketId: PublicKey }) {
     const { publicKey } = await findProgramAddress(
       [programId.toBuffer(), marketId.toBuffer(), Buffer.from("amm_associated_seed", "utf-8")],
@@ -291,6 +377,10 @@ export class Liquidity {
 
     const serumVersion = this.getSerumVersion(version);
     const serumProgramId = Market.getProgramId(serumVersion);
+    const { publicKey: marketAuthority } = await Market.getAssociatedAuthority({
+      programId: serumProgramId,
+      marketId,
+    });
 
     return {
       // base
@@ -315,11 +405,11 @@ export class Liquidity {
       marketProgramId: serumProgramId,
       // market keys
       marketId,
+      marketAuthority,
     };
   }
 
-  /* ================= instructions ================= */
-  /* ================= add liquidity ================= */
+  /* ================= make instruction and transaction ================= */
   static makeAddLiquidityInstruction(params: AddLiquidityInstructionParams) {
     const { poolKeys } = params;
     const { version } = poolKeys;
@@ -329,6 +419,149 @@ export class Liquidity {
     }
 
     return logger.throwArgumentError("invalid version", "poolKeys.version", version);
+  }
+
+  static async makeAddLiquidityTransaction(params: makeAddLiquidityTransactionParams) {
+    const { connection, poolKeys, userKeys, tokenAmountA, tokenAmountB, fixedSide, config } = params;
+    const { baseMint, quoteMint, lpMint } = poolKeys;
+    const { tokenAccountA, tokenAccountB, lpTokenAccount, owner, payer } = userKeys;
+
+    const { bypassAssociatedCheck } = {
+      // default
+      ...{
+        bypassAssociatedCheck: false,
+      },
+      // custom
+      ...config,
+    };
+
+    const _payer = payer || owner;
+
+    // handle currency a & b (convert SOL to WSOL)
+    const tokenA = tokenAmountA instanceof TokenAmount ? tokenAmountA.token : Token.WSOL;
+    const tokenB = tokenAmountB instanceof TokenAmount ? tokenAmountB.token : Token.WSOL;
+
+    const tokens = [tokenA, tokenB];
+    const tokenAccounts = [tokenAccountA, tokenAccountB];
+    const amounts = [tokenAmountA.raw, tokenAmountB.raw];
+
+    // handle amount a & b and direction
+    const [sideA] = this.getAmountsSide(tokenAmountA, tokenAmountB, poolKeys);
+    let _fixedSide: AmountSide = "base";
+    if (sideA === "quote") {
+      // reverse
+      tokens.reverse();
+      tokenAccounts.reverse();
+      amounts.reverse();
+
+      if (fixedSide === "a") {
+        _fixedSide = "quote";
+      }
+    } else if (fixedSide === "b") {
+      _fixedSide = "quote";
+    }
+
+    const [baseToken, quoteToken] = tokens;
+    const [baseTokenAccount, quoteTokenAccount] = tokenAccounts;
+    const [baseAmount, quoteAmount] = amounts;
+
+    let _baseTokenAccount = await Spl.getAssociatedTokenAccount({ mint: baseMint, owner });
+    let _quoteTokenAccount = await Spl.getAssociatedTokenAccount({ mint: quoteMint, owner });
+    let _lpTokenAccount = await Spl.getAssociatedTokenAccount({ mint: lpMint, owner });
+
+    const frontInstructions: TransactionInstruction[] = [];
+    const endInstructions: TransactionInstruction[] = [];
+    const signers: Signer[] = [];
+
+    // handle base token account
+    if (baseToken.equals(Token.WSOL)) {
+      const newBaseTokenAccount = await Spl.insertCreateWrappedNativeAccountInstructions({
+        connection,
+        owner,
+        payer: _payer,
+        instructions: frontInstructions,
+        signers,
+        amount: baseAmount,
+      });
+      endInstructions.push(
+        Spl.makeCloseAccountInstruction({ tokenAccount: newBaseTokenAccount, owner, payer: _payer }),
+      );
+      _baseTokenAccount = newBaseTokenAccount;
+    } else if (!baseTokenAccount) {
+      frontInstructions.push(
+        Spl.makeCreateAssociatedTokenAccountInstruction({
+          mint: baseMint,
+          associatedAccount: _baseTokenAccount,
+          owner,
+          payer: owner,
+        }),
+      );
+    } else {
+      _baseTokenAccount = baseTokenAccount;
+    }
+
+    // handle quote token account
+    if (quoteToken.equals(Token.WSOL)) {
+      const newQuoteTokenAccount = await Spl.insertCreateWrappedNativeAccountInstructions({
+        connection,
+        owner,
+        payer: _payer,
+        instructions: frontInstructions,
+        signers,
+        amount: quoteAmount,
+      });
+      endInstructions.push(
+        Spl.makeCloseAccountInstruction({ tokenAccount: newQuoteTokenAccount, owner, payer: _payer }),
+      );
+      _quoteTokenAccount = newQuoteTokenAccount;
+    } else if (!quoteTokenAccount) {
+      frontInstructions.push(
+        Spl.makeCreateAssociatedTokenAccountInstruction({
+          mint: quoteMint,
+          associatedAccount: _quoteTokenAccount,
+          owner,
+          payer: owner,
+        }),
+      );
+    } else {
+      _quoteTokenAccount = quoteTokenAccount;
+    }
+
+    // handle lp token account
+    if (!lpTokenAccount || (!_lpTokenAccount.equals(lpTokenAccount) && !bypassAssociatedCheck)) {
+      frontInstructions.push(
+        Spl.makeCreateAssociatedTokenAccountInstruction({
+          mint: lpMint,
+          associatedAccount: _lpTokenAccount,
+          owner,
+          payer: owner,
+        }),
+      );
+    } else {
+      _lpTokenAccount = lpTokenAccount;
+    }
+
+    frontInstructions.push(
+      this.makeAddLiquidityInstruction({
+        poolKeys,
+        userKeys: {
+          baseTokenAccount: _baseTokenAccount,
+          quoteTokenAccount: _quoteTokenAccount,
+          lpTokenAccount: _lpTokenAccount,
+          owner,
+        },
+        maxBaseAmountIn: baseAmount,
+        maxQuoteAmountIn: quoteAmount,
+        fixedSide: _fixedSide,
+      }),
+    );
+
+    const transaction = new Transaction();
+    for (const instruction of [...frontInstructions, ...endInstructions]) {
+      transaction.add(instruction);
+    }
+
+    return { transaction, signers };
   }
 
   static makeAddLiquidityInstructionV4({
@@ -376,7 +609,6 @@ export class Liquidity {
     });
   }
 
-  /* ================= remove liquidity ================= */
   static makeRemoveLiquidityInstruction(params: RemoveLiquidityInstructionParams) {
     const { poolKeys } = params;
     const { version } = poolKeys;
@@ -435,7 +667,6 @@ export class Liquidity {
     });
   }
 
-  /* ================= swap ================= */
   static makeSwapInstruction(params: SwapInstructionParams) {
     const { poolKeys, userKeys, amountIn, minAmountOut, maxAmountIn, amountOut, tradeSide, fixedSide } = params;
     const { version } = poolKeys;
@@ -445,15 +676,17 @@ export class Liquidity {
         ((tradeSide === "buy" && fixedSide === "quote") || (tradeSide === "sell" && fixedSide === "base")) &&
         amountIn &&
         minAmountOut
-      )
+      ) {
         return this.makeSwapFixedInInstructionV4({ poolKeys, userKeys, amountIn, minAmountOut, tradeSide });
-      else if (
+      } else if (
         ((tradeSide === "buy" && fixedSide === "base") || (tradeSide === "sell" && fixedSide === "quote")) &&
         maxAmountIn &&
         amountOut
-      )
+      ) {
         return this.makeSwapFixedOutInstructionV4({ poolKeys, userKeys, maxAmountIn, amountOut, tradeSide });
-      else logger.throwArgumentError("invalid params", "params", params);
+      } else {
+        logger.throwArgumentError("invalid params", "params", params);
+      }
     }
 
     return logger.throwArgumentError("invalid version", "poolKeys.version", version);
@@ -565,7 +798,6 @@ export class Liquidity {
     });
   }
 
-  /* ================= create pool ================= */
   static makeCreatePoolInstruction(params: CreatePoolInstructionParams) {
     const { poolKeys } = params;
     const { version } = poolKeys;
@@ -616,7 +848,6 @@ export class Liquidity {
     });
   }
 
-  /* ================= initialize pool ================= */
   static makeInitPoolInstruction(params: InitPoolInstructionParams) {
     const { poolKeys } = params;
     const { version } = poolKeys;
@@ -671,7 +902,6 @@ export class Liquidity {
     });
   }
 
-  /* ================= simulate ================= */
   static makeSimulatePoolInfoInstruction({ poolKeys }: { poolKeys: LiquidityPoolKeys }) {
     const LAYOUT = struct([u8("instruction"), u8("simulateType")]);
     const data = Buffer.alloc(LAYOUT.span);
@@ -702,14 +932,14 @@ export class Liquidity {
     });
   }
 
-  static async getPools(connection: Connection, config?: GetMultipleAccountsInfoConfig) {
-    const { batchRequest, commitment } = {
-      // default
-      ...{},
-      // custom
-      ...config,
-    };
-
+  /* ================= fetch data ================= */
+  /**
+   * Fetch all pools keys from on-chain data
+   */
+  static async fetchAllPoolKeys(
+    connection: Connection,
+    config?: GetMultipleAccountsInfoConfig,
+  ): Promise<LiquidityPoolKeys[]> {
     // supported versions
     const supported = Object.keys(LIQUIDITY_VERSION_TO_STATE_LAYOUT).map((v) => {
       const version = Number(v);
@@ -753,7 +983,7 @@ export class Liquidity {
       );
     } catch (error) {
       if (error instanceof Error) {
-        return logger.throwError("failed to get all liquidity pools", Logger.errors.RPC_ERROR, {
+        return logger.throwError("failed to fetch all liquidity pools", Logger.errors.RPC_ERROR, {
           message: error.message,
         });
       }
@@ -761,10 +991,7 @@ export class Liquidity {
 
     const flatPoolsAccountInfo = poolsAccountInfo.flat();
     // temp pool keys without market keys
-    const tempPoolsKeys: Omit<
-      LiquidityPoolKeys,
-      "marketBaseVault" | "marketQuoteVault" | "marketBids" | "marketAsks" | "marketEventQueue"
-    >[] = [];
+    const tempPoolsKeys: Omit<AssociatedPoolKeys, "nonce">[] = [];
 
     for (const {
       pubkey,
@@ -775,17 +1002,19 @@ export class Liquidity {
       serumProgramId,
       stateLayout: LIQUIDITY_STATE_LAYOUT,
     } of flatPoolsAccountInfo) {
-      if (!accountInfo) {
-        return logger.throwArgumentError("empty state account info", "pool.id", pubkey.toBase58());
-      }
+      logger.assertArgument(!!accountInfo, "empty state account info", "pool.id", pubkey.toBase58());
 
       const { data } = accountInfo;
-      if (data.length !== LIQUIDITY_STATE_LAYOUT.span) {
-        return logger.throwArgumentError("invalid state data length", "pool.id", pubkey.toBase58());
-      }
+      logger.assertArgument(
+        data.length === LIQUIDITY_STATE_LAYOUT.span,
+        "invalid state data length",
+        "pool.id",
+        pubkey.toBase58(),
+      );
 
       const {
         status,
+        nonce,
         baseMint,
         quoteMint,
         lpMint,
@@ -803,11 +1032,14 @@ export class Liquidity {
         continue;
       }
 
-      const { publicKey: authority } = await Liquidity.getAssociatedAuthority({ programId });
-      const { publicKey: marketAuthority } = await Market.getAssociatedAuthority({
-        programId: serumProgramId,
+      const associatedPoolKeys = await Liquidity.getAssociatedPoolKeys({
+        version,
+        baseMint,
+        quoteMint,
         marketId,
       });
+      // double check keys with on-chain data
+      // logger.assert(Number(nonce) === associatedPoolKeys.nonce, "invalid nonce");
 
       tempPoolsKeys.push({
         id: pubkey,
@@ -817,7 +1049,7 @@ export class Liquidity {
         version,
         programId,
 
-        authority,
+        authority: associatedPoolKeys.authority,
         openOrders,
         targetOrders,
         baseVault,
@@ -827,7 +1059,7 @@ export class Liquidity {
         marketVersion: serumVersion,
         marketProgramId: serumProgramId,
         marketId,
-        marketAuthority,
+        marketAuthority: associatedPoolKeys.marketAuthority,
       });
     }
 
@@ -837,19 +1069,22 @@ export class Liquidity {
       marketsInfo = await getMultipleAccountsInfo(
         connection,
         tempPoolsKeys.map(({ marketId }) => marketId),
-        { batchRequest, commitment },
+        config,
       );
     } catch (error) {
       if (error instanceof Error) {
-        return logger.throwError("failed to get markets", Logger.errors.RPC_ERROR, {
+        return logger.throwError("failed to fetch markets", Logger.errors.RPC_ERROR, {
           message: error.message,
         });
       }
     }
 
-    if (marketsInfo.length !== tempPoolsKeys.length) {
-      return logger.throwArgumentError("markets count not equal to pools", "markets.length", marketsInfo.length);
-    }
+    logger.assertArgument(
+      marketsInfo.length === tempPoolsKeys.length,
+      "markets count not equal to pools",
+      "markets.length",
+      marketsInfo.length,
+    );
 
     const poolsKeys: LiquidityPoolKeys[] = [];
 
@@ -865,9 +1100,12 @@ export class Liquidity {
 
       const { data } = marketInfo;
       const { state: MARKET_STATE_LAYOUT } = Market.getLayouts(marketVersion);
-      if (data.length !== MARKET_STATE_LAYOUT.span) {
-        return logger.throwArgumentError("invalid market data length", "pool.id", id.toBase58());
-      }
+      logger.assertArgument(
+        data.length === MARKET_STATE_LAYOUT.span,
+        "invalid market data length",
+        "pool.id",
+        id.toBase58(),
+      );
 
       const {
         baseVault: marketBaseVault,
@@ -892,34 +1130,36 @@ export class Liquidity {
     return poolsKeys;
   }
 
-  static async getMultipleInfo({ connection, pools, config }: GetLiquidityMultipleInfoParams) {
-    // const poolsInfo: {
-    //   // same data type with layouts
-    //   [key: string]: {
-    //     // u64
-    //     status: BN;
-    //     // u8
-    //     baseDecimals: number;
-    //     // u8
-    //     quoteDecimals: number;
-    //     // u8
-    //     lpDecimals: number;
-    //     // u64
-    //     baseReserve: BN;
-    //     // u64
-    //     quoteReserve: BN;
-    //     // u64
-    //     lpSupply: BN;
-    //   };
-    // } = {};
+  /**
+   * Fetch liquidity pool's info
+   */
+  static async fetchInfo({ connection, poolKeys }: FetchLiquidityInfoParams) {
+    const info = await this.fetchMultipleInfo({ connection, pools: [poolKeys] });
 
+    logger.assertArgument(
+      info.length === 1,
+      `fetchInfo failed, ${info.length} pools found`,
+      "poolKeys.id",
+      poolKeys.id.toBase58(),
+    );
+
+    return info[0];
+  }
+
+  /**
+   * Fetch multiple info of liquidity pools
+   */
+  static async fetchMultipleInfo({
+    connection,
+    pools,
+    config,
+  }: FetchLiquidityMultipleInfoParams): Promise<LiquidityPoolInfo[]> {
     const instructions = pools.map((pool) => this.makeSimulatePoolInfoInstruction({ poolKeys: pool }));
 
-    const logs = await simulateMultipleInstruction(connection, instructions);
-    const filteredLogs = logs.filter((log) => log && log.includes("GetPoolData"));
+    const logs = await simulateMultipleInstruction(connection, instructions, "GetPoolData");
 
-    const poolsInfo = filteredLogs.map((log) => {
-      const json = parseSimulateLog(log, "GetPoolData");
+    const poolsInfo = logs.map((log) => {
+      const json = parseSimulateLogToJson(log, "GetPoolData");
 
       const status = new BN(parseSimulateValue(json, "status"));
       const baseDecimals = Number(parseSimulateValue(json, "coin_decimals"));
@@ -940,63 +1180,129 @@ export class Liquidity {
       };
     });
 
-    // for (const log of logs) {
-    //   const json = parseSimulateLog(log, "GetPoolData");
-
-    //   const status = new BN(parseSimulateValue(json, "status"));
-    //   const baseDecimals = Number(parseSimulateValue(json, "coin_decimals"));
-    //   const quoteDecimals = Number(parseSimulateValue(json, "pc_decimals"));
-    //   const lpDecimals = Number(parseSimulateValue(json, "lp_decimals"));
-    //   const baseReserve = new BN(parseSimulateValue(json, "pool_coin_amount"));
-    //   const quoteReserve = new BN(parseSimulateValue(json, "pool_pc_amount"));
-    //   const lpSupply = new BN(parseSimulateValue(json, "pool_lp_supply"));
-    // }
-
     return poolsInfo;
   }
 
-  static getQuote({ amount, fixedSide, baseReserve, quoteReserve }: GetQuoteParams) {
-    const _amount = parseBigNumberish(amount);
-    const _baseReserve = parseBigNumberish(baseReserve);
-    const _quoteReserve = parseBigNumberish(quoteReserve);
+  /* ================= compute data ================= */
+  static getTokenSide(token: Token, poolKeys: LiquidityPoolKeys): AmountSide {
+    const { baseMint, quoteMint } = poolKeys;
 
-    if (fixedSide === "base") {
-      return _amount.mul(_quoteReserve).div(_baseReserve);
-    } else if (fixedSide === "quote") {
-      return _amount.mul(_baseReserve).div(_quoteReserve);
-    }
+    if (token.mint.equals(baseMint)) return "base";
+    else if (token.mint.equals(quoteMint)) return "quote";
+    else
+      return logger.throwArgumentError("token not match with pool", "params", {
+        token: token.mint.toBase58(),
+        baseMint: baseMint.toBase58(),
+        quoteMint: quoteMint.toBase58(),
+      });
+  }
 
-    return logger.throwArgumentError("invalid fixedSide", "fixedSide", fixedSide);
+  static getTokensSide(tokenA: Token, tokenB: Token, poolKeys: LiquidityPoolKeys): AmountSide[] {
+    const { baseMint, quoteMint } = poolKeys;
+
+    const sideA = this.getTokenSide(tokenA, poolKeys);
+    const sideB = this.getTokenSide(tokenB, poolKeys);
+
+    logger.assertArgument(sideA !== sideB, "tokens not match with pool", "params", {
+      tokenA: tokenA.mint.toBase58(),
+      tokenB: tokenB.mint.toBase58(),
+      baseMint: baseMint.toBase58(),
+      quoteMint: quoteMint.toBase58(),
+    });
+    return [sideA, sideB];
+  }
+
+  static getAmountSide(amount: CurrencyAmount | TokenAmount, poolKeys: LiquidityPoolKeys): AmountSide {
+    const token = amount instanceof TokenAmount ? amount.token : Token.WSOL;
+
+    return this.getTokenSide(token, poolKeys);
+  }
+
+  static getAmountsSide(
+    amountA: CurrencyAmount | TokenAmount,
+    amountB: CurrencyAmount | TokenAmount,
+    poolKeys: LiquidityPoolKeys,
+  ): AmountSide[] {
+    const tokenA = amountA instanceof TokenAmount ? amountA.token : Token.WSOL;
+    const tokenB = amountB instanceof TokenAmount ? amountB.token : Token.WSOL;
+
+    return this.getTokensSide(tokenA, tokenB, poolKeys);
   }
 
   /**
-   * Get the amount of add liquidity
+   * Compute the another token amount of add liquidity
+   *
+   * @param anotherToken - if not provided, will find token mint from poolKeys
+   *
+   * @returns
+   * anotherTokenAmount - token amount without slippage
+   * @returns
+   * maxAnotherTokenAmount - token amount with slippage
+   *
    * @example
    * ```
-   * Liquidity.getAmountB({
+   * Liquidity.computeAnotherTokenAmount({
    *   // 1%
    *   slippage: new Percent(1, 100)
    * })
    * ```
    */
-  static getAmountB({ amountA, fixedSide, baseReserve, quoteReserve, slippage }: GetAmountBParams) {
-    const slippageAdjustedAmount = new Percent(ONE)
-      .add(slippage)
-      .mul(this.getQuote({ amount: amountA, fixedSide, baseReserve, quoteReserve })).quotient;
+  static computeAnotherTokenAmount({
+    poolKeys,
+    poolInfo,
+    tokenAmount,
+    anotherToken,
+    slippage,
+  }: ComputeAnotherTokenAmountParams) {
+    const { baseMint, quoteMint } = poolKeys;
+    const { baseReserve, quoteReserve, baseDecimals, quoteDecimals } = poolInfo;
 
-    return slippageAdjustedAmount;
+    // input is fixed
+    const input = this.getAmountSide(tokenAmount, poolKeys);
+
+    let _slippage = new Percent(ONE);
+    if (slippage) {
+      _slippage = _slippage.add(slippage);
+    }
+
+    // round up
+    const amount =
+      input === "base"
+        ? divCeil(tokenAmount.raw.mul(quoteReserve), baseReserve)
+        : divCeil(tokenAmount.raw.mul(baseReserve), quoteReserve);
+    const slippageAdjustedAmount = _slippage.mul(amount).quotient;
+
+    const _anotherToken =
+      anotherToken || input === "quote" ? new Token(baseMint, baseDecimals) : new Token(quoteMint, quoteDecimals);
+
+    return {
+      anotherTokenAmount: new TokenAmount(_anotherToken, amount),
+      maxAnotherTokenAmount: new TokenAmount(_anotherToken, slippageAdjustedAmount),
+    };
   }
 
   /**
-   * Get output amount of swap
+   * Compute output token amount of swap
+   *
+   * @param tokenOut - if not provided, will find token mint from poolKeys
+   *
+   * @returns
+   * amountOut - token amount without slippage
+   * @returns
+   * minAmountOut - token amount with slippage
    */
-  static getAmountOut({ amountIn, baseReserve, quoteReserve, tradeSide, slippage }: GetAmountOutParams) {
-    const _amountIn = parseBigNumberish(amountIn);
+  static computeTokenAmountOut({ poolKeys, poolInfo, tokenAmountIn, tokenOut, slippage }: ComputeTokenAmountOutParams) {
+    const { baseMint, quoteMint } = poolKeys;
+    const { baseReserve, quoteReserve, baseDecimals, quoteDecimals } = poolInfo;
 
     const reserves = [parseBigNumberish(baseReserve), parseBigNumberish(quoteReserve)];
-    if (tradeSide === "buy") {
+
+    // input is fixed
+    const input = this.getAmountSide(tokenAmountIn, poolKeys);
+    if (input === "quote") {
       reserves.reverse();
     }
+
     const [reserveIn, reserveOut] = reserves;
 
     let _slippage = new Percent(ONE);
@@ -1004,26 +1310,44 @@ export class Liquidity {
       _slippage = _slippage.add(slippage);
     }
 
-    const amountInWithFee = _amountIn.mul(LIQUIDITY_FEES_NUMERATOR);
+    const amountInWithFee = tokenAmountIn.raw.mul(LIQUIDITY_FEES_NUMERATOR);
     const numerator = amountInWithFee.mul(reserveOut);
     const denominator = reserveIn.mul(LIQUIDITY_FEES_DENOMINATOR).add(amountInWithFee);
 
     const amountOut = numerator.div(denominator);
     const minAmountOut = _slippage.invert().mul(amountOut).quotient;
 
-    return { amountOut, minAmountOut };
+    const _tokenOut =
+      tokenOut || input === "quote" ? new Token(baseMint, baseDecimals) : new Token(quoteMint, quoteDecimals);
+
+    return {
+      amountOut: new TokenAmount(_tokenOut, amountOut),
+      minAmountOut: new TokenAmount(_tokenOut, minAmountOut),
+    };
   }
 
   /**
-   * Get input amount of swap
+   * Compute input token amount of swap
+   *
+   * @param tokenIn - if not provided, will find token mint from poolKeys
+   *
+   * @returns
+   * amountIn - token amount without slippage
+   * @returns
+   * maxAmountIn - token amount with slippage
    */
-  static getAmountIn({ amountOut, baseReserve, quoteReserve, tradeSide, slippage }: GetAmountInParams) {
-    const _amountOut = parseBigNumberish(amountOut);
+  static computeTokenAmountIn({ poolKeys, poolInfo, tokenAmountOut, tokenIn, slippage }: ComputeTokenAmountInParams) {
+    const { baseMint, quoteMint } = poolKeys;
+    const { baseReserve, quoteReserve, baseDecimals, quoteDecimals } = poolInfo;
 
     const reserves = [parseBigNumberish(baseReserve), parseBigNumberish(quoteReserve)];
-    if (tradeSide === "buy") {
+
+    // output is fixed
+    const output = this.getAmountSide(tokenAmountOut, poolKeys);
+    if (output === "base") {
       reserves.reverse();
     }
+
     const [reserveIn, reserveOut] = reserves;
 
     let _slippage = new Percent(ONE);
@@ -1031,12 +1355,18 @@ export class Liquidity {
       _slippage = _slippage.add(slippage);
     }
 
-    const numerator = reserveIn.mul(_amountOut).mul(LIQUIDITY_FEES_DENOMINATOR);
-    const denominator = reserveOut.sub(_amountOut).mul(LIQUIDITY_FEES_NUMERATOR);
+    const numerator = reserveIn.mul(tokenAmountOut.raw).mul(LIQUIDITY_FEES_DENOMINATOR);
+    const denominator = reserveOut.sub(tokenAmountOut.raw).mul(LIQUIDITY_FEES_NUMERATOR);
 
     const amountIn = numerator.div(denominator).add(ONE);
     const maxAmountIn = _slippage.mul(amountIn).quotient;
 
-    return { amountIn, maxAmountIn };
+    const _tokenIn =
+      tokenIn || output === "quote" ? new Token(baseMint, baseDecimals) : new Token(quoteMint, quoteDecimals);
+
+    return {
+      amountIn: new TokenAmount(_tokenIn, amountIn),
+      maxAmountIn: new TokenAmount(_tokenIn, maxAmountIn),
+    };
   }
 }

@@ -30,7 +30,7 @@ const toFixedRounding = {
   [Rounding.ROUND_UP]: Big.roundUp,
 };
 
-export function parseBigNumberish(value: unknown) {
+export function parseBigNumberish(value: BigNumberish) {
   // BN
   if (value instanceof BN) {
     return value;

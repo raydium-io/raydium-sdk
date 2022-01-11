@@ -11,9 +11,7 @@ export class Market {
   /* ================= static functions ================= */
   static getProgramId(version: number) {
     const programId = SERUM_VERSION_TO_PROGRAMID[version];
-    if (!programId) {
-      return logger.throwArgumentError("invalid version", "version", version);
-    }
+    logger.assertArgument(!!programId, "invalid version", "version", version);
 
     return programId;
   }
@@ -22,18 +20,14 @@ export class Market {
     const programIdString = programId.toBase58();
 
     const version = SERUM_PROGRAMID_TO_VERSION[programIdString];
-    if (!version) {
-      return logger.throwArgumentError("invalid program id", "programId", programIdString);
-    }
+    logger.assertArgument(!!version, "invalid program id", "programId", programIdString);
 
     return version;
   }
 
   static getStateLayout(version: number) {
     const STATE_LAYOUT = MARKET_VERSION_TO_STATE_LAYOUT[version];
-    if (!STATE_LAYOUT) {
-      return logger.throwArgumentError("invalid version", "version", version);
-    }
+    logger.assertArgument(!!STATE_LAYOUT, "invalid version", "version", version);
 
     return STATE_LAYOUT;
   }

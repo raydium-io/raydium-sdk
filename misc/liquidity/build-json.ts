@@ -1,5 +1,4 @@
 import { Connection } from "@solana/web3.js";
-import chalk from "chalk";
 import consola from "consola";
 import dotenv from "dotenv";
 
@@ -16,7 +15,7 @@ async function buildLiquidityPools(connection: Connection) {
   mkdirIfNotExists(liquidityDir);
 
   // raydium v4
-  const poolsKeys = await Liquidity.getPools(connection);
+  const poolsKeys = await Liquidity.fetchAllPoolKeys(connection);
 
   const official: LiquidityPoolJsonInfo[] = [];
   const unOfficial: LiquidityPoolJsonInfo[] = [];

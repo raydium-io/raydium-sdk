@@ -6,7 +6,7 @@
   - `makeSwapFixedOutInstructionV4` for `Liquidity`
 - Change
   - Rename `makeSwapInstructionV4` to `makeSwapFixedInInstructionV4` of `Liquidity`
-  - Rename params `side` to `tradeSide` of `Liquidity.makeSwapInstruction`
+  - Rename params `side` to `tradeSide` of `Liquidity`
   - Update dev dependencies
 
 ### 1.0.1-beta.15 (2022-01-09)

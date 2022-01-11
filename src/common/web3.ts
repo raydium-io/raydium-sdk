@@ -103,7 +103,7 @@ export async function getMultipleAccountsInfo(
   return results.flat();
 }
 
-export async function getMultipleAccountsInfoWithCustomFlag<T extends { pubkey: PublicKey }>(
+export async function getMultipleAccountsInfoWithCustomFlags<T extends { pubkey: PublicKey }>(
   connection: Connection,
   publicKeysWithCustomFlag: T[],
   config?: GetMultipleAccountsInfoConfig,
@@ -204,7 +204,11 @@ export function forecastTransactionSize(instructions: TransactionInstruction[], 
 /**
  * Simulates multiple instruction
  */
-export async function simulateMultipleInstruction(connection: Connection, instructions: TransactionInstruction[]) {
+export async function simulateMultipleInstruction(
+  connection: Connection,
+  instructions: TransactionInstruction[],
+  keyword: string,
+) {
   const feePayer = new PublicKey("RaydiumSimuLateTransaction11111111111111111");
 
   const transactions: Transaction[] = [];
@@ -239,17 +243,22 @@ export async function simulateMultipleInstruction(connection: Connection, instru
   const logs: string[] = [];
   for (const { value } of results) {
     if (value.logs) {
-      logs.push(...value.logs);
+      const filteredLog = value.logs.find((log) => log && log.includes(keyword));
+      if (!filteredLog) {
+        return logger.throwArgumentError("simulate log not match keyword", "keyword", keyword);
+      }
+
+      logs.push(filteredLog);
     }
   }
 
   return logs;
 }
 
-export function parseSimulateLog(log: string, key: string) {
+export function parseSimulateLogToJson(log: string, keyword: string) {
   const results = log.match(/{["\w:,]+}/g);
   if (!results || results.length !== 1) {
-    return logger.throwArgumentError("simulate log fail to match json", "key", key);
+    return logger.throwArgumentError("simulate log fail to match json", "keyword", keyword);
   }
 
   return results[0];
