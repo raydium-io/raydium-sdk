@@ -6,7 +6,7 @@ import { Rounding, TEN } from "./constant";
 import { Currency, currencyEquals } from "./currency";
 import { BigNumberish, Fraction } from "./fraction";
 
-const logger = new Logger("Entity");
+const logger = Logger.from("entity/price");
 
 export class Price extends Fraction {
   public readonly baseCurrency: Currency; // input i.e. denominator

@@ -11,7 +11,7 @@ import {
 import { chunkArray } from "./lodash";
 import { Logger } from "./logger";
 
-const logger = new Logger("Common.Web3");
+const logger = Logger.from("common/web3");
 
 interface MultipleAccountsJsonRpcResponse {
   jsonrpc: string;

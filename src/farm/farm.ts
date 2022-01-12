@@ -14,7 +14,7 @@ import { FARM_PROGRAMID_TO_VERSION, FARM_VERSION_TO_PROGRAMID } from "./id";
 import { FARM_VERSION_TO_LEDGER_LAYOUT, FARM_VERSION_TO_STATE_LAYOUT, FarmLedger, FarmState } from "./layout";
 import { FarmPoolJsonInfo } from "./type";
 
-const logger = new Logger("Farm");
+const logger = Logger.from("Farm");
 
 /* ================= pool keys ================= */
 export type FarmPoolKeys = {

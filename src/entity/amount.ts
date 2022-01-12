@@ -8,7 +8,7 @@ import { Currency, currencyEquals, Token } from "./currency";
 import { BigNumberish, Fraction, parseBigNumberish } from "./fraction";
 import toFormat, { WrappedBig } from "./to-format";
 
-const logger = new Logger("Entity");
+const logger = Logger.from("entity/amount");
 
 const Big = toFormat(_Big);
 type Big = WrappedBig;
@@ -75,6 +75,24 @@ export class CurrencyAmount extends Fraction {
 
   public get isZero() {
     return this.raw.isZero();
+  }
+
+  /**
+   * a greater than b
+   */
+  public gt(other: CurrencyAmount) {
+    logger.assert(currencyEquals(this.currency, other.currency), "gt currency not equals");
+
+    return this.raw.gt(other.raw);
+  }
+
+  /**
+   * a less than b
+   */
+  public lt(other: CurrencyAmount) {
+    logger.assert(currencyEquals(this.currency, other.currency), "lt currency not equals");
+
+    return this.raw.lt(other.raw);
   }
 
   public add(other: CurrencyAmount): CurrencyAmount {

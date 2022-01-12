@@ -2,7 +2,7 @@ import { Logger } from "../common";
 
 import { LpTokenInfo, SplTokenInfo } from "./type";
 
-const logger = new Logger("TokenList");
+const logger = Logger.from("token/util");
 
 /**
  * Token list

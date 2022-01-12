@@ -19,7 +19,7 @@ import {
 import { LIQUIDITY_VERSION_TO_STATE_LAYOUT, LiquidityStateLayout } from "./layout";
 import { LiquidityPoolJsonInfo } from "./type";
 
-const logger = new Logger("Liquidity");
+const logger = Logger.from("Liquidity");
 
 // buy: quote => base
 // sell: base => quote
@@ -225,7 +225,7 @@ export interface ComputeAnotherCurrencyAmountParams {
   poolInfo: LiquidityPoolInfo;
   currencyAmount: CurrencyAmount | TokenAmount;
   anotherCurrency: Currency | Token;
-  slippage?: Percent;
+  slippage: Percent;
 }
 
 export const LIQUIDITY_FEES_NUMERATOR = new BN(9975);
@@ -236,7 +236,7 @@ export interface ComputeCurrencyAmountOutParams {
   poolInfo: LiquidityPoolInfo;
   currencyAmountIn: CurrencyAmount | TokenAmount;
   currencyOut: Currency | Token;
-  slippage?: Percent;
+  slippage: Percent;
 }
 
 export interface ComputeCurrencyAmountInParams
@@ -1401,10 +1401,7 @@ export class Liquidity {
     // input is fixed
     const input = this.getAmountSide(currencyAmount, poolKeys);
 
-    let _slippage = new Percent(ONE);
-    if (slippage) {
-      _slippage = _slippage.add(slippage);
-    }
+    const _slippage = new Percent(ONE).add(slippage);
 
     // round up
     const amount =
@@ -1455,10 +1452,7 @@ export class Liquidity {
 
     const [reserveIn, reserveOut] = reserves;
 
-    let _slippage = new Percent(ONE);
-    if (slippage) {
-      _slippage = _slippage.add(slippage);
-    }
+    const _slippage = new Percent(ONE).add(slippage);
 
     const amountInWithFee = currencyAmountIn.raw.mul(LIQUIDITY_FEES_NUMERATOR);
     const numerator = amountInWithFee.mul(reserveOut);
@@ -1509,10 +1503,7 @@ export class Liquidity {
 
     const [reserveIn, reserveOut] = reserves;
 
-    let _slippage = new Percent(ONE);
-    if (slippage) {
-      _slippage = _slippage.add(slippage);
-    }
+    const _slippage = new Percent(ONE).add(slippage);
 
     const numerator = reserveIn.mul(currencyAmountOut.raw).mul(LIQUIDITY_FEES_DENOMINATOR);
     const denominator = reserveOut.sub(currencyAmountOut.raw).mul(LIQUIDITY_FEES_NUMERATOR);
