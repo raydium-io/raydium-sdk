@@ -6,7 +6,9 @@ import {
   parseSimulateLogToJson, parseSimulateValue, simulateMultipleInstruction, SYSTEM_PROGRAM_ID, SYSVAR_RENT_PUBKEY,
   TOKEN_PROGRAM_ID, XOR,
 } from "../common";
-import { BigNumberish, CurrencyAmount, divCeil, ONE, parseBigNumberish, Percent, Token, TokenAmount } from "../entity";
+import {
+  BigNumberish, Currency, CurrencyAmount, divCeil, ONE, parseBigNumberish, Percent, Token, TokenAmount,
+} from "../entity";
 import { struct, u64, u8 } from "../marshmallow";
 import { Market } from "../serum";
 import { Spl } from "../spl";
@@ -93,8 +95,8 @@ export interface LiquidityUserKeys {
 export interface AddLiquidityInstructionParamsV4 {
   poolKeys: LiquidityPoolKeys;
   userKeys: LiquidityUserKeys;
-  maxBaseAmountIn: BigNumberish;
-  maxQuoteAmountIn: BigNumberish;
+  baseAmountIn: BigNumberish;
+  quoteAmountIn: BigNumberish;
   fixedSide: AmountSide;
 }
 
@@ -104,7 +106,7 @@ export interface AddLiquidityInstructionParamsV4 {
 export type AddLiquidityInstructionParams = AddLiquidityInstructionParamsV4;
 
 export interface makeAddLiquidityTransactionParams
-  extends Omit<AddLiquidityInstructionParams, "userKeys" | "maxBaseAmountIn" | "maxQuoteAmountIn" | "fixedSide"> {
+  extends Omit<AddLiquidityInstructionParams, "userKeys" | "baseAmountIn" | "quoteAmountIn" | "fixedSide"> {
   connection: Connection;
   userKeys: {
     tokenAccountA?: PublicKey;
@@ -113,8 +115,8 @@ export interface makeAddLiquidityTransactionParams
     owner: PublicKey;
     payer?: PublicKey;
   };
-  tokenAmountA: CurrencyAmount | TokenAmount;
-  tokenAmountB: CurrencyAmount | TokenAmount;
+  currencyAmountInA: CurrencyAmount | TokenAmount;
+  currencyAmountInB: CurrencyAmount | TokenAmount;
   fixedSide: LiquiditySide;
   config?: {
     bypassAssociatedCheck?: boolean;
@@ -131,6 +133,22 @@ export interface RemoveLiquidityInstructionParamsV4 {
  * Remove liquidity instruction params
  */
 export type RemoveLiquidityInstructionParams = RemoveLiquidityInstructionParamsV4;
+
+export interface makeRemoveLiquidityTransactionParams
+  extends Omit<RemoveLiquidityInstructionParamsV4, "userKeys" | "amountIn"> {
+  connection: Connection;
+  userKeys: {
+    lpTokenAccount: PublicKey;
+    baseTokenAccount?: PublicKey;
+    quoteTokenAccount?: PublicKey;
+    owner: PublicKey;
+    payer?: PublicKey;
+  };
+  tokenAmountIn: TokenAmount;
+  config?: {
+    bypassAssociatedCheck?: boolean;
+  };
+}
 
 export interface SwapFixedInInstructionParamsV4 {
   poolKeys: LiquidityPoolKeys;
@@ -202,28 +220,29 @@ export interface FetchLiquidityMultipleInfoParams {
 }
 
 /* ================= compute data ================= */
-export interface ComputeAnotherTokenAmountParams {
+export interface ComputeAnotherCurrencyAmountParams {
   poolKeys: LiquidityPoolKeys;
   poolInfo: LiquidityPoolInfo;
-  tokenAmount: CurrencyAmount | TokenAmount;
-  anotherToken?: Token;
+  currencyAmount: CurrencyAmount | TokenAmount;
+  anotherCurrency: Currency | Token;
   slippage?: Percent;
 }
 
 export const LIQUIDITY_FEES_NUMERATOR = new BN(9975);
 export const LIQUIDITY_FEES_DENOMINATOR = new BN(10000);
 
-export interface ComputeTokenAmountOutParams {
+export interface ComputeCurrencyAmountOutParams {
   poolKeys: LiquidityPoolKeys;
   poolInfo: LiquidityPoolInfo;
-  tokenAmountIn: CurrencyAmount | TokenAmount;
-  tokenOut?: Token;
+  currencyAmountIn: CurrencyAmount | TokenAmount;
+  currencyOut: Currency | Token;
   slippage?: Percent;
 }
 
-export interface ComputeTokenAmountInParams extends Omit<ComputeTokenAmountOutParams, "tokenAmountIn" | "tokenOut"> {
-  tokenAmountOut: CurrencyAmount | TokenAmount;
-  tokenIn?: Token;
+export interface ComputeCurrencyAmountInParams
+  extends Omit<ComputeCurrencyAmountOutParams, "currencyAmountIn" | "currencyOut"> {
+  currencyAmountOut: CurrencyAmount | TokenAmount;
+  currencyIn: Currency | Token;
 }
 
 export class Liquidity {
@@ -422,9 +441,23 @@ export class Liquidity {
   }
 
   static async makeAddLiquidityTransaction(params: makeAddLiquidityTransactionParams) {
-    const { connection, poolKeys, userKeys, tokenAmountA, tokenAmountB, fixedSide, config } = params;
+    const { connection, poolKeys, userKeys, currencyAmountInA, currencyAmountInB, fixedSide, config } = params;
     const { baseMint, quoteMint, lpMint } = poolKeys;
     const { tokenAccountA, tokenAccountB, lpTokenAccount, owner, payer } = userKeys;
+
+    logger.assertArgument(
+      !currencyAmountInA.isZero && !currencyAmountInB.isZero,
+      "amounts must greater than zero",
+      "tokenAmount",
+      {
+        currencyAmountInA: currencyAmountInA.toExact(),
+        currencyAmountInB: currencyAmountInB.toExact(),
+      },
+    );
+    logger.assertArgument(!!tokenAccountA && !!tokenAccountB, "miss tokenAccounts", "tokenAccounts", {
+      tokenAccountA,
+      tokenAccountB,
+    });
 
     const { bypassAssociatedCheck } = {
       // default
@@ -438,15 +471,15 @@ export class Liquidity {
     const _payer = payer || owner;
 
     // handle currency a & b (convert SOL to WSOL)
-    const tokenA = tokenAmountA instanceof TokenAmount ? tokenAmountA.token : Token.WSOL;
-    const tokenB = tokenAmountB instanceof TokenAmount ? tokenAmountB.token : Token.WSOL;
+    const tokenA = currencyAmountInA instanceof TokenAmount ? currencyAmountInA.token : Token.WSOL;
+    const tokenB = currencyAmountInB instanceof TokenAmount ? currencyAmountInB.token : Token.WSOL;
 
     const tokens = [tokenA, tokenB];
     const tokenAccounts = [tokenAccountA, tokenAccountB];
-    const amounts = [tokenAmountA.raw, tokenAmountB.raw];
+    const amounts = [currencyAmountInA.raw, currencyAmountInB.raw];
 
     // handle amount a & b and direction
-    const [sideA] = this.getAmountsSide(tokenAmountA, tokenAmountB, poolKeys);
+    const [sideA] = this.getAmountsSide(currencyAmountInA, currencyAmountInB, poolKeys);
     let _fixedSide: AmountSide = "base";
     if (sideA === "quote") {
       // reverse
@@ -550,8 +583,8 @@ export class Liquidity {
           lpTokenAccount: _lpTokenAccount,
           owner,
         },
-        maxBaseAmountIn: baseAmount,
-        maxQuoteAmountIn: quoteAmount,
+        baseAmountIn: baseAmount,
+        quoteAmountIn: quoteAmount,
         fixedSide: _fixedSide,
       }),
     );
@@ -567,17 +600,17 @@ export class Liquidity {
   static makeAddLiquidityInstructionV4({
     poolKeys,
     userKeys,
-    maxBaseAmountIn,
-    maxQuoteAmountIn,
+    baseAmountIn,
+    quoteAmountIn,
     fixedSide,
   }: AddLiquidityInstructionParamsV4) {
-    const LAYOUT = struct([u8("instruction"), u64("maxBaseAmountIn"), u64("maxQuoteAmountIn"), u64("fixedSide")]);
+    const LAYOUT = struct([u8("instruction"), u64("baseAmountIn"), u64("quoteAmountIn"), u64("fixedSide")]);
     const data = Buffer.alloc(LAYOUT.span);
     LAYOUT.encode(
       {
         instruction: 3,
-        maxBaseAmountIn: parseBigNumberish(maxBaseAmountIn),
-        maxQuoteAmountIn: parseBigNumberish(maxQuoteAmountIn),
+        baseAmountIn: parseBigNumberish(baseAmountIn),
+        quoteAmountIn: parseBigNumberish(quoteAmountIn),
         fixedSide: parseBigNumberish(fixedSide === "base" ? 0 : 1),
       },
       data,
@@ -618,6 +651,113 @@ export class Liquidity {
     }
 
     return logger.throwArgumentError("invalid version", "poolKeys.version", version);
+  }
+
+  static async makeRemoveLiquidityTransaction(params: makeRemoveLiquidityTransactionParams) {
+    const { connection, poolKeys, userKeys, tokenAmountIn, config } = params;
+    const { baseMint, quoteMint, lpMint } = poolKeys;
+    const { lpTokenAccount, baseTokenAccount, quoteTokenAccount, owner, payer } = userKeys;
+
+    logger.assertArgument(
+      !tokenAmountIn.isZero,
+      "amounts must greater than zero",
+      "tokenAmountIn",
+      tokenAmountIn.toExact(),
+    );
+    logger.assertArgument(!!lpTokenAccount, "miss lpTokenAccount", "lpTokenAccount", lpTokenAccount);
+
+    const { bypassAssociatedCheck } = {
+      // default
+      ...{
+        bypassAssociatedCheck: false,
+      },
+      // custom
+      ...config,
+    };
+
+    const _payer = payer || owner;
+
+    const _lpTokenAccount = lpTokenAccount;
+    let _baseTokenAccount = await Spl.getAssociatedTokenAccount({ mint: baseMint, owner });
+    let _quoteTokenAccount = await Spl.getAssociatedTokenAccount({ mint: quoteMint, owner });
+
+    const frontInstructions: TransactionInstruction[] = [];
+    const endInstructions: TransactionInstruction[] = [];
+    const signers: Signer[] = [];
+
+    // handle base token account
+    if (Token.WSOL.mint.equals(baseMint)) {
+      const newBaseTokenAccount = await Spl.insertCreateWrappedNativeAccountInstructions({
+        connection,
+        owner,
+        payer: _payer,
+        instructions: frontInstructions,
+        signers,
+        amount: 0,
+      });
+      endInstructions.push(
+        Spl.makeCloseAccountInstruction({ tokenAccount: newBaseTokenAccount, owner, payer: _payer }),
+      );
+      _baseTokenAccount = newBaseTokenAccount;
+    } else if (!baseTokenAccount || (!_baseTokenAccount.equals(baseTokenAccount) && !bypassAssociatedCheck)) {
+      frontInstructions.push(
+        Spl.makeCreateAssociatedTokenAccountInstruction({
+          mint: baseMint,
+          associatedAccount: _baseTokenAccount,
+          owner,
+          payer: owner,
+        }),
+      );
+    } else {
+      _baseTokenAccount = baseTokenAccount;
+    }
+
+    // handle quote token account
+    if (Token.WSOL.mint.equals(quoteMint)) {
+      const newQuoteTokenAccount = await Spl.insertCreateWrappedNativeAccountInstructions({
+        connection,
+        owner,
+        payer: _payer,
+        instructions: frontInstructions,
+        signers,
+        amount: 0,
+      });
+      endInstructions.push(
+        Spl.makeCloseAccountInstruction({ tokenAccount: newQuoteTokenAccount, owner, payer: _payer }),
+      );
+      _quoteTokenAccount = newQuoteTokenAccount;
+    } else if (!quoteTokenAccount || (!_quoteTokenAccount.equals(quoteTokenAccount) && !bypassAssociatedCheck)) {
+      frontInstructions.push(
+        Spl.makeCreateAssociatedTokenAccountInstruction({
+          mint: quoteMint,
+          associatedAccount: _quoteTokenAccount,
+          owner,
+          payer: owner,
+        }),
+      );
+    } else {
+      _quoteTokenAccount = quoteTokenAccount;
+    }
+
+    frontInstructions.push(
+      this.makeRemoveLiquidityInstruction({
+        poolKeys,
+        userKeys: {
+          lpTokenAccount: _lpTokenAccount,
+          baseTokenAccount: _baseTokenAccount,
+          quoteTokenAccount: _quoteTokenAccount,
+          owner,
+        },
+        amountIn: tokenAmountIn.raw,
+      }),
+    );
+
+    const transaction = new Transaction();
+    for (const instruction of [...frontInstructions, ...endInstructions]) {
+      transaction.add(instruction);
+    }
+
+    return { transaction, signers };
   }
 
   static makeRemoveLiquidityInstructionV4({ poolKeys, userKeys, amountIn }: RemoveLiquidityInstructionParamsV4) {
@@ -1230,35 +1370,39 @@ export class Liquidity {
   }
 
   /**
-   * Compute the another token amount of add liquidity
+   * Compute the another currency amount of add liquidity
    *
-   * @param anotherToken - if not provided, will find token mint from poolKeys
+   * @param anotherCurrency - if not provided, will find token mint from poolKeys
    *
    * @returns
-   * anotherTokenAmount - token amount without slippage
+   * anotherCurrencyAmount - currency amount without slippage
    * @returns
-   * maxAnotherTokenAmount - token amount with slippage
+   * maxAnotherCurrencyAmount - currency amount with slippage
+   *
+   * @returns {@link CurrencyAmount}
    *
    * @example
    * ```
-   * Liquidity.computeAnotherTokenAmount({
+   * Liquidity.computeAnotherCurrencyAmount({
    *   // 1%
    *   slippage: new Percent(1, 100)
    * })
    * ```
    */
-  static computeAnotherTokenAmount({
+  static computeAnotherCurrencyAmount({
     poolKeys,
     poolInfo,
-    tokenAmount,
-    anotherToken,
+    currencyAmount,
+    anotherCurrency,
     slippage,
-  }: ComputeAnotherTokenAmountParams) {
+  }: ComputeAnotherCurrencyAmountParams):
+    | { anotherCurrencyAmount: CurrencyAmount; maxAnotherCurrencyAmount: CurrencyAmount }
+    | { anotherCurrencyAmount: TokenAmount; maxAnotherCurrencyAmount: TokenAmount } {
     const { baseMint, quoteMint } = poolKeys;
     const { baseReserve, quoteReserve, baseDecimals, quoteDecimals } = poolInfo;
 
     // input is fixed
-    const input = this.getAmountSide(tokenAmount, poolKeys);
+    const input = this.getAmountSide(currencyAmount, poolKeys);
 
     let _slippage = new Percent(ONE);
     if (slippage) {
@@ -1268,37 +1412,53 @@ export class Liquidity {
     // round up
     const amount =
       input === "base"
-        ? divCeil(tokenAmount.raw.mul(quoteReserve), baseReserve)
-        : divCeil(tokenAmount.raw.mul(baseReserve), quoteReserve);
+        ? divCeil(currencyAmount.raw.mul(quoteReserve), baseReserve)
+        : divCeil(currencyAmount.raw.mul(baseReserve), quoteReserve);
     const slippageAdjustedAmount = _slippage.mul(amount).quotient;
 
-    const _anotherToken =
-      anotherToken || input === "quote" ? new Token(baseMint, baseDecimals) : new Token(quoteMint, quoteDecimals);
+    if (anotherCurrency instanceof Currency) {
+      return {
+        anotherCurrencyAmount: new CurrencyAmount(anotherCurrency, amount),
+        maxAnotherCurrencyAmount: new CurrencyAmount(anotherCurrency, slippageAdjustedAmount),
+      };
+    }
+
+    const _anotherCurrency =
+      anotherCurrency || input === "quote" ? new Token(baseMint, baseDecimals) : new Token(quoteMint, quoteDecimals);
 
     return {
-      anotherTokenAmount: new TokenAmount(_anotherToken, amount),
-      maxAnotherTokenAmount: new TokenAmount(_anotherToken, slippageAdjustedAmount),
+      anotherCurrencyAmount: new TokenAmount(_anotherCurrency, amount),
+      maxAnotherCurrencyAmount: new TokenAmount(_anotherCurrency, slippageAdjustedAmount),
     };
   }
 
   /**
-   * Compute output token amount of swap
+   * Compute output currency amount of swap
    *
-   * @param tokenOut - if not provided, will find token mint from poolKeys
+   * @param currencyOut - if not provided, will find token mint from poolKeys
    *
    * @returns
-   * amountOut - token amount without slippage
+   * amountOut - currency amount without slippage
    * @returns
-   * minAmountOut - token amount with slippage
+   * minAmountOut - currency amount with slippage
    */
-  static computeTokenAmountOut({ poolKeys, poolInfo, tokenAmountIn, tokenOut, slippage }: ComputeTokenAmountOutParams) {
+
+  static computeCurrencyAmountOut = ({
+    poolKeys,
+    poolInfo,
+    currencyAmountIn,
+    currencyOut,
+    slippage,
+  }: ComputeCurrencyAmountOutParams):
+    | { amountOut: CurrencyAmount; minAmountOut: CurrencyAmount }
+    | { amountOut: TokenAmount; minAmountOut: TokenAmount } => {
     const { baseMint, quoteMint } = poolKeys;
     const { baseReserve, quoteReserve, baseDecimals, quoteDecimals } = poolInfo;
 
     const reserves = [parseBigNumberish(baseReserve), parseBigNumberish(quoteReserve)];
 
     // input is fixed
-    const input = this.getAmountSide(tokenAmountIn, poolKeys);
+    const input = this.getAmountSide(currencyAmountIn, poolKeys);
     if (input === "quote") {
       reserves.reverse();
     }
@@ -1310,40 +1470,55 @@ export class Liquidity {
       _slippage = _slippage.add(slippage);
     }
 
-    const amountInWithFee = tokenAmountIn.raw.mul(LIQUIDITY_FEES_NUMERATOR);
+    const amountInWithFee = currencyAmountIn.raw.mul(LIQUIDITY_FEES_NUMERATOR);
     const numerator = amountInWithFee.mul(reserveOut);
     const denominator = reserveIn.mul(LIQUIDITY_FEES_DENOMINATOR).add(amountInWithFee);
 
     const amountOut = numerator.div(denominator);
     const minAmountOut = _slippage.invert().mul(amountOut).quotient;
 
-    const _tokenOut =
-      tokenOut || input === "quote" ? new Token(baseMint, baseDecimals) : new Token(quoteMint, quoteDecimals);
+    if (currencyOut instanceof Currency) {
+      return {
+        amountOut: new CurrencyAmount(currencyOut, amountOut),
+        minAmountOut: new CurrencyAmount(currencyOut, minAmountOut),
+      };
+    }
+
+    const _currencyOut =
+      currencyOut || input === "quote" ? new Token(baseMint, baseDecimals) : new Token(quoteMint, quoteDecimals);
 
     return {
-      amountOut: new TokenAmount(_tokenOut, amountOut),
-      minAmountOut: new TokenAmount(_tokenOut, minAmountOut),
+      amountOut: new TokenAmount(_currencyOut, amountOut),
+      minAmountOut: new TokenAmount(_currencyOut, minAmountOut),
     };
-  }
+  };
 
   /**
-   * Compute input token amount of swap
+   * Compute input currency amount of swap
    *
-   * @param tokenIn - if not provided, will find token mint from poolKeys
+   * @param currencyIn - if not provided, will find token mint from poolKeys
    *
    * @returns
-   * amountIn - token amount without slippage
+   * amountIn - currency amount without slippage
    * @returns
-   * maxAmountIn - token amount with slippage
+   * maxAmountIn - currency amount with slippage
    */
-  static computeTokenAmountIn({ poolKeys, poolInfo, tokenAmountOut, tokenIn, slippage }: ComputeTokenAmountInParams) {
+  static computeCurrencyAmountIn({
+    poolKeys,
+    poolInfo,
+    currencyAmountOut,
+    currencyIn,
+    slippage,
+  }: ComputeCurrencyAmountInParams):
+    | { amountIn: CurrencyAmount; maxAmountIn: CurrencyAmount }
+    | { amountIn: TokenAmount; maxAmountIn: TokenAmount } {
     const { baseMint, quoteMint } = poolKeys;
     const { baseReserve, quoteReserve, baseDecimals, quoteDecimals } = poolInfo;
 
     const reserves = [parseBigNumberish(baseReserve), parseBigNumberish(quoteReserve)];
 
     // output is fixed
-    const output = this.getAmountSide(tokenAmountOut, poolKeys);
+    const output = this.getAmountSide(currencyAmountOut, poolKeys);
     if (output === "base") {
       reserves.reverse();
     }
@@ -1355,18 +1530,25 @@ export class Liquidity {
       _slippage = _slippage.add(slippage);
     }
 
-    const numerator = reserveIn.mul(tokenAmountOut.raw).mul(LIQUIDITY_FEES_DENOMINATOR);
-    const denominator = reserveOut.sub(tokenAmountOut.raw).mul(LIQUIDITY_FEES_NUMERATOR);
+    const numerator = reserveIn.mul(currencyAmountOut.raw).mul(LIQUIDITY_FEES_DENOMINATOR);
+    const denominator = reserveOut.sub(currencyAmountOut.raw).mul(LIQUIDITY_FEES_NUMERATOR);
 
     const amountIn = numerator.div(denominator).add(ONE);
     const maxAmountIn = _slippage.mul(amountIn).quotient;
 
-    const _tokenIn =
-      tokenIn || output === "quote" ? new Token(baseMint, baseDecimals) : new Token(quoteMint, quoteDecimals);
+    if (currencyIn instanceof Currency) {
+      return {
+        amountIn: new CurrencyAmount(currencyIn, amountIn),
+        maxAmountIn: new CurrencyAmount(currencyIn, maxAmountIn),
+      };
+    }
+
+    const _currencyIn =
+      currencyIn || output === "quote" ? new Token(baseMint, baseDecimals) : new Token(quoteMint, quoteDecimals);
 
     return {
-      amountIn: new TokenAmount(_tokenIn, amountIn),
-      maxAmountIn: new TokenAmount(_tokenIn, maxAmountIn),
+      amountIn: new TokenAmount(_currencyIn, amountIn),
+      maxAmountIn: new TokenAmount(_currencyIn, maxAmountIn),
     };
   }
 }

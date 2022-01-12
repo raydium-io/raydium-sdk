@@ -73,6 +73,10 @@ export class CurrencyAmount extends Fraction {
     return this.numerator;
   }
 
+  public get isZero() {
+    return this.raw.isZero();
+  }
+
   public add(other: CurrencyAmount): CurrencyAmount {
     logger.assert(currencyEquals(this.currency, other.currency), "add currency not equals");
 
@@ -85,10 +89,24 @@ export class CurrencyAmount extends Fraction {
     return new CurrencyAmount(this.currency, this.raw.sub(other.raw));
   }
 
-  public toSignificant(significantDigits = 6, format?: object, rounding: Rounding = Rounding.ROUND_DOWN): string {
+  public toSignificant(
+    significantDigits = this.currency.decimals,
+    format?: object,
+    rounding: Rounding = Rounding.ROUND_DOWN,
+  ): string {
     return super.toSignificant(significantDigits, format, rounding);
   }
 
+  /**
+   * To fixed
+   *
+   * @example
+   * ```
+   * 1 -> 1.000000000
+   * 1.234 -> 1.234000000
+   * 1.123456789876543 -> 1.123456789
+   * ```
+   */
   public toFixed(
     decimalPlaces = this.currency.decimals,
     format?: object,
