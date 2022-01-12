@@ -1,5 +1,18 @@
 # Changelog
 
+### 1.0.1-beta.18 (2022-01-12)
+
+- Add
+  - `makeAddLiquidityTransaction` for `Liquidity`
+  - `fetchInfo` for `Liquidity`
+- Change
+  - Rename `getPools` to `fetchAllPoolKeys` of `Liquidity`
+  - Rename `getMultipleInfo` to `fetchMultipleInfo` of `Liquidity`
+  - Rename `getAmountB` to `computeAnotherTokenAmount` of `Liquidity`
+  - Rename `getAmountOut` to `computeTokenAmountOut` of `Liquidity`
+  - Rename `getAmountIn` to `computeTokenAmountIn` of `Liquidity`
+  - Update dev dependencies
+
 ### 1.0.1-beta.17 (2022-01-10)
 
 - Add
