@@ -1,11 +1,7 @@
 import { MAINNET_LP_TOKENS, MAINNET_SPL_TOKENS, TokenList } from "../../src/token";
 
 describe("Test token list", () => {
-  let tokenList: TokenList;
-
-  beforeEach(async () => {
-    tokenList = new TokenList([...MAINNET_SPL_TOKENS, ...MAINNET_LP_TOKENS]);
-  });
+  const tokenList = new TokenList([...MAINNET_SPL_TOKENS, ...MAINNET_LP_TOKENS]);
 
   it("should works when filterByMint use valid mint", () => {
     const result = tokenList.filterByMint(MAINNET_SPL_TOKENS.WSOL.mint);
@@ -22,7 +18,7 @@ describe("Test token list", () => {
   });
 
   it("should revert when filterUniqueByMint SPL use LP mint", () => {
-    expect(() => tokenList.filterUniqueByMint("CzPDyvotTcxNqtPne32yUiEVQ6jk42HZi1Y3hUu7qf7f", "spl")).toThrow(
+    expect(() => tokenList.filterUniqueByMint(MAINNET_LP_TOKENS.RAY_SOL_V4.mint, "spl")).toThrow(
       /invalid SPL token mint/,
     );
   });

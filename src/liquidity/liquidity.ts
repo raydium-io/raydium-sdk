@@ -454,7 +454,7 @@ export class Liquidity {
         currencyAmountInB: currencyAmountInB.toExact(),
       },
     );
-    logger.assertArgument(!!tokenAccountA && !!tokenAccountB, "miss tokenAccounts", "tokenAccounts", {
+    logger.assertArgument(!!tokenAccountA || !!tokenAccountB, "miss tokenAccounts", "tokenAccounts", {
       tokenAccountA,
       tokenAccountB,
     });
@@ -655,7 +655,7 @@ export class Liquidity {
 
   static async makeRemoveLiquidityTransaction(params: makeRemoveLiquidityTransactionParams) {
     const { connection, poolKeys, userKeys, tokenAmountIn, config } = params;
-    const { baseMint, quoteMint, lpMint } = poolKeys;
+    const { baseMint, quoteMint } = poolKeys;
     const { lpTokenAccount, baseTokenAccount, quoteTokenAccount, owner, payer } = userKeys;
 
     logger.assertArgument(
@@ -1372,8 +1372,6 @@ export class Liquidity {
   /**
    * Compute the another currency amount of add liquidity
    *
-   * @param anotherCurrency - if not provided, will find token mint from poolKeys
-   *
    * @returns
    * anotherCurrencyAmount - currency amount without slippage
    * @returns
@@ -1398,8 +1396,7 @@ export class Liquidity {
   }: ComputeAnotherCurrencyAmountParams):
     | { anotherCurrencyAmount: CurrencyAmount; maxAnotherCurrencyAmount: CurrencyAmount }
     | { anotherCurrencyAmount: TokenAmount; maxAnotherCurrencyAmount: TokenAmount } {
-    const { baseMint, quoteMint } = poolKeys;
-    const { baseReserve, quoteReserve, baseDecimals, quoteDecimals } = poolInfo;
+    const { baseReserve, quoteReserve } = poolInfo;
 
     // input is fixed
     const input = this.getAmountSide(currencyAmount, poolKeys);
@@ -1416,33 +1413,27 @@ export class Liquidity {
         : divCeil(currencyAmount.raw.mul(baseReserve), quoteReserve);
     const slippageAdjustedAmount = _slippage.mul(amount).quotient;
 
-    if (anotherCurrency instanceof Currency) {
+    if (anotherCurrency instanceof Token) {
       return {
-        anotherCurrencyAmount: new CurrencyAmount(anotherCurrency, amount),
-        maxAnotherCurrencyAmount: new CurrencyAmount(anotherCurrency, slippageAdjustedAmount),
+        anotherCurrencyAmount: new TokenAmount(anotherCurrency, amount),
+        maxAnotherCurrencyAmount: new TokenAmount(anotherCurrency, slippageAdjustedAmount),
       };
     }
 
-    const _anotherCurrency =
-      anotherCurrency || input === "quote" ? new Token(baseMint, baseDecimals) : new Token(quoteMint, quoteDecimals);
-
     return {
-      anotherCurrencyAmount: new TokenAmount(_anotherCurrency, amount),
-      maxAnotherCurrencyAmount: new TokenAmount(_anotherCurrency, slippageAdjustedAmount),
+      anotherCurrencyAmount: new CurrencyAmount(anotherCurrency, amount),
+      maxAnotherCurrencyAmount: new CurrencyAmount(anotherCurrency, slippageAdjustedAmount),
     };
   }
 
   /**
    * Compute output currency amount of swap
    *
-   * @param currencyOut - if not provided, will find token mint from poolKeys
-   *
    * @returns
    * amountOut - currency amount without slippage
    * @returns
    * minAmountOut - currency amount with slippage
    */
-
   static computeCurrencyAmountOut = ({
     poolKeys,
     poolInfo,
@@ -1452,8 +1443,7 @@ export class Liquidity {
   }: ComputeCurrencyAmountOutParams):
     | { amountOut: CurrencyAmount; minAmountOut: CurrencyAmount }
     | { amountOut: TokenAmount; minAmountOut: TokenAmount } => {
-    const { baseMint, quoteMint } = poolKeys;
-    const { baseReserve, quoteReserve, baseDecimals, quoteDecimals } = poolInfo;
+    const { baseReserve, quoteReserve } = poolInfo;
 
     const reserves = [parseBigNumberish(baseReserve), parseBigNumberish(quoteReserve)];
 
@@ -1477,26 +1467,21 @@ export class Liquidity {
     const amountOut = numerator.div(denominator);
     const minAmountOut = _slippage.invert().mul(amountOut).quotient;
 
-    if (currencyOut instanceof Currency) {
+    if (currencyOut instanceof Token) {
       return {
-        amountOut: new CurrencyAmount(currencyOut, amountOut),
-        minAmountOut: new CurrencyAmount(currencyOut, minAmountOut),
+        amountOut: new TokenAmount(currencyOut, amountOut),
+        minAmountOut: new TokenAmount(currencyOut, minAmountOut),
       };
     }
 
-    const _currencyOut =
-      currencyOut || input === "quote" ? new Token(baseMint, baseDecimals) : new Token(quoteMint, quoteDecimals);
-
     return {
-      amountOut: new TokenAmount(_currencyOut, amountOut),
-      minAmountOut: new TokenAmount(_currencyOut, minAmountOut),
+      amountOut: new CurrencyAmount(currencyOut, amountOut),
+      minAmountOut: new CurrencyAmount(currencyOut, minAmountOut),
     };
   };
 
   /**
    * Compute input currency amount of swap
-   *
-   * @param currencyIn - if not provided, will find token mint from poolKeys
    *
    * @returns
    * amountIn - currency amount without slippage
@@ -1512,8 +1497,7 @@ export class Liquidity {
   }: ComputeCurrencyAmountInParams):
     | { amountIn: CurrencyAmount; maxAmountIn: CurrencyAmount }
     | { amountIn: TokenAmount; maxAmountIn: TokenAmount } {
-    const { baseMint, quoteMint } = poolKeys;
-    const { baseReserve, quoteReserve, baseDecimals, quoteDecimals } = poolInfo;
+    const { baseReserve, quoteReserve } = poolInfo;
 
     const reserves = [parseBigNumberish(baseReserve), parseBigNumberish(quoteReserve)];
 
@@ -1536,19 +1520,16 @@ export class Liquidity {
     const amountIn = numerator.div(denominator).add(ONE);
     const maxAmountIn = _slippage.mul(amountIn).quotient;
 
-    if (currencyIn instanceof Currency) {
+    if (currencyIn instanceof Token) {
       return {
-        amountIn: new CurrencyAmount(currencyIn, amountIn),
-        maxAmountIn: new CurrencyAmount(currencyIn, maxAmountIn),
+        amountIn: new TokenAmount(currencyIn, amountIn),
+        maxAmountIn: new TokenAmount(currencyIn, maxAmountIn),
       };
     }
 
-    const _currencyIn =
-      currencyIn || output === "quote" ? new Token(baseMint, baseDecimals) : new Token(quoteMint, quoteDecimals);
-
     return {
-      amountIn: new TokenAmount(_currencyIn, amountIn),
-      maxAmountIn: new TokenAmount(_currencyIn, maxAmountIn),
+      amountIn: new CurrencyAmount(currencyIn, amountIn),
+      maxAmountIn: new CurrencyAmount(currencyIn, maxAmountIn),
     };
   }
 }

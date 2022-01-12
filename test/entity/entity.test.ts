@@ -1,23 +1,23 @@
-import { Fraction, parseBigNumberIsh } from "../../src/entity";
+import { Fraction, parseBigNumberish } from "../../src/entity";
 
-describe("Test parseBigNumberIsh", () => {
+describe("Test parseBigNumberish", () => {
   it("should works when parse string", () => {
-    const result = parseBigNumberIsh("100");
+    const result = parseBigNumberish("100");
     expect(result.toString(10)).toBe("100");
   });
 
   it("should works when parse number", () => {
-    const result = parseBigNumberIsh(100);
+    const result = parseBigNumberish(100);
     expect(result.toString(10)).toBe("100");
   });
 
   it("should revert when parse invalid string", () => {
-    expect(() => parseBigNumberIsh("100a")).toThrow(/invalid BigNumberIsh string/);
+    expect(() => parseBigNumberish("100a")).toThrow(/invalid BigNumberish string/);
   });
 
   it("should revert when parse invalid number", () => {
-    expect(() => parseBigNumberIsh(1.1)).toThrow(/underflow/);
-    expect(() => parseBigNumberIsh(9007199254740991)).toThrow(/overflow/);
+    expect(() => parseBigNumberish(1.1)).toThrow(/underflow/);
+    expect(() => parseBigNumberish(9007199254740991)).toThrow(/overflow/);
   });
 });
 

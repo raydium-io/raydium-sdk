@@ -25,15 +25,19 @@ export class TokenList {
   filterUniqueByMint = <T extends "all" | "spl" | "lp">(mint: string, tokenType: T | "all" | "spl" | "lp" = "all") => {
     const result = this.tokenList.filter((token) => token.mint === mint);
 
-    if (result.length < 1) {
+    if (result.length === 0) {
       return logger.throwArgumentError(`No token found`, "mint", mint);
     } else if (result.length > 1) {
       return logger.throwArgumentError(`Multiple tokens found: ${result.length}`, "mint", mint);
     }
 
     const token = result[0];
-    logger.assertArgument(tokenType === "spl" && !("version" in token), "invalid SPL token mint", "mint", mint);
-    logger.assertArgument(tokenType === "lp" && "version" in token, "invalid LP token mint", "mint", mint);
+
+    if (tokenType === "spl" && "version" in token) {
+      return logger.throwArgumentError("invalid SPL token mint", "mint", mint);
+    } else if (tokenType === "lp" && !("version" in token)) {
+      return logger.throwArgumentError("invalid LP token mint", "mint", mint);
+    }
 
     return token as T extends "all" ? SplTokenInfo | LpTokenInfo : T extends "spl" ? SplTokenInfo : LpTokenInfo;
   };
