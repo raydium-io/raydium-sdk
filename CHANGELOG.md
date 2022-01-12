@@ -1,5 +1,19 @@
 # Changelog
 
+### 1.0.1-beta.19 (2022-01-12)
+
+- Add
+  - `makeRemoveLiquidityTransaction` for `Liquidity`
+- Change
+  - Rename params of `Liquidity.makeAddLiquidityTransaction`
+  - Rename params of `Liquidity.makeAddLiquidityInstructionV4`
+  - Rename `computeAnotherTokenAmount` to `computeAnotherCurrencyAmount` of `Liquidity`
+  - Rename params of `Liquidity.computeAnotherCurrencyAmount`
+  - Rename `computeTokenAmountOut` to `computeCurrencyAmountOut` of `Liquidity`
+  - Rename params of `Liquidity.computeCurrencyAmountOut`
+  - Rename `computeTokenAmountIn` to `computeCurrencyAmountIn` of `Liquidity`
+  - Rename params of `Liquidity.computeCurrencyAmountIn`
+
 ### 1.0.1-beta.18 (2022-01-12)
 
 - Add
