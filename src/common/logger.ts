@@ -1,3 +1,5 @@
+import { PublicKey } from "@solana/web3.js";
+
 import { version } from "../version";
 
 let _permanentCensorErrors = false;
@@ -116,6 +118,35 @@ export enum ErrorCode {
 
 const HEX = "0123456789abcdef";
 
+function perfectDisplay(value: any, deeping = false) {
+  let _value = value;
+
+  try {
+    if (value instanceof Uint8Array) {
+      let hex = "";
+      for (let i = 0; i < value.length; i++) {
+        hex += HEX[value[i] >> 4];
+        hex += HEX[value[i] & 0x0f];
+      }
+      _value = `Uint8Array(0x${hex})`;
+    } else if (value instanceof PublicKey) {
+      _value = `PublicKey(${value.toBase58()})`;
+    } else if (value instanceof Object && !deeping) {
+      const obj = {};
+      Object.entries(value).forEach(([k, v]) => {
+        obj[k] = perfectDisplay(v, true);
+      });
+      _value = JSON.stringify(obj);
+    } else if (!deeping) {
+      _value = JSON.stringify(value);
+    }
+  } catch (error) {
+    _value = JSON.stringify(value.toString());
+  }
+
+  return _value;
+}
+
 export class Logger {
   readonly version: string = version;
   readonly moduleName: string;
@@ -140,15 +171,15 @@ export class Logger {
   }
 
   debug(...args: Array<any>): void {
-    this._log(Logger.levels.DEBUG, args);
+    this._log(Logger.levels.DEBUG, ["[DEBUG]", ...args]);
   }
 
   info(...args: Array<any>): void {
-    this._log(Logger.levels.INFO, args);
+    this._log(Logger.levels.INFO, ["[INFO]", ...args]);
   }
 
   warn(...args: Array<any>): void {
-    this._log(Logger.levels.WARNING, args);
+    this._log(Logger.levels.WARNING, ["[WARN]", ...args]);
   }
 
   makeError(message: string, code?: ErrorCode, params?: any): Error {
@@ -165,22 +196,8 @@ export class Logger {
     }
 
     const messageDetails: Array<string> = [];
-    Object.keys(params).forEach((key) => {
-      const value = params[key];
-      try {
-        if (value instanceof Uint8Array) {
-          let hex = "";
-          for (let i = 0; i < value.length; i++) {
-            hex += HEX[value[i] >> 4];
-            hex += HEX[value[i] & 0x0f];
-          }
-          messageDetails.push(key + "=Uint8Array(0x" + hex + ")");
-        } else {
-          messageDetails.push(key + "=" + JSON.stringify(value));
-        }
-      } catch (error) {
-        messageDetails.push(key + "=" + JSON.stringify(params[key].toString()));
-      }
+    Object.entries(params).forEach(([key, value]) => {
+      messageDetails.push(`${key}=${perfectDisplay(value)})`);
     });
     messageDetails.push(`code=${code}`);
     messageDetails.push(`module=${this.moduleName}`);
@@ -196,8 +213,8 @@ export class Logger {
     error.reason = reason;
     error.code = code;
 
-    Object.keys(params).forEach(function (key) {
-      error[key] = params[key];
+    Object.entries(params).forEach(([key, value]) => {
+      error[key] = value;
     });
 
     return error;
@@ -210,7 +227,7 @@ export class Logger {
   throwArgumentError(message: string, name: string, value: any): never {
     return this.throwError(message, Logger.errors.INVALID_ARGUMENT, {
       argument: name,
-      value: value,
+      value,
     });
   }
 
@@ -253,7 +270,7 @@ export class Logger {
       this.throwError(message, Logger.errors.NUMERIC_FAULT, {
         operation: "checkSafeInteger",
         fault: "out-of-safe-range",
-        value: value,
+        value,
       });
     }
 
@@ -261,7 +278,7 @@ export class Logger {
       this.throwError(message, Logger.errors.NUMERIC_FAULT, {
         operation: "checkSafeInteger",
         fault: "non-integer",
-        value: value,
+        value,
       });
     }
   }
@@ -275,15 +292,15 @@ export class Logger {
 
     if (count < expectedCount) {
       this.throwError("missing argument" + message, Logger.errors.MISSING_ARGUMENT, {
-        count: count,
-        expectedCount: expectedCount,
+        count,
+        expectedCount,
       });
     }
 
     if (count > expectedCount) {
       this.throwError("too many arguments" + message, Logger.errors.UNEXPECTED_ARGUMENT, {
-        count: count,
-        expectedCount: expectedCount,
+        count,
+        expectedCount,
       });
     }
   }

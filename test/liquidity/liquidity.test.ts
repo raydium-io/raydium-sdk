@@ -3,7 +3,7 @@ import consola from "consola";
 import dotenv from "dotenv";
 
 import { jsonInfo2PoolKeys } from "../../src/common";
-import { Currency, CurrencyAmount, Token, TokenAmount } from "../../src/entity";
+import { Currency, CurrencyAmount, Percent, Token, TokenAmount } from "../../src/entity";
 import { Liquidity, LiquidityPoolInfo } from "../../src/liquidity";
 import { Spl } from "../../src/spl";
 
@@ -69,6 +69,7 @@ describe("Test Liquidity.", () => {
       poolInfo,
       currencyAmount,
       anotherCurrency,
+      slippage: new Percent(0),
     });
     console.log(maxAnotherCurrencyAmount.toExact());
 
@@ -102,6 +103,7 @@ describe("Test Liquidity.", () => {
       poolInfo,
       currencyAmount,
       anotherCurrency,
+      slippage: new Percent(0),
     });
     console.log(maxAnotherCurrencyAmount.toExact());
 

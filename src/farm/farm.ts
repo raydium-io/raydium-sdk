@@ -14,7 +14,7 @@ import { FARM_PROGRAMID_TO_VERSION, FARM_VERSION_TO_PROGRAMID } from "./id";
 import { FARM_VERSION_TO_LEDGER_LAYOUT, FARM_VERSION_TO_STATE_LAYOUT, FarmLedger, FarmState } from "./layout";
 import { FarmPoolJsonInfo } from "./type";
 
-const logger = new Logger("Farm");
+const logger = Logger.from("Farm");
 
 /* ================= pool keys ================= */
 export type FarmPoolKeys = {
@@ -458,23 +458,25 @@ export class Farm {
 
     const accountsInfo = await getMultipleAccountsInfoWithCustomFlags(connection, publicKeys, config);
     for (const { pubkey, version, key, poolId, accountInfo } of accountsInfo) {
+      const _poolId = poolId.toBase58();
+
       if (key === "state") {
         const STATE_LAYOUT = this.getStateLayout(version);
         if (!accountInfo || !accountInfo.data || accountInfo.data.length !== STATE_LAYOUT.span) {
-          return logger.throwArgumentError("invalid farm state account info", "pools.id", pubkey.toBase58());
+          return logger.throwArgumentError("invalid farm state account info", "pools.id", pubkey);
         }
 
-        poolsInfo[poolId.toBase58()] = {
-          ...poolsInfo[poolId.toBase58()],
+        poolsInfo[_poolId] = {
+          ...poolsInfo[_poolId],
           ...{ state: STATE_LAYOUT.decode(accountInfo.data) },
         };
       } else if (key === "lpVault") {
         if (!accountInfo || !accountInfo.data || accountInfo.data.length !== SPL_ACCOUNT_LAYOUT.span) {
-          return logger.throwArgumentError("invalid farm lp vault account info", "pools.lpVault", pubkey.toBase58());
+          return logger.throwArgumentError("invalid farm lp vault account info", "pools.lpVault", pubkey);
         }
 
-        poolsInfo[poolId.toBase58()] = {
-          ...poolsInfo[poolId.toBase58()],
+        poolsInfo[_poolId] = {
+          ...poolsInfo[_poolId],
           ...{ lpVault: SPL_ACCOUNT_LAYOUT.decode(accountInfo.data) },
         };
       } else if (key === "ledger") {
@@ -484,11 +486,11 @@ export class Farm {
             accountInfo.data.length === LEDGER_LAYOUT.span,
             "invalid farm ledger account info",
             "ledger",
-            pubkey.toBase58(),
+            pubkey,
           );
 
-          poolsInfo[poolId.toBase58()] = {
-            ...poolsInfo[poolId.toBase58()],
+          poolsInfo[_poolId] = {
+            ...poolsInfo[_poolId],
             ...{ ledger: LEDGER_LAYOUT.decode(accountInfo.data) },
           };
         }

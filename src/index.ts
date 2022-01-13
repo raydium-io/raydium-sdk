@@ -6,3 +6,4 @@ export * from "./marshmallow";
 export * from "./serum";
 export * from "./spl";
 export * from "./token";
+export * from "./trade";

@@ -7,7 +7,7 @@ import { Logger } from "../common";
 import { ONE, Rounding } from "./constant";
 import toFormat, { WrappedBig } from "./to-format";
 
-const logger = new Logger("Entity");
+const logger = Logger.from("entity/fraction");
 
 const Big = toFormat(_Big);
 type Big = WrappedBig;

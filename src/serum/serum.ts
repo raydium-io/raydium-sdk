@@ -5,7 +5,7 @@ import { Logger } from "../common";
 import { SERUM_PROGRAMID_TO_VERSION, SERUM_VERSION_TO_PROGRAMID } from "./id";
 import { MARKET_VERSION_TO_STATE_LAYOUT } from "./layout";
 
-const logger = new Logger("Serum");
+const logger = Logger.from("Serum");
 
 export class Market {
   /* ================= static functions ================= */

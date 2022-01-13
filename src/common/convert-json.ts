@@ -3,7 +3,7 @@ import { PublicKey } from "@solana/web3.js";
 import { Logger } from "./logger";
 import { validateAndParsePublicKey } from "./pubkey";
 
-const logger = new Logger("Common.CovertJson");
+const logger = Logger.from("common/covert-json");
 
 type Primitive = boolean | number | string | null | undefined | PublicKey;
 
