@@ -1,6 +1,6 @@
 {
   "name": "@raydium-io/raydium-sdk",
-  "version": "1.0.1-beta.20",
+  "version": "1.0.1-beta.21",
   "description": "An SDK for building applications on top of Raydium.",
   "license": "GPL-3.0",
   "main": "./lib/index.js",
@@ -55,7 +55,7 @@
     "@babel/core": "^7.16.7",
     "@babel/preset-env": "^7.16.8",
     "@babel/preset-typescript": "^7.16.7",
-    "@solana/spl-token-registry": "^0.2.1425",
+    "@solana/spl-token-registry": "^0.2.1464",
     "@types/big.js": "^6.1.2",
     "@types/bn.js": "^5.1.0",
     "@types/jest": "^27.4.0",
