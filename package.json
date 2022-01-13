@@ -15,13 +15,8 @@
     "raydium",
     "solana"
   ],
-  "husky": {
-    "hooks": {
-      "pre-commit": "lint-staged"
-    }
-  },
   "lint-staged": {
-    "{src}/**/*.ts": [
+    "{src,test,misc}/**/*.ts": [
       "yarn lint"
     ]
   },
@@ -42,7 +37,8 @@
     "build-all": "yarn build-dist && yarn build-lib",
     "install-peers": "ts-node ./misc/install-peers.ts",
     "build": "yarn build-lib",
-    "push": "yarn build && yarn publish"
+    "push": "yarn build && yarn publish",
+    "prepare": "husky install"
   },
   "peerDependencies": {
     "@solana/web3.js": "^1.31.0",
