@@ -7,7 +7,7 @@ import {
   SYSVAR_RENT_PUBKEY, TOKEN_PROGRAM_ID,
 } from "../common";
 import {
-  BigNumberish, Currency, CurrencyAmount, divCeil, ONE, parseBigNumberish, Percent, Token, TokenAmount,
+  BigNumberish, Currency, CurrencyAmount, divCeil, ONE, parseBigNumberish, Percent, Token, TokenAmount, ZERO,
 } from "../entity";
 import { struct, u64, u8 } from "../marshmallow";
 import { Market } from "../serum";
@@ -1495,7 +1495,7 @@ export class Liquidity {
 
     logger.debug("currencyAmount:", currencyAmount.toExact());
     logger.debug("anotherCurrency:", anotherCurrency);
-    logger.debug("slippage:", slippage.toSignificant());
+    logger.debug("slippage:", `${slippage.toSignificant()}%`);
 
     // input is fixed
     const input = this._getAmountSide(currencyAmount, poolKeys);
@@ -1504,10 +1504,13 @@ export class Liquidity {
     const _slippage = new Percent(ONE).add(slippage);
 
     // round up
-    const amount =
-      input === "base"
-        ? divCeil(currencyAmount.raw.mul(quoteReserve), baseReserve)
-        : divCeil(currencyAmount.raw.mul(baseReserve), quoteReserve);
+    let amount = ZERO;
+    if (!currencyAmount.isZero) {
+      amount =
+        input === "base"
+          ? divCeil(currencyAmount.raw.mul(quoteReserve), baseReserve)
+          : divCeil(currencyAmount.raw.mul(baseReserve), quoteReserve);
+    }
     const slippageAdjustedAmount = _slippage.mul(amount).quotient;
 
     const _anotherCurrencyAmount =
@@ -1550,7 +1553,7 @@ export class Liquidity {
 
     logger.debug("currencyAmountIn:", currencyAmountIn.toExact());
     logger.debug("currencyOut:", currencyOut);
-    logger.debug("slippage:", slippage.toSignificant());
+    logger.debug("slippage:", `${slippage.toSignificant()}%`);
 
     const reserves = [parseBigNumberish(baseReserve), parseBigNumberish(quoteReserve)];
 
@@ -1565,11 +1568,14 @@ export class Liquidity {
 
     const _slippage = new Percent(ONE).add(slippage);
 
-    const amountInWithFee = currencyAmountIn.raw.mul(LIQUIDITY_FEES_NUMERATOR);
-    const numerator = amountInWithFee.mul(reserveOut);
-    const denominator = reserveIn.mul(LIQUIDITY_FEES_DENOMINATOR).add(amountInWithFee);
+    let amountOut = ZERO;
+    if (!currencyAmountIn.isZero) {
+      const amountInWithFee = currencyAmountIn.raw.mul(LIQUIDITY_FEES_NUMERATOR);
+      const numerator = amountInWithFee.mul(reserveOut);
+      const denominator = reserveIn.mul(LIQUIDITY_FEES_DENOMINATOR).add(amountInWithFee);
 
-    const amountOut = numerator.div(denominator);
+      amountOut = numerator.div(denominator);
+    }
     const minAmountOut = _slippage.invert().mul(amountOut).quotient;
 
     const _amountOut =
@@ -1612,7 +1618,7 @@ export class Liquidity {
 
     logger.debug("currencyAmountOut:", currencyAmountOut.toExact());
     logger.debug("currencyIn:", currencyIn);
-    logger.debug("slippage:", slippage.toSignificant());
+    logger.debug("slippage:", `${slippage.toSignificant()}%`);
 
     const reserves = [parseBigNumberish(baseReserve), parseBigNumberish(quoteReserve)];
 
@@ -1627,10 +1633,13 @@ export class Liquidity {
 
     const _slippage = new Percent(ONE).add(slippage);
 
-    const numerator = reserveIn.mul(currencyAmountOut.raw).mul(LIQUIDITY_FEES_DENOMINATOR);
-    const denominator = reserveOut.sub(currencyAmountOut.raw).mul(LIQUIDITY_FEES_NUMERATOR);
+    let amountIn = ZERO;
+    if (!currencyAmountOut.isZero) {
+      const numerator = reserveIn.mul(currencyAmountOut.raw).mul(LIQUIDITY_FEES_DENOMINATOR);
+      const denominator = reserveOut.sub(currencyAmountOut.raw).mul(LIQUIDITY_FEES_NUMERATOR);
 
-    const amountIn = numerator.div(denominator).add(ONE);
+      amountIn = numerator.div(denominator).add(ONE);
+    }
     const maxAmountIn = _slippage.mul(amountIn).quotient;
 
     const _amountIn =
