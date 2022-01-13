@@ -11,5 +11,6 @@ module.exports = {
   rules: {
     "tsdoc/syntax": "warn",
     "@typescript-eslint/no-explicit-any": 0,
+    "object-shorthand": ["error", "always"],
   },
 };
