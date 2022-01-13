@@ -171,15 +171,15 @@ export class Logger {
   }
 
   debug(...args: Array<any>): void {
-    this._log(Logger.levels.DEBUG, args);
+    this._log(Logger.levels.DEBUG, ["[DEBUG]", ...args]);
   }
 
   info(...args: Array<any>): void {
-    this._log(Logger.levels.INFO, args);
+    this._log(Logger.levels.INFO, ["[INFO]", ...args]);
   }
 
   warn(...args: Array<any>): void {
-    this._log(Logger.levels.WARNING, args);
+    this._log(Logger.levels.WARNING, ["[WARN]", ...args]);
   }
 
   makeError(message: string, code?: ErrorCode, params?: any): Error {
@@ -227,7 +227,7 @@ export class Logger {
   throwArgumentError(message: string, name: string, value: any): never {
     return this.throwError(message, Logger.errors.INVALID_ARGUMENT, {
       argument: name,
-      value: value,
+      value,
     });
   }
 
@@ -270,7 +270,7 @@ export class Logger {
       this.throwError(message, Logger.errors.NUMERIC_FAULT, {
         operation: "checkSafeInteger",
         fault: "out-of-safe-range",
-        value: value,
+        value,
       });
     }
 
@@ -278,7 +278,7 @@ export class Logger {
       this.throwError(message, Logger.errors.NUMERIC_FAULT, {
         operation: "checkSafeInteger",
         fault: "non-integer",
-        value: value,
+        value,
       });
     }
   }
@@ -292,15 +292,15 @@ export class Logger {
 
     if (count < expectedCount) {
       this.throwError("missing argument" + message, Logger.errors.MISSING_ARGUMENT, {
-        count: count,
-        expectedCount: expectedCount,
+        count,
+        expectedCount,
       });
     }
 
     if (count > expectedCount) {
       this.throwError("too many arguments" + message, Logger.errors.UNEXPECTED_ARGUMENT, {
-        count: count,
-        expectedCount: expectedCount,
+        count,
+        expectedCount,
       });
     }
   }

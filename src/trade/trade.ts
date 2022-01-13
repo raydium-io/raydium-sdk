@@ -38,9 +38,18 @@ export class Trade {
       { pools, markets },
     );
 
+    // the route of the trade
+    // const route = [];
+    // the output amount for the trade assuming no slippage
     let currencyAmountOut =
       currencyOut instanceof Token ? new TokenAmount(currencyOut, 0) : new CurrencyAmount(currencyOut, 0);
     let minCurrencyAmountOut = currencyAmountOut;
+    // the price expressed in terms of output amount/input amount
+    // const executionPrice =
+    // the mid price after the trade executes assuming no slippage
+    // const nextMidPrice =
+    // the percent difference between the mid price before the trade and the trade execution price
+    // const priceImpact =
 
     // swap directly
     for (const { poolKeys, poolInfo } of _pools) {
@@ -59,6 +68,7 @@ export class Trade {
     }
 
     return {
+      // route,
       currencyAmountOut,
       minCurrencyAmountOut,
     };

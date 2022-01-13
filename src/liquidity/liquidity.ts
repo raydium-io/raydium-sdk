@@ -3,8 +3,8 @@ import BN from "bn.js";
 
 import {
   AccountMeta, AccountMetaReadonly, findProgramAddress, getMultipleAccountsInfo, GetMultipleAccountsInfoConfig, Logger,
-  parseSimulateLogToJson, parseSimulateValue, simulateMultipleInstruction, SYSTEM_PROGRAM_ID, SYSVAR_RENT_PUBKEY,
-  TOKEN_PROGRAM_ID,
+  LogLevel, parseSimulateLogToJson, parseSimulateValue, simulateMultipleInstruction, SYSTEM_PROGRAM_ID,
+  SYSVAR_RENT_PUBKEY, TOKEN_PROGRAM_ID,
 } from "../common";
 import {
   BigNumberish, Currency, CurrencyAmount, divCeil, ONE, parseBigNumberish, Percent, Token, TokenAmount,
@@ -92,6 +92,20 @@ export interface LiquidityUserKeys {
 // export type LiquidityConstructParams = Required<LiquidityLoadParams>;
 
 /* ================= make instruction and transaction ================= */
+export interface HandleTokenAccountParams {
+  connection: Connection;
+  side: "in" | "out";
+  amount: BigNumberish;
+  mint: PublicKey;
+  tokenAccount?: PublicKey;
+  owner: PublicKey;
+  payer: PublicKey;
+  frontInstructions: TransactionInstruction[];
+  endInstructions: TransactionInstruction[];
+  signers: Signer[];
+  bypassAssociatedCheck: boolean;
+}
+
 export interface AddLiquidityInstructionParamsV4 {
   poolKeys: LiquidityPoolKeys;
   userKeys: LiquidityUserKeys;
@@ -292,6 +306,10 @@ export class Liquidity {
   //   return new Liquidity({ connection, poolKeys, poolInfo: _poolInfo });
   // }
 
+  static setLogLevel(logLevel: "DEBUG" | "INFO" | "WARNING" | "ERROR" | "OFF") {
+    Logger.setLogLevel(LogLevel[logLevel]);
+  }
+
   /* ================= get version and program id ================= */
   static getProgramId(version: number) {
     const programId = LIQUIDITY_VERSION_TO_PROGRAMID[version];
@@ -459,6 +477,51 @@ export class Liquidity {
   }
 
   /* ================= make instruction and transaction ================= */
+  static async _handleTokenAccount(params: HandleTokenAccountParams) {
+    const {
+      connection,
+      side,
+      amount,
+      mint,
+      tokenAccount,
+      owner,
+      payer,
+      frontInstructions,
+      endInstructions,
+      signers,
+      bypassAssociatedCheck,
+    } = params;
+
+    const ata = await Spl.getAssociatedTokenAccount({ mint, owner });
+
+    if (Token.WSOL.mint.equals(mint)) {
+      const newTokenAccount = await Spl.insertCreateWrappedNativeAccountInstructions({
+        connection,
+        owner,
+        payer,
+        instructions: frontInstructions,
+        signers,
+        amount,
+      });
+      endInstructions.push(Spl.makeCloseAccountInstruction({ tokenAccount: newTokenAccount, owner, payer }));
+
+      return newTokenAccount;
+    } else if (!tokenAccount || (side === "out" && !ata.equals(tokenAccount) && !bypassAssociatedCheck)) {
+      frontInstructions.push(
+        Spl.makeCreateAssociatedTokenAccountInstruction({
+          mint,
+          associatedAccount: ata,
+          owner,
+          payer: owner,
+        }),
+      );
+
+      return ata;
+    }
+
+    return tokenAccount;
+  }
+
   static makeAddLiquidityInstruction(params: AddLiquidityInstructionParams) {
     const { poolKeys } = params;
     const { version } = poolKeys;
@@ -517,33 +580,29 @@ export class Liquidity {
 
   static async makeAddLiquidityTransaction(params: AddLiquidityTransactionParams) {
     const { connection, poolKeys, userKeys, currencyAmountInA, currencyAmountInB, fixedSide, config } = params;
-    const { baseMint, quoteMint, lpMint } = poolKeys;
-    const { tokenAccountA, tokenAccountB, lpTokenAccount, owner, payer } = userKeys;
+    const { lpMint } = poolKeys;
+    const { tokenAccountA, tokenAccountB, lpTokenAccount, owner, payer = owner } = userKeys;
 
     logger.assertArgument(
       !currencyAmountInA.isZero && !currencyAmountInB.isZero,
       "amounts must greater than zero",
-      "tokenAmount",
+      "currencyAmountInA & currencyAmountInB",
       {
         currencyAmountInA: currencyAmountInA.toExact(),
         currencyAmountInB: currencyAmountInB.toExact(),
       },
     );
-    logger.assertArgument(!!tokenAccountA || !!tokenAccountB, "miss tokenAccounts", "tokenAccounts", {
+    logger.assertArgument(!!tokenAccountA || !!tokenAccountB, "miss tokenAccounts", "tokenAccountA & tokenAccountB", {
       tokenAccountA,
       tokenAccountB,
     });
 
     const { bypassAssociatedCheck } = {
       // default
-      ...{
-        bypassAssociatedCheck: false,
-      },
+      ...{ bypassAssociatedCheck: false },
       // custom
       ...config,
     };
-
-    const _payer = payer || owner;
 
     // handle currency a & b (convert SOL to WSOL)
     const tokenA = currencyAmountInA instanceof TokenAmount ? currencyAmountInA.token : Token.WSOL;
@@ -562,94 +621,62 @@ export class Liquidity {
       tokenAccounts.reverse();
       amounts.reverse();
 
-      if (fixedSide === "a") {
-        _fixedSide = "quote";
-      }
-    } else if (fixedSide === "b") {
-      _fixedSide = "quote";
-    } else {
-      return logger.throwArgumentError("invalid fixedSide", "fixedSide", fixedSide);
-    }
+      if (fixedSide === "a") _fixedSide = "quote";
+      else if (fixedSide === "b") _fixedSide = "base";
+      else return logger.throwArgumentError("invalid fixedSide", "fixedSide", fixedSide);
+    } else if (sideA === "base") {
+      if (fixedSide === "a") _fixedSide = "base";
+      else if (fixedSide === "b") _fixedSide = "quote";
+      else return logger.throwArgumentError("invalid fixedSide", "fixedSide", fixedSide);
+    } else return logger.throwArgumentError("invalid fixedSide", "fixedSide", fixedSide);
 
     const [baseToken, quoteToken] = tokens;
     const [baseTokenAccount, quoteTokenAccount] = tokenAccounts;
     const [baseAmount, quoteAmount] = amounts;
 
-    let _baseTokenAccount = await Spl.getAssociatedTokenAccount({ mint: baseMint, owner });
-    let _quoteTokenAccount = await Spl.getAssociatedTokenAccount({ mint: quoteMint, owner });
-    let _lpTokenAccount = await Spl.getAssociatedTokenAccount({ mint: lpMint, owner });
-
     const frontInstructions: TransactionInstruction[] = [];
     const endInstructions: TransactionInstruction[] = [];
     const signers: Signer[] = [];
 
-    // handle base token account
-    if (baseToken.equals(Token.WSOL)) {
-      const newBaseTokenAccount = await Spl.insertCreateWrappedNativeAccountInstructions({
-        connection,
-        owner,
-        payer: _payer,
-        instructions: frontInstructions,
-        signers,
-        amount: baseAmount,
-      });
-      endInstructions.push(
-        Spl.makeCloseAccountInstruction({ tokenAccount: newBaseTokenAccount, owner, payer: _payer }),
-      );
-      _baseTokenAccount = newBaseTokenAccount;
-    } else if (!baseTokenAccount) {
-      frontInstructions.push(
-        Spl.makeCreateAssociatedTokenAccountInstruction({
-          mint: baseMint,
-          associatedAccount: _baseTokenAccount,
-          owner,
-          payer: owner,
-        }),
-      );
-    } else {
-      _baseTokenAccount = baseTokenAccount;
-    }
-
-    // handle quote token account
-    if (quoteToken.equals(Token.WSOL)) {
-      const newQuoteTokenAccount = await Spl.insertCreateWrappedNativeAccountInstructions({
-        connection,
-        owner,
-        payer: _payer,
-        instructions: frontInstructions,
-        signers,
-        amount: quoteAmount,
-      });
-      endInstructions.push(
-        Spl.makeCloseAccountInstruction({ tokenAccount: newQuoteTokenAccount, owner, payer: _payer }),
-      );
-      _quoteTokenAccount = newQuoteTokenAccount;
-    } else if (!quoteTokenAccount) {
-      frontInstructions.push(
-        Spl.makeCreateAssociatedTokenAccountInstruction({
-          mint: quoteMint,
-          associatedAccount: _quoteTokenAccount,
-          owner,
-          payer: owner,
-        }),
-      );
-    } else {
-      _quoteTokenAccount = quoteTokenAccount;
-    }
-
-    // handle lp token account
-    if (!lpTokenAccount || (!_lpTokenAccount.equals(lpTokenAccount) && !bypassAssociatedCheck)) {
-      frontInstructions.push(
-        Spl.makeCreateAssociatedTokenAccountInstruction({
-          mint: lpMint,
-          associatedAccount: _lpTokenAccount,
-          owner,
-          payer: owner,
-        }),
-      );
-    } else {
-      _lpTokenAccount = lpTokenAccount;
-    }
+    const _baseTokenAccount = await this._handleTokenAccount({
+      connection,
+      side: "in",
+      amount: baseAmount,
+      mint: baseToken.mint,
+      tokenAccount: baseTokenAccount,
+      owner,
+      payer,
+      frontInstructions,
+      endInstructions,
+      signers,
+      bypassAssociatedCheck,
+    });
+    const _quoteTokenAccount = await this._handleTokenAccount({
+      connection,
+      side: "in",
+      amount: quoteAmount,
+      mint: quoteToken.mint,
+      tokenAccount: quoteTokenAccount,
+      owner,
+      payer,
+      frontInstructions,
+      endInstructions,
+      signers,
+      bypassAssociatedCheck,
+    });
+    const _lpTokenAccount = await this._handleTokenAccount({
+      connection,
+      side: "out",
+      amount: 0,
+      mint: lpMint,
+      tokenAccount: lpTokenAccount,
+      owner,
+      payer,
+      frontInstructions,
+      endInstructions,
+      signers,
+      bypassAssociatedCheck,
+    });
 
     frontInstructions.push(
       this.makeAddLiquidityInstruction({
@@ -734,89 +761,61 @@ export class Liquidity {
 
   static async makeRemoveLiquidityTransaction(params: RemoveLiquidityTransactionParams) {
     const { connection, poolKeys, userKeys, tokenAmountIn, config } = params;
-    const { baseMint, quoteMint } = poolKeys;
-    const { lpTokenAccount, baseTokenAccount, quoteTokenAccount, owner, payer } = userKeys;
+    const { baseMint, quoteMint, lpMint } = poolKeys;
+    const { lpTokenAccount, baseTokenAccount, quoteTokenAccount, owner, payer = owner } = userKeys;
 
     logger.assertArgument(
       !tokenAmountIn.isZero,
-      "amounts must greater than zero",
+      "amount must greater than zero",
       "tokenAmountIn",
       tokenAmountIn.toExact(),
+    );
+    logger.assertArgument(
+      tokenAmountIn instanceof TokenAmount && tokenAmountIn.token.mint.equals(lpMint),
+      "tokenAmountIn's token not match lpMint",
+      "tokenAmountIn",
+      tokenAmountIn,
     );
     logger.assertArgument(!!lpTokenAccount, "miss lpTokenAccount", "lpTokenAccount", lpTokenAccount);
 
     const { bypassAssociatedCheck } = {
       // default
-      ...{
-        bypassAssociatedCheck: false,
-      },
+      ...{ bypassAssociatedCheck: false },
       // custom
       ...config,
     };
-
-    const _payer = payer || owner;
-
-    const _lpTokenAccount = lpTokenAccount;
-    let _baseTokenAccount = await Spl.getAssociatedTokenAccount({ mint: baseMint, owner });
-    let _quoteTokenAccount = await Spl.getAssociatedTokenAccount({ mint: quoteMint, owner });
 
     const frontInstructions: TransactionInstruction[] = [];
     const endInstructions: TransactionInstruction[] = [];
     const signers: Signer[] = [];
 
-    // handle base token account
-    if (Token.WSOL.mint.equals(baseMint)) {
-      const newBaseTokenAccount = await Spl.insertCreateWrappedNativeAccountInstructions({
-        connection,
-        owner,
-        payer: _payer,
-        instructions: frontInstructions,
-        signers,
-        amount: 0,
-      });
-      endInstructions.push(
-        Spl.makeCloseAccountInstruction({ tokenAccount: newBaseTokenAccount, owner, payer: _payer }),
-      );
-      _baseTokenAccount = newBaseTokenAccount;
-    } else if (!baseTokenAccount || (!_baseTokenAccount.equals(baseTokenAccount) && !bypassAssociatedCheck)) {
-      frontInstructions.push(
-        Spl.makeCreateAssociatedTokenAccountInstruction({
-          mint: baseMint,
-          associatedAccount: _baseTokenAccount,
-          owner,
-          payer: owner,
-        }),
-      );
-    } else {
-      _baseTokenAccount = baseTokenAccount;
-    }
-
-    // handle quote token account
-    if (Token.WSOL.mint.equals(quoteMint)) {
-      const newQuoteTokenAccount = await Spl.insertCreateWrappedNativeAccountInstructions({
-        connection,
-        owner,
-        payer: _payer,
-        instructions: frontInstructions,
-        signers,
-        amount: 0,
-      });
-      endInstructions.push(
-        Spl.makeCloseAccountInstruction({ tokenAccount: newQuoteTokenAccount, owner, payer: _payer }),
-      );
-      _quoteTokenAccount = newQuoteTokenAccount;
-    } else if (!quoteTokenAccount || (!_quoteTokenAccount.equals(quoteTokenAccount) && !bypassAssociatedCheck)) {
-      frontInstructions.push(
-        Spl.makeCreateAssociatedTokenAccountInstruction({
-          mint: quoteMint,
-          associatedAccount: _quoteTokenAccount,
-          owner,
-          payer: owner,
-        }),
-      );
-    } else {
-      _quoteTokenAccount = quoteTokenAccount;
-    }
+    const _lpTokenAccount = lpTokenAccount;
+    const _baseTokenAccount = await this._handleTokenAccount({
+      connection,
+      side: "out",
+      amount: 0,
+      mint: baseMint,
+      tokenAccount: baseTokenAccount,
+      owner,
+      payer,
+      frontInstructions,
+      endInstructions,
+      signers,
+      bypassAssociatedCheck,
+    });
+    const _quoteTokenAccount = await this._handleTokenAccount({
+      connection,
+      side: "out",
+      amount: 0,
+      mint: quoteMint,
+      tokenAccount: quoteTokenAccount,
+      owner,
+      payer,
+      frontInstructions,
+      endInstructions,
+      signers,
+      bypassAssociatedCheck,
+    });
 
     frontInstructions.push(
       this.makeRemoveLiquidityInstruction({
@@ -959,7 +958,7 @@ export class Liquidity {
 
   static async makeSwapTransaction(params: SwapTransactionParams) {
     const { connection, poolKeys, userKeys, currencyAmountIn, currencyAmountOut, fixedSide, config } = params;
-    const { tokenAccountIn, tokenAccountOut, owner, payer } = userKeys;
+    const { tokenAccountIn, tokenAccountOut, owner, payer = owner } = userKeys;
 
     logger.assertArgument(
       !currencyAmountIn.isZero && !currencyAmountOut.isZero,
@@ -967,23 +966,16 @@ export class Liquidity {
       "currencyAmounts",
       {
         currencyAmountIn: currencyAmountIn.toExact(),
+        currencyAmountOut: currencyAmountOut.toExact(),
       },
     );
-    logger.assertArgument(!!tokenAccountIn || !!tokenAccountOut, "miss tokenAccounts", "tokenAccounts", {
-      tokenAccountIn,
-      tokenAccountOut,
-    });
 
     const { bypassAssociatedCheck } = {
       // default
-      ...{
-        bypassAssociatedCheck: false,
-      },
+      ...{ bypassAssociatedCheck: false },
       // custom
       ...config,
     };
-
-    const _payer = payer || owner;
 
     // handle currency in & out (convert SOL to WSOL)
     const tokenIn = currencyAmountIn instanceof TokenAmount ? currencyAmountIn.token : Token.WSOL;
@@ -991,62 +983,36 @@ export class Liquidity {
 
     const [amountIn, amountOut] = [currencyAmountIn.raw, currencyAmountOut.raw];
 
-    let _tokenAccountIn = await Spl.getAssociatedTokenAccount({ mint: tokenIn.mint, owner });
-    let _tokenAccountOut = await Spl.getAssociatedTokenAccount({ mint: tokenOut.mint, owner });
-
     const frontInstructions: TransactionInstruction[] = [];
     const endInstructions: TransactionInstruction[] = [];
     const signers: Signer[] = [];
 
-    // handle token account in
-    if (tokenIn.equals(Token.WSOL)) {
-      const newTokenAccountIn = await Spl.insertCreateWrappedNativeAccountInstructions({
-        connection,
-        owner,
-        payer: _payer,
-        instructions: frontInstructions,
-        signers,
-        amount: amountIn,
-      });
-      endInstructions.push(Spl.makeCloseAccountInstruction({ tokenAccount: newTokenAccountIn, owner, payer: _payer }));
-      _tokenAccountIn = newTokenAccountIn;
-    } else if (!tokenAccountIn) {
-      frontInstructions.push(
-        Spl.makeCreateAssociatedTokenAccountInstruction({
-          mint: tokenIn.mint,
-          associatedAccount: _tokenAccountIn,
-          owner,
-          payer: owner,
-        }),
-      );
-    } else {
-      _tokenAccountIn = tokenAccountIn;
-    }
-
-    // handle token account out
-    if (tokenOut.equals(Token.WSOL)) {
-      const newTokenAccountOut = await Spl.insertCreateWrappedNativeAccountInstructions({
-        connection,
-        owner,
-        payer: _payer,
-        instructions: frontInstructions,
-        signers,
-        amount: 0,
-      });
-      endInstructions.push(Spl.makeCloseAccountInstruction({ tokenAccount: newTokenAccountOut, owner, payer: _payer }));
-      _tokenAccountOut = newTokenAccountOut;
-    } else if (!tokenAccountOut || (!_tokenAccountOut.equals(tokenAccountOut) && !bypassAssociatedCheck)) {
-      frontInstructions.push(
-        Spl.makeCreateAssociatedTokenAccountInstruction({
-          mint: tokenOut.mint,
-          associatedAccount: _tokenAccountOut,
-          owner,
-          payer: owner,
-        }),
-      );
-    } else {
-      _tokenAccountOut = tokenAccountOut;
-    }
+    const _tokenAccountIn = await this._handleTokenAccount({
+      connection,
+      side: "in",
+      amount: amountIn,
+      mint: tokenIn.mint,
+      tokenAccount: tokenAccountIn,
+      owner,
+      payer,
+      frontInstructions,
+      endInstructions,
+      signers,
+      bypassAssociatedCheck,
+    });
+    const _tokenAccountOut = await this._handleTokenAccount({
+      connection,
+      side: "out",
+      amount: 0,
+      mint: tokenOut.mint,
+      tokenAccount: tokenAccountOut,
+      owner,
+      payer,
+      frontInstructions,
+      endInstructions,
+      signers,
+      bypassAssociatedCheck,
+    });
 
     frontInstructions.push(
       this.makeSwapInstruction({
@@ -1524,9 +1490,16 @@ export class Liquidity {
     | { anotherCurrencyAmount: CurrencyAmount; maxAnotherCurrencyAmount: CurrencyAmount }
     | { anotherCurrencyAmount: TokenAmount; maxAnotherCurrencyAmount: TokenAmount } {
     const { baseReserve, quoteReserve } = poolInfo;
+    logger.debug("baseReserve:", baseReserve.toString());
+    logger.debug("quoteReserve:", quoteReserve.toString());
+
+    logger.debug("currencyAmount:", currencyAmount.toExact());
+    logger.debug("anotherCurrency:", anotherCurrency);
+    logger.debug("slippage:", slippage.toSignificant());
 
     // input is fixed
     const input = this._getAmountSide(currencyAmount, poolKeys);
+    logger.debug("input side:", input);
 
     const _slippage = new Percent(ONE).add(slippage);
 
@@ -1537,16 +1510,20 @@ export class Liquidity {
         : divCeil(currencyAmount.raw.mul(baseReserve), quoteReserve);
     const slippageAdjustedAmount = _slippage.mul(amount).quotient;
 
-    if (anotherCurrency instanceof Token) {
-      return {
-        anotherCurrencyAmount: new TokenAmount(anotherCurrency, amount),
-        maxAnotherCurrencyAmount: new TokenAmount(anotherCurrency, slippageAdjustedAmount),
-      };
-    }
+    const _anotherCurrencyAmount =
+      anotherCurrency instanceof Token
+        ? new TokenAmount(anotherCurrency, amount)
+        : new CurrencyAmount(anotherCurrency, amount);
+    const _maxAnotherCurrencyAmount =
+      anotherCurrency instanceof Token
+        ? new TokenAmount(anotherCurrency, slippageAdjustedAmount)
+        : new CurrencyAmount(anotherCurrency, slippageAdjustedAmount);
+    logger.debug("anotherCurrencyAmount:", _anotherCurrencyAmount.toExact());
+    logger.debug("maxAnotherCurrencyAmount:", _maxAnotherCurrencyAmount.toExact());
 
     return {
-      anotherCurrencyAmount: new CurrencyAmount(anotherCurrency, amount),
-      maxAnotherCurrencyAmount: new CurrencyAmount(anotherCurrency, slippageAdjustedAmount),
+      anotherCurrencyAmount: _anotherCurrencyAmount,
+      maxAnotherCurrencyAmount: _maxAnotherCurrencyAmount,
     };
   }
 
@@ -1568,6 +1545,12 @@ export class Liquidity {
     | { amountOut: CurrencyAmount; minAmountOut: CurrencyAmount }
     | { amountOut: TokenAmount; minAmountOut: TokenAmount } => {
     const { baseReserve, quoteReserve } = poolInfo;
+    logger.debug("baseReserve:", baseReserve.toString());
+    logger.debug("quoteReserve:", quoteReserve.toString());
+
+    logger.debug("currencyAmountIn:", currencyAmountIn.toExact());
+    logger.debug("currencyOut:", currencyOut);
+    logger.debug("slippage:", slippage.toSignificant());
 
     const reserves = [parseBigNumberish(baseReserve), parseBigNumberish(quoteReserve)];
 
@@ -1576,6 +1559,7 @@ export class Liquidity {
     if (input === "quote") {
       reserves.reverse();
     }
+    logger.debug("input side:", input);
 
     const [reserveIn, reserveOut] = reserves;
 
@@ -1588,16 +1572,20 @@ export class Liquidity {
     const amountOut = numerator.div(denominator);
     const minAmountOut = _slippage.invert().mul(amountOut).quotient;
 
-    if (currencyOut instanceof Token) {
-      return {
-        amountOut: new TokenAmount(currencyOut, amountOut),
-        minAmountOut: new TokenAmount(currencyOut, minAmountOut),
-      };
-    }
+    const _amountOut =
+      currencyOut instanceof Token
+        ? new TokenAmount(currencyOut, amountOut)
+        : new CurrencyAmount(currencyOut, amountOut);
+    const _minAmountOut =
+      currencyOut instanceof Token
+        ? new TokenAmount(currencyOut, minAmountOut)
+        : new CurrencyAmount(currencyOut, minAmountOut);
+    logger.debug("amountOut:", _amountOut.toExact());
+    logger.debug("minAmountOut:", _minAmountOut.toExact());
 
     return {
-      amountOut: new CurrencyAmount(currencyOut, amountOut),
-      minAmountOut: new CurrencyAmount(currencyOut, minAmountOut),
+      amountOut: _amountOut,
+      minAmountOut: _minAmountOut,
     };
   };
 
@@ -1619,6 +1607,12 @@ export class Liquidity {
     | { amountIn: CurrencyAmount; maxAmountIn: CurrencyAmount }
     | { amountIn: TokenAmount; maxAmountIn: TokenAmount } {
     const { baseReserve, quoteReserve } = poolInfo;
+    logger.debug("baseReserve:", baseReserve.toString());
+    logger.debug("quoteReserve:", quoteReserve.toString());
+
+    logger.debug("currencyAmountOut:", currencyAmountOut.toExact());
+    logger.debug("currencyIn:", currencyIn);
+    logger.debug("slippage:", slippage.toSignificant());
 
     const reserves = [parseBigNumberish(baseReserve), parseBigNumberish(quoteReserve)];
 
@@ -1627,6 +1621,7 @@ export class Liquidity {
     if (output === "base") {
       reserves.reverse();
     }
+    logger.debug("output side:", output);
 
     const [reserveIn, reserveOut] = reserves;
 
@@ -1638,16 +1633,18 @@ export class Liquidity {
     const amountIn = numerator.div(denominator).add(ONE);
     const maxAmountIn = _slippage.mul(amountIn).quotient;
 
-    if (currencyIn instanceof Token) {
-      return {
-        amountIn: new TokenAmount(currencyIn, amountIn),
-        maxAmountIn: new TokenAmount(currencyIn, maxAmountIn),
-      };
-    }
+    const _amountIn =
+      currencyIn instanceof Token ? new TokenAmount(currencyIn, amountIn) : new CurrencyAmount(currencyIn, amountIn);
+    const _maxAmountIn =
+      currencyIn instanceof Token
+        ? new TokenAmount(currencyIn, maxAmountIn)
+        : new CurrencyAmount(currencyIn, maxAmountIn);
+    logger.debug("amountIn:", _amountIn.toExact());
+    logger.debug("maxAmountIn:", _maxAmountIn.toExact());
 
     return {
-      amountIn: new CurrencyAmount(currencyIn, amountIn),
-      maxAmountIn: new CurrencyAmount(currencyIn, maxAmountIn),
+      amountIn: _amountIn,
+      maxAmountIn: _maxAmountIn,
     };
   }
 }
