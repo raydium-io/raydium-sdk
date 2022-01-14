@@ -1,6 +1,6 @@
 import { Token as _Token, u64 as _u64 } from "@solana/spl-token";
 import {
-  Commitment, Connection, Keypair, PublicKey, Signer, SystemProgram, Transaction, TransactionInstruction,
+  Commitment, Connection, Keypair, PublicKey, Signer, SystemProgram, TransactionInstruction,
 } from "@solana/web3.js";
 
 import { ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID, validateAndParsePublicKey } from "../common";

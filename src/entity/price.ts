@@ -17,8 +17,8 @@ export class Price extends Fraction {
   // denominator and numerator _must_ be raw, i.e. in the native representation
   public constructor(
     baseCurrency: Currency,
-    quoteCurrency: Currency,
     denominator: BigNumberish,
+    quoteCurrency: Currency,
     numerator: BigNumberish,
   ) {
     super(numerator, denominator);
@@ -37,22 +37,21 @@ export class Price extends Fraction {
   }
 
   public invert(): Price {
-    return new Price(this.quoteCurrency, this.baseCurrency, this.numerator, this.denominator);
+    return new Price(this.quoteCurrency, this.numerator, this.baseCurrency, this.denominator);
   }
 
   public mul(other: Price): Price {
     logger.assert(currencyEquals(this.quoteCurrency, other.baseCurrency), "mul currency not equals");
 
     const fraction = super.mul(other);
-    return new Price(this.baseCurrency, other.quoteCurrency, fraction.denominator, fraction.numerator);
+    return new Price(this.baseCurrency, fraction.denominator, other.quoteCurrency, fraction.numerator);
   }
 
-  // TODO: should use this.quoteCurrency.decimals?
-  public toSignificant(significantDigits = 6, format?: object, rounding?: Rounding): string {
+  public toSignificant(significantDigits = this.quoteCurrency.decimals, format?: object, rounding?: Rounding): string {
     return this.adjusted.toSignificant(significantDigits, format, rounding);
   }
 
-  public toFixed(decimalPlaces = 4, format?: object, rounding?: Rounding): string {
+  public toFixed(decimalPlaces = this.quoteCurrency.decimals, format?: object, rounding?: Rounding): string {
     return this.adjusted.toFixed(decimalPlaces, format, rounding);
   }
 }

@@ -3,11 +3,11 @@ import BN from "bn.js";
 
 import {
   AccountMeta, AccountMetaReadonly, findProgramAddress, getMultipleAccountsInfo, GetMultipleAccountsInfoConfig, Logger,
-  LogLevel, parseSimulateLogToJson, parseSimulateValue, simulateMultipleInstruction, SYSTEM_PROGRAM_ID,
-  SYSVAR_RENT_PUBKEY, TOKEN_PROGRAM_ID,
+  parseSimulateLogToJson, parseSimulateValue, simulateMultipleInstruction, SYSTEM_PROGRAM_ID, SYSVAR_RENT_PUBKEY,
+  TOKEN_PROGRAM_ID,
 } from "../common";
 import {
-  BigNumberish, Currency, CurrencyAmount, divCeil, ONE, parseBigNumberish, Percent, Token, TokenAmount, ZERO,
+  BigNumberish, Currency, CurrencyAmount, divCeil, ONE, parseBigNumberish, Percent, Price, Token, TokenAmount, ZERO,
 } from "../entity";
 import { struct, u64, u8 } from "../marshmallow";
 import { Market } from "../serum";
@@ -306,10 +306,6 @@ export class Liquidity {
   //   return new Liquidity({ connection, poolKeys, poolInfo: _poolInfo });
   // }
 
-  static setLogLevel(logLevel: "DEBUG" | "INFO" | "WARNING" | "ERROR" | "OFF") {
-    Logger.setLogLevel(LogLevel[logLevel]);
-  }
-
   /* ================= get version and program id ================= */
   static getProgramId(version: number) {
     const programId = LIQUIDITY_VERSION_TO_PROGRAMID[version];
@@ -588,8 +584,8 @@ export class Liquidity {
       "amounts must greater than zero",
       "currencyAmountInA & currencyAmountInB",
       {
-        currencyAmountInA: currencyAmountInA.toExact(),
-        currencyAmountInB: currencyAmountInB.toExact(),
+        currencyAmountInA: currencyAmountInA.toFixed(),
+        currencyAmountInB: currencyAmountInB.toFixed(),
       },
     );
     logger.assertArgument(!!tokenAccountA || !!tokenAccountB, "miss tokenAccounts", "tokenAccountA & tokenAccountB", {
@@ -768,7 +764,7 @@ export class Liquidity {
       !tokenAmountIn.isZero,
       "amount must greater than zero",
       "tokenAmountIn",
-      tokenAmountIn.toExact(),
+      tokenAmountIn.toFixed(),
     );
     logger.assertArgument(
       tokenAmountIn instanceof TokenAmount && tokenAmountIn.token.mint.equals(lpMint),
@@ -965,8 +961,8 @@ export class Liquidity {
       "amounts must greater than zero",
       "currencyAmounts",
       {
-        currencyAmountIn: currencyAmountIn.toExact(),
-        currencyAmountOut: currencyAmountOut.toExact(),
+        currencyAmountIn: currencyAmountIn.toFixed(),
+        currencyAmountOut: currencyAmountOut.toFixed(),
       },
     );
 
@@ -1493,7 +1489,9 @@ export class Liquidity {
     logger.debug("baseReserve:", baseReserve.toString());
     logger.debug("quoteReserve:", quoteReserve.toString());
 
-    logger.debug("currencyAmount:", currencyAmount.toExact());
+    const currencyIn = currencyAmount instanceof TokenAmount ? currencyAmount.token : currencyAmount.currency;
+    logger.debug("currencyIn:", currencyIn);
+    logger.debug("currencyAmount:", currencyAmount.toFixed());
     logger.debug("anotherCurrency:", anotherCurrency);
     logger.debug("slippage:", `${slippage.toSignificant()}%`);
 
@@ -1521,8 +1519,8 @@ export class Liquidity {
       anotherCurrency instanceof Token
         ? new TokenAmount(anotherCurrency, slippageAdjustedAmount)
         : new CurrencyAmount(anotherCurrency, slippageAdjustedAmount);
-    logger.debug("anotherCurrencyAmount:", _anotherCurrencyAmount.toExact());
-    logger.debug("maxAnotherCurrencyAmount:", _maxAnotherCurrencyAmount.toExact());
+    logger.debug("anotherCurrencyAmount:", _anotherCurrencyAmount.toFixed());
+    logger.debug("maxAnotherCurrencyAmount:", _maxAnotherCurrencyAmount.toFixed());
 
     return {
       anotherCurrencyAmount: _anotherCurrencyAmount,
@@ -1530,8 +1528,17 @@ export class Liquidity {
     };
   }
 
+  static _computePriceImpact(currentPrice: Price, amountIn: BN, amountOut: BN) {
+    const exactQuote = currentPrice.raw.mul(amountIn);
+    // calculate slippage := (exactQuote - outputAmount) / exactQuote
+    const slippage = exactQuote.sub(amountOut).div(exactQuote);
+    return new Percent(slippage.numerator, slippage.denominator);
+  }
+
   /**
    * Compute output currency amount of swap
+   *
+   * @param params - {@link ComputeCurrencyAmountOutParams}
    *
    * @returns
    * amountOut - currency amount without slippage
@@ -1545,13 +1552,27 @@ export class Liquidity {
     currencyOut,
     slippage,
   }: ComputeCurrencyAmountOutParams):
-    | { amountOut: CurrencyAmount; minAmountOut: CurrencyAmount }
-    | { amountOut: TokenAmount; minAmountOut: TokenAmount } => {
+    | {
+        amountOut: CurrencyAmount;
+        minAmountOut: CurrencyAmount;
+        currentPrice: Price;
+        executionPrice: Price;
+        priceImpact: Percent;
+      }
+    | {
+        amountOut: TokenAmount;
+        minAmountOut: TokenAmount;
+        currentPrice: Price;
+        executionPrice: Price;
+        priceImpact: Percent;
+      } => {
     const { baseReserve, quoteReserve } = poolInfo;
     logger.debug("baseReserve:", baseReserve.toString());
     logger.debug("quoteReserve:", quoteReserve.toString());
 
-    logger.debug("currencyAmountIn:", currencyAmountIn.toExact());
+    const currencyIn = currencyAmountIn instanceof TokenAmount ? currencyAmountIn.token : currencyAmountIn.currency;
+    logger.debug("currencyIn:", currencyIn);
+    logger.debug("currencyAmountIn:", currencyAmountIn.toFixed());
     logger.debug("currencyOut:", currencyOut);
     logger.debug("slippage:", `${slippage.toSignificant()}%`);
 
@@ -1566,7 +1587,12 @@ export class Liquidity {
 
     const [reserveIn, reserveOut] = reserves;
 
-    const _slippage = new Percent(ONE).add(slippage);
+    const currentPrice = new Price(currencyIn, reserveIn, currencyOut, reserveOut);
+    logger.debug("currentPrice:", `1 ${currencyIn.symbol} ≈ ${currentPrice.toFixed()} ${currencyOut.symbol}`);
+    logger.debug(
+      "currentPrice invert:",
+      `1 ${currencyOut.symbol} ≈ ${currentPrice.invert().toFixed()} ${currencyIn.symbol}`,
+    );
 
     let amountOut = ZERO;
     if (!currencyAmountIn.isZero) {
@@ -1576,6 +1602,8 @@ export class Liquidity {
 
       amountOut = numerator.div(denominator);
     }
+
+    const _slippage = new Percent(ONE).add(slippage);
     const minAmountOut = _slippage.invert().mul(amountOut).quotient;
 
     const _amountOut =
@@ -1586,17 +1614,32 @@ export class Liquidity {
       currencyOut instanceof Token
         ? new TokenAmount(currencyOut, minAmountOut)
         : new CurrencyAmount(currencyOut, minAmountOut);
-    logger.debug("amountOut:", _amountOut.toExact());
-    logger.debug("minAmountOut:", _minAmountOut.toExact());
+    logger.debug("amountOut:", _amountOut.toFixed());
+    logger.debug("minAmountOut:", _minAmountOut.toFixed());
+
+    const executionPrice = new Price(currencyIn, currencyAmountIn.raw, currencyOut, _amountOut.raw);
+    logger.debug("executionPrice:", `1 ${currencyIn.symbol} ≈ ${executionPrice.toFixed()} ${currencyOut.symbol}`);
+    logger.debug(
+      "executionPrice invert:",
+      `1 ${currencyOut.symbol} ≈ ${executionPrice.invert().toFixed()} ${currencyIn.symbol}`,
+    );
+
+    const priceImpact = this._computePriceImpact(currentPrice, currencyAmountIn.raw, _amountOut.raw);
+    logger.debug("priceImpact:", `${priceImpact.toSignificant()}%`);
 
     return {
       amountOut: _amountOut,
       minAmountOut: _minAmountOut,
+      currentPrice,
+      executionPrice,
+      priceImpact,
     };
   };
 
   /**
    * Compute input currency amount of swap
+   *
+   * @param params - {@link ComputeCurrencyAmountInParams}
    *
    * @returns
    * amountIn - currency amount without slippage
@@ -1610,13 +1653,27 @@ export class Liquidity {
     currencyIn,
     slippage,
   }: ComputeCurrencyAmountInParams):
-    | { amountIn: CurrencyAmount; maxAmountIn: CurrencyAmount }
-    | { amountIn: TokenAmount; maxAmountIn: TokenAmount } {
+    | {
+        amountIn: CurrencyAmount;
+        maxAmountIn: CurrencyAmount;
+        currentPrice: Price;
+        executionPrice: Price;
+        priceImpact: Percent;
+      }
+    | {
+        amountIn: TokenAmount;
+        maxAmountIn: TokenAmount;
+        currentPrice: Price;
+        executionPrice: Price;
+        priceImpact: Percent;
+      } {
     const { baseReserve, quoteReserve } = poolInfo;
     logger.debug("baseReserve:", baseReserve.toString());
     logger.debug("quoteReserve:", quoteReserve.toString());
 
-    logger.debug("currencyAmountOut:", currencyAmountOut.toExact());
+    const currencyOut = currencyAmountOut instanceof TokenAmount ? currencyAmountOut.token : currencyAmountOut.currency;
+    logger.debug("currencyOut:", currencyOut);
+    logger.debug("currencyAmountOut:", currencyAmountOut.toFixed());
     logger.debug("currencyIn:", currencyIn);
     logger.debug("slippage:", `${slippage.toSignificant()}%`);
 
@@ -1631,7 +1688,12 @@ export class Liquidity {
 
     const [reserveIn, reserveOut] = reserves;
 
-    const _slippage = new Percent(ONE).add(slippage);
+    const currentPrice = new Price(currencyIn, reserveIn, currencyOut, reserveOut);
+    logger.debug("currentPrice:", `1 ${currencyIn.symbol} ≈ ${currentPrice.toFixed()} ${currencyOut.symbol}`);
+    logger.debug(
+      "currentPrice invert:",
+      `1 ${currencyOut.symbol} ≈ ${currentPrice.invert().toFixed()} ${currencyIn.symbol}`,
+    );
 
     let amountIn = ZERO;
     if (!currencyAmountOut.isZero) {
@@ -1640,6 +1702,8 @@ export class Liquidity {
 
       amountIn = numerator.div(denominator).add(ONE);
     }
+
+    const _slippage = new Percent(ONE).add(slippage);
     const maxAmountIn = _slippage.mul(amountIn).quotient;
 
     const _amountIn =
@@ -1648,12 +1712,25 @@ export class Liquidity {
       currencyIn instanceof Token
         ? new TokenAmount(currencyIn, maxAmountIn)
         : new CurrencyAmount(currencyIn, maxAmountIn);
-    logger.debug("amountIn:", _amountIn.toExact());
-    logger.debug("maxAmountIn:", _maxAmountIn.toExact());
+    logger.debug("amountIn:", _amountIn.toFixed());
+    logger.debug("maxAmountIn:", _maxAmountIn.toFixed());
+
+    const executionPrice = new Price(currencyIn, _amountIn.raw, currencyOut, currencyAmountOut.raw);
+    logger.debug("executionPrice:", `1 ${currencyIn.symbol} ≈ ${executionPrice.toFixed()} ${currencyOut.symbol}`);
+    logger.debug(
+      "executionPrice invert:",
+      `1 ${currencyOut.symbol} ≈ ${executionPrice.invert().toFixed()} ${currencyIn.symbol}`,
+    );
+
+    const priceImpact = this._computePriceImpact(currentPrice, _amountIn.raw, currencyAmountOut.raw);
+    logger.debug("priceImpact:", `${priceImpact.toSignificant()}%`);
 
     return {
       amountIn: _amountIn,
       maxAmountIn: _maxAmountIn,
+      currentPrice,
+      executionPrice,
+      priceImpact,
     };
   }
 }
