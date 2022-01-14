@@ -73,7 +73,7 @@ export class CurrencyAmount extends Fraction {
     return this.numerator;
   }
 
-  public get isZero() {
+  public isZero() {
     return this.raw.isZero();
   }
 

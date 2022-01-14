@@ -580,7 +580,7 @@ export class Liquidity {
     const { tokenAccountA, tokenAccountB, lpTokenAccount, owner, payer = owner } = userKeys;
 
     logger.assertArgument(
-      !currencyAmountInA.isZero && !currencyAmountInB.isZero,
+      !currencyAmountInA.isZero() && !currencyAmountInB.isZero(),
       "amounts must greater than zero",
       "currencyAmountInA & currencyAmountInB",
       {
@@ -761,7 +761,7 @@ export class Liquidity {
     const { lpTokenAccount, baseTokenAccount, quoteTokenAccount, owner, payer = owner } = userKeys;
 
     logger.assertArgument(
-      !tokenAmountIn.isZero,
+      !tokenAmountIn.isZero(),
       "amount must greater than zero",
       "tokenAmountIn",
       tokenAmountIn.toFixed(),
@@ -957,7 +957,7 @@ export class Liquidity {
     const { tokenAccountIn, tokenAccountOut, owner, payer = owner } = userKeys;
 
     logger.assertArgument(
-      !currencyAmountIn.isZero && !currencyAmountOut.isZero,
+      !currencyAmountIn.isZero() && !currencyAmountOut.isZero(),
       "amounts must greater than zero",
       "currencyAmounts",
       {
@@ -1499,16 +1499,16 @@ export class Liquidity {
     const input = this._getAmountSide(currencyAmount, poolKeys);
     logger.debug("input side:", input);
 
-    const _slippage = new Percent(ONE).add(slippage);
-
     // round up
     let amount = ZERO;
-    if (!currencyAmount.isZero) {
+    if (!currencyAmount.isZero()) {
       amount =
         input === "base"
           ? divCeil(currencyAmount.raw.mul(quoteReserve), baseReserve)
           : divCeil(currencyAmount.raw.mul(baseReserve), quoteReserve);
     }
+
+    const _slippage = new Percent(ONE).add(slippage);
     const slippageAdjustedAmount = _slippage.mul(amount).quotient;
 
     const _anotherCurrencyAmount =
@@ -1594,9 +1594,10 @@ export class Liquidity {
       `1 ${currencyOut.symbol} ≈ ${currentPrice.invert().toFixed()} ${currencyIn.symbol}`,
     );
 
+    const amountIn = currencyAmountIn.raw;
     let amountOut = ZERO;
-    if (!currencyAmountIn.isZero) {
-      const amountInWithFee = currencyAmountIn.raw.mul(LIQUIDITY_FEES_NUMERATOR);
+    if (!amountIn.isZero()) {
+      const amountInWithFee = amountIn.mul(LIQUIDITY_FEES_NUMERATOR);
       const numerator = amountInWithFee.mul(reserveOut);
       const denominator = reserveIn.mul(LIQUIDITY_FEES_DENOMINATOR).add(amountInWithFee);
 
@@ -1617,14 +1618,14 @@ export class Liquidity {
     logger.debug("amountOut:", _amountOut.toFixed());
     logger.debug("minAmountOut:", _minAmountOut.toFixed());
 
-    const executionPrice = new Price(currencyIn, currencyAmountIn.raw, currencyOut, _amountOut.raw);
+    const executionPrice = new Price(currencyIn, amountIn, currencyOut, amountOut);
     logger.debug("executionPrice:", `1 ${currencyIn.symbol} ≈ ${executionPrice.toFixed()} ${currencyOut.symbol}`);
     logger.debug(
       "executionPrice invert:",
       `1 ${currencyOut.symbol} ≈ ${executionPrice.invert().toFixed()} ${currencyIn.symbol}`,
     );
 
-    const priceImpact = this._computePriceImpact(currentPrice, currencyAmountIn.raw, _amountOut.raw);
+    const priceImpact = this._computePriceImpact(currentPrice, amountIn, amountOut);
     logger.debug("priceImpact:", `${priceImpact.toSignificant()}%`);
 
     return {
@@ -1696,9 +1697,14 @@ export class Liquidity {
     );
 
     let amountIn = ZERO;
-    if (!currencyAmountOut.isZero) {
-      const numerator = reserveIn.mul(currencyAmountOut.raw).mul(LIQUIDITY_FEES_DENOMINATOR);
-      const denominator = reserveOut.sub(currencyAmountOut.raw).mul(LIQUIDITY_FEES_NUMERATOR);
+    let amountOut = currencyAmountOut.raw;
+    if (!amountOut.isZero()) {
+      if (amountOut.gt(reserveOut)) {
+        amountOut = reserveOut.sub(ONE);
+      }
+
+      const numerator = reserveIn.mul(amountOut).mul(LIQUIDITY_FEES_DENOMINATOR);
+      const denominator = reserveOut.sub(amountOut).mul(LIQUIDITY_FEES_NUMERATOR);
 
       amountIn = numerator.div(denominator).add(ONE);
     }
@@ -1715,14 +1721,14 @@ export class Liquidity {
     logger.debug("amountIn:", _amountIn.toFixed());
     logger.debug("maxAmountIn:", _maxAmountIn.toFixed());
 
-    const executionPrice = new Price(currencyIn, _amountIn.raw, currencyOut, currencyAmountOut.raw);
+    const executionPrice = new Price(currencyIn, amountIn, currencyOut, amountOut);
     logger.debug("executionPrice:", `1 ${currencyIn.symbol} ≈ ${executionPrice.toFixed()} ${currencyOut.symbol}`);
     logger.debug(
       "executionPrice invert:",
       `1 ${currencyOut.symbol} ≈ ${executionPrice.invert().toFixed()} ${currencyIn.symbol}`,
     );
 
-    const priceImpact = this._computePriceImpact(currentPrice, _amountIn.raw, currencyAmountOut.raw);
+    const priceImpact = this._computePriceImpact(currentPrice, amountIn, amountOut);
     logger.debug("priceImpact:", `${priceImpact.toSignificant()}%`);
 
     return {
