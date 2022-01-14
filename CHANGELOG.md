@@ -1,10 +1,21 @@
 # Changelog
 
+### 1.0.1-beta.23 (2022-01-15)
+
+- Add
+  - Return `priceImpact` for `Liquidity.computeCurrencyAmountOut` and `Liquidity.computeCurrencyAmountIn`
+- Change
+  - Fix bug
+
+### 1.0.1-beta.22 (2022-01-15)
+
+- Change
+  - Fix bug
+
 ### 1.0.1-beta.21 (2022-01-14)
 
 - Add
   - `makeSwapInstruction` for `Liquidity`
-  - `setLogLevel` for `Liquidity`
   - `gt` and `lt` for `CurrencyAmount`
 
 ### 1.0.1-beta.19 (2022-01-12)
