@@ -103,7 +103,7 @@ export class Trade {
         slippage,
       });
 
-      if (amountIn.gt(currencyAmountIn)) {
+      if (amountIn.lt(currencyAmountIn) || currencyAmountIn.isZero) {
         currencyAmountIn = amountIn;
         maxCurrencyAmountIn = maxAmountIn;
       }
