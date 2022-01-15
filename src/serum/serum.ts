@@ -8,7 +8,7 @@ import { MARKET_VERSION_TO_STATE_LAYOUT } from "./layout";
 const logger = Logger.from("Serum");
 
 export class Market {
-  /* ================= static functions ================= */
+  /* ================= get version and program id ================= */
   static getProgramId(version: number) {
     const programId = SERUM_VERSION_TO_PROGRAMID[version];
     logger.assertArgument(!!programId, "invalid version", "version", version);
@@ -25,6 +25,7 @@ export class Market {
     return version;
   }
 
+  /* ================= get layout ================= */
   static getStateLayout(version: number) {
     const STATE_LAYOUT = MARKET_VERSION_TO_STATE_LAYOUT[version];
     logger.assertArgument(!!STATE_LAYOUT, "invalid version", "version", version);
@@ -36,6 +37,7 @@ export class Market {
     return { state: this.getStateLayout(version) };
   }
 
+  /* ================= get key ================= */
   static async getAssociatedAuthority({ programId, marketId }: { programId: PublicKey; marketId: PublicKey }) {
     const seeds = [marketId.toBuffer()];
 
@@ -58,8 +60,8 @@ export class Market {
     }
 
     return logger.throwArgumentError("unable to find a viable program address nonce", "params", {
-      programId: programId.toBase58(),
-      marketId: marketId.toBase58(),
+      programId,
+      marketId,
     });
   }
 }

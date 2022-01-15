@@ -1413,6 +1413,12 @@ export class Liquidity {
   }
 
   /* ================= compute data ================= */
+  /**
+   * Get token side of liquidity pool
+   * @param token - the token provided
+   * @param poolKeys - the pool keys
+   * @returns token side is `base` or `quote`
+   */
   static _getTokenSide(token: Token, poolKeys: LiquidityPoolKeys): AmountSide {
     const { baseMint, quoteMint } = poolKeys;
 
@@ -1426,6 +1432,13 @@ export class Liquidity {
       });
   }
 
+  /**
+   * Get tokens side of liquidity pool
+   * @param tokenA - the token provided
+   * @param tokenB - the token provided
+   * @param poolKeys - the pool keys
+   * @returns tokens side array
+   */
   static _getTokensSide(tokenA: Token, tokenB: Token, poolKeys: LiquidityPoolKeys): AmountSide[] {
     const { baseMint, quoteMint } = poolKeys;
 
@@ -1441,12 +1454,25 @@ export class Liquidity {
     return [sideA, sideB];
   }
 
+  /**
+   * Get currency amount side of liquidity pool
+   * @param amount - the currency amount provided
+   * @param poolKeys - the pool keys
+   * @returns currency amount side is `base` or `quote`
+   */
   static _getAmountSide(amount: CurrencyAmount | TokenAmount, poolKeys: LiquidityPoolKeys): AmountSide {
     const token = amount instanceof TokenAmount ? amount.token : Token.WSOL;
 
     return this._getTokenSide(token, poolKeys);
   }
 
+  /**
+   * Get currencies amount side of liquidity pool
+   * @param amountA - the currency amount provided
+   * @param amountB - the currency amount provided
+   * @param poolKeys - the pool keys
+   * @returns currencies amount side array
+   */
   static _getAmountsSide(
     amountA: CurrencyAmount | TokenAmount,
     amountB: CurrencyAmount | TokenAmount,
@@ -1556,14 +1582,14 @@ export class Liquidity {
         amountOut: CurrencyAmount;
         minAmountOut: CurrencyAmount;
         currentPrice: Price;
-        executionPrice: Price;
+        executionPrice: Price | null;
         priceImpact: Percent;
       }
     | {
         amountOut: TokenAmount;
         minAmountOut: TokenAmount;
         currentPrice: Price;
-        executionPrice: Price;
+        executionPrice: Price | null;
         priceImpact: Percent;
       } => {
     const { baseReserve, quoteReserve } = poolInfo;
@@ -1576,7 +1602,7 @@ export class Liquidity {
     logger.debug("currencyOut:", currencyOut);
     logger.debug("slippage:", `${slippage.toSignificant()}%`);
 
-    const reserves = [parseBigNumberish(baseReserve), parseBigNumberish(quoteReserve)];
+    const reserves = [baseReserve, quoteReserve];
 
     // input is fixed
     const input = this._getAmountSide(currencyAmountIn, poolKeys);
@@ -1618,12 +1644,15 @@ export class Liquidity {
     logger.debug("amountOut:", _amountOut.toFixed());
     logger.debug("minAmountOut:", _minAmountOut.toFixed());
 
-    const executionPrice = new Price(currencyIn, amountIn, currencyOut, amountOut);
-    logger.debug("executionPrice:", `1 ${currencyIn.symbol} ≈ ${executionPrice.toFixed()} ${currencyOut.symbol}`);
-    logger.debug(
-      "executionPrice invert:",
-      `1 ${currencyOut.symbol} ≈ ${executionPrice.invert().toFixed()} ${currencyIn.symbol}`,
-    );
+    let executionPrice: Price | null = null;
+    if (!amountIn.isZero() && !amountOut.isZero()) {
+      executionPrice = new Price(currencyIn, amountIn, currencyOut, amountOut);
+      logger.debug("executionPrice:", `1 ${currencyIn.symbol} ≈ ${executionPrice.toFixed()} ${currencyOut.symbol}`);
+      logger.debug(
+        "executionPrice invert:",
+        `1 ${currencyOut.symbol} ≈ ${executionPrice.invert().toFixed()} ${currencyIn.symbol}`,
+      );
+    }
 
     const priceImpact = this._computePriceImpact(currentPrice, amountIn, amountOut);
     logger.debug("priceImpact:", `${priceImpact.toSignificant()}%`);
@@ -1658,14 +1687,14 @@ export class Liquidity {
         amountIn: CurrencyAmount;
         maxAmountIn: CurrencyAmount;
         currentPrice: Price;
-        executionPrice: Price;
+        executionPrice: Price | null;
         priceImpact: Percent;
       }
     | {
         amountIn: TokenAmount;
         maxAmountIn: TokenAmount;
         currentPrice: Price;
-        executionPrice: Price;
+        executionPrice: Price | null;
         priceImpact: Percent;
       } {
     const { baseReserve, quoteReserve } = poolInfo;
@@ -1678,7 +1707,7 @@ export class Liquidity {
     logger.debug("currencyIn:", currencyIn);
     logger.debug("slippage:", `${slippage.toSignificant()}%`);
 
-    const reserves = [parseBigNumberish(baseReserve), parseBigNumberish(quoteReserve)];
+    const reserves = [baseReserve, quoteReserve];
 
     // output is fixed
     const output = this._getAmountSide(currencyAmountOut, poolKeys);
@@ -1699,6 +1728,7 @@ export class Liquidity {
     let amountIn = ZERO;
     let amountOut = currencyAmountOut.raw;
     if (!amountOut.isZero()) {
+      // if out > reserve, out = reserve - 1
       if (amountOut.gt(reserveOut)) {
         amountOut = reserveOut.sub(ONE);
       }
@@ -1721,12 +1751,15 @@ export class Liquidity {
     logger.debug("amountIn:", _amountIn.toFixed());
     logger.debug("maxAmountIn:", _maxAmountIn.toFixed());
 
-    const executionPrice = new Price(currencyIn, amountIn, currencyOut, amountOut);
-    logger.debug("executionPrice:", `1 ${currencyIn.symbol} ≈ ${executionPrice.toFixed()} ${currencyOut.symbol}`);
-    logger.debug(
-      "executionPrice invert:",
-      `1 ${currencyOut.symbol} ≈ ${executionPrice.invert().toFixed()} ${currencyIn.symbol}`,
-    );
+    let executionPrice: Price | null = null;
+    if (!amountIn.isZero() && !amountOut.isZero()) {
+      executionPrice = new Price(currencyIn, amountIn, currencyOut, amountOut);
+      logger.debug("executionPrice:", `1 ${currencyIn.symbol} ≈ ${executionPrice.toFixed()} ${currencyOut.symbol}`);
+      logger.debug(
+        "executionPrice invert:",
+        `1 ${currencyOut.symbol} ≈ ${executionPrice.invert().toFixed()} ${currencyIn.symbol}`,
+      );
+    }
 
     const priceImpact = this._computePriceImpact(currentPrice, amountIn, amountOut);
     logger.debug("priceImpact:", `${priceImpact.toSignificant()}%`);

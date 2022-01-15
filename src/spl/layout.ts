@@ -14,6 +14,7 @@ export type SplMintLayout = typeof SPL_MINT_LAYOUT;
 
 export type SplMint = GetStructureSchema<SplMintLayout>;
 
+// 165 bytes
 export const SPL_ACCOUNT_LAYOUT = struct([
   publicKey("mint"),
   publicKey("owner"),

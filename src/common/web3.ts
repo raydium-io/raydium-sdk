@@ -151,7 +151,7 @@ export interface GetTokenAccountsByOwnerConfig {
 //   for (const { pubkey, account } of tokenResp.value) {
 //     // double check layout length
 //     if (account.data.length !== SPL_ACCOUNT_LAYOUT.span) {
-//       return logger.throwArgumentError('invalid token account layout length', 'publicKey', pubkey.toBase58());
+//       return logger.throwArgumentError('invalid token account layout length', 'publicKey', pubkey);
 //     }
 
 //     const { mint, amount } = SPL_ACCOUNT_LAYOUT.decode(account.data);

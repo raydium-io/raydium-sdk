@@ -1427,9 +1427,10 @@
   dependencies:
     buffer "~6.0.3"
 
-"@solana/spl-token-registry@^0.2.1464":
-  version "0.2.1464"
-  resolved "https://registry.yarnpkg.com/@solana/spl-token-registry/-/spl-token-registry-0.2.1464.tgz#10b70363ef9692318357b285ff725dab407db4e7"
+"@solana/spl-token-registry@^0.2.1506":
+  version "0.2.1506"
+  resolved "https://registry.yarnpkg.com/@solana/spl-token-registry/-/spl-token-registry-0.2.1506.tgz#ad670dd7aa995d475157f4130b2bf2d245c9da14"
+  integrity sha512-NbFbEwKy+Kcj2d7izf/OAu8CSmLNrmIaAxV/SATPvrZubHIV3epQnz6yIuVHEZAAT7qoQwDJi+Oq4dASr5GM+w==
   dependencies:
     cross-fetch "3.0.6"
 
@@ -1818,9 +1819,10 @@ ajv@^6.10.0, ajv@^6.12.4, ajv@~6.12.6:
     json-schema-traverse "^0.4.1"
     uri-js "^4.2.2"
 
-ajv@^8.8.2:
-  version "8.8.2"
-  resolved "https://registry.yarnpkg.com/ajv/-/ajv-8.8.2.tgz#01b4fef2007a28bf75f0b7fc009f62679de4abbb"
+ajv@^8.9.0:
+  version "8.9.0"
+  resolved "https://registry.yarnpkg.com/ajv/-/ajv-8.9.0.tgz#738019146638824dea25edcf299dcba1b0e7eb18"
+  integrity sha512-qOKJyNj/h+OWx7s5DePL6Zu1KeM9jPZhwBqs+7DzP6bGOvqzVCSf0xueYmVuaC/oQ/VtS2zLMLHdQFbkka+XDQ==
   dependencies:
     fast-deep-equal "^3.1.1"
     json-schema-traverse "^1.0.0"

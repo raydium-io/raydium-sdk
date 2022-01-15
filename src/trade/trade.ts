@@ -1,26 +1,30 @@
 import { Logger } from "../common";
-import { Currency, CurrencyAmount, Percent, Token, TokenAmount, ZERO } from "../entity";
+import { Currency, CurrencyAmount, Percent, Price, Token, TokenAmount, ZERO } from "../entity";
 import { Liquidity, LiquidityPoolInfo, LiquidityPoolKeys } from "../liquidity";
 
 const logger = Logger.from("Trade");
 
-export type TradeSource = "amm" | "serum" | "amm-routing";
-export interface Route {
+export type TradeSource = "amm" | "serum" | "amm-route";
+export interface TradeRoute {
   source: TradeSource;
   currencyAmountIn: CurrencyAmount | TokenAmount;
   currencyAmountOut: CurrencyAmount | TokenAmount;
 }
 
+export interface AmmSource {
+  poolKeys: LiquidityPoolKeys;
+  poolInfo: LiquidityPoolInfo;
+}
+
+export interface SerumSource {
+  marketKeys: [];
+  bids: [];
+  asks: [];
+}
+
 export interface GetBestAmountOutParams {
-  pools?: {
-    poolKeys: LiquidityPoolKeys;
-    poolInfo: LiquidityPoolInfo;
-  }[];
-  markets?: {
-    marketKeys: [];
-    bids: [];
-    asks: [];
-  }[];
+  pools?: AmmSource[];
+  markets?: SerumSource[];
   currencyAmountIn: CurrencyAmount | TokenAmount;
   currencyOut: Currency | Token;
   slippage: Percent;
@@ -34,6 +38,23 @@ export interface GetBestAmountInParams extends Omit<GetBestAmountOutParams, "cur
 }
 
 export class Trade {
+  static groupPools(pools: AmmSource[]) {
+    const grouped: AmmSource[][] = [];
+
+    for (let index = 0; index < pools.length; index++) {
+      for (let i = index + 1; i < pools.length; i++) {
+        grouped.push([pools[index], pools[i]]);
+      }
+    }
+
+    return grouped;
+  }
+
+  /**
+   * Get best amount out
+   *
+   * @param params - {@link GetBestAmountOutParams}
+   */
   static getBestAmountOut({
     pools,
     markets,
@@ -44,7 +65,7 @@ export class Trade {
   }: GetBestAmountOutParams) {
     const _pools = pools || [];
     const _markets = markets || [];
-    const _features = features || ["amm", "serum", "amm-routing"];
+    const _features = features || ["amm", "serum", "amm-route"];
     logger.debug("features:", _features);
 
     logger.assertArgument(
@@ -55,7 +76,7 @@ export class Trade {
     );
 
     // the route of the trade
-    const route: Route[] = [];
+    const routes: TradeRoute[] = [];
 
     // the output amount for the trade assuming no slippage
     let currencyAmountOut =
@@ -63,7 +84,7 @@ export class Trade {
     let minCurrencyAmountOut = currencyAmountOut;
 
     // the price expressed in terms of output amount/input amount
-    // const executionPrice
+    let _executionPrice: Price | null = null;
     // the mid price after the trade executes assuming no slippage
     // const nextMidPrice =
     // the percent difference between the mid price before the trade and the trade execution price
@@ -72,34 +93,46 @@ export class Trade {
     // amm directly
     if (_features.includes("amm")) {
       for (const { poolKeys, poolInfo } of _pools) {
-        const { amountOut, minAmountOut, priceImpact } = Liquidity.computeCurrencyAmountOut({
-          poolKeys,
-          poolInfo,
-          currencyAmountIn,
-          currencyOut,
-          slippage,
-        });
+        // * if currencies not match with pool, will throw error
+        try {
+          const { amountOut, minAmountOut, executionPrice, priceImpact } = Liquidity.computeCurrencyAmountOut({
+            poolKeys,
+            poolInfo,
+            currencyAmountIn,
+            currencyOut,
+            slippage,
+          });
 
-        if (amountOut.gt(currencyAmountOut)) {
-          currencyAmountOut = amountOut;
-          minCurrencyAmountOut = minAmountOut;
-          _priceImpact = priceImpact;
+          if (amountOut.gt(currencyAmountOut)) {
+            currencyAmountOut = amountOut;
+            minCurrencyAmountOut = minAmountOut;
+            _executionPrice = executionPrice;
+            _priceImpact = priceImpact;
+          }
+        } catch (error) {
+          //
         }
       }
     }
 
     return {
-      route,
+      routes,
       currencyAmountOut,
       minCurrencyAmountOut,
+      executionPrice: _executionPrice,
       priceImpact: _priceImpact,
     };
 
     // serum directly
-    // amm routing
+    // amm route
     // stable
   }
 
+  /**
+   * Get best amount in
+   *
+   * @param params - {@link GetBestAmountInParams}
+   */
   static getBestAmountIn({ pools, markets, currencyAmountOut, currencyIn, slippage, features }: GetBestAmountInParams) {
     const _pools = pools || [];
     const _markets = markets || [];
@@ -113,18 +146,19 @@ export class Trade {
       { pools, markets },
     );
 
-    const route: Route[] = [];
+    const routes: TradeRoute[] = [];
 
     let currencyAmountIn =
       currencyIn instanceof Token ? new TokenAmount(currencyIn, 0) : new CurrencyAmount(currencyIn, 0);
     let maxCurrencyAmountIn = currencyAmountIn;
 
+    let _executionPrice: Price | null = null;
     let _priceImpact = new Percent(ZERO);
 
     // amm directly
     if (_features.includes("amm")) {
       for (const { poolKeys, poolInfo } of _pools) {
-        const { amountIn, maxAmountIn, priceImpact } = Liquidity.computeCurrencyAmountIn({
+        const { amountIn, maxAmountIn, executionPrice, priceImpact } = Liquidity.computeCurrencyAmountIn({
           poolKeys,
           poolInfo,
           currencyAmountOut,
@@ -135,15 +169,17 @@ export class Trade {
         if (amountIn.lt(currencyAmountIn) || currencyAmountIn.isZero()) {
           currencyAmountIn = amountIn;
           maxCurrencyAmountIn = maxAmountIn;
+          _executionPrice = executionPrice;
           _priceImpact = priceImpact;
         }
       }
     }
 
     return {
-      route,
+      routes,
       currencyAmountIn,
       maxCurrencyAmountIn,
+      executionPrice: _executionPrice,
       priceImpact: _priceImpact,
     };
   }

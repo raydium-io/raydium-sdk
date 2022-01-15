@@ -44,11 +44,21 @@ $ npm install @raydium-io/raydium-sdk --save
 
 - https://sdk.raydium.io/farm/mainnet.json
 
+## Program IDs
+
+| Function        | Version | Mainnet                                      |
+| --------------- | ------- | -------------------------------------------- |
+| AMM / Liquidity | 4       | 675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8 |
+| Farm / Staking  | 3       | EhhTKczWMGQt46ynNeRX1WfeagwwJd7ufHvCDjRxjo5Q |
+| Farm / Staking  | 5       | 9KEPoZmtHUrBbhWN1v1KWLMkkvwY6WLtAVUCPRtRjP4z |
+| AMM Route       | 1       | 93BgeoLHo5AdNbpqy9bD12dtfxtA5M2fh3rj72bE35Y3 |
+| Serum           | 3       | 9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin |
+
 ## Usage
 
 ### Marshmallow
 
-**_Complete layout type inference_**
+**_Full layout type inference_**
 
 ![](snapshots/marshmallow/1.png)
 ![](snapshots/marshmallow/2.png)

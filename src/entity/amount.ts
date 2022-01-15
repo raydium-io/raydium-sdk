@@ -29,7 +29,8 @@ export function splitNumber(num: string, decimals: number) {
     integral = num;
   }
 
-  return [integral, fractional.substr(0, decimals)];
+  // fix decimals is 0
+  return [integral, fractional.slice(0, decimals) || fractional];
 }
 
 export class CurrencyAmount extends Fraction {
@@ -46,12 +47,7 @@ export class CurrencyAmount extends Fraction {
       let fractionalAmount = new BN(0);
 
       // parse fractional string
-      if (typeof amount === "string") {
-        const [integral, fractional] = splitNumber(amount, currency.decimals);
-
-        integralAmount = parseBigNumberish(integral);
-        fractionalAmount = parseBigNumberish(fractional);
-      } else if (typeof amount === "number" || typeof amount === "bigint") {
+      if (typeof amount === "string" || typeof amount === "number" || typeof amount === "bigint") {
         const [integral, fractional] = splitNumber(amount.toString(), currency.decimals);
 
         integralAmount = parseBigNumberish(integral);
@@ -135,6 +131,16 @@ export class CurrencyAmount extends Fraction {
     return super.toFixed(decimalPlaces, format, rounding);
   }
 
+  /**
+   * To exact
+   *
+   * @example
+   * ```
+   * 1 -> 1
+   * 1.234 -> 1.234
+   * 1.123456789876543 -> 1.123456789
+   * ```
+   */
   public toExact(format: object = { groupSeparator: "" }): string {
     Big.DP = this.currency.decimals;
     return new Big(this.numerator.toString()).div(this.denominator.toString()).toFormat(format);

@@ -1,5 +1,11 @@
 # Changelog
 
+### 1.0.1-beta.24 (2022-01-15)
+
+- Change
+  - Fix bug
+  - Update dev dependencies
+
 ### 1.0.1-beta.23 (2022-01-15)
 
 - Add

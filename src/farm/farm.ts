@@ -25,6 +25,10 @@ export type FarmPoolKeys = {
     : FarmPoolJsonInfo[T];
 };
 
+/* ================= user keys ================= */
+/**
+ * Full user keys that build transaction need
+ */
 export interface FarmUserKeys {
   ledger: PublicKey;
   auxiliaryLedgers?: PublicKey[];
@@ -33,17 +37,15 @@ export interface FarmUserKeys {
   owner: PublicKey;
 }
 
-/* ================= deposit instruction ================= */
+/* ================= make instruction and transaction ================= */
 export interface FarmDepositInstructionParams {
   poolKeys: FarmPoolKeys;
   userKeys: FarmUserKeys;
   amount: BigNumberish;
 }
 
-/* ================= withdraw instruction ================= */
 export type FarmWithdrawInstructionParams = FarmDepositInstructionParams;
 
-/* ================= create associated ledger account instruction ================= */
 export interface CreateAssociatedLedgerAccountInstructionParams {
   poolKeys: FarmPoolKeys;
   userKeys: {
@@ -52,7 +54,8 @@ export interface CreateAssociatedLedgerAccountInstructionParams {
   };
 }
 
-export interface GetFarmMultipleInfoParams {
+/* ================= fetch data ================= */
+export interface FetchFarmMultipleInfoParams {
   connection: Connection;
   pools: FarmPoolKeys[];
   owner?: PublicKey;
@@ -60,7 +63,7 @@ export interface GetFarmMultipleInfoParams {
 }
 
 export class Farm {
-  /* ================= static functions ================= */
+  /* ================= get version and program id ================= */
   static getProgramId(version: number) {
     const programId = FARM_VERSION_TO_PROGRAMID[version];
     logger.assertArgument(!!programId, "invalid version", "version", version);
@@ -78,6 +81,7 @@ export class Farm {
     return version;
   }
 
+  /* ================= get layout ================= */
   static getStateLayout(version: number) {
     const STATE_LAYOUT = FARM_VERSION_TO_STATE_LAYOUT[version];
     logger.assertArgument(!!STATE_LAYOUT, "invalid version", "version", version);
@@ -96,6 +100,7 @@ export class Farm {
     return { state: this.getStateLayout(version), ledger: this.getLedgerLayout(version) };
   }
 
+  /* ================= get key ================= */
   static getAssociatedAuthority({ programId, poolId }: { programId: PublicKey; poolId: PublicKey }) {
     return findProgramAddress([poolId.toBuffer()], programId);
   }
@@ -116,8 +121,7 @@ export class Farm {
     return publicKey;
   }
 
-  /* ================= instructions ================= */
-  /* ================= deposit ================= */
+  /* ================= make instruction and transaction ================= */
   static makeDepositInstruction(params: FarmDepositInstructionParams) {
     const { poolKeys } = params;
     const { version } = poolKeys;
@@ -230,7 +234,6 @@ export class Farm {
     });
   }
 
-  /* ================= withdraw ================= */
   static makeWithdrawInstruction(params: FarmWithdrawInstructionParams) {
     const { poolKeys } = params;
     const { version } = poolKeys;
@@ -343,7 +346,6 @@ export class Farm {
     });
   }
 
-  /* ================= create associated ledger account ================= */
   static makeCreateAssociatedLedgerAccountInstruction(params: CreateAssociatedLedgerAccountInstructionParams) {
     const { poolKeys } = params;
     const { version } = poolKeys;
@@ -413,7 +415,8 @@ export class Farm {
     });
   }
 
-  static async getMultipleInfo({ connection, pools, owner, config }: GetFarmMultipleInfoParams) {
+  /* ================= fetch data ================= */
+  static async fetchMultipleInfo({ connection, pools, owner, config }: FetchFarmMultipleInfoParams) {
     const publicKeys: {
       pubkey: PublicKey;
       version: number;

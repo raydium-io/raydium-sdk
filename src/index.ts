@@ -3,6 +3,7 @@ export * from "./entity";
 export * from "./farm";
 export * from "./liquidity";
 export * from "./marshmallow";
+export * from "./route";
 export * from "./serum";
 export * from "./spl";
 export * from "./token";
