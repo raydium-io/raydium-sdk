@@ -2,9 +2,10 @@ import BN from "bn.js";
 
 import { Logger } from "../common";
 
+import { BigNumberish } from "./bignumber";
 import { Rounding, TEN } from "./constant";
 import { Currency, currencyEquals } from "./currency";
-import { BigNumberish, Fraction } from "./fraction";
+import { Fraction } from "./fraction";
 
 const logger = Logger.from("entity/price");
 

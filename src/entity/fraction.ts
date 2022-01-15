@@ -4,6 +4,7 @@ import _Decimal from "decimal.js-light";
 
 import { Logger } from "../common";
 
+import { BigNumberish, parseBigNumberish } from "./bignumber";
 import { ONE, Rounding } from "./constant";
 import toFormat, { WrappedBig } from "./to-format";
 
@@ -13,10 +14,6 @@ const Big = toFormat(_Big);
 type Big = WrappedBig;
 
 const Decimal = toFormat(_Decimal);
-
-export type BigNumberish = BN | string | number | bigint;
-
-const MAX_SAFE = 0x1fffffffffffff;
 
 const toSignificantRounding = {
   [Rounding.ROUND_DOWN]: Decimal.ROUND_DOWN,
@@ -29,42 +26,6 @@ const toFixedRounding = {
   [Rounding.ROUND_HALF_UP]: Big.roundHalfUp,
   [Rounding.ROUND_UP]: Big.roundUp,
 };
-
-export function parseBigNumberish(value: BigNumberish) {
-  // BN
-  if (value instanceof BN) {
-    return value;
-  }
-
-  // string
-  if (typeof value === "string") {
-    if (value.match(/^-?[0-9]+$/)) {
-      return new BN(value);
-    }
-
-    return logger.throwArgumentError("invalid BigNumberish string", "value", value);
-  }
-
-  // number
-  if (typeof value === "number") {
-    if (value % 1) {
-      return logger.throwArgumentError("BigNumberish number underflow", "value", value);
-    }
-
-    if (value >= MAX_SAFE || value <= -MAX_SAFE) {
-      return logger.throwArgumentError("BigNumberish number overflow", "value", value);
-    }
-
-    return new BN(String(value));
-  }
-
-  // bigint
-  if (typeof value === "bigint") {
-    return new BN(value.toString());
-  }
-
-  return logger.throwArgumentError("invalid BigNumberish value", "value", value);
-}
 
 export class Fraction {
   public readonly numerator: BN;

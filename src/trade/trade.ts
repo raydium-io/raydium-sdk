@@ -1,3 +1,5 @@
+import { Connection } from "@solana/web3.js";
+
 import { Logger } from "../common";
 import { Currency, CurrencyAmount, Percent, Price, Token, TokenAmount, ZERO } from "../entity";
 import { Liquidity, LiquidityPoolInfo, LiquidityPoolKeys } from "../liquidity";
@@ -20,6 +22,11 @@ export interface SerumSource {
   marketKeys: [];
   bids: [];
   asks: [];
+}
+
+export interface TradeTransactionParams {
+  connection: Connection;
+  routes: TradeRoute[];
 }
 
 export interface GetBestAmountOutParams {
@@ -48,6 +55,10 @@ export class Trade {
     }
 
     return grouped;
+  }
+
+  static makeTradeTransaction(params: TradeTransactionParams) {
+    const { connection, routes } = params;
   }
 
   /**

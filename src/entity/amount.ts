@@ -3,9 +3,10 @@ import BN from "bn.js";
 
 import { Logger } from "../common";
 
+import { BigNumberish, parseBigNumberish } from "./bignumber";
 import { Rounding, TEN } from "./constant";
 import { Currency, currencyEquals, Token } from "./currency";
-import { BigNumberish, Fraction, parseBigNumberish } from "./fraction";
+import { Fraction } from "./fraction";
 import toFormat, { WrappedBig } from "./to-format";
 
 const logger = Logger.from("entity/amount");
