@@ -1,16 +1,19 @@
-import { Connection } from "@solana/web3.js";
+import { Connection, PublicKey, Signer, Transaction } from "@solana/web3.js";
 
 import { Logger } from "../common";
 import { Currency, CurrencyAmount, Percent, Price, Token, TokenAmount, ZERO } from "../entity";
-import { Liquidity, LiquidityPoolInfo, LiquidityPoolKeys } from "../liquidity";
+import { Liquidity, LiquidityPoolInfo, LiquidityPoolKeys, SwapSide, TokenAccount } from "../liquidity";
 
 const logger = Logger.from("Trade");
 
 export type TradeSource = "amm" | "serum" | "amm-route";
+
 export interface TradeRoute {
   source: TradeSource;
+  poolKeys: LiquidityPoolKeys;
   currencyAmountIn: CurrencyAmount | TokenAmount;
   currencyAmountOut: CurrencyAmount | TokenAmount;
+  fixedSide: SwapSide;
 }
 
 export interface AmmSource {
@@ -27,6 +30,14 @@ export interface SerumSource {
 export interface TradeTransactionParams {
   connection: Connection;
   routes: TradeRoute[];
+  userKeys: {
+    tokenAccounts: TokenAccount[];
+    owner: PublicKey;
+    payer?: PublicKey;
+  };
+  config?: {
+    bypassAssociatedCheck?: boolean;
+  };
 }
 
 export interface GetBestAmountOutParams {
@@ -57,8 +68,32 @@ export class Trade {
     return grouped;
   }
 
-  static makeTradeTransaction(params: TradeTransactionParams) {
-    const { connection, routes } = params;
+  static async makeTradeTransaction(params: TradeTransactionParams) {
+    const { connection, routes, userKeys, config } = params;
+
+    const transaction = new Transaction();
+    const signers: Signer[] = [];
+
+    for (const route of routes) {
+      const { source, poolKeys, currencyAmountIn, currencyAmountOut, fixedSide } = route;
+
+      if (source === "amm") {
+        const { transaction: _transaction, signers: _signers } = await Liquidity.makeSwapTransaction({
+          connection,
+          poolKeys,
+          userKeys,
+          currencyAmountIn,
+          currencyAmountOut,
+          fixedSide,
+          config,
+        });
+
+        transaction.add(..._transaction.instructions);
+        signers.push(..._signers);
+      }
+    }
+
+    return { transaction, signers };
   }
 
   /**
@@ -87,7 +122,7 @@ export class Trade {
     );
 
     // the route of the trade
-    const routes: TradeRoute[] = [];
+    let routes: TradeRoute[] = [];
 
     // the output amount for the trade assuming no slippage
     let currencyAmountOut =
@@ -115,6 +150,16 @@ export class Trade {
           });
 
           if (amountOut.gt(currencyAmountOut)) {
+            routes = [
+              {
+                source: "amm",
+                poolKeys,
+                userKeys: {},
+                currencyAmountIn,
+                currencyAmountOut: minAmountOut,
+                fixedSide: "in",
+              },
+            ];
             currencyAmountOut = amountOut;
             minCurrencyAmountOut = minAmountOut;
             _executionPrice = executionPrice;

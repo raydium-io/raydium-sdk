@@ -11,7 +11,7 @@ import {
 } from "../entity";
 import { struct, u64, u8 } from "../marshmallow";
 import { Market } from "../serum";
-import { Spl } from "../spl";
+import { Spl, SplAccount } from "../spl";
 
 import {
   LIQUIDITY_PROGRAMID_TO_VERSION, LIQUIDITY_VERSION_TO_PROGRAMID, LIQUIDITY_VERSION_TO_SERUM_VERSION,
@@ -72,6 +72,11 @@ export interface LiquidityPoolInfo {
 }
 
 /* ================= user keys ================= */
+export interface TokenAccount {
+  pubkey: PublicKey;
+  accountInfo: SplAccount;
+}
+
 /**
  * Full user keys that build transaction need
  */
@@ -123,9 +128,7 @@ export interface AddLiquidityTransactionParams {
   connection: Connection;
   poolKeys: LiquidityPoolKeys;
   userKeys: {
-    tokenAccountA?: PublicKey;
-    tokenAccountB?: PublicKey;
-    lpTokenAccount?: PublicKey;
+    tokenAccounts: TokenAccount[];
     owner: PublicKey;
     payer?: PublicKey;
   };
@@ -152,9 +155,7 @@ export interface RemoveLiquidityTransactionParams {
   connection: Connection;
   poolKeys: LiquidityPoolKeys;
   userKeys: {
-    lpTokenAccount: PublicKey;
-    baseTokenAccount?: PublicKey;
-    quoteTokenAccount?: PublicKey;
+    tokenAccounts: TokenAccount[];
     owner: PublicKey;
     payer?: PublicKey;
   };
@@ -207,8 +208,7 @@ export interface SwapTransactionParams {
   connection: Connection;
   poolKeys: LiquidityPoolKeys;
   userKeys: {
-    tokenAccountIn?: PublicKey;
-    tokenAccountOut?: PublicKey;
+    tokenAccounts: TokenAccount[];
     owner: PublicKey;
     payer?: PublicKey;
   };
@@ -690,9 +690,7 @@ export class Liquidity {
     );
 
     const transaction = new Transaction();
-    for (const instruction of [...frontInstructions, ...endInstructions]) {
-      transaction.add(instruction);
-    }
+    transaction.add(...[...frontInstructions, ...endInstructions]);
 
     return { transaction, signers };
   }
@@ -827,9 +825,7 @@ export class Liquidity {
     );
 
     const transaction = new Transaction();
-    for (const instruction of [...frontInstructions, ...endInstructions]) {
-      transaction.add(instruction);
-    }
+    transaction.add(...[...frontInstructions, ...endInstructions]);
 
     return { transaction, signers };
   }
@@ -1025,9 +1021,7 @@ export class Liquidity {
     );
 
     const transaction = new Transaction();
-    for (const instruction of [...frontInstructions, ...endInstructions]) {
-      transaction.add(instruction);
-    }
+    transaction.add(...[...frontInstructions, ...endInstructions]);
 
     return { transaction, signers };
   }
