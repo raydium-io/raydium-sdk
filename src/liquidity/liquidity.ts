@@ -97,12 +97,19 @@ export interface LiquidityUserKeys {
 // export type LiquidityConstructParams = Required<LiquidityLoadParams>;
 
 /* ================= make instruction and transaction ================= */
+export interface SelectTokenAccountParams {
+  tokenAccounts: TokenAccount[];
+  mint: PublicKey;
+  owner: PublicKey;
+  config?: { associatedOnly?: boolean };
+}
+
 export interface HandleTokenAccountParams {
   connection: Connection;
   side: "in" | "out";
   amount: BigNumberish;
   mint: PublicKey;
-  tokenAccount?: PublicKey;
+  tokenAccount: PublicKey | null;
   owner: PublicKey;
   payer: PublicKey;
   frontInstructions: TransactionInstruction[];
@@ -473,6 +480,39 @@ export class Liquidity {
   }
 
   /* ================= make instruction and transaction ================= */
+  static async _selectTokenAccount(params: SelectTokenAccountParams) {
+    const { tokenAccounts, mint, owner, config } = params;
+
+    const { associatedOnly } = {
+      // default
+      ...{ associatedOnly: true },
+      // custom
+      ...config,
+    };
+
+    const _tokenAccounts = tokenAccounts
+      // filter by mint
+      .filter(({ accountInfo }) => accountInfo.mint.equals(mint))
+      // sort by balance
+      .sort((a, b) => (a.accountInfo.amount.gt(b.accountInfo.amount) ? 1 : -1));
+
+    const ata = await Spl.getAssociatedTokenAccount({ mint, owner });
+
+    for (const tokenAccount of _tokenAccounts) {
+      const { pubkey } = tokenAccount;
+
+      if (associatedOnly) {
+        // return ata only
+        if (ata.equals(pubkey)) return pubkey;
+      } else {
+        // return the first account
+        return pubkey;
+      }
+    }
+
+    return null;
+  }
+
   static async _handleTokenAccount(params: HandleTokenAccountParams) {
     const {
       connection,
@@ -577,8 +617,10 @@ export class Liquidity {
   static async makeAddLiquidityTransaction(params: AddLiquidityTransactionParams) {
     const { connection, poolKeys, userKeys, currencyAmountInA, currencyAmountInB, fixedSide, config } = params;
     const { lpMint } = poolKeys;
-    const { tokenAccountA, tokenAccountB, lpTokenAccount, owner, payer = owner } = userKeys;
+    const { tokenAccounts, owner, payer = owner } = userKeys;
 
+    logger.debug("currencyAmountInA:", currencyAmountInA);
+    logger.debug("currencyAmountInB:", currencyAmountInB);
     logger.assertArgument(
       !currencyAmountInA.isZero() && !currencyAmountInB.isZero(),
       "amounts must greater than zero",
@@ -588,10 +630,6 @@ export class Liquidity {
         currencyAmountInB: currencyAmountInB.toFixed(),
       },
     );
-    logger.assertArgument(!!tokenAccountA || !!tokenAccountB, "miss tokenAccounts", "tokenAccountA & tokenAccountB", {
-      tokenAccountA,
-      tokenAccountB,
-    });
 
     const { bypassAssociatedCheck } = {
       // default
@@ -604,8 +642,32 @@ export class Liquidity {
     const tokenA = currencyAmountInA instanceof TokenAmount ? currencyAmountInA.token : Token.WSOL;
     const tokenB = currencyAmountInB instanceof TokenAmount ? currencyAmountInB.token : Token.WSOL;
 
+    const tokenAccountA = await this._selectTokenAccount({
+      tokenAccounts,
+      mint: tokenA.mint,
+      owner,
+      config: { associatedOnly: false },
+    });
+    const tokenAccountB = await this._selectTokenAccount({
+      tokenAccounts,
+      mint: tokenB.mint,
+      owner,
+      config: { associatedOnly: false },
+    });
+    logger.assertArgument(
+      !!tokenAccountA || !!tokenAccountB,
+      "can't find target token accounts",
+      "tokenAccounts",
+      tokenAccounts,
+    );
+    const lpTokenAccount = await this._selectTokenAccount({
+      tokenAccounts,
+      mint: lpMint,
+      owner,
+    });
+
     const tokens = [tokenA, tokenB];
-    const tokenAccounts = [tokenAccountA, tokenAccountB];
+    const _tokenAccounts = [tokenAccountA, tokenAccountB];
     const amounts = [currencyAmountInA.raw, currencyAmountInB.raw];
 
     // handle amount a & b and direction
@@ -614,7 +676,7 @@ export class Liquidity {
     if (sideA === "quote") {
       // reverse
       tokens.reverse();
-      tokenAccounts.reverse();
+      _tokenAccounts.reverse();
       amounts.reverse();
 
       if (fixedSide === "a") _fixedSide = "quote";
@@ -627,7 +689,7 @@ export class Liquidity {
     } else return logger.throwArgumentError("invalid fixedSide", "fixedSide", fixedSide);
 
     const [baseToken, quoteToken] = tokens;
-    const [baseTokenAccount, quoteTokenAccount] = tokenAccounts;
+    const [baseTokenAccount, quoteTokenAccount] = _tokenAccounts;
     const [baseAmount, quoteAmount] = amounts;
 
     const frontInstructions: TransactionInstruction[] = [];
@@ -756,8 +818,9 @@ export class Liquidity {
   static async makeRemoveLiquidityTransaction(params: RemoveLiquidityTransactionParams) {
     const { connection, poolKeys, userKeys, tokenAmountIn, config } = params;
     const { baseMint, quoteMint, lpMint } = poolKeys;
-    const { lpTokenAccount, baseTokenAccount, quoteTokenAccount, owner, payer = owner } = userKeys;
+    const { tokenAccounts, owner, payer = owner } = userKeys;
 
+    logger.debug("tokenAmountIn:", tokenAmountIn);
     logger.assertArgument(
       !tokenAmountIn.isZero(),
       "amount must greater than zero",
@@ -770,7 +833,24 @@ export class Liquidity {
       "tokenAmountIn",
       tokenAmountIn,
     );
-    logger.assertArgument(!!lpTokenAccount, "miss lpTokenAccount", "lpTokenAccount", lpTokenAccount);
+    const lpTokenAccount = await this._selectTokenAccount({
+      tokenAccounts,
+      mint: lpMint,
+      owner,
+      config: { associatedOnly: false },
+    });
+    if (!lpTokenAccount) return logger.throwArgumentError("can't find lpTokenAccount", "tokenAccounts", tokenAccounts);
+
+    const baseTokenAccount = await this._selectTokenAccount({
+      tokenAccounts,
+      mint: baseMint,
+      owner,
+    });
+    const quoteTokenAccount = await this._selectTokenAccount({
+      tokenAccounts,
+      mint: quoteMint,
+      owner,
+    });
 
     const { bypassAssociatedCheck } = {
       // default
@@ -950,8 +1030,10 @@ export class Liquidity {
 
   static async makeSwapTransaction(params: SwapTransactionParams) {
     const { connection, poolKeys, userKeys, currencyAmountIn, currencyAmountOut, fixedSide, config } = params;
-    const { tokenAccountIn, tokenAccountOut, owner, payer = owner } = userKeys;
+    const { tokenAccounts, owner, payer = owner } = userKeys;
 
+    logger.debug("currencyAmountIn:", currencyAmountIn);
+    logger.debug("currencyAmountOut:", currencyAmountOut);
     logger.assertArgument(
       !currencyAmountIn.isZero() && !currencyAmountOut.isZero(),
       "amounts must greater than zero",
@@ -972,6 +1054,18 @@ export class Liquidity {
     // handle currency in & out (convert SOL to WSOL)
     const tokenIn = currencyAmountIn instanceof TokenAmount ? currencyAmountIn.token : Token.WSOL;
     const tokenOut = currencyAmountOut instanceof TokenAmount ? currencyAmountOut.token : Token.WSOL;
+
+    const tokenAccountIn = await this._selectTokenAccount({
+      tokenAccounts,
+      mint: tokenIn.mint,
+      owner,
+      config: { associatedOnly: false },
+    });
+    const tokenAccountOut = await this._selectTokenAccount({
+      tokenAccounts,
+      mint: tokenOut.mint,
+      owner,
+    });
 
     const [amountIn, amountOut] = [currencyAmountIn.raw, currencyAmountOut.raw];
 

@@ -129,10 +129,13 @@ export class Trade {
       currencyOut instanceof Token ? new TokenAmount(currencyOut, 0) : new CurrencyAmount(currencyOut, 0);
     let minCurrencyAmountOut = currencyAmountOut;
 
+    let _currentPrice: Price | null = null;
     // the price expressed in terms of output amount/input amount
     let _executionPrice: Price | null = null;
+
     // the mid price after the trade executes assuming no slippage
     // const nextMidPrice =
+
     // the percent difference between the mid price before the trade and the trade execution price
     let _priceImpact = new Percent(ZERO);
 
@@ -141,20 +144,20 @@ export class Trade {
       for (const { poolKeys, poolInfo } of _pools) {
         // * if currencies not match with pool, will throw error
         try {
-          const { amountOut, minAmountOut, executionPrice, priceImpact } = Liquidity.computeCurrencyAmountOut({
-            poolKeys,
-            poolInfo,
-            currencyAmountIn,
-            currencyOut,
-            slippage,
-          });
+          const { amountOut, minAmountOut, currentPrice, executionPrice, priceImpact } =
+            Liquidity.computeCurrencyAmountOut({
+              poolKeys,
+              poolInfo,
+              currencyAmountIn,
+              currencyOut,
+              slippage,
+            });
 
           if (amountOut.gt(currencyAmountOut)) {
             routes = [
               {
                 source: "amm",
                 poolKeys,
-                userKeys: {},
                 currencyAmountIn,
                 currencyAmountOut: minAmountOut,
                 fixedSide: "in",
@@ -162,6 +165,7 @@ export class Trade {
             ];
             currencyAmountOut = amountOut;
             minCurrencyAmountOut = minAmountOut;
+            _currentPrice = currentPrice;
             _executionPrice = executionPrice;
             _priceImpact = priceImpact;
           }
@@ -175,6 +179,7 @@ export class Trade {
       routes,
       currencyAmountOut,
       minCurrencyAmountOut,
+      currentPrice: _currentPrice,
       executionPrice: _executionPrice,
       priceImpact: _priceImpact,
     };
@@ -202,19 +207,20 @@ export class Trade {
       { pools, markets },
     );
 
-    const routes: TradeRoute[] = [];
+    let routes: TradeRoute[] = [];
 
     let currencyAmountIn =
       currencyIn instanceof Token ? new TokenAmount(currencyIn, 0) : new CurrencyAmount(currencyIn, 0);
     let maxCurrencyAmountIn = currencyAmountIn;
 
+    let _currentPrice: Price | null = null;
     let _executionPrice: Price | null = null;
     let _priceImpact = new Percent(ZERO);
 
     // amm directly
     if (_features.includes("amm")) {
       for (const { poolKeys, poolInfo } of _pools) {
-        const { amountIn, maxAmountIn, executionPrice, priceImpact } = Liquidity.computeCurrencyAmountIn({
+        const { amountIn, maxAmountIn, currentPrice, executionPrice, priceImpact } = Liquidity.computeCurrencyAmountIn({
           poolKeys,
           poolInfo,
           currencyAmountOut,
@@ -223,8 +229,18 @@ export class Trade {
         });
 
         if (amountIn.lt(currencyAmountIn) || currencyAmountIn.isZero()) {
+          routes = [
+            {
+              source: "amm",
+              poolKeys,
+              currencyAmountIn: maxAmountIn,
+              currencyAmountOut,
+              fixedSide: "out",
+            },
+          ];
           currencyAmountIn = amountIn;
           maxCurrencyAmountIn = maxAmountIn;
+          _currentPrice = currentPrice;
           _executionPrice = executionPrice;
           _priceImpact = priceImpact;
         }
@@ -235,6 +251,7 @@ export class Trade {
       routes,
       currencyAmountIn,
       maxCurrencyAmountIn,
+      currentPrice: _currentPrice,
       executionPrice: _executionPrice,
       priceImpact: _priceImpact,
     };
