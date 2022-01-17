@@ -1,5 +1,10 @@
 # Changelog
 
+### 1.0.1-beta.25 (2022-01-17)
+
+- Change
+  - Accept token accounts to replace the original specified account when make transaction
+
 ### 1.0.1-beta.24 (2022-01-15)
 
 - Change
