@@ -1,6 +1,7 @@
 import { AccountInfo, Connection, PublicKey, Signer, Transaction, TransactionInstruction } from "@solana/web3.js";
 import BN from "bn.js";
 
+import { Base, TokenAccount } from "../base";
 import {
   AccountMeta, AccountMetaReadonly, findProgramAddress, getMultipleAccountsInfo, GetMultipleAccountsInfoConfig, Logger,
   parseSimulateLogToJson, parseSimulateValue, simulateMultipleInstruction, SYSTEM_PROGRAM_ID, SYSVAR_RENT_PUBKEY,
@@ -11,7 +12,6 @@ import {
 } from "../entity";
 import { struct, u64, u8 } from "../marshmallow";
 import { Market } from "../serum";
-import { Spl, SplAccount } from "../spl";
 
 import {
   LIQUIDITY_PROGRAMID_TO_VERSION, LIQUIDITY_VERSION_TO_PROGRAMID, LIQUIDITY_VERSION_TO_SERUM_VERSION,
@@ -72,11 +72,6 @@ export interface LiquidityPoolInfo {
 }
 
 /* ================= user keys ================= */
-export interface TokenAccount {
-  pubkey: PublicKey;
-  accountInfo: SplAccount;
-}
-
 /**
  * Full user keys that build transaction need
  */
@@ -97,27 +92,6 @@ export interface LiquidityUserKeys {
 // export type LiquidityConstructParams = Required<LiquidityLoadParams>;
 
 /* ================= make instruction and transaction ================= */
-export interface SelectTokenAccountParams {
-  tokenAccounts: TokenAccount[];
-  mint: PublicKey;
-  owner: PublicKey;
-  config?: { associatedOnly?: boolean };
-}
-
-export interface HandleTokenAccountParams {
-  connection: Connection;
-  side: "in" | "out";
-  amount: BigNumberish;
-  mint: PublicKey;
-  tokenAccount: PublicKey | null;
-  owner: PublicKey;
-  payer: PublicKey;
-  frontInstructions: TransactionInstruction[];
-  endInstructions: TransactionInstruction[];
-  signers: Signer[];
-  bypassAssociatedCheck: boolean;
-}
-
 export interface AddLiquidityInstructionParamsV4 {
   poolKeys: LiquidityPoolKeys;
   userKeys: LiquidityUserKeys;
@@ -296,7 +270,7 @@ export interface ComputeCurrencyAmountInParams
   currencyIn: Currency | Token;
 }
 
-export class Liquidity {
+export class Liquidity extends Base {
   // public connection: Connection;
   // public poolKeys: LiquidityPoolKeys;
   // public poolInfo: LiquidityPoolInfo;
@@ -480,84 +454,6 @@ export class Liquidity {
   }
 
   /* ================= make instruction and transaction ================= */
-  static async _selectTokenAccount(params: SelectTokenAccountParams) {
-    const { tokenAccounts, mint, owner, config } = params;
-
-    const { associatedOnly } = {
-      // default
-      ...{ associatedOnly: true },
-      // custom
-      ...config,
-    };
-
-    const _tokenAccounts = tokenAccounts
-      // filter by mint
-      .filter(({ accountInfo }) => accountInfo.mint.equals(mint))
-      // sort by balance
-      .sort((a, b) => (a.accountInfo.amount.lt(b.accountInfo.amount) ? 1 : -1));
-
-    const ata = await Spl.getAssociatedTokenAccount({ mint, owner });
-
-    for (const tokenAccount of _tokenAccounts) {
-      const { pubkey } = tokenAccount;
-
-      if (associatedOnly) {
-        // return ata only
-        if (ata.equals(pubkey)) return pubkey;
-      } else {
-        // return the first account
-        return pubkey;
-      }
-    }
-
-    return null;
-  }
-
-  static async _handleTokenAccount(params: HandleTokenAccountParams) {
-    const {
-      connection,
-      side,
-      amount,
-      mint,
-      tokenAccount,
-      owner,
-      payer,
-      frontInstructions,
-      endInstructions,
-      signers,
-      bypassAssociatedCheck,
-    } = params;
-
-    const ata = await Spl.getAssociatedTokenAccount({ mint, owner });
-
-    if (Token.WSOL.mint.equals(mint)) {
-      const newTokenAccount = await Spl.insertCreateWrappedNativeAccountInstructions({
-        connection,
-        owner,
-        payer,
-        instructions: frontInstructions,
-        signers,
-        amount,
-      });
-      endInstructions.push(Spl.makeCloseAccountInstruction({ tokenAccount: newTokenAccount, owner, payer }));
-
-      return newTokenAccount;
-    } else if (!tokenAccount || (side === "out" && !ata.equals(tokenAccount) && !bypassAssociatedCheck)) {
-      frontInstructions.push(
-        Spl.makeCreateAssociatedTokenAccountInstruction({
-          mint,
-          associatedAccount: ata,
-          owner,
-          payer: owner,
-        }),
-      );
-
-      return ata;
-    }
-
-    return tokenAccount;
-  }
-
   static makeAddLiquidityInstruction(params: AddLiquidityInstructionParams) {
     const { poolKeys } = params;
     const { version } = poolKeys;
