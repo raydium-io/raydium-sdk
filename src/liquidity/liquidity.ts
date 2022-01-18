@@ -494,7 +494,7 @@ export class Liquidity {
       // filter by mint
       .filter(({ accountInfo }) => accountInfo.mint.equals(mint))
       // sort by balance
-      .sort((a, b) => (a.accountInfo.amount.gt(b.accountInfo.amount) ? 1 : -1));
+      .sort((a, b) => (a.accountInfo.amount.lt(b.accountInfo.amount) ? 1 : -1));
 
     const ata = await Spl.getAssociatedTokenAccount({ mint, owner });
 
