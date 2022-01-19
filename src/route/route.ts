@@ -35,4 +35,9 @@ export class Route {
   // static makeSwapInInstruction() {}
 
   // static makeSwapOutInstruction() {}
+
+  /* ================= compute data ================= */
+  // static computeCurrencyAmountOut() {}
+
+  // static computeCurrencyAmountIn() {}
 }
