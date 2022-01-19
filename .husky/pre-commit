@@ -3,3 +3,4 @@
 
 yarn lint-staged
 yarn down-icons
+yarn build

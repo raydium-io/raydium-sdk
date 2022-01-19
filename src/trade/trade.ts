@@ -1,8 +1,9 @@
 import { Connection, PublicKey, Signer, Transaction } from "@solana/web3.js";
 
+import { TokenAccount } from "../base";
 import { Logger } from "../common";
 import { Currency, CurrencyAmount, Percent, Price, Token, TokenAmount, ZERO } from "../entity";
-import { Liquidity, LiquidityPoolInfo, LiquidityPoolKeys, SwapSide, TokenAccount } from "../liquidity";
+import { Liquidity, LiquidityPoolInfo, LiquidityPoolKeys, SwapSide } from "../liquidity";
 
 const logger = Logger.from("Trade");
 
