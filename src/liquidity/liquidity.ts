@@ -40,7 +40,7 @@ export type LiquidityPoolKeysV4 = {
  */
 export type LiquidityPoolKeys = LiquidityPoolKeysV4;
 
-export interface AssociatedPoolKeysV4
+export interface LiquidityAssociatedPoolKeysV4
   extends Omit<
     LiquidityPoolKeysV4,
     "marketBaseVault" | "marketQuoteVault" | "marketBids" | "marketAsks" | "marketEventQueue"
@@ -53,7 +53,7 @@ export interface AssociatedPoolKeysV4
  * @remarks
  * without partial markets keys
  */
-export type AssociatedPoolKeys = AssociatedPoolKeysV4;
+export type LiquidityAssociatedPoolKeys = LiquidityAssociatedPoolKeysV4;
 
 /* ================= pool info ================= */
 /**
@@ -92,7 +92,7 @@ export interface LiquidityUserKeys {
 // export type LiquidityConstructParams = Required<LiquidityLoadParams>;
 
 /* ================= make instruction and transaction ================= */
-export interface AddLiquidityInstructionParamsV4 {
+export interface LiquidityAddInstructionParamsV4 {
   poolKeys: LiquidityPoolKeys;
   userKeys: LiquidityUserKeys;
   baseAmountIn: BigNumberish;
@@ -103,9 +103,9 @@ export interface AddLiquidityInstructionParamsV4 {
 /**
  * Add liquidity instruction params
  */
-export type AddLiquidityInstructionParams = AddLiquidityInstructionParamsV4;
+export type LiquidityAddInstructionParams = LiquidityAddInstructionParamsV4;
 
-export interface AddLiquidityTransactionParams {
+export interface LiquidityAddTransactionParams {
   connection: Connection;
   poolKeys: LiquidityPoolKeys;
   userKeys: {
@@ -113,15 +113,15 @@ export interface AddLiquidityTransactionParams {
     owner: PublicKey;
     payer?: PublicKey;
   };
-  currencyAmountInA: CurrencyAmount | TokenAmount;
-  currencyAmountInB: CurrencyAmount | TokenAmount;
+  amountInA: CurrencyAmount | TokenAmount;
+  amountInB: CurrencyAmount | TokenAmount;
   fixedSide: LiquiditySide;
   config?: {
     bypassAssociatedCheck?: boolean;
   };
 }
 
-export interface RemoveLiquidityInstructionParamsV4 {
+export interface LiquidityRemoveInstructionParamsV4 {
   poolKeys: LiquidityPoolKeys;
   userKeys: LiquidityUserKeys;
   amountIn: BigNumberish;
@@ -130,9 +130,9 @@ export interface RemoveLiquidityInstructionParamsV4 {
 /**
  * Remove liquidity instruction params
  */
-export type RemoveLiquidityInstructionParams = RemoveLiquidityInstructionParamsV4;
+export type LiquidityRemoveInstructionParams = LiquidityRemoveInstructionParamsV4;
 
-export interface RemoveLiquidityTransactionParams {
+export interface LiquidityRemoveTransactionParams {
   connection: Connection;
   poolKeys: LiquidityPoolKeys;
   userKeys: {
@@ -140,13 +140,13 @@ export interface RemoveLiquidityTransactionParams {
     owner: PublicKey;
     payer?: PublicKey;
   };
-  tokenAmountIn: TokenAmount;
+  amountIn: TokenAmount;
   config?: {
     bypassAssociatedCheck?: boolean;
   };
 }
 
-export interface SwapFixedInInstructionParamsV4 {
+export interface LiquiditySwapFixedInInstructionParamsV4 {
   poolKeys: LiquidityPoolKeys;
   userKeys: {
     tokenAccountIn: PublicKey;
@@ -158,7 +158,7 @@ export interface SwapFixedInInstructionParamsV4 {
   minAmountOut: BigNumberish;
 }
 
-export interface SwapFixedOutInstructionParamsV4 {
+export interface LiquiditySwapFixedOutInstructionParamsV4 {
   poolKeys: LiquidityPoolKeys;
   userKeys: {
     tokenAccountIn: PublicKey;
@@ -173,7 +173,7 @@ export interface SwapFixedOutInstructionParamsV4 {
 /**
  * Swap instruction params
  */
-export interface SwapInstructionParams {
+export interface LiquiditySwapInstructionParams {
   poolKeys: LiquidityPoolKeys;
   userKeys: {
     tokenAccountIn: PublicKey;
@@ -185,7 +185,7 @@ export interface SwapInstructionParams {
   fixedSide: SwapSide;
 }
 
-export interface SwapTransactionParams {
+export interface LiquiditySwapTransactionParams {
   connection: Connection;
   poolKeys: LiquidityPoolKeys;
   userKeys: {
@@ -193,16 +193,16 @@ export interface SwapTransactionParams {
     owner: PublicKey;
     payer?: PublicKey;
   };
-  currencyAmountIn: CurrencyAmount | TokenAmount;
-  currencyAmountOut: CurrencyAmount | TokenAmount;
+  amountIn: CurrencyAmount | TokenAmount;
+  amountOut: CurrencyAmount | TokenAmount;
   fixedSide: SwapSide;
   config?: {
     bypassAssociatedCheck?: boolean;
   };
 }
 
-export interface CreatePoolInstructionParamsV4 {
-  poolKeys: AssociatedPoolKeysV4;
+export interface LiquidityCreatePoolInstructionParamsV4 {
+  poolKeys: LiquidityAssociatedPoolKeysV4;
   userKeys: {
     payer: PublicKey;
   };
@@ -211,10 +211,10 @@ export interface CreatePoolInstructionParamsV4 {
 /**
  * Create pool instruction params
  */
-export type CreatePoolInstructionParams = CreatePoolInstructionParamsV4;
+export type LiquidityCreatePoolInstructionParams = LiquidityCreatePoolInstructionParamsV4;
 
-export interface InitPoolInstructionParamsV4 {
-  poolKeys: AssociatedPoolKeysV4;
+export interface LiquidityInitPoolInstructionParamsV4 {
+  poolKeys: LiquidityAssociatedPoolKeysV4;
   userKeys: {
     lpTokenAccount: PublicKey;
     payer: PublicKey;
@@ -224,13 +224,13 @@ export interface InitPoolInstructionParamsV4 {
 /**
  * Init pool instruction params
  */
-export type InitPoolInstructionParams = InitPoolInstructionParamsV4;
+export type LiquidityInitPoolInstructionParams = LiquidityInitPoolInstructionParamsV4;
 
 /* ================= fetch data ================= */
 /**
  * Fetch liquidity pool info params
  */
-export interface FetchLiquidityInfoParams {
+export interface LiquidityFetchInfoParams {
   connection: Connection;
   poolKeys: LiquidityPoolKeys;
 }
@@ -238,17 +238,17 @@ export interface FetchLiquidityInfoParams {
 /**
  * Fetch liquidity multiple pool info params
  */
-export interface FetchLiquidityMultipleInfoParams {
+export interface LiquidityFetchMultipleInfoParams {
   connection: Connection;
   pools: LiquidityPoolKeys[];
   config?: GetMultipleAccountsInfoConfig;
 }
 
 /* ================= compute data ================= */
-export interface ComputeAnotherCurrencyAmountParams {
+export interface LiquidityComputeAnotherAmountParams {
   poolKeys: LiquidityPoolKeys;
   poolInfo: LiquidityPoolInfo;
-  currencyAmount: CurrencyAmount | TokenAmount;
+  amount: CurrencyAmount | TokenAmount;
   anotherCurrency: Currency | Token;
   slippage: Percent;
 }
@@ -256,17 +256,17 @@ export interface ComputeAnotherCurrencyAmountParams {
 export const LIQUIDITY_FEES_NUMERATOR = new BN(9975);
 export const LIQUIDITY_FEES_DENOMINATOR = new BN(10000);
 
-export interface ComputeCurrencyAmountOutParams {
+export interface LiquidityComputeAmountOutParams {
   poolKeys: LiquidityPoolKeys;
   poolInfo: LiquidityPoolInfo;
-  currencyAmountIn: CurrencyAmount | TokenAmount;
+  amountIn: CurrencyAmount | TokenAmount;
   currencyOut: Currency | Token;
   slippage: Percent;
 }
 
-export interface ComputeCurrencyAmountInParams
-  extends Omit<ComputeCurrencyAmountOutParams, "currencyAmountIn" | "currencyOut"> {
-  currencyAmountOut: CurrencyAmount | TokenAmount;
+export interface LiquidityComputeAmountInParams
+  extends Omit<LiquidityComputeAmountOutParams, "amountIn" | "currencyOut"> {
+  amountOut: CurrencyAmount | TokenAmount;
   currencyIn: Currency | Token;
 }
 
@@ -332,7 +332,7 @@ export class Liquidity extends Base {
     return publicKey;
   }
 
-  static getAssociatedAuthority({ programId }: { programId: PublicKey }) {
+  static async getAssociatedAuthority({ programId }: { programId: PublicKey }) {
     return findProgramAddress(
       // new Uint8Array(Buffer.from('amm authority'.replace('\u00A0', ' '), 'utf-8'))
       [Buffer.from([97, 109, 109, 32, 97, 117, 116, 104, 111, 114, 105, 116, 121])],
@@ -406,7 +406,7 @@ export class Liquidity extends Base {
     marketId: PublicKey;
     baseMint: PublicKey;
     quoteMint: PublicKey;
-  }): Promise<AssociatedPoolKeys> {
+  }): Promise<LiquidityAssociatedPoolKeys> {
     const programId = this.getProgramId(version);
 
     const id = await this.getAssociatedId({ programId, marketId });
@@ -454,7 +454,7 @@ export class Liquidity extends Base {
   }
 
   /* ================= make instruction and transaction ================= */
-  static makeAddLiquidityInstruction(params: AddLiquidityInstructionParams) {
+  static makeAddLiquidityInstruction(params: LiquidityAddInstructionParams) {
     const { poolKeys } = params;
     const { version } = poolKeys;
 
@@ -471,7 +471,7 @@ export class Liquidity extends Base {
     baseAmountIn,
     quoteAmountIn,
     fixedSide,
-  }: AddLiquidityInstructionParamsV4) {
+  }: LiquidityAddInstructionParamsV4) {
     const LAYOUT = struct([u8("instruction"), u64("baseAmountIn"), u64("quoteAmountIn"), u64("fixedSide")]);
     const data = Buffer.alloc(LAYOUT.span);
     LAYOUT.encode(
@@ -485,6 +485,7 @@ export class Liquidity extends Base {
     );
 
     const keys = [
+      // system
       AccountMetaReadonly(TOKEN_PROGRAM_ID, false),
       // amm
       AccountMeta(poolKeys.id, false),
@@ -510,20 +511,20 @@ export class Liquidity extends Base {
     });
   }
 
-  static async makeAddLiquidityTransaction(params: AddLiquidityTransactionParams) {
-    const { connection, poolKeys, userKeys, currencyAmountInA, currencyAmountInB, fixedSide, config } = params;
+  static async makeAddLiquidityTransaction(params: LiquidityAddTransactionParams) {
+    const { connection, poolKeys, userKeys, amountInA, amountInB, fixedSide, config } = params;
     const { lpMint } = poolKeys;
     const { tokenAccounts, owner, payer = owner } = userKeys;
 
-    logger.debug("currencyAmountInA:", currencyAmountInA);
-    logger.debug("currencyAmountInB:", currencyAmountInB);
+    logger.debug("amountInA:", amountInA);
+    logger.debug("amountInB:", amountInB);
     logger.assertArgument(
-      !currencyAmountInA.isZero() && !currencyAmountInB.isZero(),
+      !amountInA.isZero() && !amountInB.isZero(),
       "amounts must greater than zero",
-      "currencyAmountInA & currencyAmountInB",
+      "amountInA & amountInB",
       {
-        currencyAmountInA: currencyAmountInA.toFixed(),
-        currencyAmountInB: currencyAmountInB.toFixed(),
+        amountInA: amountInA.toFixed(),
+        amountInB: amountInB.toFixed(),
       },
     );
 
@@ -535,8 +536,8 @@ export class Liquidity extends Base {
     };
 
     // handle currency a & b (convert SOL to WSOL)
-    const tokenA = currencyAmountInA instanceof TokenAmount ? currencyAmountInA.token : Token.WSOL;
-    const tokenB = currencyAmountInB instanceof TokenAmount ? currencyAmountInB.token : Token.WSOL;
+    const tokenA = amountInA instanceof TokenAmount ? amountInA.token : Token.WSOL;
+    const tokenB = amountInB instanceof TokenAmount ? amountInB.token : Token.WSOL;
 
     const tokenAccountA = await this._selectTokenAccount({
       tokenAccounts,
@@ -564,16 +565,16 @@ export class Liquidity extends Base {
 
     const tokens = [tokenA, tokenB];
     const _tokenAccounts = [tokenAccountA, tokenAccountB];
-    const amounts = [currencyAmountInA.raw, currencyAmountInB.raw];
+    const rawAmounts = [amountInA.raw, amountInB.raw];
 
     // handle amount a & b and direction
-    const [sideA] = this._getAmountsSide(currencyAmountInA, currencyAmountInB, poolKeys);
+    const [sideA] = this._getAmountsSide(amountInA, amountInB, poolKeys);
     let _fixedSide: AmountSide = "base";
     if (sideA === "quote") {
       // reverse
       tokens.reverse();
       _tokenAccounts.reverse();
-      amounts.reverse();
+      rawAmounts.reverse();
 
       if (fixedSide === "a") _fixedSide = "quote";
       else if (fixedSide === "b") _fixedSide = "base";
@@ -586,7 +587,7 @@ export class Liquidity extends Base {
 
     const [baseToken, quoteToken] = tokens;
     const [baseTokenAccount, quoteTokenAccount] = _tokenAccounts;
-    const [baseAmount, quoteAmount] = amounts;
+    const [baseAmountRaw, quoteAmountRaw] = rawAmounts;
 
     const frontInstructions: TransactionInstruction[] = [];
     const endInstructions: TransactionInstruction[] = [];
@@ -595,7 +596,7 @@ export class Liquidity extends Base {
     const _baseTokenAccount = await this._handleTokenAccount({
       connection,
       side: "in",
-      amount: baseAmount,
+      amount: baseAmountRaw,
       mint: baseToken.mint,
       tokenAccount: baseTokenAccount,
       owner,
@@ -608,7 +609,7 @@ export class Liquidity extends Base {
     const _quoteTokenAccount = await this._handleTokenAccount({
       connection,
       side: "in",
-      amount: quoteAmount,
+      amount: quoteAmountRaw,
       mint: quoteToken.mint,
       tokenAccount: quoteTokenAccount,
       owner,
@@ -641,8 +642,8 @@ export class Liquidity extends Base {
           lpTokenAccount: _lpTokenAccount,
           owner,
         },
-        baseAmountIn: baseAmount,
-        quoteAmountIn: quoteAmount,
+        baseAmountIn: baseAmountRaw,
+        quoteAmountIn: quoteAmountRaw,
         fixedSide: _fixedSide,
       }),
     );
@@ -653,7 +654,7 @@ export class Liquidity extends Base {
     return { transaction, signers };
   }
 
-  static makeRemoveLiquidityInstruction(params: RemoveLiquidityInstructionParams) {
+  static makeRemoveLiquidityInstruction(params: LiquidityRemoveInstructionParams) {
     const { poolKeys } = params;
     const { version } = poolKeys;
 
@@ -664,7 +665,7 @@ export class Liquidity extends Base {
     return logger.throwArgumentError("invalid version", "poolKeys.version", version);
   }
 
-  static makeRemoveLiquidityInstructionV4({ poolKeys, userKeys, amountIn }: RemoveLiquidityInstructionParamsV4) {
+  static makeRemoveLiquidityInstructionV4({ poolKeys, userKeys, amountIn }: LiquidityRemoveInstructionParamsV4) {
     const LAYOUT = struct([u8("instruction"), u64("amountIn")]);
     const data = Buffer.alloc(LAYOUT.span);
     LAYOUT.encode(
@@ -676,6 +677,7 @@ export class Liquidity extends Base {
     );
 
     const keys = [
+      // system
       AccountMetaReadonly(TOKEN_PROGRAM_ID, false),
       // amm
       AccountMeta(poolKeys.id, false),
@@ -711,23 +713,18 @@ export class Liquidity extends Base {
     });
   }
 
-  static async makeRemoveLiquidityTransaction(params: RemoveLiquidityTransactionParams) {
-    const { connection, poolKeys, userKeys, tokenAmountIn, config } = params;
+  static async makeRemoveLiquidityTransaction(params: LiquidityRemoveTransactionParams) {
+    const { connection, poolKeys, userKeys, amountIn, config } = params;
     const { baseMint, quoteMint, lpMint } = poolKeys;
     const { tokenAccounts, owner, payer = owner } = userKeys;
 
-    logger.debug("tokenAmountIn:", tokenAmountIn);
+    logger.debug("amountIn:", amountIn);
+    logger.assertArgument(!amountIn.isZero(), "amount must greater than zero", "amountIn", amountIn.toFixed());
     logger.assertArgument(
-      !tokenAmountIn.isZero(),
-      "amount must greater than zero",
-      "tokenAmountIn",
-      tokenAmountIn.toFixed(),
-    );
-    logger.assertArgument(
-      tokenAmountIn instanceof TokenAmount && tokenAmountIn.token.mint.equals(lpMint),
-      "tokenAmountIn's token not match lpMint",
-      "tokenAmountIn",
-      tokenAmountIn,
+      amountIn instanceof TokenAmount && amountIn.token.mint.equals(lpMint),
+      "amountIn's token not match lpMint",
+      "amountIn",
+      amountIn,
     );
     const lpTokenAccount = await this._selectTokenAccount({
       tokenAccounts,
@@ -796,7 +793,7 @@ export class Liquidity extends Base {
           quoteTokenAccount: _quoteTokenAccount,
           owner,
         },
-        amountIn: tokenAmountIn.raw,
+        amountIn: amountIn.raw,
       }),
     );
 
@@ -806,7 +803,7 @@ export class Liquidity extends Base {
     return { transaction, signers };
   }
 
-  static makeSwapInstruction(params: SwapInstructionParams) {
+  static makeSwapInstruction(params: LiquiditySwapInstructionParams) {
     const { poolKeys, userKeys, amountIn, amountOut, fixedSide } = params;
     const { version } = poolKeys;
 
@@ -827,13 +824,18 @@ export class Liquidity extends Base {
         });
       }
 
-      logger.throwArgumentError("invalid params", "params", params);
+      return logger.throwArgumentError("invalid params", "params", params);
     }
 
     return logger.throwArgumentError("invalid version", "poolKeys.version", version);
   }
 
-  static makeSwapFixedInInstructionV4({ poolKeys, userKeys, amountIn, minAmountOut }: SwapFixedInInstructionParamsV4) {
+  static makeSwapFixedInInstructionV4({
+    poolKeys,
+    userKeys,
+    amountIn,
+    minAmountOut,
+  }: LiquiditySwapFixedInInstructionParamsV4) {
     const LAYOUT = struct([u8("instruction"), u64("amountIn"), u64("minAmountOut")]);
     const data = Buffer.alloc(LAYOUT.span);
     LAYOUT.encode(
@@ -846,6 +848,7 @@ export class Liquidity extends Base {
     );
 
     const keys = [
+      // system
       AccountMetaReadonly(TOKEN_PROGRAM_ID, false),
       // amm
       AccountMeta(poolKeys.id, false),
@@ -881,7 +884,7 @@ export class Liquidity extends Base {
     userKeys,
     maxAmountIn,
     amountOut,
-  }: SwapFixedOutInstructionParamsV4) {
+  }: LiquiditySwapFixedOutInstructionParamsV4) {
     const LAYOUT = struct([u8("instruction"), u64("maxAmountIn"), u64("amountOut")]);
     const data = Buffer.alloc(LAYOUT.span);
     LAYOUT.encode(
@@ -894,6 +897,7 @@ export class Liquidity extends Base {
     );
 
     const keys = [
+      // system
       AccountMetaReadonly(TOKEN_PROGRAM_ID, false),
       // amm
       AccountMeta(poolKeys.id, false),
@@ -924,19 +928,19 @@ export class Liquidity extends Base {
     });
   }
 
-  static async makeSwapTransaction(params: SwapTransactionParams) {
-    const { connection, poolKeys, userKeys, currencyAmountIn, currencyAmountOut, fixedSide, config } = params;
+  static async makeSwapTransaction(params: LiquiditySwapTransactionParams) {
+    const { connection, poolKeys, userKeys, amountIn, amountOut, fixedSide, config } = params;
     const { tokenAccounts, owner, payer = owner } = userKeys;
 
-    logger.debug("currencyAmountIn:", currencyAmountIn);
-    logger.debug("currencyAmountOut:", currencyAmountOut);
+    logger.debug("amountIn:", amountIn);
+    logger.debug("amountOut:", amountOut);
     logger.assertArgument(
-      !currencyAmountIn.isZero() && !currencyAmountOut.isZero(),
+      !amountIn.isZero() && !amountOut.isZero(),
       "amounts must greater than zero",
       "currencyAmounts",
       {
-        currencyAmountIn: currencyAmountIn.toFixed(),
-        currencyAmountOut: currencyAmountOut.toFixed(),
+        amountIn: amountIn.toFixed(),
+        amountOut: amountOut.toFixed(),
       },
     );
 
@@ -948,8 +952,8 @@ export class Liquidity extends Base {
     };
 
     // handle currency in & out (convert SOL to WSOL)
-    const tokenIn = currencyAmountIn instanceof TokenAmount ? currencyAmountIn.token : Token.WSOL;
-    const tokenOut = currencyAmountOut instanceof TokenAmount ? currencyAmountOut.token : Token.WSOL;
+    const tokenIn = amountIn instanceof TokenAmount ? amountIn.token : Token.WSOL;
+    const tokenOut = amountOut instanceof TokenAmount ? amountOut.token : Token.WSOL;
 
     const tokenAccountIn = await this._selectTokenAccount({
       tokenAccounts,
@@ -963,7 +967,7 @@ export class Liquidity extends Base {
       owner,
     });
 
-    const [amountIn, amountOut] = [currencyAmountIn.raw, currencyAmountOut.raw];
+    const [amountInRaw, amountOutRaw] = [amountIn.raw, amountOut.raw];
 
     const frontInstructions: TransactionInstruction[] = [];
     const endInstructions: TransactionInstruction[] = [];
@@ -972,7 +976,7 @@ export class Liquidity extends Base {
     const _tokenAccountIn = await this._handleTokenAccount({
       connection,
       side: "in",
-      amount: amountIn,
+      amount: amountInRaw,
       mint: tokenIn.mint,
       tokenAccount: tokenAccountIn,
       owner,
@@ -1004,8 +1008,8 @@ export class Liquidity extends Base {
           tokenAccountOut: _tokenAccountOut,
           owner,
         },
-        amountIn,
-        amountOut,
+        amountIn: amountInRaw,
+        amountOut: amountOutRaw,
         fixedSide,
       }),
     );
@@ -1016,7 +1020,7 @@ export class Liquidity extends Base {
     return { transaction, signers };
   }
 
-  static makeCreatePoolInstruction(params: CreatePoolInstructionParams) {
+  static makeCreatePoolInstruction(params: LiquidityCreatePoolInstructionParams) {
     const { poolKeys } = params;
     const { version } = poolKeys;
 
@@ -1027,7 +1031,7 @@ export class Liquidity extends Base {
     return logger.throwArgumentError("invalid version", "poolKeys.version", version);
   }
 
-  static async makeCreatePoolInstructionV4({ poolKeys, userKeys }: CreatePoolInstructionParamsV4) {
+  static async makeCreatePoolInstructionV4({ poolKeys, userKeys }: LiquidityCreatePoolInstructionParamsV4) {
     const LAYOUT = struct([u8("instruction"), u8("nonce")]);
     const data = Buffer.alloc(LAYOUT.span);
     LAYOUT.encode(
@@ -1066,7 +1070,7 @@ export class Liquidity extends Base {
     });
   }
 
-  static makeInitPoolInstruction(params: InitPoolInstructionParams) {
+  static makeInitPoolInstruction(params: LiquidityInitPoolInstructionParams) {
     const { poolKeys } = params;
     const { version } = poolKeys;
 
@@ -1077,7 +1081,7 @@ export class Liquidity extends Base {
     return logger.throwArgumentError("invalid version", "poolKeys.version", version);
   }
 
-  static async makeInitPoolInstructionV4({ poolKeys, userKeys }: InitPoolInstructionParamsV4) {
+  static async makeInitPoolInstructionV4({ poolKeys, userKeys }: LiquidityInitPoolInstructionParamsV4) {
     const LAYOUT = struct([u8("instruction"), u8("nonce")]);
     const data = Buffer.alloc(LAYOUT.span);
     LAYOUT.encode(
@@ -1209,7 +1213,7 @@ export class Liquidity extends Base {
 
     const flatPoolsAccountInfo = poolsAccountInfo.flat();
     // temp pool keys without market keys
-    const tempPoolsKeys: Omit<AssociatedPoolKeys, "nonce">[] = [];
+    const tempPoolsKeys: Omit<LiquidityAssociatedPoolKeys, "nonce">[] = [];
 
     for (const {
       pubkey,
@@ -1346,7 +1350,7 @@ export class Liquidity extends Base {
   /**
    * Fetch liquidity pool's info
    */
-  static async fetchInfo({ connection, poolKeys }: FetchLiquidityInfoParams) {
+  static async fetchInfo({ connection, poolKeys }: LiquidityFetchInfoParams) {
     const info = await this.fetchMultipleInfo({ connection, pools: [poolKeys] });
 
     logger.assertArgument(
@@ -1366,7 +1370,7 @@ export class Liquidity extends Base {
     connection,
     pools,
     config,
-  }: FetchLiquidityMultipleInfoParams): Promise<LiquidityPoolInfo[]> {
+  }: LiquidityFetchMultipleInfoParams): Promise<LiquidityPoolInfo[]> {
     const instructions = pools.map((pool) => this.makeSimulatePoolInfoInstruction({ poolKeys: pool }));
 
     const logs = await simulateMultipleInstruction(connection, instructions, "GetPoolData");
@@ -1471,6 +1475,8 @@ export class Liquidity extends Base {
   /**
    * Compute the another currency amount of add liquidity
    *
+   * @param params - {@link LiquidityComputeAnotherAmountParams}
+   *
    * @returns
    * anotherCurrencyAmount - currency amount without slippage
    * @returns
@@ -1480,61 +1486,61 @@ export class Liquidity extends Base {
    *
    * @example
    * ```
-   * Liquidity.computeAnotherCurrencyAmount({
+   * Liquidity.computeAnotherAmount({
    *   // 1%
    *   slippage: new Percent(1, 100)
    * })
    * ```
    */
-  static computeAnotherCurrencyAmount({
+  static computeAnotherAmount({
     poolKeys,
     poolInfo,
-    currencyAmount,
+    amount,
     anotherCurrency,
     slippage,
-  }: ComputeAnotherCurrencyAmountParams):
-    | { anotherCurrencyAmount: CurrencyAmount; maxAnotherCurrencyAmount: CurrencyAmount }
-    | { anotherCurrencyAmount: TokenAmount; maxAnotherCurrencyAmount: TokenAmount } {
+  }: LiquidityComputeAnotherAmountParams):
+    | { anotherAmount: CurrencyAmount; maxAnotherAmount: CurrencyAmount }
+    | { anotherAmount: TokenAmount; maxAnotherAmount: TokenAmount } {
     const { baseReserve, quoteReserve } = poolInfo;
     logger.debug("baseReserve:", baseReserve.toString());
     logger.debug("quoteReserve:", quoteReserve.toString());
 
-    const currencyIn = currencyAmount instanceof TokenAmount ? currencyAmount.token : currencyAmount.currency;
+    const currencyIn = amount instanceof TokenAmount ? amount.token : amount.currency;
     logger.debug("currencyIn:", currencyIn);
-    logger.debug("currencyAmount:", currencyAmount.toFixed());
+    logger.debug("amount:", amount.toFixed());
     logger.debug("anotherCurrency:", anotherCurrency);
     logger.debug("slippage:", `${slippage.toSignificant()}%`);
 
     // input is fixed
-    const input = this._getAmountSide(currencyAmount, poolKeys);
+    const input = this._getAmountSide(amount, poolKeys);
     logger.debug("input side:", input);
 
     // round up
-    let amount = ZERO;
-    if (!currencyAmount.isZero()) {
-      amount =
+    let amountRaw = ZERO;
+    if (!amount.isZero()) {
+      amountRaw =
         input === "base"
-          ? divCeil(currencyAmount.raw.mul(quoteReserve), baseReserve)
-          : divCeil(currencyAmount.raw.mul(baseReserve), quoteReserve);
+          ? divCeil(amount.raw.mul(quoteReserve), baseReserve)
+          : divCeil(amount.raw.mul(baseReserve), quoteReserve);
     }
 
     const _slippage = new Percent(ONE).add(slippage);
-    const slippageAdjustedAmount = _slippage.mul(amount).quotient;
+    const slippageAdjustedAmount = _slippage.mul(amountRaw).quotient;
 
-    const _anotherCurrencyAmount =
+    const _anotherAmount =
       anotherCurrency instanceof Token
-        ? new TokenAmount(anotherCurrency, amount)
-        : new CurrencyAmount(anotherCurrency, amount);
-    const _maxAnotherCurrencyAmount =
+        ? new TokenAmount(anotherCurrency, amountRaw)
+        : new CurrencyAmount(anotherCurrency, amountRaw);
+    const _maxAnotherAmount =
       anotherCurrency instanceof Token
         ? new TokenAmount(anotherCurrency, slippageAdjustedAmount)
         : new CurrencyAmount(anotherCurrency, slippageAdjustedAmount);
-    logger.debug("anotherCurrencyAmount:", _anotherCurrencyAmount.toFixed());
-    logger.debug("maxAnotherCurrencyAmount:", _maxAnotherCurrencyAmount.toFixed());
+    logger.debug("anotheAmount:", _anotherAmount.toFixed());
+    logger.debug("maxAnotheAmount:", _maxAnotherAmount.toFixed());
 
     return {
-      anotherCurrencyAmount: _anotherCurrencyAmount,
-      maxAnotherCurrencyAmount: _maxAnotherCurrencyAmount,
+      anotherAmount: _anotherAmount,
+      maxAnotherAmount: _maxAnotherAmount,
     };
   }
 
@@ -1548,20 +1554,20 @@ export class Liquidity extends Base {
   /**
    * Compute output currency amount of swap
    *
-   * @param params - {@link ComputeCurrencyAmountOutParams}
+   * @param params - {@link LiquidityComputeAmountOutParams}
    *
    * @returns
    * amountOut - currency amount without slippage
    * @returns
    * minAmountOut - currency amount with slippage
    */
-  static computeCurrencyAmountOut = ({
+  static computeAmountOut = ({
     poolKeys,
     poolInfo,
-    currencyAmountIn,
+    amountIn,
     currencyOut,
     slippage,
-  }: ComputeCurrencyAmountOutParams):
+  }: LiquidityComputeAmountOutParams):
     | {
         amountOut: CurrencyAmount;
         minAmountOut: CurrencyAmount;
@@ -1580,16 +1586,16 @@ export class Liquidity extends Base {
     logger.debug("baseReserve:", baseReserve.toString());
     logger.debug("quoteReserve:", quoteReserve.toString());
 
-    const currencyIn = currencyAmountIn instanceof TokenAmount ? currencyAmountIn.token : currencyAmountIn.currency;
+    const currencyIn = amountIn instanceof TokenAmount ? amountIn.token : amountIn.currency;
     logger.debug("currencyIn:", currencyIn);
-    logger.debug("currencyAmountIn:", currencyAmountIn.toFixed());
+    logger.debug("amountIn:", amountIn.toFixed());
     logger.debug("currencyOut:", currencyOut);
     logger.debug("slippage:", `${slippage.toSignificant()}%`);
 
     const reserves = [baseReserve, quoteReserve];
 
     // input is fixed
-    const input = this._getAmountSide(currencyAmountIn, poolKeys);
+    const input = this._getAmountSide(amountIn, poolKeys);
     if (input === "quote") {
       reserves.reverse();
     }
@@ -1604,33 +1610,33 @@ export class Liquidity extends Base {
       `1 ${currencyOut.symbol} ≈ ${currentPrice.invert().toFixed()} ${currencyIn.symbol}`,
     );
 
-    const amountIn = currencyAmountIn.raw;
-    let amountOut = ZERO;
-    if (!amountIn.isZero()) {
-      const amountInWithFee = amountIn.mul(LIQUIDITY_FEES_NUMERATOR);
+    const amountInRaw = amountIn.raw;
+    let amountOutRaw = ZERO;
+    if (!amountInRaw.isZero()) {
+      const amountInWithFee = amountInRaw.mul(LIQUIDITY_FEES_NUMERATOR);
       const numerator = amountInWithFee.mul(reserveOut);
       const denominator = reserveIn.mul(LIQUIDITY_FEES_DENOMINATOR).add(amountInWithFee);
 
-      amountOut = numerator.div(denominator);
+      amountOutRaw = numerator.div(denominator);
     }
 
     const _slippage = new Percent(ONE).add(slippage);
-    const minAmountOut = _slippage.invert().mul(amountOut).quotient;
+    const minAmountOutRaw = _slippage.invert().mul(amountOutRaw).quotient;
 
-    const _amountOut =
+    const amountOut =
       currencyOut instanceof Token
-        ? new TokenAmount(currencyOut, amountOut)
-        : new CurrencyAmount(currencyOut, amountOut);
-    const _minAmountOut =
+        ? new TokenAmount(currencyOut, amountOutRaw)
+        : new CurrencyAmount(currencyOut, amountOutRaw);
+    const minAmountOut =
       currencyOut instanceof Token
-        ? new TokenAmount(currencyOut, minAmountOut)
-        : new CurrencyAmount(currencyOut, minAmountOut);
-    logger.debug("amountOut:", _amountOut.toFixed());
-    logger.debug("minAmountOut:", _minAmountOut.toFixed());
+        ? new TokenAmount(currencyOut, minAmountOutRaw)
+        : new CurrencyAmount(currencyOut, minAmountOutRaw);
+    logger.debug("amountOut:", amountOut.toFixed());
+    logger.debug("minAmountOut:", minAmountOut.toFixed());
 
     let executionPrice: Price | null = null;
-    if (!amountIn.isZero() && !amountOut.isZero()) {
-      executionPrice = new Price(currencyIn, amountIn, currencyOut, amountOut);
+    if (!amountInRaw.isZero() && !amountOutRaw.isZero()) {
+      executionPrice = new Price(currencyIn, amountInRaw, currencyOut, amountOutRaw);
       logger.debug("executionPrice:", `1 ${currencyIn.symbol} ≈ ${executionPrice.toFixed()} ${currencyOut.symbol}`);
       logger.debug(
         "executionPrice invert:",
@@ -1638,12 +1644,12 @@ export class Liquidity extends Base {
       );
     }
 
-    const priceImpact = this._computePriceImpact(currentPrice, amountIn, amountOut);
+    const priceImpact = this._computePriceImpact(currentPrice, amountInRaw, amountOutRaw);
     logger.debug("priceImpact:", `${priceImpact.toSignificant()}%`);
 
     return {
-      amountOut: _amountOut,
-      minAmountOut: _minAmountOut,
+      amountOut,
+      minAmountOut,
       currentPrice,
       executionPrice,
       priceImpact,
@@ -1660,13 +1666,7 @@ export class Liquidity extends Base {
    * @returns
    * maxAmountIn - currency amount with slippage
    */
-  static computeCurrencyAmountIn({
-    poolKeys,
-    poolInfo,
-    currencyAmountOut,
-    currencyIn,
-    slippage,
-  }: ComputeCurrencyAmountInParams):
+  static computeAmountIn({ poolKeys, poolInfo, amountOut, currencyIn, slippage }: LiquidityComputeAmountInParams):
     | {
         amountIn: CurrencyAmount;
         maxAmountIn: CurrencyAmount;
@@ -1685,16 +1685,16 @@ export class Liquidity extends Base {
     logger.debug("baseReserve:", baseReserve.toString());
     logger.debug("quoteReserve:", quoteReserve.toString());
 
-    const currencyOut = currencyAmountOut instanceof TokenAmount ? currencyAmountOut.token : currencyAmountOut.currency;
+    const currencyOut = amountOut instanceof TokenAmount ? amountOut.token : amountOut.currency;
     logger.debug("currencyOut:", currencyOut);
-    logger.debug("currencyAmountOut:", currencyAmountOut.toFixed());
+    logger.debug("amountOut:", amountOut.toFixed());
     logger.debug("currencyIn:", currencyIn);
     logger.debug("slippage:", `${slippage.toSignificant()}%`);
 
     const reserves = [baseReserve, quoteReserve];
 
     // output is fixed
-    const output = this._getAmountSide(currencyAmountOut, poolKeys);
+    const output = this._getAmountSide(amountOut, poolKeys);
     if (output === "base") {
       reserves.reverse();
     }
@@ -1709,35 +1709,37 @@ export class Liquidity extends Base {
       `1 ${currencyOut.symbol} ≈ ${currentPrice.invert().toFixed()} ${currencyIn.symbol}`,
     );
 
-    let amountIn = ZERO;
-    let amountOut = currencyAmountOut.raw;
-    if (!amountOut.isZero()) {
+    let amountInRaw = ZERO;
+    let amountOutRaw = amountOut.raw;
+    if (!amountOutRaw.isZero()) {
       // if out > reserve, out = reserve - 1
-      if (amountOut.gt(reserveOut)) {
-        amountOut = reserveOut.sub(ONE);
+      if (amountOutRaw.gt(reserveOut)) {
+        amountOutRaw = reserveOut.sub(ONE);
       }
 
-      const numerator = reserveIn.mul(amountOut).mul(LIQUIDITY_FEES_DENOMINATOR);
-      const denominator = reserveOut.sub(amountOut).mul(LIQUIDITY_FEES_NUMERATOR);
+      const numerator = reserveIn.mul(amountOutRaw).mul(LIQUIDITY_FEES_DENOMINATOR);
+      const denominator = reserveOut.sub(amountOutRaw).mul(LIQUIDITY_FEES_NUMERATOR);
 
-      amountIn = numerator.div(denominator).add(ONE);
+      amountInRaw = numerator.div(denominator).add(ONE);
     }
 
     const _slippage = new Percent(ONE).add(slippage);
-    const maxAmountIn = _slippage.mul(amountIn).quotient;
+    const maxAmountInRaw = _slippage.mul(amountInRaw).quotient;
 
-    const _amountIn =
-      currencyIn instanceof Token ? new TokenAmount(currencyIn, amountIn) : new CurrencyAmount(currencyIn, amountIn);
-    const _maxAmountIn =
+    const amountIn =
       currencyIn instanceof Token
-        ? new TokenAmount(currencyIn, maxAmountIn)
-        : new CurrencyAmount(currencyIn, maxAmountIn);
-    logger.debug("amountIn:", _amountIn.toFixed());
-    logger.debug("maxAmountIn:", _maxAmountIn.toFixed());
+        ? new TokenAmount(currencyIn, amountInRaw)
+        : new CurrencyAmount(currencyIn, amountInRaw);
+    const maxAmountIn =
+      currencyIn instanceof Token
+        ? new TokenAmount(currencyIn, maxAmountInRaw)
+        : new CurrencyAmount(currencyIn, maxAmountInRaw);
+    logger.debug("amountIn:", amountIn.toFixed());
+    logger.debug("maxAmountIn:", maxAmountIn.toFixed());
 
     let executionPrice: Price | null = null;
-    if (!amountIn.isZero() && !amountOut.isZero()) {
-      executionPrice = new Price(currencyIn, amountIn, currencyOut, amountOut);
+    if (!amountInRaw.isZero() && !amountOutRaw.isZero()) {
+      executionPrice = new Price(currencyIn, amountInRaw, currencyOut, amountOutRaw);
       logger.debug("executionPrice:", `1 ${currencyIn.symbol} ≈ ${executionPrice.toFixed()} ${currencyOut.symbol}`);
       logger.debug(
         "executionPrice invert:",
@@ -1745,12 +1747,12 @@ export class Liquidity extends Base {
       );
     }
 
-    const priceImpact = this._computePriceImpact(currentPrice, amountIn, amountOut);
+    const priceImpact = this._computePriceImpact(currentPrice, amountInRaw, amountOutRaw);
     logger.debug("priceImpact:", `${priceImpact.toSignificant()}%`);
 
     return {
-      amountIn: _amountIn,
-      maxAmountIn: _maxAmountIn,
+      amountIn,
+      maxAmountIn,
       currentPrice,
       executionPrice,
       priceImpact,

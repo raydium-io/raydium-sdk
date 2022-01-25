@@ -46,7 +46,7 @@ export interface FarmDepositInstructionParams {
 
 export type FarmWithdrawInstructionParams = FarmDepositInstructionParams;
 
-export interface CreateAssociatedLedgerAccountInstructionParams {
+export interface FarmCreateAssociatedLedgerAccountInstructionParams {
   poolKeys: FarmPoolKeys;
   userKeys: {
     ledger: PublicKey;
@@ -55,7 +55,7 @@ export interface CreateAssociatedLedgerAccountInstructionParams {
 }
 
 /* ================= fetch data ================= */
-export interface FetchFarmMultipleInfoParams {
+export interface FarmFetchMultipleInfoParams {
   connection: Connection;
   pools: FarmPoolKeys[];
   owner?: PublicKey;
@@ -105,7 +105,7 @@ export class Farm {
     return findProgramAddress([poolId.toBuffer()], programId);
   }
 
-  static async getAssociatedLedger({
+  static async getAssociatedLedgerAccount({
     programId,
     poolId,
     owner,
@@ -168,6 +168,7 @@ export class Farm {
       AccountMeta(poolKeys.lpVault, false),
       AccountMeta(userKeys.rewardTokenAccounts[0], false),
       AccountMeta(poolKeys.rewardVaults[0], false),
+      // system
       AccountMetaReadonly(SYSVAR_CLOCK_PUBKEY, false),
       AccountMetaReadonly(TOKEN_PROGRAM_ID, false),
     ];
@@ -212,6 +213,7 @@ export class Farm {
       AccountMeta(poolKeys.lpVault, false),
       AccountMeta(userKeys.rewardTokenAccounts[0], false),
       AccountMeta(poolKeys.rewardVaults[0], false),
+      // system
       AccountMetaReadonly(SYSVAR_CLOCK_PUBKEY, false),
       AccountMetaReadonly(TOKEN_PROGRAM_ID, false),
     ];
@@ -280,6 +282,7 @@ export class Farm {
       AccountMeta(poolKeys.lpVault, false),
       AccountMeta(userKeys.rewardTokenAccounts[0], false),
       AccountMeta(poolKeys.rewardVaults[0], false),
+      // system
       AccountMetaReadonly(SYSVAR_CLOCK_PUBKEY, false),
       AccountMetaReadonly(TOKEN_PROGRAM_ID, false),
     ];
@@ -324,6 +327,7 @@ export class Farm {
       AccountMeta(poolKeys.lpVault, false),
       AccountMeta(userKeys.rewardTokenAccounts[0], false),
       AccountMeta(poolKeys.rewardVaults[0], false),
+      // system
       AccountMetaReadonly(SYSVAR_CLOCK_PUBKEY, false),
       AccountMetaReadonly(TOKEN_PROGRAM_ID, false),
     ];
@@ -346,7 +350,7 @@ export class Farm {
     });
   }
 
-  static makeCreateAssociatedLedgerAccountInstruction(params: CreateAssociatedLedgerAccountInstructionParams) {
+  static makeCreateAssociatedLedgerAccountInstruction(params: FarmCreateAssociatedLedgerAccountInstructionParams) {
     const { poolKeys } = params;
     const { version } = poolKeys;
 
@@ -362,7 +366,7 @@ export class Farm {
   static makeCreateAssociatedLedgerAccountInstructionV3({
     poolKeys,
     userKeys,
-  }: CreateAssociatedLedgerAccountInstructionParams) {
+  }: FarmCreateAssociatedLedgerAccountInstructionParams) {
     const LAYOUT = struct([u8("instruction")]);
     const data = Buffer.alloc(LAYOUT.span);
     LAYOUT.encode(
@@ -376,6 +380,7 @@ export class Farm {
       AccountMeta(poolKeys.id, false),
       AccountMetaReadonly(userKeys.ledger, false),
       AccountMetaReadonly(userKeys.owner, true),
+      // system
       AccountMetaReadonly(SYSTEM_PROGRAM_ID, false),
       AccountMetaReadonly(SYSVAR_RENT_PUBKEY, false),
     ];
@@ -390,7 +395,7 @@ export class Farm {
   static makeCreateAssociatedLedgerAccountInstructionV5({
     poolKeys,
     userKeys,
-  }: CreateAssociatedLedgerAccountInstructionParams) {
+  }: FarmCreateAssociatedLedgerAccountInstructionParams) {
     const LAYOUT = struct([u8("instruction")]);
     const data = Buffer.alloc(LAYOUT.span);
     LAYOUT.encode(
@@ -404,6 +409,7 @@ export class Farm {
       AccountMeta(poolKeys.id, false),
       AccountMetaReadonly(userKeys.ledger, false),
       AccountMetaReadonly(userKeys.owner, true),
+      // system
       AccountMetaReadonly(SYSTEM_PROGRAM_ID, false),
       AccountMetaReadonly(SYSVAR_RENT_PUBKEY, false),
     ];
@@ -416,7 +422,7 @@ export class Farm {
   }
 
   /* ================= fetch data ================= */
-  static async fetchMultipleInfo({ connection, pools, owner, config }: FetchFarmMultipleInfoParams) {
+  static async fetchMultipleInfo({ connection, pools, owner, config }: FarmFetchMultipleInfoParams) {
     const publicKeys: {
       pubkey: PublicKey;
       version: number;
@@ -441,7 +447,7 @@ export class Farm {
 
       if (owner) {
         publicKeys.push({
-          pubkey: await this.getAssociatedLedger({ programId: pool.programId, poolId: pool.id, owner }),
+          pubkey: await this.getAssociatedLedgerAccount({ programId: pool.programId, poolId: pool.id, owner }),
           version: pool.version,
           key: "ledger",
           poolId: pool.id,
