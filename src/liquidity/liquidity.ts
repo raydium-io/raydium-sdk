@@ -219,6 +219,7 @@ export interface LiquidityInitPoolInstructionParamsV4 {
     lpTokenAccount: PublicKey;
     payer: PublicKey;
   };
+  startTime: BigNumberish;
 }
 
 /**
@@ -1081,13 +1082,14 @@ export class Liquidity extends Base {
     return logger.throwArgumentError("invalid version", "poolKeys.version", version);
   }
 
-  static async makeInitPoolInstructionV4({ poolKeys, userKeys }: LiquidityInitPoolInstructionParamsV4) {
-    const LAYOUT = struct([u8("instruction"), u8("nonce")]);
+  static async makeInitPoolInstructionV4({ poolKeys, userKeys, startTime }: LiquidityInitPoolInstructionParamsV4) {
+    const LAYOUT = struct([u8("instruction"), u8("nonce"), u64("startTime")]);
     const data = Buffer.alloc(LAYOUT.span);
     LAYOUT.encode(
       {
         instruction: 0,
         nonce: poolKeys.nonce,
+        startTime: parseBigNumberish(startTime),
       },
       data,
     );

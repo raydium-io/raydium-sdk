@@ -90,7 +90,9 @@ export async function getMultipleAccountsInfo(
     });
   } else {
     try {
-      results = await Promise.all(chunkedKeys.map((keys) => connection.getMultipleAccountsInfo(keys, commitment)));
+      results = (await Promise.all(
+        chunkedKeys.map((keys) => connection.getMultipleAccountsInfo(keys, commitment)),
+      )) as (AccountInfo<Buffer> | null)[][];
     } catch (error) {
       if (error instanceof Error) {
         return logger.throwError("failed to get info for multiple accounts", Logger.errors.RPC_ERROR, {
