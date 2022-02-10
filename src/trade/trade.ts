@@ -149,7 +149,7 @@ export class Trade {
             slippage,
           });
 
-          if (amountOut.gt(amountOut)) {
+          if (amountOut.gt(_amountOut)) {
             routes = [
               {
                 source: "amm",

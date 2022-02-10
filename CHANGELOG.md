@@ -1,5 +1,29 @@
 # Changelog
 
+### 1.0.1-beta.29 (2022-02-10)
+
+- Change
+  - Fixes bugs
+  - Update dev dependencies
+
+### 1.0.1-beta.28 (2022-02-03)
+
+- Change
+  - Optional param `startTime` of `Liquidity.makeInitPoolInstruction`
+
+### 1.0.1-beta.27 (2022-02-03)
+
+- Add
+  - Add param `startTime` of `Liquidity.makeInitPoolInstruction`
+- Change
+  - Fixes bugs
+  - Update dev dependencies
+
+### 1.0.1-beta.26 (2022-01-18)
+
+- Change
+  - Fixes bugs
+
 ### 1.0.1-beta.25 (2022-01-17)
 
 - Change
@@ -8,7 +32,7 @@
 ### 1.0.1-beta.24 (2022-01-15)
 
 - Change
-  - Fix bug
+  - Fixes
   - Update dev dependencies
 
 ### 1.0.1-beta.23 (2022-01-15)
@@ -16,12 +40,12 @@
 - Add
   - Return `priceImpact` for `Liquidity.computeCurrencyAmountOut` and `Liquidity.computeCurrencyAmountIn`
 - Change
-  - Fix bug
+  - Fixes
 
 ### 1.0.1-beta.22 (2022-01-15)
 
 - Change
-  - Fix bug
+  - Fixes
 
 ### 1.0.1-beta.21 (2022-01-14)
 
