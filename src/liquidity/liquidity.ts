@@ -1553,6 +1553,13 @@ export class Liquidity extends Base {
     return new Percent(slippage.numerator, slippage.denominator);
   }
 
+  static computeQuotePrice(poolInfo: LiquidityPoolInfo) {
+    const { baseReserve, quoteReserve, baseDecimals, quoteDecimals } = poolInfo;
+    const price = new Price(new Currency(baseDecimals), baseReserve, new Currency(quoteDecimals), quoteReserve);
+
+    return price;
+  }
+
   /**
    * Compute output currency amount of swap
    *
