@@ -12,6 +12,7 @@ import {
 } from "../entity";
 import { struct, u64, u8 } from "../marshmallow";
 import { Market } from "../serum";
+import { Spl } from "../spl";
 
 import {
   LIQUIDITY_PROGRAMID_TO_VERSION, LIQUIDITY_VERSION_TO_PROGRAMID, LIQUIDITY_VERSION_TO_SERUM_VERSION,
@@ -105,6 +106,9 @@ export interface LiquidityAddInstructionParamsV4 {
  */
 export type LiquidityAddInstructionParams = LiquidityAddInstructionParamsV4;
 
+/**
+ * Add liquidity transaction params
+ */
 export interface LiquidityAddTransactionParams {
   connection: Connection;
   poolKeys: LiquidityPoolKeys;
@@ -132,6 +136,9 @@ export interface LiquidityRemoveInstructionParamsV4 {
  */
 export type LiquidityRemoveInstructionParams = LiquidityRemoveInstructionParamsV4;
 
+/**
+ * Remove liquidity transaction params
+ */
 export interface LiquidityRemoveTransactionParams {
   connection: Connection;
   poolKeys: LiquidityPoolKeys;
@@ -185,6 +192,9 @@ export interface LiquiditySwapInstructionParams {
   fixedSide: SwapSide;
 }
 
+/**
+ * Swap transaction params
+ */
 export interface LiquiditySwapTransactionParams {
   connection: Connection;
   poolKeys: LiquidityPoolKeys;
@@ -213,19 +223,43 @@ export interface LiquidityCreatePoolInstructionParamsV4 {
  */
 export type LiquidityCreatePoolInstructionParams = LiquidityCreatePoolInstructionParamsV4;
 
+/**
+ * Create pool transaction params
+ */
+export type LiquidityCreatePoolTransactionParams = LiquidityCreatePoolInstructionParams;
+
 export interface LiquidityInitPoolInstructionParamsV4 {
   poolKeys: LiquidityAssociatedPoolKeysV4;
   userKeys: {
     lpTokenAccount: PublicKey;
     payer: PublicKey;
   };
-  startTime?: BigNumberish;
+  startTime: BigNumberish;
 }
 
 /**
  * Init pool instruction params
  */
 export type LiquidityInitPoolInstructionParams = LiquidityInitPoolInstructionParamsV4;
+
+/**
+ * Init pool transaction params
+ */
+export interface LiquidityInitPoolTransactionParams {
+  connection: Connection;
+  poolKeys: LiquidityAssociatedPoolKeysV4;
+  userKeys: {
+    tokenAccounts: TokenAccount[];
+    owner: PublicKey;
+    payer?: PublicKey;
+  };
+  baseAmount: CurrencyAmount | TokenAmount;
+  quoteAmount: CurrencyAmount | TokenAmount;
+  startTime?: BigNumberish;
+  config?: {
+    bypassAssociatedCheck?: boolean;
+  };
+}
 
 /* ================= fetch data ================= */
 /**
@@ -1032,7 +1066,7 @@ export class Liquidity extends Base {
     return logger.throwArgumentError("invalid version", "poolKeys.version", version);
   }
 
-  static async makeCreatePoolInstructionV4({ poolKeys, userKeys }: LiquidityCreatePoolInstructionParamsV4) {
+  static makeCreatePoolInstructionV4({ poolKeys, userKeys }: LiquidityCreatePoolInstructionParamsV4) {
     const LAYOUT = struct([u8("instruction"), u8("nonce")]);
     const data = Buffer.alloc(LAYOUT.span);
     LAYOUT.encode(
@@ -1071,6 +1105,15 @@ export class Liquidity extends Base {
     });
   }
 
+  static makeCreatePoolTransaction(params: LiquidityCreatePoolTransactionParams) {
+    const transaction = new Transaction();
+    const signers: Signer[] = [];
+
+    transaction.add(this.makeCreatePoolInstruction(params));
+
+    return { transaction, signers };
+  }
+
   static makeInitPoolInstruction(params: LiquidityInitPoolInstructionParams) {
     const { poolKeys } = params;
     const { version } = poolKeys;
@@ -1082,7 +1125,7 @@ export class Liquidity extends Base {
     return logger.throwArgumentError("invalid version", "poolKeys.version", version);
   }
 
-  static async makeInitPoolInstructionV4({ poolKeys, userKeys, startTime = 0 }: LiquidityInitPoolInstructionParamsV4) {
+  static makeInitPoolInstructionV4({ poolKeys, userKeys, startTime }: LiquidityInitPoolInstructionParamsV4) {
     const LAYOUT = struct([u8("instruction"), u8("nonce"), u64("startTime")]);
     const data = Buffer.alloc(LAYOUT.span);
     LAYOUT.encode(
@@ -1124,6 +1167,119 @@ export class Liquidity extends Base {
       keys,
       data,
     });
+  }
+
+  static async makeInitPoolTransaction(params: LiquidityInitPoolTransactionParams) {
+    const { connection, poolKeys, userKeys, baseAmount, quoteAmount, startTime = 0, config } = params;
+    const { baseMint, quoteMint, lpMint, baseVault, quoteVault } = poolKeys;
+    const { tokenAccounts, owner, payer = owner } = userKeys;
+
+    const { bypassAssociatedCheck } = {
+      // default
+      ...{ bypassAssociatedCheck: false },
+      // custom
+      ...config,
+    };
+
+    const baseTokenAccount = await this._selectTokenAccount({
+      tokenAccounts,
+      mint: baseMint,
+      owner,
+      config: { associatedOnly: false },
+    });
+    const quoteTokenAccount = await this._selectTokenAccount({
+      tokenAccounts,
+      mint: quoteMint,
+      owner,
+      config: { associatedOnly: false },
+    });
+    logger.assertArgument(
+      !!baseTokenAccount || !!quoteTokenAccount,
+      "can't find target token accounts",
+      "tokenAccounts",
+      tokenAccounts,
+    );
+    const lpTokenAccount = await this._selectTokenAccount({
+      tokenAccounts,
+      mint: lpMint,
+      owner,
+    });
+
+    const frontInstructions: TransactionInstruction[] = [];
+    const endInstructions: TransactionInstruction[] = [];
+    const signers: Signer[] = [];
+
+    const _baseTokenAccount = await this._handleTokenAccount({
+      connection,
+      side: "in",
+      amount: baseAmount.raw,
+      mint: baseMint,
+      tokenAccount: baseTokenAccount,
+      owner,
+      payer,
+      frontInstructions,
+      endInstructions,
+      signers,
+      bypassAssociatedCheck,
+    });
+    const _quoteTokenAccount = await this._handleTokenAccount({
+      connection,
+      side: "in",
+      amount: quoteAmount.raw,
+      mint: quoteMint,
+      tokenAccount: quoteTokenAccount,
+      owner,
+      payer,
+      frontInstructions,
+      endInstructions,
+      signers,
+      bypassAssociatedCheck,
+    });
+    const _lpTokenAccount = await this._handleTokenAccount({
+      connection,
+      side: "out",
+      amount: 0,
+      mint: lpMint,
+      tokenAccount: lpTokenAccount,
+      owner,
+      payer,
+      frontInstructions,
+      endInstructions,
+      signers,
+      bypassAssociatedCheck,
+    });
+
+    frontInstructions.push(
+      Spl.makeTransferInstruction({
+        source: _baseTokenAccount,
+        destination: baseVault,
+        owner,
+        amount: baseAmount.raw,
+      }),
+    );
+    frontInstructions.push(
+      Spl.makeTransferInstruction({
+        source: _quoteTokenAccount,
+        destination: quoteVault,
+        owner,
+        amount: quoteAmount.raw,
+      }),
+    );
+    frontInstructions.push(
+      this.makeInitPoolInstruction({
+        poolKeys,
+        userKeys: {
+          lpTokenAccount: _lpTokenAccount,
+          payer,
+        },
+        startTime,
+      }),
+    );
+
+    const transaction = new Transaction();
+    transaction.add(...[...frontInstructions, ...endInstructions]);
+
+    return { transaction, signers };
   }
 
   static makeSimulatePoolInfoInstruction({ poolKeys }: { poolKeys: LiquidityPoolKeys }) {
