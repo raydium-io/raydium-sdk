@@ -1,5 +1,13 @@
 # Changelog
 
+### 1.0.1-beta.30 (2022-02-16)
+
+- Add
+  - `makeCreatePoolTransaction` for `Liquidity`
+  - `makeInitPoolTransaction` for `Liquidity`
+- Change
+  - Update dev dependencies
+
 ### 1.0.1-beta.29 (2022-02-10)
 
 - Change
