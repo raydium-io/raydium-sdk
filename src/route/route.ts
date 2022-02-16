@@ -3,8 +3,8 @@ import { PublicKey, TransactionInstruction } from "@solana/web3.js";
 import {
   AccountMeta, AccountMetaReadonly, findProgramAddress, Logger, SYSTEM_PROGRAM_ID, TOKEN_PROGRAM_ID,
 } from "../common";
-import { BigNumberish, parseBigNumberish } from "../entity";
-import { LiquidityPoolKeys, SwapSide } from "../liquidity";
+import { BigNumberish, Currency, CurrencyAmount, parseBigNumberish, Percent, Token, TokenAmount } from "../entity";
+import { Liquidity, LiquidityPoolInfo, LiquidityPoolKeys, SwapSide } from "../liquidity";
 import { struct, u64, u8 } from "../marshmallow";
 
 import {
@@ -43,6 +43,16 @@ export interface RouteSwapInFixedInInstructionParams
 export interface RouteSwapOutFixedInInstructionParams
   extends Omit<RouteSwapInstructionParams, "userKeys" | "amountIn" | "fixedSide"> {
   userKeys: Omit<RouteUserKeys, "inTokenAccount">;
+}
+
+export interface RouteComputeAmountOutParams {
+  fromPoolKeys: LiquidityPoolKeys;
+  fromPoolInfo: LiquidityPoolInfo;
+  toPoolKeys: LiquidityPoolKeys;
+  toPoolInfo: LiquidityPoolInfo;
+  amountIn: CurrencyAmount | TokenAmount;
+  currencyOut: Currency | Token;
+  slippage: Percent;
 }
 
 export class Route {
@@ -207,7 +217,17 @@ export class Route {
   // static makeSwapOutFixedOutInstruction() {}
 
   /* ================= compute data ================= */
-  // static computeAmountOut() {}
+  static computeAmountOut({
+    fromPoolKeys,
+    fromPoolInfo,
+    toPoolKeys,
+    toPoolInfo,
+    amountIn,
+    currencyOut,
+    slippage,
+  }: RouteComputeAmountOutParams) {
+    // const {} = Liquidity.computeAmountOut({ poolKeys: fromPoolKeys, poolInfo: fromPoolInfo, amountIn });
+  }
 
   // static computeAmountIn() {}
 }

@@ -243,7 +243,10 @@ export async function simulateMultipleInstruction(
   }
 
   const logs: string[] = [];
-  for (const { value } of results) {
+  for (const result of results) {
+    const { value } = result;
+    logger.debug("simulate result:", result);
+
     if (value.logs) {
       const filteredLog = value.logs.find((log) => log && log.includes(keyword));
       if (!filteredLog) {
