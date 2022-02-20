@@ -51,7 +51,7 @@ $ npm install @raydium-io/raydium-sdk --save
 | AMM / Liquidity | 4       | 675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8 |
 | Farm / Staking  | 3       | EhhTKczWMGQt46ynNeRX1WfeagwwJd7ufHvCDjRxjo5Q |
 | Farm / Staking  | 5       | 9KEPoZmtHUrBbhWN1v1KWLMkkvwY6WLtAVUCPRtRjP4z |
-| AMM Route       | 1       | 93BgeoLHo5AdNbpqy9bD12dtfxtA5M2fh3rj72bE35Y3 |
+| AMM Route       | 1       | routeUGWgWzqBWFcrCfv8tritsqukccJPu3q5GPP3xS  |
 | Serum           | 3       | 9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin |
 
 ## Usage

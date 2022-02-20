@@ -1,5 +1,15 @@
 # Changelog
 
+### 1.0.1-beta.31 (2022-02-20)
+
+- Add
+  - `getEnabledFeatures` for `Liquidity`
+  - `computeAmountOut` for `Route`
+- Change
+  - Rename `computeQuotePrice` to `getRate` of `Liquidity`
+  - Amount calculation is consistent with on-chain
+  - Route program ID and instructions
+
 ### 1.0.1-beta.30 (2022-02-16)
 
 - Add
