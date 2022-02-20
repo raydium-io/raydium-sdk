@@ -2,6 +2,8 @@ import BN from "bn.js";
 
 import { Logger } from "../common";
 
+import { TEN } from "./constant";
+
 const logger = Logger.from("entity/bignumber");
 
 export type BigNumberish = BN | string | number | bigint;
@@ -42,6 +44,10 @@ export function parseBigNumberish(value: BigNumberish) {
   }
 
   return logger.throwArgumentError("invalid BigNumberish value", "value", value);
+}
+
+export function tenExponentiate(shift: BigNumberish) {
+  return TEN.pow(parseBigNumberish(shift));
 }
 
 // round up

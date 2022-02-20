@@ -1,7 +1,7 @@
 import { PublicKey, TransactionInstruction } from "@solana/web3.js";
 
 import {
-  AccountMeta, AccountMetaReadonly, findProgramAddress, Logger, SYSTEM_PROGRAM_ID, TOKEN_PROGRAM_ID,
+  AccountMeta, AccountMetaReadonly, findProgramAddress, intersection, Logger, SYSTEM_PROGRAM_ID, TOKEN_PROGRAM_ID, uniq,
 } from "../common";
 import { BigNumberish, Currency, CurrencyAmount, parseBigNumberish, Percent, Token, TokenAmount } from "../entity";
 import { Liquidity, LiquidityPoolInfo, LiquidityPoolKeys, SwapSide } from "../liquidity";
@@ -35,13 +35,17 @@ export interface RouteSwapInstructionParams {
   fixedSide: SwapSide;
 }
 
-export interface RouteSwapInFixedInInstructionParams
-  extends Omit<RouteSwapInstructionParams, "userKeys" | "amountOut" | "fixedSide"> {
+export interface RouteSwapInFixedInInstructionParams {
+  fromPoolKeys: LiquidityPoolKeys;
+  toPoolKeys: LiquidityPoolKeys;
   userKeys: Omit<RouteUserKeys, "outTokenAccount">;
+  amountIn: BigNumberish;
+  amountOut: BigNumberish;
 }
 
-export interface RouteSwapOutFixedInInstructionParams
-  extends Omit<RouteSwapInstructionParams, "userKeys" | "amountIn" | "fixedSide"> {
+export interface RouteSwapOutFixedInInstructionParams {
+  fromPoolKeys: LiquidityPoolKeys;
+  toPoolKeys: LiquidityPoolKeys;
   userKeys: Omit<RouteUserKeys, "inTokenAccount">;
 }
 
@@ -115,13 +119,15 @@ export class Route {
     toPoolKeys,
     userKeys,
     amountIn,
+    amountOut,
   }: RouteSwapInFixedInInstructionParams) {
-    const LAYOUT = struct([u8("instruction"), u64("amountIn")]);
+    const LAYOUT = struct([u8("instruction"), u64("amountIn"), u64("amountOut")]);
     const data = Buffer.alloc(LAYOUT.span);
     LAYOUT.encode(
       {
         instruction: 0,
         amountIn: parseBigNumberish(amountIn),
+        amountOut: parseBigNumberish(amountOut),
       },
       data,
     );
@@ -161,25 +167,18 @@ export class Route {
     });
   }
 
-  static makeSwapOutFixedInInstruction({
-    fromPoolKeys,
-    toPoolKeys,
-    userKeys,
-    amountOut,
-  }: RouteSwapOutFixedInInstructionParams) {
-    const LAYOUT = struct([u8("instruction"), u64("amountOut")]);
+  static makeSwapOutFixedInInstruction({ fromPoolKeys, toPoolKeys, userKeys }: RouteSwapOutFixedInInstructionParams) {
+    const LAYOUT = struct([u8("instruction")]);
     const data = Buffer.alloc(LAYOUT.span);
     LAYOUT.encode(
       {
         instruction: 1,
-        amountOut: parseBigNumberish(amountOut),
       },
       data,
     );
 
     const keys = [
       // system
-      AccountMetaReadonly(SYSTEM_PROGRAM_ID, false),
       AccountMetaReadonly(TOKEN_PROGRAM_ID, false),
       // amm
       AccountMetaReadonly(toPoolKeys.programId, false),
@@ -219,14 +218,68 @@ export class Route {
   /* ================= compute data ================= */
   static computeAmountOut({
     fromPoolKeys,
-    fromPoolInfo,
     toPoolKeys,
+    fromPoolInfo,
     toPoolInfo,
     amountIn,
     currencyOut,
     slippage,
   }: RouteComputeAmountOutParams) {
-    // const {} = Liquidity.computeAmountOut({ poolKeys: fromPoolKeys, poolInfo: fromPoolInfo, amountIn });
+    const fromPoolMints = [fromPoolKeys.baseMint.toBase58(), fromPoolKeys.quoteMint.toBase58()];
+    const toPoolMints = [toPoolKeys.baseMint.toBase58(), toPoolKeys.quoteMint.toBase58()];
+    const mints = [...fromPoolMints, ...toPoolMints];
+    const decimals = [
+      fromPoolInfo.baseDecimals,
+      fromPoolInfo.quoteDecimals,
+      toPoolInfo.baseDecimals,
+      toPoolInfo.quoteDecimals,
+    ];
+
+    logger.assertArgument(uniq(mints).length === 3, "pools cannot be routed", "pools", {
+      fromPoolKeys,
+      toPoolKeys,
+    });
+
+    const _mints = intersection(fromPoolMints, toPoolMints);
+    logger.assertArgument(_mints.length === 1, "cannot found middle token of two pools", "pools", {
+      fromPoolKeys,
+      toPoolKeys,
+    });
+
+    const _middleMint = _mints[0];
+    const index = mints.indexOf(_middleMint);
+    logger.assertArgument(index !== -1, "cannot found middle token", "pools", {
+      fromPoolKeys,
+      toPoolKeys,
+    });
+
+    const middleMintDecimals = decimals[index];
+    const middleMint = new PublicKey(_middleMint);
+    const middleToken = new Token(middleMint, middleMintDecimals);
+    logger.debug("middleMint:", _middleMint);
+
+    // TODO slippage and amount out
+    const { amountOut: middleAmountOut, minAmountOut: minMiddleAmountOut } = Liquidity.computeAmountOut({
+      poolKeys: fromPoolKeys,
+      poolInfo: fromPoolInfo,
+      amountIn,
+      currencyOut: middleToken,
+      slippage,
+    });
+    const { amountOut, minAmountOut } = Liquidity.computeAmountOut({
+      poolKeys: toPoolKeys,
+      poolInfo: toPoolInfo,
+      amountIn: middleAmountOut,
+      currencyOut,
+      slippage,
+    });
+
+    return {
+      // middleAmountOut,
+      // minMiddleAmountOut,
+      amountOut,
+      minAmountOut,
+    };
   }
 
   // static computeAmountIn() {}
