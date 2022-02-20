@@ -4,6 +4,7 @@ import { TokenAccount } from "../base";
 import { Logger } from "../common";
 import { Currency, CurrencyAmount, Percent, Price, Token, TokenAmount, ZERO } from "../entity";
 import { Liquidity, LiquidityPoolInfo, LiquidityPoolKeys, SwapSide } from "../liquidity";
+import { Route } from "../route";
 
 const logger = Logger.from("Trade");
 
@@ -164,6 +165,56 @@ export class Trade {
             _currentPrice = currentPrice;
             _executionPrice = executionPrice;
             _priceImpact = priceImpact;
+          }
+        } catch (error) {
+          //
+        }
+      }
+    }
+
+    // amm route
+    if (_features.includes("amm-route")) {
+      const groupedPools = this.groupPools(_pools);
+
+      for (const grouped of groupedPools) {
+        if (grouped.length !== 2) continue;
+
+        const [from, to] = grouped;
+        const { poolKeys: fromPoolKeys, poolInfo: fromPoolInfo } = from;
+        const { poolKeys: toPoolKeys, poolInfo: toPoolInfo } = to;
+
+        // * if currencies not match with pool, will throw error
+        try {
+          const { amountOut, minAmountOut } = Route.computeAmountOut({
+            fromPoolKeys,
+            toPoolKeys,
+            fromPoolInfo,
+            toPoolInfo,
+            amountIn,
+            currencyOut,
+            slippage,
+          });
+
+          if (amountOut.gt(_amountOut)) {
+            // TODO data structure
+            routes = [
+              {
+                source: "amm",
+                poolKeys: fromPoolKeys,
+                amountIn,
+                amountOut: minAmountOut,
+                fixedSide: "in",
+              },
+              {
+                source: "amm",
+                poolKeys: toPoolKeys,
+                amountIn,
+                amountOut: minAmountOut,
+                fixedSide: "in",
+              },
+            ];
+            _amountOut = amountOut;
+            _minAmountOut = minAmountOut;
           }
         } catch (error) {
           //

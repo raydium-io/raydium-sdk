@@ -1,9 +1,7 @@
-import BN from "bn.js";
-
 import { Logger } from "../common";
 
-import { BigNumberish } from "./bignumber";
-import { Rounding, TEN } from "./constant";
+import { BigNumberish, tenExponentiate } from "./bignumber";
+import { Rounding } from "./constant";
 import { Currency, currencyEquals } from "./currency";
 import { Fraction } from "./fraction";
 
@@ -26,7 +24,7 @@ export class Price extends Fraction {
 
     this.baseCurrency = baseCurrency;
     this.quoteCurrency = quoteCurrency;
-    this.scalar = new Fraction(TEN.pow(new BN(baseCurrency.decimals)), TEN.pow(new BN(quoteCurrency.decimals)));
+    this.scalar = new Fraction(tenExponentiate(baseCurrency.decimals), tenExponentiate(quoteCurrency.decimals));
   }
 
   public get raw(): Fraction {

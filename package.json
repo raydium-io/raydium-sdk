@@ -45,10 +45,12 @@
     "bn.js": "^5.2.0"
   },
   "dependencies": {
+    "@colors/colors": "^1.5.0",
     "@solana/buffer-layout": "^3.0.0",
     "@solana/spl-token": "^0.1.8",
     "big.js": "^6.1.1",
     "decimal.js-light": "^2.5.1",
+    "fecha": "^4.2.1",
     "toformat": "^2.0.0"
   },
   "devDependencies": {

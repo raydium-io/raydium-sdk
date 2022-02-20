@@ -5,7 +5,7 @@ import { LiquidityVersion } from "../liquidity";
 import { RouteVersion } from "./type";
 
 /* ================= program public keys ================= */
-export const _ROUTE_PROGRAM_ID_V1 = "93BgeoLHo5AdNbpqy9bD12dtfxtA5M2fh3rj72bE35Y3";
+export const _ROUTE_PROGRAM_ID_V1 = "routeUGWgWzqBWFcrCfv8tritsqukccJPu3q5GPP3xS";
 export const ROUTE_PROGRAM_ID_V1 = new PublicKey(_ROUTE_PROGRAM_ID_V1);
 
 // route program id string => route version

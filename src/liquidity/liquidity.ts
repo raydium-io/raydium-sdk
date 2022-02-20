@@ -8,7 +8,8 @@ import {
   TOKEN_PROGRAM_ID,
 } from "../common";
 import {
-  BigNumberish, Currency, CurrencyAmount, divCeil, ONE, parseBigNumberish, Percent, Price, Token, TokenAmount, ZERO,
+  _10000, BigNumberish, Currency, CurrencyAmount, divCeil, ONE, parseBigNumberish, Percent, Price, Token, TokenAmount,
+  ZERO,
 } from "../entity";
 import { struct, u64, u8 } from "../marshmallow";
 import { Market } from "../serum";
@@ -55,6 +56,17 @@ export interface LiquidityAssociatedPoolKeysV4
  * without partial markets keys
  */
 export type LiquidityAssociatedPoolKeys = LiquidityAssociatedPoolKeysV4;
+
+export enum LiquidityPoolStatus {
+  Uninitialized,
+  Initialized,
+  Disabled,
+  RemoveLiquidityOnly,
+  LiquidityOnly,
+  OrderBook,
+  Swap,
+  WaitingForStart,
+}
 
 /* ================= pool info ================= */
 /**
@@ -288,7 +300,7 @@ export interface LiquidityComputeAnotherAmountParams {
   slippage: Percent;
 }
 
-export const LIQUIDITY_FEES_NUMERATOR = new BN(9975);
+export const LIQUIDITY_FEES_NUMERATOR = new BN(25);
 export const LIQUIDITY_FEES_DENOMINATOR = new BN(10000);
 
 export interface LiquidityComputeAmountOutParams {
@@ -588,7 +600,7 @@ export class Liquidity extends Base {
     });
     logger.assertArgument(
       !!tokenAccountA || !!tokenAccountB,
-      "can't find target token accounts",
+      "cannot found target token accounts",
       "tokenAccounts",
       tokenAccounts,
     );
@@ -767,7 +779,8 @@ export class Liquidity extends Base {
       owner,
       config: { associatedOnly: false },
     });
-    if (!lpTokenAccount) return logger.throwArgumentError("can't find lpTokenAccount", "tokenAccounts", tokenAccounts);
+    if (!lpTokenAccount)
+      return logger.throwArgumentError("cannot found lpTokenAccount", "tokenAccounts", tokenAccounts);
 
     const baseTokenAccount = await this._selectTokenAccount({
       tokenAccounts,
@@ -1195,7 +1208,7 @@ export class Liquidity extends Base {
     });
     logger.assertArgument(
       !!baseTokenAccount || !!quoteTokenAccount,
-      "can't find target token accounts",
+      "cannot found target token accounts",
       "tokenAccounts",
       tokenAccounts,
     );
@@ -1559,6 +1572,67 @@ export class Liquidity extends Base {
   }
 
   /* ================= compute data ================= */
+  static getEnabledFeatures(poolInfo: LiquidityPoolInfo) {
+    const { status } = poolInfo;
+    const _status = status.toNumber();
+
+    if (_status === LiquidityPoolStatus.Uninitialized)
+      return {
+        swap: false,
+        addLiquidity: false,
+        removeLiquidity: false,
+      };
+    else if (_status === LiquidityPoolStatus.Initialized)
+      return {
+        swap: true,
+        addLiquidity: true,
+        removeLiquidity: true,
+      };
+    else if (_status === LiquidityPoolStatus.Disabled)
+      return {
+        swap: false,
+        addLiquidity: false,
+        removeLiquidity: false,
+      };
+    else if (_status === LiquidityPoolStatus.RemoveLiquidityOnly)
+      return {
+        swap: false,
+        addLiquidity: false,
+        removeLiquidity: true,
+      };
+    else if (_status === LiquidityPoolStatus.LiquidityOnly)
+      return {
+        swap: false,
+        addLiquidity: true,
+        removeLiquidity: true,
+      };
+    else if (_status === LiquidityPoolStatus.OrderBook)
+      return {
+        swap: false,
+        addLiquidity: true,
+        removeLiquidity: true,
+      };
+    else if (_status === LiquidityPoolStatus.Swap)
+      return {
+        swap: true,
+        addLiquidity: true,
+        removeLiquidity: true,
+      };
+    else if (_status === LiquidityPoolStatus.WaitingForStart)
+      // TODO start time
+      return {
+        swap: true,
+        addLiquidity: true,
+        removeLiquidity: true,
+      };
+    else
+      return {
+        swap: false,
+        addLiquidity: false,
+        removeLiquidity: false,
+      };
+  }
+
   /**
    * Get token side of liquidity pool
    * @param token - the token provided
@@ -1709,7 +1783,7 @@ export class Liquidity extends Base {
     return new Percent(slippage.numerator, slippage.denominator);
   }
 
-  static computeQuotePrice(poolInfo: LiquidityPoolInfo) {
+  static getRate(poolInfo: LiquidityPoolInfo) {
     const { baseReserve, quoteReserve, baseDecimals, quoteDecimals } = poolInfo;
     const price = new Price(new Currency(baseDecimals), baseReserve, new Currency(quoteDecimals), quoteReserve);
 
@@ -1778,11 +1852,11 @@ export class Liquidity extends Base {
     const amountInRaw = amountIn.raw;
     let amountOutRaw = ZERO;
     if (!amountInRaw.isZero()) {
-      const amountInWithFee = amountInRaw.mul(LIQUIDITY_FEES_NUMERATOR);
-      const numerator = amountInWithFee.mul(reserveOut);
-      const denominator = reserveIn.mul(LIQUIDITY_FEES_DENOMINATOR).add(amountInWithFee);
+      const fee = amountInRaw.mul(LIQUIDITY_FEES_NUMERATOR).div(LIQUIDITY_FEES_DENOMINATOR);
+      const amountInWithFee = amountInRaw.sub(fee);
 
-      amountOutRaw = numerator.div(denominator);
+      const denominator = reserveIn.add(amountInWithFee);
+      amountOutRaw = reserveOut.mul(amountInWithFee).div(denominator);
     }
 
     const _slippage = new Percent(ONE).add(slippage);
@@ -1882,10 +1956,12 @@ export class Liquidity extends Base {
         amountOutRaw = reserveOut.sub(ONE);
       }
 
-      const numerator = reserveIn.mul(amountOutRaw).mul(LIQUIDITY_FEES_DENOMINATOR);
-      const denominator = reserveOut.sub(amountOutRaw).mul(LIQUIDITY_FEES_NUMERATOR);
+      const denominator = reserveOut.sub(amountOutRaw);
+      const amountInWithoutFee = reserveIn.mul(amountOutRaw).div(denominator);
 
-      amountInRaw = numerator.div(denominator).add(ONE);
+      amountInRaw = amountInWithoutFee
+        .mul(LIQUIDITY_FEES_DENOMINATOR)
+        .div(LIQUIDITY_FEES_DENOMINATOR.sub(LIQUIDITY_FEES_NUMERATOR));
     }
 
     const _slippage = new Percent(ONE).add(slippage);
