@@ -1633,6 +1633,12 @@ export class Liquidity extends Base {
       };
   }
 
+  static includesToken(token: Token, poolKeys: LiquidityPoolKeys) {
+    const { baseMint, quoteMint } = poolKeys;
+
+    return token.mint.equals(baseMint) || token.mint.equals(quoteMint);
+  }
+
   /**
    * Get token side of liquidity pool
    * @param token - the token provided
@@ -1821,6 +1827,15 @@ export class Liquidity extends Base {
         executionPrice: Price | null;
         priceImpact: Percent;
       } => {
+    const tokenIn = amountIn instanceof TokenAmount ? amountIn.token : Token.WSOL;
+    const tokenOut = currencyOut instanceof Token ? currencyOut : Token.WSOL;
+    logger.assertArgument(
+      this.includesToken(tokenIn, poolKeys) && this.includesToken(tokenOut, poolKeys),
+      "token not match with pool",
+      "poolKeys",
+      poolKeys,
+    );
+
     const { baseReserve, quoteReserve } = poolInfo;
     logger.debug("baseReserve:", baseReserve.toString());
     logger.debug("quoteReserve:", quoteReserve.toString());

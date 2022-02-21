@@ -1,9 +1,6 @@
 import { PublicKey } from "@solana/web3.js";
 
-import { Logger } from "./logger";
 import { validateAndParsePublicKey } from "./pubkey";
-
-const logger = Logger.from("common/covert-json");
 
 type Primitive = boolean | number | string | null | undefined | PublicKey;
 
@@ -51,10 +48,8 @@ export function jsonInfo2PoolKeys<T>(jsonInfo: T): ReplaceType<T, string, Public
       result[key] = validateAndParsePublicKey(value);
     } else if (value instanceof Array) {
       result[key] = value.map((k) => validateAndParsePublicKey(k));
-    } else if (typeof value === "number") {
-      result[key] = value;
     } else {
-      return logger.throwArgumentError("invalid value", key, value);
+      result[key] = value;
     }
 
     return result;
@@ -68,10 +63,8 @@ export function poolKeys2JsonInfo<T>(jsonInfo: T): ReplaceType<T, PublicKey, str
       result[key] = value.toBase58();
     } else if (value instanceof Array) {
       result[key] = value.map((k) => k.toBase58());
-    } else if (typeof value === "number") {
-      result[key] = value;
     } else {
-      return logger.throwArgumentError("invalid value", key, value);
+      result[key] = value;
     }
 
     return result;

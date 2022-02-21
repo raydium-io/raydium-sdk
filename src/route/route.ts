@@ -1,7 +1,8 @@
 import { PublicKey, TransactionInstruction } from "@solana/web3.js";
+import { intersection, xor } from "lodash";
 
 import {
-  AccountMeta, AccountMetaReadonly, findProgramAddress, intersection, Logger, SYSTEM_PROGRAM_ID, TOKEN_PROGRAM_ID, uniq,
+  AccountMeta, AccountMetaReadonly, findProgramAddress, Logger, SYSTEM_PROGRAM_ID, TOKEN_PROGRAM_ID,
 } from "../common";
 import { BigNumberish, Currency, CurrencyAmount, parseBigNumberish, Percent, Token, TokenAmount } from "../entity";
 import { Liquidity, LiquidityPoolInfo, LiquidityPoolKeys, SwapSide } from "../liquidity";
@@ -51,8 +52,8 @@ export interface RouteSwapOutFixedInInstructionParams {
 
 export interface RouteComputeAmountOutParams {
   fromPoolKeys: LiquidityPoolKeys;
-  fromPoolInfo: LiquidityPoolInfo;
   toPoolKeys: LiquidityPoolKeys;
+  fromPoolInfo: LiquidityPoolInfo;
   toPoolInfo: LiquidityPoolInfo;
   amountIn: CurrencyAmount | TokenAmount;
   currencyOut: Currency | Token;
@@ -225,6 +226,28 @@ export class Route {
     currencyOut,
     slippage,
   }: RouteComputeAmountOutParams) {
+    const { swap: fromPoolSwapEnabled } = Liquidity.getEnabledFeatures(fromPoolInfo);
+    const { swap: toPoolSwapEnabled } = Liquidity.getEnabledFeatures(toPoolInfo);
+    logger.assertArgument(fromPoolSwapEnabled && toPoolSwapEnabled, "pools swap not enabled", "pools", {
+      fromPoolKeys,
+      toPoolKeys,
+      fromPoolInfo,
+      toPoolInfo,
+    });
+
+    const tokenIn = amountIn instanceof TokenAmount ? amountIn.token : Token.WSOL;
+    const tokenOut = currencyOut instanceof Token ? currencyOut : Token.WSOL;
+
+    logger.assertArgument(
+      Liquidity.includesToken(tokenIn, fromPoolKeys) && Liquidity.includesToken(tokenOut, toPoolKeys),
+      "pools cannot be routed",
+      "pools",
+      {
+        fromPoolKeys,
+        toPoolKeys,
+      },
+    );
+
     const fromPoolMints = [fromPoolKeys.baseMint.toBase58(), fromPoolKeys.quoteMint.toBase58()];
     const toPoolMints = [toPoolKeys.baseMint.toBase58(), toPoolKeys.quoteMint.toBase58()];
     const mints = [...fromPoolMints, ...toPoolMints];
@@ -234,28 +257,40 @@ export class Route {
       toPoolInfo.baseDecimals,
       toPoolInfo.quoteDecimals,
     ];
+    const mintIn = tokenIn.mint.toBase58();
+    const mintOut = tokenOut.mint.toBase58();
 
-    logger.assertArgument(uniq(mints).length === 3, "pools cannot be routed", "pools", {
+    const xorMints = xor(fromPoolMints, toPoolMints);
+    logger.assertArgument(
+      xorMints.length === 2 && xorMints.includes(mintIn) && xorMints.includes(mintOut),
+      "xor tokens not match",
+      "pools",
+      {
+        fromPoolKeys,
+        toPoolKeys,
+      },
+    );
+
+    const intersectionMints = intersection(fromPoolMints, toPoolMints);
+    logger.assertArgument(intersectionMints.length === 1, "cannot found middle token of two pools", "pools", {
       fromPoolKeys,
       toPoolKeys,
     });
 
-    const _mints = intersection(fromPoolMints, toPoolMints);
-    logger.assertArgument(_mints.length === 1, "cannot found middle token of two pools", "pools", {
-      fromPoolKeys,
-      toPoolKeys,
-    });
-
-    const _middleMint = _mints[0];
+    const _middleMint = intersectionMints[0];
     const index = mints.indexOf(_middleMint);
-    logger.assertArgument(index !== -1, "cannot found middle token", "pools", {
-      fromPoolKeys,
-      toPoolKeys,
-    });
-
+    // logger.assertArgument(index !== -1, "cannot found middle token", "pools", {
+    //   fromPoolKeys,
+    //   toPoolKeys,
+    // });
     const middleMintDecimals = decimals[index];
     const middleMint = new PublicKey(_middleMint);
     const middleToken = new Token(middleMint, middleMintDecimals);
+
+    logger.debug("from pool:", fromPoolKeys);
+    logger.debug("to pool:", toPoolKeys);
+    logger.debug("intersection mints:", intersectionMints);
+    logger.debug("xor mints:", xorMints);
     logger.debug("middleMint:", _middleMint);
 
     // TODO slippage and amount out
@@ -269,7 +304,7 @@ export class Route {
     const { amountOut, minAmountOut } = Liquidity.computeAmountOut({
       poolKeys: toPoolKeys,
       poolInfo: toPoolInfo,
-      amountIn: middleAmountOut,
+      amountIn: minMiddleAmountOut,
       currencyOut,
       slippage,
     });
