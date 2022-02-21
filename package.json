@@ -1,6 +1,6 @@
 {
   "name": "@raydium-io/raydium-sdk",
-  "version": "1.0.1-beta.31",
+  "version": "1.0.1-beta.32",
   "description": "An SDK for building applications on top of Raydium.",
   "license": "GPL-3.0",
   "main": "./lib/index.js",
@@ -51,6 +51,7 @@
     "big.js": "^6.1.1",
     "decimal.js-light": "^2.5.1",
     "fecha": "^4.2.1",
+    "lodash": "^4.17.21",
     "toformat": "^2.0.0"
   },
   "devDependencies": {

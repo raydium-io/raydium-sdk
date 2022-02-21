@@ -248,12 +248,12 @@ export async function simulateMultipleInstruction(
     logger.debug("simulate result:", result);
 
     if (value.logs) {
-      const filteredLog = value.logs.find((log) => log && log.includes(keyword));
-      if (!filteredLog) {
-        return logger.throwArgumentError("simulate log not match keyword", "keyword", keyword);
-      }
+      const filteredLog = value.logs.filter((log) => log && log.includes(keyword));
+      logger.debug("filteredLog:", logs);
 
-      logs.push(filteredLog);
+      logger.assertArgument(filteredLog.length !== 0, "simulate log not match keyword", "keyword", keyword);
+
+      logs.push(...filteredLog);
     }
   }
 

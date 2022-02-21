@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
+
 import { PublicKey } from "@solana/web3.js";
 
 import { PublicKeyish, validateAndParsePublicKey } from "../common";
@@ -32,6 +34,20 @@ export class Currency {
   }
 }
 
+export function inspectCurrency() {
+  try {
+    // @ts-ignore
+    Currency.prototype[Symbol.for("nodejs.util.inspect.custom")] = function () {
+      return `<Currency: decimals=${this.decimals}, name=${this.name}, symbol=${this.symbol}>`;
+    };
+  } catch (e) {
+    // @ts-ignore
+    Currency.prototype.inspect = function () {
+      return `<Currency: decimals=${this.decimals}, name=${this.name}, symbol=${this.symbol}>`;
+    };
+  }
+}
+
 /**
  * Represents an SPL token with a unique address and some metadata.
  */
@@ -59,6 +75,24 @@ export class Token extends Currency {
       return true;
     }
     return this.mint.equals(other.mint);
+  }
+}
+
+export function inspectToken() {
+  try {
+    // @ts-ignore
+    Token.prototype[Symbol.for("nodejs.util.inspect.custom")] = function () {
+      return `<Token: mint=${this.mint.toBase58()}, decimals=${this.decimals}, name=${this.name}, symbol=${
+        this.symbol
+      }>`;
+    };
+  } catch (e) {
+    // @ts-ignore
+    Token.prototype.inspect = function () {
+      return `<Token: mint=${this.mint.toBase58()}, decimals=${this.decimals}, name=${this.name}, symbol=${
+        this.symbol
+      }>`;
+    };
   }
 }
 

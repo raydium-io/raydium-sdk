@@ -13,6 +13,10 @@ export function intersection<T>(arr: T[], ...args: T[][]) {
   return arr.filter((item) => args.every((arr) => arr.includes(item)));
 }
 
+export function xor<T>(arr: T[], ...args: T[][]) {
+  return arr.filter((item) => args.every((arr) => !arr.includes(item)));
+}
+
 export function uniq<T>(arr: T[]) {
   return [...new Set(arr)];
 }

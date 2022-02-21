@@ -9,7 +9,7 @@ let _permanentCensorErrors = false;
 let _censorErrors = false;
 
 const LogLevels: { [name: string]: number } = { debug: 1, default: 2, info: 2, warning: 3, error: 4, off: 5 };
-let _logLevel = LogLevels["default"];
+const _moduleLogLevel: { [name: string]: number } = {};
 
 let _globalLogger: Logger;
 
@@ -167,6 +167,7 @@ export class Logger {
     if (LogLevels[level] == null) {
       this.throwArgumentError("invalid log level name", "logLevel", logLevel);
     }
+    const _logLevel = _moduleLogLevel[this.moduleName] || LogLevels["default"];
     if (_logLevel > LogLevels[level]) {
       return;
     }
@@ -353,13 +354,13 @@ export class Logger {
     _permanentCensorErrors = !!permanent;
   }
 
-  static setLogLevel(logLevel: "DEBUG" | "INFO" | "WARNING" | "ERROR" | "OFF"): void {
+  static setLogLevel(moduleName: string, logLevel: "DEBUG" | "INFO" | "WARNING" | "ERROR" | "OFF"): void {
     const level = LogLevels[logLevel.toLowerCase()];
     if (level == null) {
       Logger.globalLogger().warn("invalid log level - " + logLevel);
       return;
     }
-    _logLevel = level;
+    _moduleLogLevel[moduleName] = level;
   }
 
   static from(version: string): Logger {
