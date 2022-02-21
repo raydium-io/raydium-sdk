@@ -8,14 +8,14 @@ import { Route } from "../route";
 
 const logger = Logger.from("Trade");
 
-export type TradeSource = "amm" | "serum" | "amm-route";
+export type TradeSource = "amm" | "serum" | "stable";
 
-export interface TradeRoute {
+const defaultRoutes = ["amm", "serum", "route"];
+export type RouteType = "amm" | "serum" | "route";
+
+export interface RouteInfo {
   source: TradeSource;
-  poolKeys: LiquidityPoolKeys;
-  amountIn: CurrencyAmount | TokenAmount;
-  amountOut: CurrencyAmount | TokenAmount;
-  fixedSide: SwapSide;
+  keys: LiquidityPoolKeys;
 }
 
 export interface AmmSource {
@@ -36,12 +36,16 @@ export interface UnsignedTransactionAndSigners {
 
 export interface TradeTransactionParams {
   connection: Connection;
-  routes: TradeRoute[];
+  routes: RouteInfo[];
+  routeType: RouteType;
   userKeys: {
     tokenAccounts: TokenAccount[];
     owner: PublicKey;
     payer?: PublicKey;
   };
+  amountIn: CurrencyAmount | TokenAmount;
+  amountOut: CurrencyAmount | TokenAmount;
+  fixedSide: SwapSide;
   config?: {
     bypassAssociatedCheck?: boolean;
   };
@@ -54,7 +58,7 @@ export interface GetBestAmountOutParams {
   currencyOut: Currency | Token;
   slippage: Percent;
   midTokens?: Currency | Token[];
-  features?: TradeSource[];
+  features?: RouteType[];
 }
 
 export interface GetBestAmountInParams extends Omit<GetBestAmountOutParams, "amountIn" | "currencyOut"> {
@@ -76,29 +80,38 @@ export class Trade {
   }
 
   static async makeTradeTransaction(params: TradeTransactionParams) {
-    const { connection, routes, userKeys, config } = params;
+    const { connection, routes, routeType, userKeys, amountIn, amountOut, fixedSide, config } = params;
 
-    let transactions: UnsignedTransactionAndSigners[] = [];
+    const setupTransaction: UnsignedTransactionAndSigners | null = null;
+    let tradeTransaction: UnsignedTransactionAndSigners | null = null;
+    // const cleanupTransaction: UnsignedTransactionAndSigners | null = null;
 
-    for (const route of routes) {
-      const { source, poolKeys, amountIn, amountOut, fixedSide } = route;
+    if (routeType === "amm") {
+      logger.assertArgument(routes.length === 1, "invalid routes with routeType", "routes", {
+        routeType,
+        routes,
+      });
 
-      if (source === "amm") {
-        const { transaction, signers } = await Liquidity.makeSwapTransaction({
-          connection,
-          poolKeys,
-          userKeys,
-          amountIn,
-          amountOut,
-          fixedSide,
-          config,
-        });
+      const { keys } = routes[0];
 
-        transactions = [{ transaction, signers }];
-      }
+      const { transaction, signers } = await Liquidity.makeSwapTransaction({
+        connection,
+        poolKeys: keys,
+        userKeys,
+        amountIn,
+        amountOut,
+        fixedSide,
+        config,
+      });
+
+      tradeTransaction = { transaction, signers };
     }
 
-    return transactions;
+    return {
+      setupTransaction,
+      tradeTransaction,
+      // cleanupTransaction
+    };
   }
 
   /**
@@ -109,7 +122,7 @@ export class Trade {
   static getBestAmountOut({ pools, markets, amountIn, currencyOut, slippage, features }: GetBestAmountOutParams) {
     const _pools = pools || [];
     const _markets = markets || [];
-    const _features = features || ["amm", "serum", "amm-route"];
+    const _features = features || defaultRoutes;
     logger.debug("features:", _features);
 
     logger.assertArgument(
@@ -120,7 +133,8 @@ export class Trade {
     );
 
     // the route of the trade
-    let routes: TradeRoute[] = [];
+    let routes: RouteInfo[] = [];
+    let routeType: RouteType = "amm";
 
     // the output amount for the trade assuming no slippage
     let _amountOut =
@@ -154,12 +168,10 @@ export class Trade {
             routes = [
               {
                 source: "amm",
-                poolKeys,
-                amountIn,
-                amountOut: minAmountOut,
-                fixedSide: "in",
+                keys: poolKeys,
               },
             ];
+            routeType = "amm";
             _amountOut = amountOut;
             _minAmountOut = minAmountOut;
             _currentPrice = currentPrice;
@@ -173,7 +185,7 @@ export class Trade {
     }
 
     // amm route
-    if (_features.includes("amm-route")) {
+    if (_features.includes("route")) {
       const groupedPools = this.groupPools(_pools);
 
       for (const grouped of groupedPools) {
@@ -196,23 +208,17 @@ export class Trade {
           });
 
           if (amountOut.gt(_amountOut)) {
-            // TODO data structure
             routes = [
               {
                 source: "amm",
-                poolKeys: fromPoolKeys,
-                amountIn,
-                amountOut: minAmountOut,
-                fixedSide: "in",
+                keys: fromPoolKeys,
               },
               {
                 source: "amm",
-                poolKeys: toPoolKeys,
-                amountIn,
-                amountOut: minAmountOut,
-                fixedSide: "in",
+                keys: toPoolKeys,
               },
             ];
+            routeType = "route";
             _amountOut = amountOut;
             _minAmountOut = minAmountOut;
           }
@@ -222,18 +228,20 @@ export class Trade {
       }
     }
 
+    // serum directly
+    // amm route
+    // stable
+
     return {
       routes,
+      routeType,
       amountOut: _amountOut,
       minAmountOut: _minAmountOut,
+      fixedSide: "in",
       currentPrice: _currentPrice,
       executionPrice: _executionPrice,
       priceImpact: _priceImpact,
     };
-
-    // serum directly
-    // amm route
-    // stable
   }
 
   /**
@@ -244,7 +252,7 @@ export class Trade {
   static getBestAmountIn({ pools, markets, amountOut, currencyIn, slippage, features }: GetBestAmountInParams) {
     const _pools = pools || [];
     const _markets = markets || [];
-    const _features = features || ["amm", "serum", "amm-routing"];
+    const _features = features || defaultRoutes;
     logger.debug("features:", _features);
 
     logger.assertArgument(
@@ -254,7 +262,8 @@ export class Trade {
       { pools, markets },
     );
 
-    let routes: TradeRoute[] = [];
+    let routes: RouteInfo[] = [];
+    let routeType: RouteType = "amm";
 
     let _amountIn = currencyIn instanceof Token ? new TokenAmount(currencyIn, 0) : new CurrencyAmount(currencyIn, 0);
     let _maxAmountIn = _amountIn;
@@ -278,12 +287,10 @@ export class Trade {
           routes = [
             {
               source: "amm",
-              poolKeys,
-              amountIn: maxAmountIn,
-              amountOut,
-              fixedSide: "out",
+              keys: poolKeys,
             },
           ];
+          routeType = "amm";
           _amountIn = amountIn;
           _maxAmountIn = maxAmountIn;
           _currentPrice = currentPrice;
@@ -295,6 +302,7 @@ export class Trade {
 
     return {
       routes,
+      routeType,
       amountIn: _amountIn,
       maxAmountIn: _maxAmountIn,
       currentPrice: _currentPrice,
