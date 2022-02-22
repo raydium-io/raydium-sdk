@@ -1,4 +1,4 @@
-import { Connection, PublicKey, Signer, TransactionInstruction } from "@solana/web3.js";
+import { Connection, PublicKey, Signer, Transaction, TransactionInstruction } from "@solana/web3.js";
 
 import { BigNumberish, Token } from "../entity";
 import { Spl, SplAccount } from "../spl";
@@ -22,11 +22,16 @@ export interface HandleTokenAccountParams {
   mint: PublicKey;
   tokenAccount: PublicKey | null;
   owner: PublicKey;
-  payer: PublicKey;
+  payer?: PublicKey;
   frontInstructions: TransactionInstruction[];
-  endInstructions: TransactionInstruction[];
+  endInstructions?: TransactionInstruction[];
   signers: Signer[];
   bypassAssociatedCheck: boolean;
+}
+
+export interface UnsignedTransactionAndSigners {
+  transaction: Transaction;
+  signers: Signer[];
 }
 
 export class Base {
@@ -71,7 +76,7 @@ export class Base {
       mint,
       tokenAccount,
       owner,
-      payer,
+      payer = owner,
       frontInstructions,
       endInstructions,
       signers,
@@ -89,7 +94,10 @@ export class Base {
         signers,
         amount,
       });
-      endInstructions.push(Spl.makeCloseAccountInstruction({ tokenAccount: newTokenAccount, owner, payer }));
+      // if no endInstructions provide, no need to close
+      if (endInstructions) {
+        endInstructions.push(Spl.makeCloseAccountInstruction({ tokenAccount: newTokenAccount, owner, payer }));
+      }
 
       return newTokenAccount;
     } else if (!tokenAccount || (side === "out" && !ata.equals(tokenAccount) && !bypassAssociatedCheck)) {
@@ -98,7 +106,7 @@ export class Base {
           mint,
           associatedAccount: ata,
           owner,
-          payer: owner,
+          payer,
         }),
       );
 

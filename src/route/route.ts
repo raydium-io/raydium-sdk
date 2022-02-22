@@ -1,6 +1,7 @@
-import { PublicKey, TransactionInstruction } from "@solana/web3.js";
+import { Connection, PublicKey, Signer, Transaction, TransactionInstruction } from "@solana/web3.js";
 import { intersection, xor } from "lodash";
 
+import { Base, TokenAccount, UnsignedTransactionAndSigners } from "../base";
 import {
   AccountMeta, AccountMetaReadonly, findProgramAddress, Logger, SYSTEM_PROGRAM_ID, TOKEN_PROGRAM_ID,
 } from "../common";
@@ -50,6 +51,23 @@ export interface RouteSwapOutFixedInInstructionParams {
   userKeys: Omit<RouteUserKeys, "inTokenAccount">;
 }
 
+export interface RouteSwapTransactionParams {
+  connection: Connection;
+  fromPoolKeys: LiquidityPoolKeys;
+  toPoolKeys: LiquidityPoolKeys;
+  userKeys: {
+    tokenAccounts: TokenAccount[];
+    owner: PublicKey;
+    // dont support payer, txn size limited
+  };
+  amountIn: CurrencyAmount | TokenAmount;
+  amountOut: CurrencyAmount | TokenAmount;
+  fixedSide: SwapSide;
+  config?: {
+    bypassAssociatedCheck?: boolean;
+  };
+}
+
 export interface RouteComputeAmountOutParams {
   fromPoolKeys: LiquidityPoolKeys;
   toPoolKeys: LiquidityPoolKeys;
@@ -60,7 +78,7 @@ export interface RouteComputeAmountOutParams {
   slippage: Percent;
 }
 
-export class Route {
+export class Route extends Base {
   /* ================= get version and program id ================= */
   static getProgramId(version: number) {
     const programId = ROUTE_VERSION_TO_PROGRAMID[version];
@@ -210,6 +228,137 @@ export class Route {
       keys,
       data,
     });
+  }
+
+  static async makeSwapTransaction(params: RouteSwapTransactionParams) {
+    const { connection, fromPoolKeys, toPoolKeys, userKeys, amountIn, amountOut, fixedSide, config } = params;
+    const { tokenAccounts, owner } = userKeys;
+
+    logger.debug("amountIn:", amountIn);
+    logger.debug("amountOut:", amountOut);
+    logger.assertArgument(
+      !amountIn.isZero() && !amountOut.isZero(),
+      "amounts must greater than zero",
+      "currencyAmounts",
+      {
+        amountIn: amountIn.toFixed(),
+        amountOut: amountOut.toFixed(),
+      },
+    );
+
+    const { bypassAssociatedCheck } = {
+      // default
+      ...{ bypassAssociatedCheck: false },
+      // custom
+      ...config,
+    };
+
+    // handle currency in & out (convert SOL to WSOL)
+    const tokenIn = amountIn instanceof TokenAmount ? amountIn.token : Token.WSOL;
+    const tokenOut = amountOut instanceof TokenAmount ? amountOut.token : Token.WSOL;
+
+    const tokenAccountIn = await this._selectTokenAccount({
+      tokenAccounts,
+      mint: tokenIn.mint,
+      owner,
+      config: { associatedOnly: false },
+    });
+    const tokenAccountOut = await this._selectTokenAccount({
+      tokenAccounts,
+      mint: tokenOut.mint,
+      owner,
+    });
+
+    const fromPoolMints = [fromPoolKeys.baseMint.toBase58(), fromPoolKeys.quoteMint.toBase58()];
+    const toPoolMints = [toPoolKeys.baseMint.toBase58(), toPoolKeys.quoteMint.toBase58()];
+    const intersectionMints = intersection(fromPoolMints, toPoolMints);
+    const _middleMint = intersectionMints[0];
+    const middleMint = new PublicKey(_middleMint);
+    const tokenAccountMiddle = await this._selectTokenAccount({
+      tokenAccounts,
+      mint: middleMint,
+      owner,
+    });
+
+    const [amountInRaw, amountOutRaw] = [amountIn.raw, amountOut.raw];
+
+    const setupInstructions: TransactionInstruction[] = [];
+    const setupSigners: Signer[] = [];
+    const swapInstructions: TransactionInstruction[] = [];
+
+    const _tokenAccountIn = await this._handleTokenAccount({
+      connection,
+      side: "in",
+      amount: amountInRaw,
+      mint: tokenIn.mint,
+      tokenAccount: tokenAccountIn,
+      owner,
+      frontInstructions: setupInstructions,
+      signers: setupSigners,
+      bypassAssociatedCheck,
+    });
+    const _tokenAccountOut = await this._handleTokenAccount({
+      connection,
+      side: "out",
+      amount: 0,
+      mint: tokenOut.mint,
+      tokenAccount: tokenAccountOut,
+      owner,
+      frontInstructions: setupInstructions,
+      signers: setupSigners,
+      bypassAssociatedCheck,
+    });
+    const _tokenAccountMiddle = await this._handleTokenAccount({
+      connection,
+      side: "in",
+      amount: 0,
+      mint: middleMint,
+      tokenAccount: tokenAccountMiddle,
+      owner,
+      frontInstructions: setupInstructions,
+      signers: setupSigners,
+      bypassAssociatedCheck,
+    });
+
+    swapInstructions.push(
+      ...this.makeSwapInstruction({
+        fromPoolKeys,
+        toPoolKeys,
+        userKeys: {
+          inTokenAccount: _tokenAccountIn,
+          outTokenAccount: _tokenAccountOut,
+          middleTokenAccount: _tokenAccountMiddle,
+          middleStatusAccount: await this.getAssociatedMiddleStatusAccount({
+            programId: ROUTE_PROGRAM_ID_V1,
+            fromPoolId: fromPoolKeys.id,
+            middleMint,
+            owner,
+          }),
+          owner,
+        },
+        amountIn: 0,
+        amountOut: 0,
+        fixedSide,
+      }),
+    );
+
+    let setupTransaction: UnsignedTransactionAndSigners | null = null;
+    let swapTransaction: UnsignedTransactionAndSigners | null = null;
+
+    if (setupInstructions.length > 0) {
+      setupTransaction = {
+        transaction: new Transaction().add(...setupInstructions),
+        signers: setupSigners,
+      };
+    }
+    if (swapInstructions.length > 0) {
+      swapTransaction = {
+        transaction: new Transaction().add(...swapInstructions),
+        signers: [],
+      };
+    }
+
+    return { setupTransaction, swapTransaction };
   }
 
   // static makeSwapInFixedOutInstruction() {}

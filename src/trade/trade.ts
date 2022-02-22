@@ -1,6 +1,6 @@
-import { Connection, PublicKey, Signer, Transaction } from "@solana/web3.js";
+import { Connection, PublicKey } from "@solana/web3.js";
 
-import { TokenAccount } from "../base";
+import { TokenAccount, UnsignedTransactionAndSigners } from "../base";
 import { Logger } from "../common";
 import { Currency, CurrencyAmount, Percent, Price, Token, TokenAmount, ZERO } from "../entity";
 import { Liquidity, LiquidityPoolInfo, LiquidityPoolKeys, SwapSide } from "../liquidity";
@@ -27,11 +27,6 @@ export interface SerumSource {
   marketKeys: [];
   bids: [];
   asks: [];
-}
-
-export interface UnsignedTransactionAndSigners {
-  transaction: Transaction;
-  signers: Signer[];
 }
 
 export interface TradeTransactionParams {
@@ -82,7 +77,7 @@ export class Trade {
   static async makeTradeTransaction(params: TradeTransactionParams) {
     const { connection, routes, routeType, userKeys, amountIn, amountOut, fixedSide, config } = params;
 
-    const setupTransaction: UnsignedTransactionAndSigners | null = null;
+    let setupTransaction: UnsignedTransactionAndSigners | null = null;
     let tradeTransaction: UnsignedTransactionAndSigners | null = null;
     // const cleanupTransaction: UnsignedTransactionAndSigners | null = null;
 
@@ -105,6 +100,30 @@ export class Trade {
       });
 
       tradeTransaction = { transaction, signers };
+    } else if (routeType === "route") {
+      logger.assertArgument(routes.length === 2, "invalid routes with routeType", "routes", {
+        routeType,
+        routes,
+      });
+
+      const [from, to] = routes;
+      const { keys: fromPoolKeys } = from;
+      const { keys: toPoolKeys } = to;
+
+      const { setupTransaction: _setupTransaction, swapTransaction: _swapTransaction } =
+        await Route.makeSwapTransaction({
+          connection,
+          fromPoolKeys,
+          toPoolKeys,
+          userKeys,
+          amountIn,
+          amountOut,
+          fixedSide,
+          config,
+        });
+
+      setupTransaction = _setupTransaction;
+      tradeTransaction = _swapTransaction;
     }
 
     return {
