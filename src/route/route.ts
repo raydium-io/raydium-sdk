@@ -336,8 +336,8 @@ export class Route extends Base {
           }),
           owner,
         },
-        amountIn: 0,
-        amountOut: 0,
+        amountIn: amountInRaw,
+        amountOut: amountOutRaw,
         fixedSide,
       }),
     );
