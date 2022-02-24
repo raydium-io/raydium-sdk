@@ -216,7 +216,7 @@ export class Trade {
 
         // * if currencies not match with pool, will throw error
         try {
-          const { amountOut, minAmountOut } = Route.computeAmountOut({
+          const { amountOut, minAmountOut, executionPrice, priceImpact } = Route.computeAmountOut({
             fromPoolKeys,
             toPoolKeys,
             fromPoolInfo,
@@ -240,6 +240,8 @@ export class Trade {
             routeType = "route";
             _amountOut = amountOut;
             _minAmountOut = minAmountOut;
+            _executionPrice = executionPrice;
+            _priceImpact = priceImpact;
           }
         } catch (error) {
           //
