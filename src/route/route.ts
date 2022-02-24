@@ -5,7 +5,9 @@ import { Base, TokenAccount, UnsignedTransactionAndSigners } from "../base";
 import {
   AccountMeta, AccountMetaReadonly, findProgramAddress, Logger, SYSTEM_PROGRAM_ID, TOKEN_PROGRAM_ID,
 } from "../common";
-import { BigNumberish, Currency, CurrencyAmount, parseBigNumberish, Percent, Token, TokenAmount } from "../entity";
+import {
+  BigNumberish, Currency, CurrencyAmount, parseBigNumberish, Percent, Price, Token, TokenAmount,
+} from "../entity";
 import { Liquidity, LiquidityPoolInfo, LiquidityPoolKeys, SwapSide } from "../liquidity";
 import { struct, u64, u8 } from "../marshmallow";
 
@@ -443,14 +445,22 @@ export class Route extends Base {
     logger.debug("middleMint:", _middleMint);
 
     // TODO slippage and amount out
-    const { amountOut: middleAmountOut, minAmountOut: minMiddleAmountOut } = Liquidity.computeAmountOut({
+    const {
+      amountOut: middleAmountOut,
+      minAmountOut: minMiddleAmountOut,
+      priceImpact: firstPriceImpact,
+    } = Liquidity.computeAmountOut({
       poolKeys: fromPoolKeys,
       poolInfo: fromPoolInfo,
       amountIn,
       currencyOut: middleToken,
       slippage,
     });
-    const { amountOut, minAmountOut } = Liquidity.computeAmountOut({
+    const {
+      amountOut,
+      minAmountOut,
+      priceImpact: secondPriceImpact,
+    } = Liquidity.computeAmountOut({
       poolKeys: toPoolKeys,
       poolInfo: toPoolInfo,
       amountIn: minMiddleAmountOut,
@@ -458,11 +468,26 @@ export class Route extends Base {
       slippage,
     });
 
+    let executionPrice: Price | null = null;
+    const amountInRaw = amountIn.raw;
+    const amountOutRaw = amountOut.raw;
+    const currencyIn = amountIn instanceof TokenAmount ? amountIn.token : amountIn.currency;
+    if (!amountInRaw.isZero() && !amountOutRaw.isZero()) {
+      executionPrice = new Price(currencyIn, amountInRaw, currencyOut, amountOutRaw);
+      logger.debug("executionPrice:", `1 ${currencyIn.symbol} ≈ ${executionPrice.toFixed()} ${currencyOut.symbol}`);
+      logger.debug(
+        "executionPrice invert:",
+        `1 ${currencyOut.symbol} ≈ ${executionPrice.invert().toFixed()} ${currencyIn.symbol}`,
+      );
+    }
+
     return {
       // middleAmountOut,
       // minMiddleAmountOut,
       amountOut,
       minAmountOut,
+      executionPrice,
+      priceImpact: firstPriceImpact.add(secondPriceImpact),
     };
   }
 
