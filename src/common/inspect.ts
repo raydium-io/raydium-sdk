@@ -45,3 +45,8 @@ export function inspectBN() {
     };
   }
 }
+
+export function inspectAll() {
+  inspectPublicKey();
+  inspectBN();
+}
