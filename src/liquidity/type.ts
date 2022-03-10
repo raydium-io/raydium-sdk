@@ -2,7 +2,7 @@ import { JsonFileMetaData } from "../common";
 import { LpTokenInfo } from "../token";
 
 // 2 | 3 | 4
-export type LiquidityVersion = 4;
+export type LiquidityVersion = 4 | 5;
 
 export interface LiquidityPoolBaseInfo {
   readonly id: string;
