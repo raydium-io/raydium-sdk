@@ -31,7 +31,7 @@ let modelData: stableModelLayout = {
   DataElement: [],
 };
 
-export async function initStableModelLayout(connection: Connection) {
+async function initStableModelLayout(connection: Connection) {
   if (modelData.validDataCount === 0) {
     if (connection) {
       const acc = await connection.getAccountInfo(ModelDataPubkey);
@@ -1560,6 +1560,8 @@ export class Liquidity extends Base {
    * Fetch liquidity pool's info
    */
   static async fetchInfo({ connection, poolKeys }: LiquidityFetchInfoParams) {
+    await initStableModelLayout(connection);
+
     const info = await this.fetchMultipleInfo({ connection, pools: [poolKeys] });
 
     logger.assertArgument(
