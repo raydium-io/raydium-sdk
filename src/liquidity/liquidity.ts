@@ -82,6 +82,7 @@ export interface LiquidityPoolInfo {
   baseReserve: BN;
   quoteReserve: BN;
   lpSupply: BN;
+  startTime: BN;
 }
 
 /* ================= user keys ================= */
@@ -1556,6 +1557,7 @@ export class Liquidity extends Base {
       const baseReserve = new BN(parseSimulateValue(json, "pool_coin_amount"));
       const quoteReserve = new BN(parseSimulateValue(json, "pool_pc_amount"));
       const lpSupply = new BN(parseSimulateValue(json, "pool_lp_supply"));
+      const startTime = new BN(parseSimulateValue(json, "pool_open_time"));
 
       return {
         status,
@@ -1565,6 +1567,7 @@ export class Liquidity extends Base {
         baseReserve,
         quoteReserve,
         lpSupply,
+        startTime,
       };
     });
 
@@ -1618,14 +1621,22 @@ export class Liquidity extends Base {
         addLiquidity: true,
         removeLiquidity: true,
       };
-    else if (_status === LiquidityPoolStatus.WaitingForStart)
-      // TODO start time
+    else if (_status === LiquidityPoolStatus.WaitingForStart) {
+      // handle start time
+      const { startTime } = poolInfo;
+      if (Date.now() / 1000 < startTime.toNumber())
+        return {
+          swap: false,
+          addLiquidity: true,
+          removeLiquidity: true,
+        };
+
       return {
         swap: true,
         addLiquidity: true,
         removeLiquidity: true,
       };
-    else
+    } else
       return {
         swap: false,
         addLiquidity: false,
