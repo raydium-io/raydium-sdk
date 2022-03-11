@@ -1598,7 +1598,7 @@ export class Liquidity extends Base {
       const quoteReserve = new BN(parseSimulateValue(json, "pool_pc_amount"));
       const lpSupply = new BN(parseSimulateValue(json, "pool_lp_supply"));
       // TODO fix it when split stable
-      let startTime = "";
+      let startTime = "0";
       try {
         startTime = parseSimulateValue(json, "pool_open_time");
       } catch (error) {
