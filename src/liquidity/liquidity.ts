@@ -1597,7 +1597,13 @@ export class Liquidity extends Base {
       const baseReserve = new BN(parseSimulateValue(json, "pool_coin_amount"));
       const quoteReserve = new BN(parseSimulateValue(json, "pool_pc_amount"));
       const lpSupply = new BN(parseSimulateValue(json, "pool_lp_supply"));
-      const startTime = new BN(parseSimulateValue(json, "pool_open_time"));
+      // TODO fix it when split stable
+      let startTime = "";
+      try {
+        startTime = parseSimulateValue(json, "pool_open_time");
+      } catch (error) {
+        //
+      }
 
       return {
         status,
@@ -1607,7 +1613,7 @@ export class Liquidity extends Base {
         baseReserve,
         quoteReserve,
         lpSupply,
-        startTime,
+        startTime: new BN(startTime),
       };
     });
 
