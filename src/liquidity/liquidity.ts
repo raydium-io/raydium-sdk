@@ -1561,8 +1561,6 @@ export class Liquidity extends Base {
    * Fetch liquidity pool's info
    */
   static async fetchInfo({ connection, poolKeys }: LiquidityFetchInfoParams) {
-    await initStableModelLayout(connection);
-
     const info = await this.fetchMultipleInfo({ connection, pools: [poolKeys] });
 
     logger.assertArgument(
@@ -1583,6 +1581,8 @@ export class Liquidity extends Base {
     pools,
     config,
   }: LiquidityFetchMultipleInfoParams): Promise<LiquidityPoolInfo[]> {
+    await initStableModelLayout(connection);
+
     const instructions = pools.map((pool) => this.makeSimulatePoolInfoInstruction({ poolKeys: pool }));
 
     const logs = await simulateMultipleInstruction(connection, instructions, "GetPoolData");
