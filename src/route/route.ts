@@ -9,6 +9,7 @@ import {
   BigNumberish, Currency, CurrencyAmount, parseBigNumberish, Percent, Price, Token, TokenAmount,
 } from "../entity";
 import { Liquidity, LiquidityPoolInfo, LiquidityPoolKeys, SwapSide } from "../liquidity";
+import { ModelDataPubkey } from "../liquidity/stable";
 import { struct, u64, u8 } from "../marshmallow";
 
 import {
@@ -144,42 +145,84 @@ export class Route extends Base {
   }: RouteSwapInFixedInInstructionParams) {
     const LAYOUT = struct([u8("instruction"), u64("amountIn"), u64("amountOut")]);
     const data = Buffer.alloc(LAYOUT.span);
-    LAYOUT.encode(
-      {
-        instruction: 0,
-        amountIn: parseBigNumberish(amountIn),
-        amountOut: parseBigNumberish(amountOut),
-      },
-      data,
-    );
 
-    const keys = [
-      // system
-      AccountMetaReadonly(SYSTEM_PROGRAM_ID, false),
-      AccountMetaReadonly(TOKEN_PROGRAM_ID, false),
-      // amm
-      AccountMetaReadonly(fromPoolKeys.programId, false),
-      AccountMeta(fromPoolKeys.id, false),
-      AccountMetaReadonly(toPoolKeys.id, false),
-      AccountMetaReadonly(fromPoolKeys.authority, false),
-      AccountMeta(fromPoolKeys.openOrders, false),
-      AccountMeta(fromPoolKeys.baseVault, false),
-      AccountMeta(fromPoolKeys.quoteVault, false),
-      // serum
-      AccountMetaReadonly(fromPoolKeys.marketProgramId, false),
-      AccountMeta(fromPoolKeys.marketId, false),
-      AccountMeta(fromPoolKeys.marketBids, false),
-      AccountMeta(fromPoolKeys.marketAsks, false),
-      AccountMeta(fromPoolKeys.marketEventQueue, false),
-      AccountMeta(fromPoolKeys.marketBaseVault, false),
-      AccountMeta(fromPoolKeys.marketQuoteVault, false),
-      AccountMetaReadonly(fromPoolKeys.marketAuthority, false),
-      // user
-      AccountMeta(userKeys.inTokenAccount, false),
-      AccountMeta(userKeys.middleTokenAccount, false),
-      AccountMeta(userKeys.middleStatusAccount, false),
-      AccountMetaReadonly(userKeys.owner, true),
-    ];
+    let keys;
+
+    if (fromPoolKeys.version === 4) {
+      LAYOUT.encode(
+        {
+          instruction: 0,
+          amountIn: parseBigNumberish(amountIn),
+          amountOut: parseBigNumberish(amountOut),
+        },
+        data,
+      );
+      keys = [
+        // system
+        AccountMetaReadonly(SYSTEM_PROGRAM_ID, false),
+        AccountMetaReadonly(TOKEN_PROGRAM_ID, false),
+        // amm
+        AccountMetaReadonly(fromPoolKeys.programId, false),
+        AccountMeta(fromPoolKeys.id, false),
+        AccountMetaReadonly(toPoolKeys.id, false),
+        AccountMetaReadonly(fromPoolKeys.authority, false),
+        AccountMeta(fromPoolKeys.openOrders, false),
+        AccountMeta(fromPoolKeys.baseVault, false),
+        AccountMeta(fromPoolKeys.quoteVault, false),
+        // serum
+        AccountMetaReadonly(fromPoolKeys.marketProgramId, false),
+        AccountMeta(fromPoolKeys.marketId, false),
+        AccountMeta(fromPoolKeys.marketBids, false),
+        AccountMeta(fromPoolKeys.marketAsks, false),
+        AccountMeta(fromPoolKeys.marketEventQueue, false),
+        AccountMeta(fromPoolKeys.marketBaseVault, false),
+        AccountMeta(fromPoolKeys.marketQuoteVault, false),
+        AccountMetaReadonly(fromPoolKeys.marketAuthority, false),
+        // user
+        AccountMeta(userKeys.inTokenAccount, false),
+        AccountMeta(userKeys.middleTokenAccount, false),
+        AccountMeta(userKeys.middleStatusAccount, false),
+        AccountMetaReadonly(userKeys.owner, true),
+      ];
+    } else {
+      LAYOUT.encode(
+        {
+          instruction: 2,
+          amountIn: parseBigNumberish(amountIn),
+          amountOut: parseBigNumberish(amountOut),
+        },
+        data,
+      );
+      keys = [
+        // system
+        AccountMetaReadonly(SYSTEM_PROGRAM_ID, false),
+        AccountMetaReadonly(TOKEN_PROGRAM_ID, false),
+        // amm
+        AccountMetaReadonly(fromPoolKeys.programId, false),
+        AccountMeta(fromPoolKeys.id, false),
+        AccountMetaReadonly(toPoolKeys.id, false),
+        AccountMetaReadonly(fromPoolKeys.authority, false),
+        AccountMeta(fromPoolKeys.openOrders, false),
+        AccountMeta(fromPoolKeys.baseVault, false),
+        AccountMeta(fromPoolKeys.quoteVault, false),
+
+        AccountMetaReadonly(ModelDataPubkey, false),
+        // serum
+        AccountMetaReadonly(fromPoolKeys.marketProgramId, false),
+        AccountMeta(fromPoolKeys.marketId, false),
+        AccountMeta(fromPoolKeys.marketBids, false),
+        AccountMeta(fromPoolKeys.marketAsks, false),
+        AccountMeta(fromPoolKeys.marketEventQueue, false),
+        AccountMeta(fromPoolKeys.id, false),
+        AccountMeta(fromPoolKeys.id, false),
+        AccountMeta(fromPoolKeys.id, false),
+        // user
+        AccountMeta(userKeys.inTokenAccount, false),
+        AccountMeta(userKeys.middleTokenAccount, false),
+        AccountMeta(userKeys.middleStatusAccount, false),
+        AccountMetaReadonly(userKeys.owner, true),
+      ];
+    }
 
     return new TransactionInstruction({
       programId: ROUTE_PROGRAM_ID_V1,
@@ -191,39 +234,78 @@ export class Route extends Base {
   static makeSwapOutFixedInInstruction({ fromPoolKeys, toPoolKeys, userKeys }: RouteSwapOutFixedInInstructionParams) {
     const LAYOUT = struct([u8("instruction")]);
     const data = Buffer.alloc(LAYOUT.span);
-    LAYOUT.encode(
-      {
-        instruction: 1,
-      },
-      data,
-    );
 
-    const keys = [
-      // system
-      AccountMetaReadonly(TOKEN_PROGRAM_ID, false),
-      // amm
-      AccountMetaReadonly(toPoolKeys.programId, false),
-      AccountMetaReadonly(fromPoolKeys.id, false),
-      AccountMeta(toPoolKeys.id, false),
-      AccountMetaReadonly(toPoolKeys.authority, false),
-      AccountMeta(toPoolKeys.openOrders, false),
-      AccountMeta(toPoolKeys.baseVault, false),
-      AccountMeta(toPoolKeys.quoteVault, false),
-      // serum
-      AccountMetaReadonly(toPoolKeys.marketProgramId, false),
-      AccountMeta(toPoolKeys.marketId, false),
-      AccountMeta(toPoolKeys.marketBids, false),
-      AccountMeta(toPoolKeys.marketAsks, false),
-      AccountMeta(toPoolKeys.marketEventQueue, false),
-      AccountMeta(toPoolKeys.marketBaseVault, false),
-      AccountMeta(toPoolKeys.marketQuoteVault, false),
-      AccountMetaReadonly(toPoolKeys.marketAuthority, false),
-      // user
-      AccountMeta(userKeys.middleTokenAccount, false),
-      AccountMeta(userKeys.outTokenAccount, false),
-      AccountMeta(userKeys.middleStatusAccount, false),
-      AccountMetaReadonly(userKeys.owner, true),
-    ];
+    let keys;
+
+    if (toPoolKeys.version === 4) {
+      LAYOUT.encode(
+        {
+          instruction: 1,
+        },
+        data,
+      );
+      keys = [
+        // system
+        AccountMetaReadonly(TOKEN_PROGRAM_ID, false),
+        // amm
+        AccountMetaReadonly(toPoolKeys.programId, false),
+        AccountMetaReadonly(fromPoolKeys.id, false),
+        AccountMeta(toPoolKeys.id, false),
+        AccountMetaReadonly(toPoolKeys.authority, false),
+        AccountMeta(toPoolKeys.openOrders, false),
+        AccountMeta(toPoolKeys.baseVault, false),
+        AccountMeta(toPoolKeys.quoteVault, false),
+        // serum
+        AccountMetaReadonly(toPoolKeys.marketProgramId, false),
+        AccountMeta(toPoolKeys.marketId, false),
+        AccountMeta(toPoolKeys.marketBids, false),
+        AccountMeta(toPoolKeys.marketAsks, false),
+        AccountMeta(toPoolKeys.marketEventQueue, false),
+        AccountMeta(toPoolKeys.marketBaseVault, false),
+        AccountMeta(toPoolKeys.marketQuoteVault, false),
+        AccountMetaReadonly(toPoolKeys.marketAuthority, false),
+        // user
+        AccountMeta(userKeys.middleTokenAccount, false),
+        AccountMeta(userKeys.outTokenAccount, false),
+        AccountMeta(userKeys.middleStatusAccount, false),
+        AccountMetaReadonly(userKeys.owner, true),
+      ];
+    } else {
+      LAYOUT.encode(
+        {
+          instruction: 3,
+        },
+        data,
+      );
+      keys = [
+        // system
+        AccountMetaReadonly(TOKEN_PROGRAM_ID, false),
+        // amm
+        AccountMetaReadonly(toPoolKeys.programId, false),
+        AccountMetaReadonly(fromPoolKeys.id, false),
+        AccountMeta(toPoolKeys.id, false),
+        AccountMetaReadonly(toPoolKeys.authority, false),
+        AccountMeta(toPoolKeys.openOrders, false),
+        AccountMeta(toPoolKeys.baseVault, false),
+        AccountMeta(toPoolKeys.quoteVault, false),
+
+        AccountMetaReadonly(ModelDataPubkey, false),
+        // serum
+        AccountMetaReadonly(toPoolKeys.marketProgramId, false),
+        AccountMeta(toPoolKeys.marketId, false),
+        AccountMeta(toPoolKeys.marketBids, false),
+        AccountMeta(toPoolKeys.marketAsks, false),
+        AccountMeta(toPoolKeys.marketEventQueue, false),
+        AccountMeta(toPoolKeys.id, false),
+        AccountMeta(toPoolKeys.id, false),
+        AccountMeta(toPoolKeys.id, false),
+        // user
+        AccountMeta(userKeys.middleTokenAccount, false),
+        AccountMeta(userKeys.outTokenAccount, false),
+        AccountMeta(userKeys.middleStatusAccount, false),
+        AccountMetaReadonly(userKeys.owner, true),
+      ];
+    }
 
     return new TransactionInstruction({
       programId: ROUTE_PROGRAM_ID_V1,
