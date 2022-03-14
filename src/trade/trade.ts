@@ -169,19 +169,21 @@ export class Trade {
 
     // the percent difference between the mid price before the trade and the trade execution price
     let _priceImpact = new Percent(ZERO);
+    let _fee: CurrencyAmount[] = [];
 
     // amm directly
     if (_features.includes("amm")) {
       for (const { poolKeys, poolInfo } of _pools) {
         // * if currencies not match with pool, will throw error
         try {
-          const { amountOut, minAmountOut, currentPrice, executionPrice, priceImpact } = Liquidity.computeAmountOut({
-            poolKeys,
-            poolInfo,
-            amountIn,
-            currencyOut,
-            slippage,
-          });
+          const { amountOut, minAmountOut, currentPrice, executionPrice, priceImpact, fee } =
+            Liquidity.computeAmountOut({
+              poolKeys,
+              poolInfo,
+              amountIn,
+              currencyOut,
+              slippage,
+            });
 
           if (amountOut.gt(_amountOut)) {
             routes = [
@@ -196,6 +198,7 @@ export class Trade {
             _currentPrice = currentPrice;
             _executionPrice = executionPrice;
             _priceImpact = priceImpact;
+            _fee = [fee];
           }
         } catch (error) {
           //
@@ -216,7 +219,7 @@ export class Trade {
 
         // * if currencies not match with pool, will throw error
         try {
-          const { amountOut, minAmountOut, executionPrice, priceImpact } = Route.computeAmountOut({
+          const { amountOut, minAmountOut, executionPrice, priceImpact, fee } = Route.computeAmountOut({
             fromPoolKeys,
             toPoolKeys,
             fromPoolInfo,
@@ -242,6 +245,7 @@ export class Trade {
             _minAmountOut = minAmountOut;
             _executionPrice = executionPrice;
             _priceImpact = priceImpact;
+            _fee = fee;
           }
         } catch (error) {
           //
@@ -262,6 +266,7 @@ export class Trade {
       currentPrice: _currentPrice,
       executionPrice: _executionPrice,
       priceImpact: _priceImpact,
+      fee: _fee,
     };
   }
 

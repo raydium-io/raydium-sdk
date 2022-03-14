@@ -1876,6 +1876,7 @@ export class Liquidity extends Base {
         currentPrice: Price;
         executionPrice: Price | null;
         priceImpact: Percent;
+        fee: CurrencyAmount;
       }
     | {
         amountOut: TokenAmount;
@@ -1883,6 +1884,7 @@ export class Liquidity extends Base {
         currentPrice: Price;
         executionPrice: Price | null;
         priceImpact: Percent;
+        fee: CurrencyAmount;
       } => {
     const tokenIn = amountIn instanceof TokenAmount ? amountIn.token : Token.WSOL;
     const tokenOut = currencyOut instanceof Token ? currencyOut : Token.WSOL;
@@ -1923,17 +1925,18 @@ export class Liquidity extends Base {
 
     const amountInRaw = amountIn.raw;
     let amountOutRaw = ZERO;
+    let feeRaw = ZERO;
 
     if (!amountInRaw.isZero()) {
       if (poolKeys.version === 4) {
-        const fee = amountInRaw.mul(LIQUIDITY_FEES_NUMERATOR).div(LIQUIDITY_FEES_DENOMINATOR);
-        const amountInWithFee = amountInRaw.sub(fee);
+        feeRaw = amountInRaw.mul(LIQUIDITY_FEES_NUMERATOR).div(LIQUIDITY_FEES_DENOMINATOR);
+        const amountInWithFee = amountInRaw.sub(feeRaw);
 
         const denominator = reserveIn.add(amountInWithFee);
         amountOutRaw = reserveOut.mul(amountInWithFee).div(denominator);
       } else {
-        const fee = amountInRaw.mul(new BN(2)).div(new BN(10000));
-        const amountInWithFee = amountInRaw.sub(fee);
+        feeRaw = amountInRaw.mul(new BN(2)).div(new BN(10000));
+        const amountInWithFee = amountInRaw.sub(feeRaw);
         if (input === "quote")
           amountOutRaw = new BN(
             getDyByDxBaseIn(modelData, quoteReserve.toNumber(), baseReserve.toNumber(), amountInWithFee.toNumber()),
@@ -1960,9 +1963,9 @@ export class Liquidity extends Base {
     logger.debug("amountOut:", amountOut.toFixed());
     logger.debug("minAmountOut:", minAmountOut.toFixed());
 
-    let executionPrice: Price | null = null;
+    let executionPrice = new Price(currencyIn, amountInRaw.sub(feeRaw), currencyOut, amountOutRaw);
     if (!amountInRaw.isZero() && !amountOutRaw.isZero()) {
-      executionPrice = new Price(currencyIn, amountInRaw, currencyOut, amountOutRaw);
+      executionPrice = new Price(currencyIn, amountInRaw.sub(feeRaw), currencyOut, amountOutRaw);
       logger.debug("executionPrice:", `1 ${currencyIn.symbol} ≈ ${executionPrice.toFixed()} ${currencyOut.symbol}`);
       logger.debug(
         "executionPrice invert:",
@@ -1970,8 +1973,15 @@ export class Liquidity extends Base {
       );
     }
 
-    const priceImpact = this._computePriceImpact(currentPrice, amountInRaw, amountOutRaw);
+    // const priceImpact = this._computePriceImpact(currentPrice, amountInRaw, amountOutRaw);
+    const priceImpact = new Percent(
+      parseFloat(executionPrice?.toFixed()) - parseFloat(currentPrice?.toFixed()),
+      parseFloat(currentPrice?.toFixed()),
+    );
     logger.debug("priceImpact:", `${priceImpact.toSignificant()}%`);
+
+    const fee =
+      currencyOut instanceof Token ? new TokenAmount(currencyOut, feeRaw) : new CurrencyAmount(currencyOut, feeRaw);
 
     return {
       amountOut,
@@ -1979,6 +1989,7 @@ export class Liquidity extends Base {
       currentPrice,
       executionPrice,
       priceImpact,
+      fee,
     };
   };
 

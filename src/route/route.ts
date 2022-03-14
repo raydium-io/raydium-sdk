@@ -531,6 +531,7 @@ export class Route extends Base {
       amountOut: middleAmountOut,
       minAmountOut: minMiddleAmountOut,
       priceImpact: firstPriceImpact,
+      fee: firstFee,
     } = Liquidity.computeAmountOut({
       poolKeys: fromPoolKeys,
       poolInfo: fromPoolInfo,
@@ -542,6 +543,7 @@ export class Route extends Base {
       amountOut,
       minAmountOut,
       priceImpact: secondPriceImpact,
+      fee: secondFee,
     } = Liquidity.computeAmountOut({
       poolKeys: toPoolKeys,
       poolInfo: toPoolInfo,
@@ -570,6 +572,7 @@ export class Route extends Base {
       minAmountOut,
       executionPrice,
       priceImpact: firstPriceImpact.add(secondPriceImpact),
+      fee: [firstFee, secondFee],
     };
   }
 
