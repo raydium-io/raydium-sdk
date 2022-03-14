@@ -1922,7 +1922,9 @@ export class Liquidity extends Base {
     if (poolKeys.version === 4) {
       currentPrice = new Price(currencyIn, reserveIn, currencyOut, reserveOut);
     } else {
-      currentPrice = getStablePrice(modelData, baseReserve.toNumber(), quoteReserve.toNumber(), false);
+      const p = getStablePrice(modelData, baseReserve.toNumber(), quoteReserve.toNumber(), false);
+      if (input === "quote") currentPrice = new Price(currencyIn, new BN(p * 1e6), currencyOut, new BN(1e6));
+      else currentPrice = new Price(currencyIn, new BN(1e6), currencyOut, new BN(p * 1e6));
     }
 
     logger.debug("currentPrice:", `1 ${currencyIn.symbol} ≈ ${currentPrice.toFixed()} ${currencyOut.symbol}`);
