@@ -1973,11 +1973,12 @@ export class Liquidity extends Base {
       );
     }
 
-    const priceImpact = this._computePriceImpact(currentPrice, amountInRaw, amountOutRaw);
-    // const priceImpact = new Percent(
-    //   parseFloat(executionPrice.toFixed()) - parseFloat(currentPrice.toFixed()),
-    //   parseFloat(currentPrice.toFixed()),
-    // );
+    // const priceImpact = this._computePriceImpact(currentPrice, amountInRaw, amountOutRaw);
+    // TODO
+    const priceImpact = new Percent(
+      parseInt(String(Math.abs(parseFloat(executionPrice.toFixed()) - parseFloat(currentPrice.toFixed())) * 1e9)),
+      parseInt(String(parseFloat(currentPrice.toFixed()) * 1e9)),
+    );
     logger.debug("priceImpact:", `${priceImpact.toSignificant()}%`);
 
     const fee =
