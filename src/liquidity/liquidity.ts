@@ -18,7 +18,9 @@ import {
   LIQUIDITY_PROGRAMID_TO_VERSION, LIQUIDITY_VERSION_TO_PROGRAMID, LIQUIDITY_VERSION_TO_SERUM_VERSION,
 } from "./id";
 import { LIQUIDITY_VERSION_TO_STATE_LAYOUT, LiquidityStateLayout, LiquidityStateV4 } from "./layout";
-import { formatLayout, getDxByDyBaseIn, getDyByDxBaseIn, ModelDataPubkey, stableModelLayout } from "./stable";
+import {
+  formatLayout, getDxByDyBaseIn, getDyByDxBaseIn, getStablePrice, ModelDataPubkey, stableModelLayout,
+} from "./stable";
 import { LiquidityPoolJsonInfo } from "./type";
 
 const logger = Logger.from("Liquidity");
@@ -1916,7 +1918,13 @@ export class Liquidity extends Base {
 
     const [reserveIn, reserveOut] = reserves;
 
-    const currentPrice = new Price(currencyIn, reserveIn, currencyOut, reserveOut);
+    let currentPrice;
+    if (poolKeys.version === 4) {
+      currentPrice = new Price(currencyIn, reserveIn, currencyOut, reserveOut);
+    } else {
+      currentPrice = getStablePrice(modelData, baseReserve.toNumber(), quoteReserve.toNumber(), false);
+    }
+
     logger.debug("currentPrice:", `1 ${currencyIn.symbol} ≈ ${currentPrice.toFixed()} ${currencyOut.symbol}`);
     logger.debug(
       "currentPrice invert:",
