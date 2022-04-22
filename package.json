@@ -1,6 +1,6 @@
 {
   "name": "@raydium-io/raydium-sdk",
-  "version": "1.0.1-beta.47",
+  "version": "1.1.0-beta.0",
   "description": "An SDK for building applications on top of Raydium.",
   "license": "GPL-3.0",
   "main": "./lib/index.js",
@@ -33,7 +33,7 @@
     "build-docs": "typedoc",
     "build-docs-watch": "typedoc --watch",
     "build-dist": "rm -rf dist && mkdir dist && yarn build-docs && cp -r icons ./dist/icons && yarn build-json",
-    "build-lib": "rm -rf lib && tsup src --format cjs,esm --dts -d lib",
+    "build-lib": "rm -rf lib && tsup src --format cjs,esm --dts --sourcemap --no-splitting --minify -d lib",
     "build-all": "yarn build-dist && yarn build-lib",
     "install-peers": "ts-node ./misc/install-peers.ts",
     "build": "yarn build-lib",

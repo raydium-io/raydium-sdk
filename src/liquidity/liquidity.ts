@@ -1992,7 +1992,7 @@ export class Liquidity extends Base {
     logger.debug("priceImpact:", `${priceImpact.toSignificant()}%`);
 
     const fee =
-      currencyOut instanceof Token ? new TokenAmount(currencyOut, feeRaw) : new CurrencyAmount(currencyOut, feeRaw);
+      currencyIn instanceof Token ? new TokenAmount(currencyIn, feeRaw) : new CurrencyAmount(currencyIn, feeRaw);
 
     return {
       amountOut,

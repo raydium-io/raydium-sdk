@@ -1,5 +1,88 @@
 # Changelog
 
+### 1.1.0-beta.0 (2022-03-14)
+
+- Add
+  - Build mjs & cjs
+- Change
+  - Fix swap fee currency
+
+### 1.0.1-beta.46 (2022-03-14)
+
+- Change
+  - Fix stable price
+
+### 1.0.1-beta.45 (2022-03-14)
+
+- Change
+  - Fix stable price
+
+### 1.0.1-beta.44 (2022-03-14)
+
+- Change
+  - Fix price impact
+
+### 1.0.1-beta.43 (2022-03-14)
+
+- Change
+  - Fix adjust price impact
+  - Return swap fee
+
+### 1.0.1-beta.42 (2022-03-11)
+
+- Change
+  - Fix init stable model layout
+
+### 1.0.1-beta.41 (2022-03-11)
+
+- Change
+  - Fix startTime
+
+### 1.0.1-beta.40 (2022-03-11)
+
+- Add
+  - Return `startTime` for `Liquidity.fetchMultipleInfo`
+
+### 1.0.1-beta.39 (2022-03-11)
+
+- Add
+  - Stable layout
+
+### 1.0.1-beta.38 (2022-03-10)
+
+- Add
+  - Stable and route for stable
+
+### 1.0.1-beta.37 (2022-02-25)
+
+- Change
+  - Fix route pools bug
+
+### 1.0.1-beta.36 (2022-02-24)
+
+- Add
+  - `executionPrice` for `Route`
+
+### 1.0.1-beta.35 (2022-02-24)
+
+- Add
+  - `priceImpact` for `Route`
+
+### 1.0.1-beta.34 (2022-02-22)
+
+- Change
+  - Fix route bug
+
+### 1.0.1-beta.33 (2022-02-21)
+
+- Change
+  - Trade return data structure
+
+### 1.0.1-beta.32 (2022-02-21)
+
+- Change
+  - Fixes route
+
 ### 1.0.1-beta.31 (2022-02-20)
 
 - Add

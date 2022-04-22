@@ -4,7 +4,8 @@
   "editor.tabSize": 2,
   "editor.codeActionsOnSave": {
     "source.fixAll.eslint": true,
-    "source.fixAll.sortJSON": true
+    "source.fixAll.sortJSON": true,
+    "source.organizeImports.sortImports": true
   },
   "eslint.validate": ["typescript"],
   "[json]": {

@@ -25,8 +25,8 @@ $ npm install @raydium-io/raydium-sdk --save
 
 ### Tokens List
 
-- Solana format: https://sdk.raydium.io/token/solana.mainnet.json
-- Raydium format: https://sdk.raydium.io/token/raydium.mainnet.json
+- Solana format: https://api.raydium.io/v2/sdk/token/solana.mainnet.json
+- Raydium format: https://api.raydium.io/v2/sdk/token/raydium.mainnet.json
 
 ### Token Icons
 
@@ -36,13 +36,13 @@ $ npm install @raydium-io/raydium-sdk --save
 
 **_Includes all pubkeys that build transaction need_**
 
-- https://sdk.raydium.io/liquidity/mainnet.json
+- https://api.raydium.io/v2/sdk/liquidity/mainnet.json
 
 ### Farm/Staking Pools List
 
 **_Includes all pubkeys that build transaction need_**
 
-- https://sdk.raydium.io/farm/mainnet.json
+- https://api.raydium.io/v2/sdk/farm/mainnet.json
 
 ## Program IDs
 
