@@ -1,7 +1,7 @@
 import { JsonFileMetaData } from "../common";
 import { LpTokenInfo, SplTokenInfo } from "../token";
 
-export type FarmVersion = 3 | 4 | 5;
+export type FarmVersion = 3 | 4 | 5 | 6;
 
 export interface FarmPoolBaseInfo {
   readonly id: string;

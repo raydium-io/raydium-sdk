@@ -2,8 +2,16 @@ import { PublicKey } from "@solana/web3.js";
 import BN from "bn.js";
 
 import {
-  blob, GetLayoutSchemaFromStructure, GetStructureFromLayoutSchema, GetStructureSchema, publicKey, seq, struct, u128,
-  u64, u8,
+  blob,
+  GetLayoutSchemaFromStructure,
+  GetStructureFromLayoutSchema,
+  GetStructureSchema,
+  publicKey,
+  seq,
+  struct,
+  u128,
+  u64,
+  u8,
 } from "../marshmallow";
 
 import { FarmVersion } from "./type";
@@ -42,6 +50,34 @@ export const REAL_FARM_STATE_LAYOUT_V5 = struct([
   publicKey(),
 ]);
 
+const FARM_STATE_LAYOUT_V6_REWARD_INFO = struct([
+  u64("rewardState"),
+  u64("rewardOpenTime"),
+  u64("rewardEndTime"),
+  u64("rewardLastUpdateTime"),
+  u64("rewardTotal"),
+  u64("totalRewardEmissioned"),
+  u64("rewardClaimed"),
+  u64("rewardPerSecond"),
+  u128("accRewardPerShare"),
+  publicKey("rewardVault"),
+  publicKey("rewardMint"),
+  publicKey("rewardSender"),
+  seq(u64("padding"), 16, "padding"),
+]);
+
+export const FARM_STATE_LAYOUT_V6 = struct([
+  u64("accountType"),
+  u64("state"),
+  u64("nonce"),
+  u64("validRewardTokenNum"),
+  u128("rewardMultiplier"),
+  publicKey("lpVault"),
+  seq(FARM_STATE_LAYOUT_V6_REWARD_INFO, 5, "rewardInfo"),
+  publicKey(),
+  seq(u64("padding"), 32, "padding"),
+]);
+
 export const FARM_STATE_LAYOUT_V5 = new Proxy(
   REAL_FARM_STATE_LAYOUT_V5 as GetStructureFromLayoutSchema<
     {
@@ -71,11 +107,13 @@ export const FARM_STATE_LAYOUT_V5 = new Proxy(
 
 export type FarmStateLayoutV3 = typeof FARM_STATE_LAYOUT_V3;
 export type FarmStateLayoutV5 = typeof FARM_STATE_LAYOUT_V5;
-export type FarmStateLayout = FarmStateLayoutV3 | FarmStateLayoutV5;
+export type FarmStateLayoutV6 = typeof FARM_STATE_LAYOUT_V6;
+export type FarmStateLayout = FarmStateLayoutV3 | FarmStateLayoutV5 | FarmStateLayoutV6;
 
 export type FarmStateV3 = GetStructureSchema<FarmStateLayoutV3>;
 export type FarmStateV5 = GetStructureSchema<FarmStateLayoutV5>;
-export type FarmState = FarmStateV3 | FarmStateV5;
+export type FarmStateV6 = GetStructureSchema<FarmStateLayoutV6>;
+export type FarmState = FarmStateV3 | FarmStateV5 | FarmStateV6;
 
 /* ================= ledger layouts ================= */
 export const FARM_LEDGER_LAYOUT_V3_1 = struct([
@@ -112,21 +150,35 @@ export const FARM_LEDGER_LAYOUT_V5_2 = struct([
   seq(u64(), 17),
 ]);
 
+export const FARM_LEDGER_LAYOUT_V6_1 = struct([
+  u64(),
+  u64("state"),
+  publicKey("poolId"),
+  publicKey("owner"),
+  u64("depositBalance"),
+  seq(u128(), 5, "rewardDebtAmounts"),
+  seq(u64(), 16),
+]);
+
 export type FarmLedgerLayoutV3_1 = typeof FARM_LEDGER_LAYOUT_V3_1;
 export type FarmLedgerLayoutV3_2 = typeof FARM_LEDGER_LAYOUT_V3_2;
 export type FarmLedgerLayoutV5_1 = typeof FARM_LEDGER_LAYOUT_V5_1;
 export type FarmLedgerLayoutV5_2 = typeof FARM_LEDGER_LAYOUT_V5_2;
+export type FarmLedgerLayoutV6_1 = typeof FARM_LEDGER_LAYOUT_V6_1;
 export type FarmLedgerLayout =
   | FarmLedgerLayoutV3_1
   | FarmLedgerLayoutV3_2
   | FarmLedgerLayoutV5_1
-  | FarmLedgerLayoutV5_2;
+  | FarmLedgerLayoutV5_2
+  | FarmLedgerLayoutV6_1;
 
 export type FarmLedgerV3_1 = GetStructureSchema<FarmLedgerLayoutV3_1>;
 export type FarmLedgerV3_2 = GetStructureSchema<FarmLedgerLayoutV3_2>;
 export type FarmLedgerV5_1 = GetStructureSchema<FarmLedgerLayoutV5_1>;
 export type FarmLedgerV5_2 = GetStructureSchema<FarmLedgerLayoutV5_2>;
-export type FarmLedger = FarmLedgerV3_1 | FarmLedgerV3_2 | FarmLedgerV5_1 | FarmLedgerV5_2;
+export type FarmLedgerV6_1 = GetStructureSchema<FarmLedgerLayoutV6_1>;
+export type FarmLedgerOld = FarmLedgerV3_1 | FarmLedgerV3_2 | FarmLedgerV5_1 | FarmLedgerV5_2;
+export type FarmLedger = FarmLedgerV3_1 | FarmLedgerV3_2 | FarmLedgerV5_1 | FarmLedgerV5_2 | FarmLedgerV6_1;
 
 /* ================= index ================= */
 // version => farm state layout
@@ -137,6 +189,7 @@ export const FARM_VERSION_TO_STATE_LAYOUT: {
 } = {
   3: FARM_STATE_LAYOUT_V3,
   5: FARM_STATE_LAYOUT_V5,
+  6: FARM_STATE_LAYOUT_V6,
 };
 
 // version => farm ledger layout
@@ -147,4 +200,5 @@ export const FARM_VERSION_TO_LEDGER_LAYOUT: {
 } = {
   3: FARM_LEDGER_LAYOUT_V3_2,
   5: FARM_LEDGER_LAYOUT_V5_2,
+  6: FARM_LEDGER_LAYOUT_V6_1,
 };
