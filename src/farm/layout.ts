@@ -55,7 +55,7 @@ const FARM_STATE_LAYOUT_V6_REWARD_INFO = struct([
   u64("rewardOpenTime"),
   u64("rewardEndTime"),
   u64("rewardLastUpdateTime"),
-  u64("rewardTotal"),
+  u64("totalReward"),
   u64("totalRewardEmissioned"),
   u64("rewardClaimed"),
   u64("rewardPerSecond"),
@@ -63,19 +63,19 @@ const FARM_STATE_LAYOUT_V6_REWARD_INFO = struct([
   publicKey("rewardVault"),
   publicKey("rewardMint"),
   publicKey("rewardSender"),
-  seq(u64("padding"), 16, "padding"),
+  seq(u64(), 16, "padding"),
 ]);
 
 export const FARM_STATE_LAYOUT_V6 = struct([
-  u64("accountType"),
+  u64(),
   u64("state"),
   u64("nonce"),
   u64("validRewardTokenNum"),
   u128("rewardMultiplier"),
   publicKey("lpVault"),
-  seq(FARM_STATE_LAYOUT_V6_REWARD_INFO, 5, "rewardInfo"),
+  seq(FARM_STATE_LAYOUT_V6_REWARD_INFO, 5, "rewardInfos"),
   publicKey(),
-  seq(u64("padding"), 32, "padding"),
+  seq(u64(), 32, "padding"),
 ]);
 
 export const FARM_STATE_LAYOUT_V5 = new Proxy(
@@ -153,10 +153,10 @@ export const FARM_LEDGER_LAYOUT_V5_2 = struct([
 export const FARM_LEDGER_LAYOUT_V6_1 = struct([
   u64(),
   u64("state"),
-  publicKey("poolId"),
+  publicKey("id"),
   publicKey("owner"),
-  u64("depositBalance"),
-  seq(u128(), 5, "rewardDebtAmounts"),
+  u64("deposited"),
+  seq(u128(), 5, "rewardDebts"),
   seq(u64(), 16),
 ]);
 
