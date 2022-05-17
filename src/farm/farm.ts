@@ -961,14 +961,14 @@ export class Farm {
         if (version === 3 || version === 4 || version === 5) {
           let multiplier = TEN.pow(new BN(15));
           // for stake pool
-          if ((state as FarmStateV3 | FarmStateV5).perShareRewards.length === 1) {
+          if ((state as FarmStateV3 | FarmStateV5).rewardInfos.length === 1) {
             multiplier = TEN.pow(new BN(9));
           }
 
-          const pendingRewards = (state as FarmStateV3 | FarmStateV5).perShareRewards.map((perShareReward, index) => {
+          const pendingRewards = (state as FarmStateV3 | FarmStateV5).rewardInfos.map((itemRewardInfo, index) => {
             const rewardDebt = (ledger as FarmLedgerOld).rewardDebts[index];
             const pendingReward = (ledger as FarmLedgerOld).deposited
-              .mul(perShareReward)
+              .mul(itemRewardInfo.perShareReward)
               .div(multiplier)
               .sub(rewardDebt);
 

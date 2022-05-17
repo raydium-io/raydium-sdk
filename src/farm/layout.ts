@@ -17,19 +17,19 @@ import {
 import { FarmVersion } from "./type";
 
 /* ================= state layouts ================= */
-export const FARM_STATE_LAYOUT_V3 = struct([
+export const REAL_FARM_STATE_LAYOUT_V3 = struct([
   u64("state"),
   u64("nonce"),
   publicKey("lpVault"),
-  seq(publicKey(), 1, "rewardVaults"),
+  seq(publicKey(), 1, "rewardVault"),
   publicKey(),
   publicKey(),
   u64(),
   u64(),
-  seq(u64(), 1, "totalRewards"),
-  seq(u128(), 1, "perShareRewards"),
+  seq(u64(), 1, "totalReward"),
+  seq(u128(), 1, "perShareReward"),
   u64("lastSlot"),
-  seq(u64(), 1, "perSlotRewards"),
+  seq(u64(), 1, "perSlotReward"),
 ]);
 
 export const REAL_FARM_STATE_LAYOUT_V5 = struct([
@@ -78,13 +78,48 @@ export const FARM_STATE_LAYOUT_V6 = struct([
   seq(u64(), 32, "padding"),
 ]);
 
+export const FARM_STATE_LAYOUT_V3 = new Proxy(
+  REAL_FARM_STATE_LAYOUT_V3 as GetStructureFromLayoutSchema<
+    {
+      rewardInfos: {
+        rewardVault: PublicKey;
+        totalReward: BN;
+        perSlotReward: BN;
+        perShareReward: BN;
+      }[];
+    } & GetLayoutSchemaFromStructure<typeof REAL_FARM_STATE_LAYOUT_V3>
+  >,
+  {
+    get(target, p, receiver) {
+      if (p === "decode")
+        return (...decodeParams: Parameters<typeof target["decode"]>) => {
+          const originalResult = target.decode(...decodeParams);
+          return {
+            ...originalResult,
+            rewardInfos: [
+              {
+                rewardVault: originalResult.rewardVault,
+                totalReward: originalResult.totalReward,
+                perSlotReward: originalResult.perSlotReward,
+                perShareReward: originalResult.perShareReward,
+              },
+            ],
+          };
+        };
+      else return Reflect.get(target, p, receiver);
+    },
+  },
+);
+
 export const FARM_STATE_LAYOUT_V5 = new Proxy(
   REAL_FARM_STATE_LAYOUT_V5 as GetStructureFromLayoutSchema<
     {
-      rewardVaults: PublicKey[];
-      totalRewards: BN[];
-      perShareRewards: BN[];
-      perSlotRewards: BN[];
+      rewardInfos: {
+        rewardVault: PublicKey;
+        totalReward: BN;
+        perSlotReward: BN;
+        perShareReward: BN;
+      }[];
     } & GetLayoutSchemaFromStructure<typeof REAL_FARM_STATE_LAYOUT_V5>
   >,
   {
@@ -94,10 +129,20 @@ export const FARM_STATE_LAYOUT_V5 = new Proxy(
           const originalResult = target.decode(...decodeParams);
           return {
             ...originalResult,
-            rewardVaults: [originalResult.rewardVaultA, originalResult.rewardVaultB],
-            totalRewards: [originalResult.totalRewardA, originalResult.totalRewardB],
-            perShareRewards: [originalResult.perShareRewardA, originalResult.perShareRewardB],
-            perSlotRewards: [originalResult.perSlotRewardA, originalResult.perSlotRewardB],
+            rewardInfos: [
+              {
+                rewardVault: originalResult.rewardVaultA,
+                totalReward: originalResult.totalRewardA,
+                perSlotReward: originalResult.perSlotRewardA,
+                perShareReward: originalResult.perShareRewardA,
+              },
+              {
+                rewardVault: originalResult.rewardVaultB,
+                totalReward: originalResult.totalRewardB,
+                perSlotReward: originalResult.perSlotRewardB,
+                perShareReward: originalResult.perShareRewardB,
+              },
+            ],
           };
         };
       else return Reflect.get(target, p, receiver);
