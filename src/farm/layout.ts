@@ -72,8 +72,12 @@ export const FARM_STATE_LAYOUT_V6 = struct([
   u64("nonce"),
   u64("validRewardTokenNum"),
   u128("rewardMultiplier"),
+  publicKey("lpMint"),
   publicKey("lpVault"),
   seq(FARM_STATE_LAYOUT_V6_REWARD_INFO, 5, "rewardInfos"),
+  publicKey("lockNint"),
+  publicKey("lockVault"),
+  publicKey("creator"),
   publicKey(),
   seq(u64(), 32, "padding"),
 ]);

@@ -33,16 +33,32 @@ interface rewardInfoV6 {
   readonly endTime: number;
   readonly perSecond: number;
 }
-export interface FarmPoolJsonInfo {
+export interface FarmPoolJsonInfoV3V4V5 {
   readonly id: string;
   readonly lpMint: string;
-  readonly version: number;
+  readonly version: 3 | 4 | 5;
   readonly programId: string;
   readonly authority: string;
   readonly lpVault: string;
   readonly upcoming: boolean;
-  readonly rewardInfos: (rewardInfoV3V4V5 | rewardInfoV6)[];
+  readonly rewardInfos: rewardInfoV3V4V5[];
 }
+export interface FarmPoolJsonInfoV6 {
+  readonly id: string;
+  readonly lpMint: string;
+  readonly version: 6;
+  readonly programId: string;
+  readonly authority: string;
+  readonly lpVault: string;
+  readonly lockNint: string;
+  readonly lockVault: string;
+  readonly lockAmount: string;
+  readonly creator: string;
+  readonly upcoming: boolean;
+  readonly rewardInfos: rewardInfoV6[];
+}
+
+export type FarmPoolJsonInfo = FarmPoolJsonInfoV3V4V5 | FarmPoolJsonInfoV6;
 
 export interface FarmPoolsJsonFile extends JsonFileMetaData {
   readonly official: FarmPoolJsonInfoV1[];

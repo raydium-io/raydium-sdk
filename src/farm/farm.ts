@@ -73,6 +73,18 @@ export interface FarmUserKeys {
   owner: PublicKey;
 }
 
+export interface FarmLockInfo {
+  lockMint: PublicKey;
+  userLockAccount: PublicKey;
+}
+
+export interface FarmRewardInfo {
+  rewardMint: PublicKey;
+  rewardPerSecond: BigNumberish;
+  rewardStartTime: BigNumberish;
+  rewardEndTime: BigNumberish;
+  rewardOwnerAccount: PublicKey; // user account
+}
 /* ================= make instruction and transaction ================= */
 export interface FarmDepositInstructionParams {
   poolKeys: FarmPoolKeys;
@@ -129,6 +141,15 @@ export interface FarmWithdrawRewardInstructionParamsV6 {
 }
 
 export type FarmWithdrawRewardInstructionParams = FarmWithdrawRewardInstructionParamsV6;
+
+export interface FarmCreatorAddRewardTokenInstructionParamsV6 {
+  poolKeys: FarmPoolKeys;
+
+  owner: PublicKey;
+  newRewardInfo: FarmRewardInfo;
+}
+
+export type FarmCreatorAddRewardTokenInstructionParams = FarmCreatorAddRewardTokenInstructionParamsV6;
 
 /* ================= fetch data ================= */
 export interface FarmFetchMultipleInfoParams {
@@ -213,13 +234,22 @@ export class Farm {
     programId: PublicKey;
     poolId: PublicKey;
     mint: PublicKey;
-    type: "lpVault" | "rewardVault";
+    type: "lpVault" | "rewardVault" | "lockVault";
   }) {
     const { publicKey } = await findProgramAddress(
       [
         poolId.toBuffer(),
         mint.toBuffer(),
-        Buffer.from(type === "lpVault" ? "lp_vault_associated_seed" : "reward_vault_associated_seed", "utf-8"),
+        Buffer.from(
+          type === "lpVault"
+            ? "lp_vault_associated_seed"
+            : type === "rewardVault"
+            ? "reward_vault_associated_seed"
+            : type === "lockVault"
+            ? "lock_vault_associated_seed"
+            : "",
+          "utf-8",
+        ),
       ],
       programId,
     );
@@ -629,11 +659,13 @@ export class Farm {
     owner,
     payer,
     poolInfo,
+    lockInfo,
   }: {
     connection: Connection;
     owner: PublicKey;
     payer: PublicKey;
     poolInfo: FarmCreateInstructionParams;
+    lockInfo?: FarmLockInfo;
   }) {
     const { version } = poolInfo;
 
@@ -643,6 +675,7 @@ export class Farm {
         owner,
         payer,
         poolInfo,
+        lockInfo,
       });
     }
 
@@ -654,12 +687,17 @@ export class Farm {
     owner,
     payer,
     poolInfo,
+    lockInfo,
   }: {
     connection: Connection;
     owner: PublicKey;
     payer: PublicKey;
     poolInfo: FarmCreateInstructionParamsV6;
+    lockInfo?: FarmLockInfo;
   }) {
+    logger.assertArgument(!lockInfo, "need lockInfo", "lockInfo", lockInfo);
+    if (!lockInfo) return;
+
     const instructions: TransactionInstruction[] = [];
 
     const farmId = Keypair.generate();
@@ -685,6 +723,13 @@ export class Farm {
       poolId: farmId.publicKey,
       mint: poolInfo.lpMint,
       type: "lpVault",
+    });
+
+    const lockVault = await Farm.getAssociatedLedgerPoolAccount({
+      programId: poolInfo.programId,
+      poolId: farmId.publicKey,
+      mint: lockInfo.lockMint,
+      type: "lockVault",
     });
 
     const rewardInfoConfig: {
@@ -753,6 +798,9 @@ export class Farm {
       AccountMetaReadonly(authority, false),
       AccountMeta(lpVault, false),
       AccountMetaReadonly(poolInfo.lpMint, false),
+      AccountMeta(lockVault, false),
+      AccountMetaReadonly(lockInfo.lockMint, false),
+      AccountMeta(lockInfo.userLockAccount, false),
       AccountMetaReadonly(owner, true),
     ];
 
@@ -847,7 +895,7 @@ export class Farm {
   }: FarmWithdrawRewardInstructionParamsV6) {
     const LAYOUT = struct([u8("instruction")]);
     const data = Buffer.alloc(LAYOUT.span);
-    LAYOUT.encode({ instruction: 4 }, data);
+    LAYOUT.encode({ instruction: 5 }, data);
 
     const keys = [
       AccountMetaReadonly(TOKEN_PROGRAM_ID, false),
@@ -857,6 +905,68 @@ export class Farm {
       AccountMetaReadonly(poolKeys.lpVault, false),
       AccountMeta(rewardVault, false),
       AccountMeta(userVault, false),
+      AccountMetaReadonly(owner, true),
+    ];
+
+    return new TransactionInstruction({
+      programId: poolKeys.programId,
+      keys,
+      data,
+    });
+  }
+
+  static makeFarmCreatorAddRewardTokenInstruction(params: FarmCreatorAddRewardTokenInstructionParams) {
+    const { poolKeys } = params;
+    const { version } = poolKeys;
+
+    if (version === 6) {
+      return this.makeFarmCreatorAddRewardTokenInstructionV6(params);
+    }
+
+    return logger.throwArgumentError("invalid version", "version", version);
+  }
+
+  static async makeFarmCreatorAddRewardTokenInstructionV6({
+    poolKeys,
+    owner,
+    newRewardInfo,
+  }: FarmCreatorAddRewardTokenInstructionParams) {
+    const rewardVault = await Farm.getAssociatedLedgerPoolAccount({
+      programId: poolKeys.programId,
+      poolId: poolKeys.id,
+      mint: newRewardInfo.rewardMint,
+      type: "rewardVault",
+    });
+
+    const LAYOUT = struct([
+      u8("instruction"),
+      u64("isSet"),
+      u64("rewardPerSecond"),
+      u64("rewardStartTime"),
+      u64("rewardEndTime"),
+    ]);
+    const data = Buffer.alloc(LAYOUT.span);
+    LAYOUT.encode(
+      {
+        instruction: 4,
+        isSet: new BN(1),
+        rewardPerSecond: parseBigNumberish(newRewardInfo.rewardPerSecond),
+        rewardStartTime: parseBigNumberish(newRewardInfo.rewardStartTime),
+        rewardEndTime: parseBigNumberish(newRewardInfo.rewardEndTime),
+      },
+      data,
+    );
+
+    const keys = [
+      AccountMetaReadonly(TOKEN_PROGRAM_ID, false),
+      AccountMetaReadonly(SYSTEM_PROGRAM_ID, false),
+      AccountMetaReadonly(SYSVAR_RENT_PUBKEY, false),
+
+      AccountMeta(poolKeys.id, false),
+      AccountMetaReadonly(poolKeys.authority, false),
+      AccountMetaReadonly(newRewardInfo.rewardMint, false),
+      AccountMeta(rewardVault, false),
+      AccountMeta(newRewardInfo.rewardOwnerAccount, false),
       AccountMetaReadonly(owner, true),
     ];
 
