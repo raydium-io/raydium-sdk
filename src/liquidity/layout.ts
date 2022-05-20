@@ -53,7 +53,9 @@ export const LIQUIDITY_STATE_LAYOUT_V4 = struct([
   publicKey("withdrawQueue"),
   publicKey("lpVault"),
   publicKey("owner"),
-  publicKey("pnlOwner"),
+  // true circulating supply without lock up
+  u64("lpReserve"),
+  seq(u64(), 3, "padding"),
 ]);
 
 export type LiquidityStateLayoutV4 = typeof LIQUIDITY_STATE_LAYOUT_V4;
@@ -117,7 +119,7 @@ export const LIQUIDITY_STATE_LAYOUT_V5 = struct([
   publicKey("marketProgramId"),
   publicKey("targetOrders"),
   publicKey("owner"),
-  seq(u64("padding"), 64, "padding"),
+  seq(u64(), 64, "padding"),
 ]);
 
 export type LiquidityStateLayoutV5 = typeof LIQUIDITY_STATE_LAYOUT_V5;
