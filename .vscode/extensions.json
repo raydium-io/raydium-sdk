@@ -1,6 +1,7 @@
 {
   "recommendations": [
     "esbenp.prettier-vscode",
+    "rohit-gohri.format-code-action",
     "dozerg.tsimportsorter",
     "aaron-bond.better-comments",
     "salbert.comment-ts",

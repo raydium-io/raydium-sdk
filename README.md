@@ -30,7 +30,7 @@ $ npm install @raydium-io/raydium-sdk --save
 
 ### Token Icons
 
-- https://sdk.raydium.io/icons/{mint}.png
+- /icons/{mint}.png
 
 ### Liquidity Pools List
 
