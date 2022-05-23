@@ -21,15 +21,15 @@ export const REAL_FARM_STATE_LAYOUT_V3 = struct([
   u64("state"),
   u64("nonce"),
   publicKey("lpVault"),
-  seq(publicKey(), 1, "rewardVault"),
+  publicKey("rewardVault"),
   publicKey(),
   publicKey(),
   u64(),
   u64(),
-  seq(u64(), 1, "totalReward"),
-  seq(u128(), 1, "perShareReward"),
+  u64("totalReward"),
+  u128("perShareReward"),
   u64("lastSlot"),
-  seq(u64(), 1, "perSlotReward"),
+  u64("perSlotReward"),
 ]);
 
 export const REAL_FARM_STATE_LAYOUT_V5 = struct([
