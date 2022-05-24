@@ -59,10 +59,10 @@ export function jsonInfo2PoolKeys<T>(jsonInfo: T): ReplaceType<T, string, Public
 export function poolKeys2JsonInfo<T>(jsonInfo: T): ReplaceType<T, PublicKey, string> {
   // @ts-expect-error no need type for inner code
   return Object.entries(jsonInfo).reduce((result, [key, value]) => {
-    if (value instanceof PublicKey) {
-      result[key] = value.toBase58();
+    if (typeof value === "string") {
+      result[key] = validateAndParsePublicKey(value);
     } else if (value instanceof Array) {
-      result[key] = value.map((k) => k.toBase58());
+      result[key] = value.map((k) => jsonInfo2PoolKeys(k));
     } else {
       result[key] = value;
     }
