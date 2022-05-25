@@ -695,7 +695,7 @@ export class Farm {
     poolInfo: FarmCreateInstructionParamsV6;
     lockInfo?: FarmLockInfo;
   }) {
-    logger.assertArgument(!lockInfo, "need lockInfo", "lockInfo", lockInfo);
+    logger.assertArgument(lockInfo, "need lockInfo", "lockInfo", lockInfo);
     if (!lockInfo) return;
 
     const instructions: TransactionInstruction[] = [];
