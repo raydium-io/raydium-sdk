@@ -66,7 +66,7 @@ const FARM_STATE_LAYOUT_V6_REWARD_INFO = struct([
   seq(u64(), 16, "padding"),
 ]);
 
-export const FARM_STATE_LAYOUT_V6 = struct([
+export const REAL_FARM_STATE_LAYOUT_V6 = struct([
   u64(),
   u64("state"),
   u64("nonce"),
@@ -90,6 +90,17 @@ export const FARM_STATE_LAYOUT_V3 = new Proxy(
         totalReward: BN;
         perSlotReward: BN;
         perShareReward: BN;
+
+        rewardState: undefined;
+        rewardOpenTime: undefined;
+        rewardEndTime: undefined;
+        rewardLastUpdateTime: undefined;
+        totalRewardEmissioned: undefined;
+        rewardClaimed: undefined;
+        rewardPerSecond: undefined;
+        accRewardPerShare: undefined;
+        rewardMint: undefined;
+        rewardSender: undefined;
       }[];
     } & GetLayoutSchemaFromStructure<typeof REAL_FARM_STATE_LAYOUT_V3>
   >,
@@ -123,6 +134,17 @@ export const FARM_STATE_LAYOUT_V5 = new Proxy(
         totalReward: BN;
         perSlotReward: BN;
         perShareReward: BN;
+
+        rewardState: undefined;
+        rewardOpenTime: undefined;
+        rewardEndTime: undefined;
+        rewardLastUpdateTime: undefined;
+        totalRewardEmissioned: undefined;
+        rewardClaimed: undefined;
+        rewardPerSecond: undefined;
+        accRewardPerShare: undefined;
+        rewardMint: undefined;
+        rewardSender: undefined;
       }[];
     } & GetLayoutSchemaFromStructure<typeof REAL_FARM_STATE_LAYOUT_V5>
   >,
@@ -147,6 +169,45 @@ export const FARM_STATE_LAYOUT_V5 = new Proxy(
                 perShareReward: originalResult.perShareRewardB,
               },
             ],
+          };
+        };
+      else return Reflect.get(target, p, receiver);
+    },
+  },
+);
+
+export const FARM_STATE_LAYOUT_V6 = new Proxy(
+  REAL_FARM_STATE_LAYOUT_V6 as GetStructureFromLayoutSchema<
+    {
+      rewardInfos: {
+        rewardState: BN;
+        rewardOpenTime: BN;
+        rewardEndTime: BN;
+        rewardLastUpdateTime: BN;
+        totalReward: BN;
+        totalRewardEmissioned: BN;
+        rewardClaimed: BN;
+        rewardPerSecond: BN;
+        accRewardPerShare: BN;
+        rewardVault: PublicKey;
+        rewardMint: PublicKey;
+        rewardSender: PublicKey;
+
+        perSlotReward: undefined;
+        perShareReward: undefined;
+      }[];
+    } & GetLayoutSchemaFromStructure<typeof REAL_FARM_STATE_LAYOUT_V6>
+  >,
+  {
+    get(target, p, receiver) {
+      if (p === "decode")
+        return (...decodeParams: Parameters<typeof target["decode"]>) => {
+          const originalResult = target.decode(...decodeParams);
+          return {
+            ...originalResult,
+            rewardInfos: originalResult.rewardInfos.map((item) => ({
+              ...item,
+            })),
           };
         };
       else return Reflect.get(target, p, receiver);
