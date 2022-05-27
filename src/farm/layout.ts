@@ -91,17 +91,6 @@ export const FARM_STATE_LAYOUT_V3 = new Proxy(
         perSlotReward: BN;
         perShareReward: BN;
 
-        rewardState: undefined;
-        rewardOpenTime: undefined;
-        rewardEndTime: undefined;
-        rewardLastUpdateTime: undefined;
-        totalRewardEmissioned: undefined;
-        rewardClaimed: undefined;
-        rewardPerSecond: undefined;
-        accRewardPerShare: undefined;
-        rewardMint: undefined;
-        rewardSender: undefined;
-
         version: 3;
       }[];
     } & GetLayoutSchemaFromStructure<typeof REAL_FARM_STATE_LAYOUT_V3>
@@ -138,17 +127,6 @@ export const FARM_STATE_LAYOUT_V5 = new Proxy(
         totalReward: BN;
         perSlotReward: BN;
         perShareReward: BN;
-
-        rewardState: undefined;
-        rewardOpenTime: undefined;
-        rewardEndTime: undefined;
-        rewardLastUpdateTime: undefined;
-        totalRewardEmissioned: undefined;
-        rewardClaimed: undefined;
-        rewardPerSecond: undefined;
-        accRewardPerShare: undefined;
-        rewardMint: undefined;
-        rewardSender: undefined;
 
         version: 5;
       }[];
@@ -202,9 +180,6 @@ export const FARM_STATE_LAYOUT_V6 = new Proxy(
         rewardVault: PublicKey;
         rewardMint: PublicKey;
         rewardSender: PublicKey;
-
-        perSlotReward: undefined;
-        perShareReward: undefined;
 
         version: 6;
       }[];
