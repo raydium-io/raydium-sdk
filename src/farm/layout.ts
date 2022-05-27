@@ -101,6 +101,8 @@ export const FARM_STATE_LAYOUT_V3 = new Proxy(
         accRewardPerShare: undefined;
         rewardMint: undefined;
         rewardSender: undefined;
+
+        version: 3;
       }[];
     } & GetLayoutSchemaFromStructure<typeof REAL_FARM_STATE_LAYOUT_V3>
   >,
@@ -117,6 +119,8 @@ export const FARM_STATE_LAYOUT_V3 = new Proxy(
                 totalReward: originalResult.totalReward,
                 perSlotReward: originalResult.perSlotReward,
                 perShareReward: originalResult.perShareReward,
+
+                version: 3,
               },
             ],
           };
@@ -145,6 +149,8 @@ export const FARM_STATE_LAYOUT_V5 = new Proxy(
         accRewardPerShare: undefined;
         rewardMint: undefined;
         rewardSender: undefined;
+
+        version: 5;
       }[];
     } & GetLayoutSchemaFromStructure<typeof REAL_FARM_STATE_LAYOUT_V5>
   >,
@@ -161,12 +167,16 @@ export const FARM_STATE_LAYOUT_V5 = new Proxy(
                 totalReward: originalResult.totalRewardA,
                 perSlotReward: originalResult.perSlotRewardA,
                 perShareReward: originalResult.perShareRewardA,
+
+                version: 5,
               },
               {
                 rewardVault: originalResult.rewardVaultB,
                 totalReward: originalResult.totalRewardB,
                 perSlotReward: originalResult.perSlotRewardB,
                 perShareReward: originalResult.perShareRewardB,
+
+                version: 5,
               },
             ],
           };
@@ -195,6 +205,8 @@ export const FARM_STATE_LAYOUT_V6 = new Proxy(
 
         perSlotReward: undefined;
         perShareReward: undefined;
+
+        version: 6;
       }[];
     } & GetLayoutSchemaFromStructure<typeof REAL_FARM_STATE_LAYOUT_V6>
   >,
@@ -207,6 +219,8 @@ export const FARM_STATE_LAYOUT_V6 = new Proxy(
             ...originalResult,
             rewardInfos: originalResult.rewardInfos.map((item) => ({
               ...item,
+
+              version: 6,
             })),
           };
         };
