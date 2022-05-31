@@ -122,13 +122,13 @@ export type FarmCreateInstructionParams = FarmCreateInstructionParamsV6;
 export interface FarmRestartInstructionParamsV6 {
   poolKeys: FarmPoolKeys;
 
-  owner: PublicKey;
+  rewardOwner: PublicKey;
   rewardVault: PublicKey;
-  userVault: PublicKey;
+  rewardOwnerAccount: PublicKey;
 
-  restartTime: number;
-  endTime: number;
-  rewardPerSecond: number;
+  rewardRestartTime: number;
+  rewardEndTime: number;
+  rewardPerSecond: BigNumberish;
 }
 
 export type FarmRestartInstructionParams = FarmRestartInstructionParamsV6;
@@ -837,23 +837,33 @@ export class Farm {
 
   static makeRestartFarmInstructionV6({
     poolKeys,
-    owner,
+    rewardOwner,
     rewardVault,
-    userVault,
-    restartTime,
-    endTime,
+    rewardOwnerAccount,
+    rewardRestartTime,
+    rewardEndTime,
     rewardPerSecond,
   }: FarmRestartInstructionParams) {
-    logger.assertArgument(restartTime < new Date().getTime(), "start time < now time", "restartTime", restartTime);
-    logger.assertArgument(restartTime < endTime, "start time error", "restartTime", restartTime);
+    logger.assertArgument(
+      rewardRestartTime < new Date().getTime(),
+      "start time < now time",
+      "rewardRestartTime",
+      rewardRestartTime,
+    );
+    logger.assertArgument(
+      rewardRestartTime < rewardEndTime,
+      "start time error",
+      "rewardRestartTime",
+      rewardRestartTime,
+    );
 
-    const LAYOUT = struct([u8("instruction"), u64("restartTime"), u64("endTime"), u64("rewardPerSecond")]);
+    const LAYOUT = struct([u8("instruction"), u64("rewardRestartTime"), u64("rewardEndTime"), u64("rewardPerSecond")]);
     const data = Buffer.alloc(LAYOUT.span);
     LAYOUT.encode(
       {
         instruction: 3,
-        restartTime: parseBigNumberish(restartTime),
-        endTime: parseBigNumberish(endTime),
+        rewardRestartTime: parseBigNumberish(rewardRestartTime),
+        rewardEndTime: parseBigNumberish(rewardEndTime),
         rewardPerSecond: parseBigNumberish(rewardPerSecond),
       },
       data,
@@ -865,8 +875,8 @@ export class Farm {
       AccountMeta(poolKeys.id, false),
       AccountMetaReadonly(poolKeys.lpVault, false),
       AccountMeta(rewardVault, false),
-      AccountMeta(userVault, false),
-      AccountMetaReadonly(owner, true),
+      AccountMeta(rewardOwnerAccount, false),
+      AccountMetaReadonly(rewardOwner, true),
     ];
 
     return new TransactionInstruction({
