@@ -845,7 +845,7 @@ export class Farm {
     rewardPerSecond,
   }: FarmRestartInstructionParams) {
     logger.assertArgument(
-      rewardRestartTime < new Date().getTime(),
+      rewardRestartTime > new Date().getTime() / 1000,
       "start time < now time",
       "rewardRestartTime",
       rewardRestartTime,
