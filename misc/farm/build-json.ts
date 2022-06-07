@@ -4,7 +4,7 @@ import consola from "consola";
 import dotenv from "dotenv";
 
 import { getMultipleAccountsInfo } from "../../src/common";
-import { Farm, FarmPoolBaseInfo, FarmPoolJsonInfo, MAINNET_FARM_POOLS } from "../../src/farm";
+import { Farm, FarmPoolBaseInfo, FarmPoolJsonInfoV1, MAINNET_FARM_POOLS } from "../../src/farm";
 import { SPL_ACCOUNT_LAYOUT } from "../../src/spl";
 import { getTimestamp, mkdirIfNotExists, writeJsonFile } from "../util";
 
@@ -20,7 +20,7 @@ async function generateFarmPoolsInfo(connection: Connection, pools: FarmPoolBase
     return new PublicKey(pool.id);
   });
 
-  const farmPools: FarmPoolJsonInfo[] = [];
+  const farmPools: FarmPoolJsonInfoV1[] = [];
 
   // fetch farm pools
   const poolAccountsInfo = await getMultipleAccountsInfo(connection, ids);

@@ -1,4 +1,7 @@
+import { Token } from "@solana/spl-token";
 import { PublicKey } from "@solana/web3.js";
+import { BN } from "bn.js";
+import { Currency, CurrencyAmount, Fraction, Percent, Price, TokenAmount } from "../entity";
 
 import { validateAndParsePublicKey } from "./pubkey";
 
@@ -41,32 +44,30 @@ export type ReplaceType<Old, From, To> = {
     : ReplaceType<Old[T], From, To>; // recursively replace
 };
 
+const baseInnerObjects = [Token, TokenAmount, PublicKey, Fraction, BN, Currency, CurrencyAmount, Price, Percent];
+
+function notInnerObject(v: unknown): v is Record<string, any> {
+  return typeof v === "object" && v !== null && !baseInnerObjects.some((o) => typeof o === "object" && v instanceof o);
+}
+
 export function jsonInfo2PoolKeys<T>(jsonInfo: T): ReplaceType<T, string, PublicKey> {
   // @ts-expect-error no need type for inner code
-  return Object.entries(jsonInfo).reduce((result, [key, value]) => {
-    if (typeof value === "string") {
-      result[key] = validateAndParsePublicKey(value);
-    } else if (value instanceof Array) {
-      result[key] = value.map((k) => validateAndParsePublicKey(k));
-    } else {
-      result[key] = value;
-    }
-
-    return result;
-  }, {});
+  return typeof jsonInfo === "string"
+    ? validateAndParsePublicKey(jsonInfo)
+    : Array.isArray(jsonInfo)
+    ? jsonInfo.map((k) => jsonInfo2PoolKeys(k))
+    : notInnerObject(jsonInfo)
+    ? Object.fromEntries(Object.entries(jsonInfo).map(([k, v]) => [k, jsonInfo2PoolKeys(v)]))
+    : jsonInfo;
 }
 
 export function poolKeys2JsonInfo<T>(jsonInfo: T): ReplaceType<T, PublicKey, string> {
   // @ts-expect-error no need type for inner code
-  return Object.entries(jsonInfo).reduce((result, [key, value]) => {
-    if (value instanceof PublicKey) {
-      result[key] = value.toBase58();
-    } else if (value instanceof Array) {
-      result[key] = value.map((k) => k.toBase58());
-    } else {
-      result[key] = value;
-    }
-
-    return result;
-  }, {});
+  return jsonInfo instanceof PublicKey
+    ? jsonInfo.toBase58()
+    : Array.isArray(jsonInfo)
+    ? jsonInfo.map((k) => poolKeys2JsonInfo(k))
+    : notInnerObject(jsonInfo)
+    ? Object.fromEntries(Object.entries(jsonInfo).map(([k, v]) => [k, poolKeys2JsonInfo(v)]))
+    : jsonInfo;
 }
