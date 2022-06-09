@@ -1953,7 +1953,7 @@ export class Liquidity extends Base {
           );
         else {
           amountOutRaw = new BN(
-            getDxByDyBaseIn(modelData, quoteReserve.toNumber(), baseReserve.toNumber(), amountInWithFee.toNumber()),
+            getDxByDyBaseIn(modelData, baseReserve.toNumber(), quoteReserve.toNumber(), amountInWithFee.toNumber()),
           );
         }
       }
