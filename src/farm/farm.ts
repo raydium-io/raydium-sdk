@@ -1,7 +1,8 @@
-import { Keypair } from "@solana/web3.js";
+import { Keypair, Signer } from "@solana/web3.js";
 import { SystemProgram } from "@solana/web3.js";
 import { Connection, PublicKey, TransactionInstruction } from "@solana/web3.js";
 import BN from "bn.js";
+import { Base, TokenAccount } from "../base";
 
 import {
   AccountMeta,
@@ -17,9 +18,9 @@ import {
   TOKEN_PROGRAM_ID,
   validateAndParsePublicKey,
 } from "../common";
-import { BigNumberish, parseBigNumberish, TEN } from "../entity";
+import { BigNumberish, parseBigNumberish, TEN, Token } from "../entity";
 import { struct, u64, u8, seq } from "../marshmallow";
-import { SPL_ACCOUNT_LAYOUT, SplAccount } from "../spl";
+import { SPL_ACCOUNT_LAYOUT, SplAccount, Spl } from "../spl";
 
 import { FARM_PROGRAMID_TO_VERSION, FARM_VERSION_TO_PROGRAMID } from "./id";
 import {
@@ -28,11 +29,6 @@ import {
   FarmLedger,
   FarmState,
   FARM_STATE_LAYOUT_V6,
-  FarmStateV3,
-  FarmStateV5,
-  FarmLedgerOld,
-  FarmStateV6,
-  FarmLedgerV6_1,
 } from "./layout";
 
 const logger = Logger.from("Farm");
@@ -54,9 +50,9 @@ export type FarmPoolKeys = {
     | {
         readonly rewardMint: PublicKey;
         readonly rewardVault: PublicKey;
-        readonly openTime: number;
-        readonly endTime: number;
-        readonly perSecond: number;
+        readonly rewardOpenTime: number;
+        readonly rewardEndTime: number;
+        readonly rewardPerSecond: number;
       }
   )[];
 };
@@ -73,17 +69,11 @@ export interface FarmUserKeys {
   owner: PublicKey;
 }
 
-export interface FarmLockInfo {
-  lockMint: PublicKey;
-  userLockAccount: PublicKey;
-}
-
 export interface FarmRewardInfo {
   rewardMint: PublicKey;
   rewardPerSecond: BigNumberish;
-  rewardStartTime: BigNumberish;
+  rewardOpenTime: BigNumberish;
   rewardEndTime: BigNumberish;
-  rewardOwnerAccount: PublicKey; // user account
 }
 /* ================= make instruction and transaction ================= */
 export interface FarmDepositInstructionParams {
@@ -110,46 +100,67 @@ export interface FarmCreateInstructionParamsV6 {
 
   rewardInfos: {
     rewardMint: PublicKey;
-    rewardOwnerAccount: PublicKey; // user account
     rewardPerSecond: BigNumberish;
-    rewardStartTime: BigNumberish;
+    rewardOpenTime: BigNumberish;
     rewardEndTime: BigNumberish;
   }[];
+
+  lockMint: PublicKey;
 }
 
 export type FarmCreateInstructionParams = FarmCreateInstructionParamsV6;
 
 export interface FarmRestartInstructionParamsV6 {
+  connection: Connection;
   poolKeys: FarmPoolKeys;
+  userKeys: {
+    tokenAccounts: TokenAccount[];
+    owner: PublicKey;
+    payer?: PublicKey;
+  };
 
-  rewardOwner: PublicKey;
-  rewardVault: PublicKey;
-  rewardOwnerAccount: PublicKey;
-
-  rewardRestartTime: number;
-  rewardEndTime: number;
-  rewardPerSecond: BigNumberish;
+  newRewardInfo: FarmRewardInfo;
 }
 
 export type FarmRestartInstructionParams = FarmRestartInstructionParamsV6;
-export interface FarmWithdrawRewardInstructionParamsV6 {
+export interface FarmCreatorWithdrawRewardInstructionParamsV6 {
+  connection: Connection;
   poolKeys: FarmPoolKeys;
+  userKeys: {
+    tokenAccounts: TokenAccount[];
+    owner: PublicKey;
+    payer?: PublicKey;
+  };
 
-  owner: PublicKey;
-  rewardVault: PublicKey;
-  userVault: PublicKey;
+  withdrawMint: PublicKey;
 }
 
-export type FarmWithdrawRewardInstructionParams = FarmWithdrawRewardInstructionParamsV6;
+export type FarmCreatorWithdrawRewardInstructionParams = FarmCreatorWithdrawRewardInstructionParamsV6;
 
 export interface FarmCreatorAddRewardTokenInstructionParamsV6 {
+  connection: Connection;
   poolKeys: FarmPoolKeys;
+  userKeys: {
+    tokenAccounts: TokenAccount[];
+    owner: PublicKey;
+    payer?: PublicKey;
+  };
 
-  owner: PublicKey;
   newRewardInfo: FarmRewardInfo;
 }
 
 export type FarmCreatorAddRewardTokenInstructionParams = FarmCreatorAddRewardTokenInstructionParamsV6;
+
+export interface makeCreateFarmInstructionParamsV6 {
+  connection: Connection;
+  userKeys: {
+    tokenAccounts: TokenAccount[];
+    owner: PublicKey;
+    payer?: PublicKey;
+  };
+  poolInfo: FarmCreateInstructionParams;
+}
+export type makeCreateFarmInstructionParams = makeCreateFarmInstructionParamsV6;
 
 /* ================= fetch data ================= */
 export interface FarmFetchMultipleInfoParams {
@@ -159,7 +170,7 @@ export interface FarmFetchMultipleInfoParams {
   config?: GetMultipleAccountsInfoConfig;
 }
 
-export class Farm {
+export class Farm extends Base {
   /* ================= get version and program id ================= */
   static getProgramId(version: number) {
     const programId = FARM_VERSION_TO_PROGRAMID[version];
@@ -654,58 +665,31 @@ export class Farm {
     });
   }
 
-  static makeCreateFarmInstruction({
-    connection,
-    owner,
-    payer,
-    poolInfo,
-    lockInfo,
-  }: {
-    connection: Connection;
-    owner: PublicKey;
-    payer: PublicKey;
-    poolInfo: FarmCreateInstructionParams;
-    lockInfo?: FarmLockInfo;
-  }) {
+  static makeCreateFarmInstruction({ connection, userKeys, poolInfo }: makeCreateFarmInstructionParams) {
     const { version } = poolInfo;
 
     if (version === 6) {
       return this.makeCreateFarmInstructionV6({
         connection,
-        owner,
-        payer,
+        userKeys,
         poolInfo,
-        lockInfo,
       });
     }
 
     return logger.throwArgumentError("invalid version", "version", version);
   }
 
-  static async makeCreateFarmInstructionV6({
-    connection,
-    owner,
-    payer,
-    poolInfo,
-    lockInfo,
-  }: {
-    connection: Connection;
-    owner: PublicKey;
-    payer: PublicKey;
-    poolInfo: FarmCreateInstructionParamsV6;
-    lockInfo?: FarmLockInfo;
-  }) {
-    logger.assertArgument(lockInfo, "need lockInfo", "lockInfo", lockInfo);
-    if (!lockInfo) return;
-
-    const instructions: TransactionInstruction[] = [];
-
+  static async makeCreateFarmInstructionV6({ connection, userKeys, poolInfo }: makeCreateFarmInstructionParamsV6) {
     const farmId = Keypair.generate();
     const lamports = await connection.getMinimumBalanceForRentExemption(FARM_STATE_LAYOUT_V6.span);
 
-    instructions.push(
+    const frontInstructions: TransactionInstruction[] = [];
+    const endInstructions: TransactionInstruction[] = [];
+    const signers: Signer[] = [farmId];
+
+    frontInstructions.push(
       SystemProgram.createAccount({
-        fromPubkey: payer,
+        fromPubkey: userKeys.payer ?? userKeys.owner,
         newAccountPubkey: farmId.publicKey,
         lamports,
         space: FARM_STATE_LAYOUT_V6.span,
@@ -728,7 +712,7 @@ export class Farm {
     const lockVault = await Farm.getAssociatedLedgerPoolAccount({
       programId: poolInfo.programId,
       poolId: farmId.publicKey,
-      mint: lockInfo.lockMint,
+      mint: poolInfo.lockMint,
       type: "lockVault",
     });
 
@@ -746,35 +730,75 @@ export class Farm {
 
     for (const rewardInfo of poolInfo.rewardInfos) {
       logger.assertArgument(
-        rewardInfo.rewardStartTime < new Date().getTime(),
-        "start time < now time",
-        "rewardInfo.rewardStartTime",
-        rewardInfo.rewardStartTime,
-      );
-      logger.assertArgument(
-        rewardInfo.rewardStartTime < rewardInfo.rewardEndTime,
+        rewardInfo.rewardOpenTime < rewardInfo.rewardEndTime,
         "start time error",
-        "rewardInfo.rewardStartTime",
-        rewardInfo.rewardStartTime,
+        "rewardInfo.rewardOpenTime",
+        rewardInfo.rewardOpenTime,
       );
       rewardInfoConfig.push({
         isSet: new BN(1),
         rewardPerSecond: parseBigNumberish(rewardInfo.rewardPerSecond),
-        rewardOpenTime: parseBigNumberish(rewardInfo.rewardStartTime),
+        rewardOpenTime: parseBigNumberish(rewardInfo.rewardOpenTime),
         rewardEndTime: parseBigNumberish(rewardInfo.rewardEndTime),
       });
 
+      let userRewardToken;
+      if (rewardInfo.rewardMint.equals(PublicKey.default)) {
+        // SOL
+        userRewardToken = await Spl.insertCreateWrappedNativeAccountInstructions({
+          connection,
+          owner: userKeys.owner,
+          payer: userKeys.payer ?? userKeys.owner,
+          instructions: frontInstructions,
+          signers,
+          amount: parseBigNumberish(rewardInfo.rewardEndTime)
+            .sub(parseBigNumberish(rewardInfo.rewardOpenTime))
+            .mul(parseBigNumberish(rewardInfo.rewardPerSecond)),
+        });
+        endInstructions.push(
+          Spl.makeCloseAccountInstruction({
+            tokenAccount: userRewardToken,
+            owner: userKeys.owner,
+            payer: userKeys.payer ?? userKeys.owner,
+          }),
+        );
+      } else {
+        userRewardToken = await this._selectTokenAccount({
+          tokenAccounts: userKeys.tokenAccounts,
+          mint: rewardInfo.rewardMint,
+          owner: userKeys.owner,
+          config: { associatedOnly: false },
+        });
+      }
+
+      logger.assertArgument(
+        userRewardToken !== null,
+        "cannot found target token accounts",
+        "tokenAccounts",
+        userKeys.tokenAccounts,
+      );
+
+      const rewardMint = rewardInfo.rewardMint.equals(PublicKey.default) ? Token.WSOL.mint : rewardInfo.rewardMint;
       rewardInfoKey.push({
-        rewardMint: rewardInfo.rewardMint,
+        rewardMint,
         rewardVault: await Farm.getAssociatedLedgerPoolAccount({
           programId: poolInfo.programId,
           poolId: farmId.publicKey,
-          mint: rewardInfo.rewardMint,
+          mint: rewardMint,
           type: "rewardVault",
         }),
-        userRewardToken: rewardInfo.rewardOwnerAccount,
+        userRewardToken,
       });
     }
+
+    const lockUserAccount = await this._selectTokenAccount({
+      tokenAccounts: userKeys.tokenAccounts,
+      mint: poolInfo.lockMint,
+      owner: userKeys.owner,
+      config: { associatedOnly: false },
+    });
+
+    logger.assertArgument(lockUserAccount !== null, "cannot found lock vault", "tokenAccounts", userKeys.tokenAccounts);
 
     const rewardTimeInfo = struct([u64("isSet"), u64("rewardPerSecond"), u64("rewardOpenTime"), u64("rewardEndTime")]);
 
@@ -799,9 +823,9 @@ export class Farm {
       AccountMeta(lpVault, false),
       AccountMetaReadonly(poolInfo.lpMint, false),
       AccountMeta(lockVault, false),
-      AccountMetaReadonly(lockInfo.lockMint, false),
-      AccountMeta(lockInfo.userLockAccount, false),
-      AccountMetaReadonly(owner, true),
+      AccountMetaReadonly(poolInfo.lockMint, false),
+      AccountMeta(lockUserAccount ?? PublicKey.default, false),
+      AccountMetaReadonly(userKeys.owner, true),
     ];
 
     for (const item of rewardInfoKey) {
@@ -814,14 +838,15 @@ export class Farm {
       );
     }
 
-    instructions.push(
+    frontInstructions.push(
       new TransactionInstruction({
         programId: poolInfo.programId,
         keys,
         data,
       }),
     );
-    return { newAccount: farmId, instructions };
+
+    return { newAccounts: signers, instructions: [...frontInstructions, ...endInstructions] };
   }
 
   static makeRestartFarmInstruction(params: FarmRestartInstructionParams) {
@@ -835,36 +860,73 @@ export class Farm {
     return logger.throwArgumentError("invalid version", "version", version);
   }
 
-  static makeRestartFarmInstructionV6({
+  static async makeRestartFarmInstructionV6({
+    connection,
     poolKeys,
-    rewardOwner,
-    rewardVault,
-    rewardOwnerAccount,
-    rewardRestartTime,
-    rewardEndTime,
-    rewardPerSecond,
-  }: FarmRestartInstructionParams) {
+    userKeys,
+    newRewardInfo,
+  }: FarmRestartInstructionParamsV6) {
     logger.assertArgument(
-      rewardRestartTime > new Date().getTime() / 1000,
-      "start time < now time",
-      "rewardRestartTime",
-      rewardRestartTime,
-    );
-    logger.assertArgument(
-      rewardRestartTime < rewardEndTime,
+      newRewardInfo.rewardOpenTime < newRewardInfo.rewardEndTime,
       "start time error",
-      "rewardRestartTime",
-      rewardRestartTime,
+      "newRewardInfo",
+      newRewardInfo,
+    );
+    const rewardMint = newRewardInfo.rewardMint.equals(PublicKey.default) ? Token.WSOL.mint : newRewardInfo.rewardMint;
+    const rewardInfo = poolKeys.rewardInfos.find((item) => item.rewardMint.equals(rewardMint));
+
+    logger.assertArgument(rewardInfo, "configuration does not exist", "rewardInfo", rewardInfo);
+
+    const rewardVault = rewardInfo?.rewardVault ?? PublicKey.default;
+
+    const frontInstructions: TransactionInstruction[] = [];
+    const endInstructions: TransactionInstruction[] = [];
+    const signers: Signer[] = [];
+
+    let userRewardToken;
+    if (newRewardInfo.rewardMint.equals(PublicKey.default)) {
+      // SOL
+      userRewardToken = await Spl.insertCreateWrappedNativeAccountInstructions({
+        connection,
+        owner: userKeys.owner,
+        payer: userKeys.payer ?? userKeys.owner,
+        instructions: frontInstructions,
+        signers,
+        amount: parseBigNumberish(newRewardInfo.rewardEndTime)
+          .sub(parseBigNumberish(newRewardInfo.rewardOpenTime))
+          .mul(parseBigNumberish(newRewardInfo.rewardPerSecond)),
+      });
+      endInstructions.push(
+        Spl.makeCloseAccountInstruction({
+          tokenAccount: userRewardToken,
+          owner: userKeys.owner,
+          payer: userKeys.payer ?? userKeys.owner,
+        }),
+      );
+    } else {
+      userRewardToken = await this._selectTokenAccount({
+        tokenAccounts: userKeys.tokenAccounts,
+        mint: newRewardInfo.rewardMint,
+        owner: userKeys.owner,
+        config: { associatedOnly: false },
+      });
+    }
+
+    logger.assertArgument(
+      userRewardToken !== null,
+      "cannot found target token accounts",
+      "tokenAccounts",
+      userKeys.tokenAccounts,
     );
 
-    const LAYOUT = struct([u8("instruction"), u64("rewardRestartTime"), u64("rewardEndTime"), u64("rewardPerSecond")]);
+    const LAYOUT = struct([u8("instruction"), u64("rewardReopenTime"), u64("rewardEndTime"), u64("rewardPerSecond")]);
     const data = Buffer.alloc(LAYOUT.span);
     LAYOUT.encode(
       {
         instruction: 3,
-        rewardRestartTime: parseBigNumberish(rewardRestartTime),
-        rewardEndTime: parseBigNumberish(rewardEndTime),
-        rewardPerSecond: parseBigNumberish(rewardPerSecond),
+        rewardReopenTime: parseBigNumberish(newRewardInfo.rewardOpenTime),
+        rewardEndTime: parseBigNumberish(newRewardInfo.rewardEndTime),
+        rewardPerSecond: parseBigNumberish(newRewardInfo.rewardPerSecond),
       },
       data,
     );
@@ -875,34 +937,94 @@ export class Farm {
       AccountMeta(poolKeys.id, false),
       AccountMetaReadonly(poolKeys.lpVault, false),
       AccountMeta(rewardVault, false),
-      AccountMeta(rewardOwnerAccount, false),
-      AccountMetaReadonly(rewardOwner, true),
+      AccountMeta(userRewardToken, false),
+      AccountMetaReadonly(userKeys.owner, true),
     ];
 
-    return new TransactionInstruction({
-      programId: poolKeys.programId,
-      keys,
-      data,
-    });
+    frontInstructions.push(
+      new TransactionInstruction({
+        programId: poolKeys.programId,
+        keys,
+        data,
+      }),
+    );
+
+    return { newAccounts: signers, instructions: [...frontInstructions, ...endInstructions] };
   }
 
-  static makeWithdrawFarmRewardInstruction(params: FarmWithdrawRewardInstructionParams) {
+  static makeCreatorWithdrawFarmRewardInstruction(params: FarmCreatorWithdrawRewardInstructionParams) {
     const { poolKeys } = params;
     const { version } = poolKeys;
 
     if (version === 6) {
-      return this.makeWithdrawFarmRewardInstructionV6(params);
+      return this.makeCreatorWithdrawFarmRewardInstructionV6(params);
     }
 
     return logger.throwArgumentError("invalid version", "version", version);
   }
 
-  static makeWithdrawFarmRewardInstructionV6({
+  static async makeCreatorWithdrawFarmRewardInstructionV6({
+    connection,
     poolKeys,
-    owner,
-    rewardVault,
-    userVault,
-  }: FarmWithdrawRewardInstructionParamsV6) {
+    userKeys,
+    withdrawMint,
+  }: FarmCreatorWithdrawRewardInstructionParamsV6) {
+    const rewardInfo = poolKeys.rewardInfos.find((item) =>
+      item.rewardMint.equals(withdrawMint.equals(PublicKey.default) ? Token.WSOL.mint : withdrawMint),
+    );
+
+    logger.assertArgument(
+      rewardInfo !== undefined,
+      "withdraw mint error",
+      "poolKeys.rewardInfos",
+      poolKeys.rewardInfos,
+    );
+
+    const rewardVault = rewardInfo?.rewardVault ?? PublicKey.default;
+
+    const frontInstructions: TransactionInstruction[] = [];
+    const endInstructions: TransactionInstruction[] = [];
+    const signers: Signer[] = [];
+
+    let userRewardToken: PublicKey;
+    if (withdrawMint.equals(PublicKey.default)) {
+      // SOL
+      userRewardToken = await Spl.insertCreateWrappedNativeAccountInstructions({
+        connection,
+        owner: userKeys.owner,
+        payer: userKeys.payer ?? userKeys.owner,
+        instructions: frontInstructions,
+        signers,
+        amount: 0,
+      });
+      endInstructions.push(
+        Spl.makeCloseAccountInstruction({
+          tokenAccount: userRewardToken,
+          owner: userKeys.owner,
+          payer: userKeys.payer ?? userKeys.owner,
+        }),
+      );
+    } else {
+      const selectUserRewardToken = await this._selectTokenAccount({
+        tokenAccounts: userKeys.tokenAccounts,
+        mint: withdrawMint,
+        owner: userKeys.owner,
+      });
+      if (selectUserRewardToken === null) {
+        userRewardToken = await Spl.getAssociatedTokenAccount({ mint: withdrawMint, owner: userKeys.owner });
+        frontInstructions.push(
+          Spl.makeCreateAssociatedTokenAccountInstruction({
+            mint: withdrawMint,
+            associatedAccount: userRewardToken,
+            owner: userKeys.owner,
+            payer: userKeys.payer ?? userKeys.owner,
+          }),
+        );
+      } else {
+        userRewardToken = selectUserRewardToken;
+      }
+    }
+
     const LAYOUT = struct([u8("instruction")]);
     const data = Buffer.alloc(LAYOUT.span);
     LAYOUT.encode({ instruction: 5 }, data);
@@ -914,15 +1036,19 @@ export class Farm {
       AccountMetaReadonly(poolKeys.authority, false),
       AccountMetaReadonly(poolKeys.lpVault, false),
       AccountMeta(rewardVault, false),
-      AccountMeta(userVault, false),
-      AccountMetaReadonly(owner, true),
+      AccountMeta(userRewardToken, false),
+      AccountMetaReadonly(userKeys.owner, true),
     ];
 
-    return new TransactionInstruction({
-      programId: poolKeys.programId,
-      keys,
-      data,
-    });
+    frontInstructions.push(
+      new TransactionInstruction({
+        programId: poolKeys.programId,
+        keys,
+        data,
+      }),
+    );
+
+    return { newAccounts: signers, instructions: [...frontInstructions, ...endInstructions] };
   }
 
   static makeFarmCreatorAddRewardTokenInstruction(params: FarmCreatorAddRewardTokenInstructionParams) {
@@ -937,10 +1063,11 @@ export class Farm {
   }
 
   static async makeFarmCreatorAddRewardTokenInstructionV6({
+    connection,
     poolKeys,
-    owner,
+    userKeys,
     newRewardInfo,
-  }: FarmCreatorAddRewardTokenInstructionParams) {
+  }: FarmCreatorAddRewardTokenInstructionParamsV6) {
     const rewardVault = await Farm.getAssociatedLedgerPoolAccount({
       programId: poolKeys.programId,
       poolId: poolKeys.id,
@@ -948,11 +1075,53 @@ export class Farm {
       type: "rewardVault",
     });
 
+    const frontInstructions: TransactionInstruction[] = [];
+    const endInstructions: TransactionInstruction[] = [];
+    const signers: Signer[] = [];
+
+    let userRewardToken;
+    if (newRewardInfo.rewardMint.equals(PublicKey.default)) {
+      // SOL
+      userRewardToken = await Spl.insertCreateWrappedNativeAccountInstructions({
+        connection,
+        owner: userKeys.owner,
+        payer: userKeys.payer ?? userKeys.owner,
+        instructions: frontInstructions,
+        signers,
+        amount: parseBigNumberish(newRewardInfo.rewardEndTime)
+          .sub(parseBigNumberish(newRewardInfo.rewardOpenTime))
+          .mul(parseBigNumberish(newRewardInfo.rewardPerSecond)),
+      });
+      endInstructions.push(
+        Spl.makeCloseAccountInstruction({
+          tokenAccount: userRewardToken,
+          owner: userKeys.owner,
+          payer: userKeys.payer ?? userKeys.owner,
+        }),
+      );
+    } else {
+      userRewardToken = await this._selectTokenAccount({
+        tokenAccounts: userKeys.tokenAccounts,
+        mint: newRewardInfo.rewardMint,
+        owner: userKeys.owner,
+        config: { associatedOnly: false },
+      });
+    }
+
+    logger.assertArgument(
+      userRewardToken !== null,
+      "cannot found target token accounts",
+      "tokenAccounts",
+      userKeys.tokenAccounts,
+    );
+
+    const rewardMint = newRewardInfo.rewardMint.equals(PublicKey.default) ? Token.WSOL.mint : newRewardInfo.rewardMint;
+
     const LAYOUT = struct([
       u8("instruction"),
       u64("isSet"),
       u64("rewardPerSecond"),
-      u64("rewardStartTime"),
+      u64("rewardOpenTime"),
       u64("rewardEndTime"),
     ]);
     const data = Buffer.alloc(LAYOUT.span);
@@ -961,7 +1130,7 @@ export class Farm {
         instruction: 4,
         isSet: new BN(1),
         rewardPerSecond: parseBigNumberish(newRewardInfo.rewardPerSecond),
-        rewardStartTime: parseBigNumberish(newRewardInfo.rewardStartTime),
+        rewardOpenTime: parseBigNumberish(newRewardInfo.rewardOpenTime),
         rewardEndTime: parseBigNumberish(newRewardInfo.rewardEndTime),
       },
       data,
@@ -974,17 +1143,21 @@ export class Farm {
 
       AccountMeta(poolKeys.id, false),
       AccountMetaReadonly(poolKeys.authority, false),
-      AccountMetaReadonly(newRewardInfo.rewardMint, false),
+      AccountMetaReadonly(rewardMint, false),
       AccountMeta(rewardVault, false),
-      AccountMeta(newRewardInfo.rewardOwnerAccount, false),
-      AccountMetaReadonly(owner, true),
+      AccountMeta(userRewardToken, false),
+      AccountMetaReadonly(userKeys.owner, true),
     ];
 
-    return new TransactionInstruction({
-      programId: poolKeys.programId,
-      keys,
-      data,
-    });
+    frontInstructions.push(
+      new TransactionInstruction({
+        programId: poolKeys.programId,
+        keys,
+        data,
+      }),
+    );
+
+    return { newAccounts: signers, instructions: [...frontInstructions, ...endInstructions] };
   }
 
   /* ================= fetch data ================= */
@@ -1025,7 +1198,6 @@ export class Farm {
       [id: string]: {
         state: FarmState;
         lpVault: SplAccount;
-        version: number;
         ledger?: FarmLedger;
         // wrapped data
         wrapped?: { pendingRewards: BN[] };
@@ -1071,55 +1243,209 @@ export class Farm {
           };
         }
       }
-
-      poolsInfo[_poolId].version = version;
     }
 
     // wrapped data
-    for (const [poolId, { state, ledger, version }] of Object.entries(poolsInfo)) {
+    for (const [poolId, { state, ledger }] of Object.entries(poolsInfo)) {
       if (ledger) {
-        if (version === 3 || version === 4 || version === 5) {
-          let multiplier = TEN.pow(new BN(15));
-          // for stake pool
-          if ((state as FarmStateV3 | FarmStateV5).rewardInfos.length === 1) {
-            multiplier = TEN.pow(new BN(9));
-          }
+        let multiplier: BN;
+        if (state.version === 6) {
+          multiplier = state.rewardMultiplier;
+        } else {
+          multiplier = state.rewardInfos.length === 1 ? TEN.pow(new BN(9)) : TEN.pow(new BN(15));
+        }
 
-          const pendingRewards = (state as FarmStateV3 | FarmStateV5).rewardInfos.map((itemRewardInfo, index) => {
-            const rewardDebt = (ledger as FarmLedgerOld).rewardDebts[index];
-            const pendingReward = (ledger as FarmLedgerOld).deposited
-              .mul(itemRewardInfo.perShareReward)
-              .div(multiplier)
-              .sub(rewardDebt);
+        const pendingRewards = state.rewardInfos.map((rewardInfo, index) => {
+          const rewardDebt = ledger.rewardDebts[index];
+          const pendingReward = ledger.deposited
+            .mul(state.version === 6 ? rewardInfo.accRewardPerShare : rewardInfo.perShareReward)
+            .div(multiplier)
+            .sub(rewardDebt);
 
-            return pendingReward;
-          });
+          return pendingReward;
+        });
 
-          poolsInfo[poolId].wrapped = {
-            ...poolsInfo[poolId].wrapped,
-            pendingRewards,
-          };
-        } else if (version === 6) {
-          const multiplier = (state as FarmStateV6).rewardMultiplier;
+        poolsInfo[poolId].wrapped = {
+          ...poolsInfo[poolId].wrapped,
+          pendingRewards,
+        };
+      }
+    }
 
-          const pendingRewards = (state as FarmStateV6).rewardInfos.map((rewardInfo, index) => {
-            const rewardDebt = (ledger as FarmLedgerV6_1).rewardDebts[index];
-            const pendingReward = (ledger as FarmLedgerV6_1).deposited
-              .mul(rewardInfo.accRewardPerShare)
-              .div(multiplier)
-              .sub(rewardDebt);
+    return poolsInfo;
+  }
 
-            return pendingReward;
-          });
+  static async fetchMultipleInfoAndUpdate({ connection, pools, owner, config }: FarmFetchMultipleInfoParams) {
+    let hasNotV6Pool = false;
+    let hasV6Pool = false;
 
-          poolsInfo[poolId].wrapped = {
-            ...poolsInfo[poolId].wrapped,
-            pendingRewards,
+    const publicKeys: {
+      pubkey: PublicKey;
+      version: number;
+      key: "state" | "lpVault" | "ledger";
+      poolId: PublicKey;
+    }[] = [];
+
+    for (const pool of pools) {
+      if (pool.version === 6) hasV6Pool = true;
+      else hasNotV6Pool = true;
+
+      publicKeys.push({
+        pubkey: pool.id,
+        version: pool.version,
+        key: "state",
+        poolId: pool.id,
+      });
+
+      publicKeys.push({
+        pubkey: pool.lpVault,
+        version: pool.version,
+        key: "lpVault",
+        poolId: pool.id,
+      });
+
+      if (owner) {
+        publicKeys.push({
+          pubkey: await this.getAssociatedLedgerAccount({ programId: pool.programId, poolId: pool.id, owner }),
+          version: pool.version,
+          key: "ledger",
+          poolId: pool.id,
+        });
+      }
+    }
+
+    const poolsInfo: {
+      [id: string]: {
+        state: FarmState;
+        lpVault: SplAccount;
+        ledger?: FarmLedger;
+        // wrapped data
+        wrapped?: { pendingRewards: BN[] };
+      };
+    } = {};
+
+    const accountsInfo = await getMultipleAccountsInfoWithCustomFlags(connection, publicKeys, config);
+    for (const { pubkey, version, key, poolId, accountInfo } of accountsInfo) {
+      const _poolId = poolId.toBase58();
+
+      if (key === "state") {
+        const STATE_LAYOUT = this.getStateLayout(version);
+        if (!accountInfo || !accountInfo.data || accountInfo.data.length !== STATE_LAYOUT.span) {
+          return logger.throwArgumentError("invalid farm state account info", "pools.id", pubkey);
+        }
+
+        poolsInfo[_poolId] = {
+          ...poolsInfo[_poolId],
+          ...{ state: STATE_LAYOUT.decode(accountInfo.data) },
+        };
+      } else if (key === "lpVault") {
+        if (!accountInfo || !accountInfo.data || accountInfo.data.length !== SPL_ACCOUNT_LAYOUT.span) {
+          return logger.throwArgumentError("invalid farm lp vault account info", "pools.lpVault", pubkey);
+        }
+
+        poolsInfo[_poolId] = {
+          ...poolsInfo[_poolId],
+          ...{ lpVault: SPL_ACCOUNT_LAYOUT.decode(accountInfo.data) },
+        };
+      } else if (key === "ledger") {
+        const LEDGER_LAYOUT = this.getLedgerLayout(version);
+        if (accountInfo && accountInfo.data) {
+          logger.assertArgument(
+            accountInfo.data.length === LEDGER_LAYOUT.span,
+            "invalid farm ledger account info",
+            "ledger",
+            pubkey,
+          );
+
+          poolsInfo[_poolId] = {
+            ...poolsInfo[_poolId],
+            ...{ ledger: LEDGER_LAYOUT.decode(accountInfo.data) },
           };
         }
       }
     }
 
+    const slot = hasV6Pool || hasNotV6Pool ? await connection.getSlot() : 0;
+    const chainTime = hasV6Pool ? (await connection.getBlockTime(slot)) ?? 0 : 0;
+
+    for (const poolId of Object.keys(poolsInfo)) {
+      poolsInfo[poolId].state = Farm.updatePoolInfo(
+        poolsInfo[poolId].state,
+        poolsInfo[poolId].lpVault,
+        slot,
+        chainTime,
+      );
+    }
+
+    // wrapped data
+    for (const [poolId, { state, ledger }] of Object.entries(poolsInfo)) {
+      if (ledger) {
+        let multiplier: BN;
+        if (state.version === 6) {
+          multiplier = state.rewardMultiplier;
+        } else {
+          multiplier = state.rewardInfos.length === 1 ? TEN.pow(new BN(9)) : TEN.pow(new BN(15));
+        }
+
+        const pendingRewards = state.rewardInfos.map((rewardInfo, index) => {
+          const rewardDebt = ledger.rewardDebts[index];
+          const pendingReward = ledger.deposited
+            .mul(state.version === 6 ? rewardInfo.accRewardPerShare : rewardInfo.perShareReward)
+            .div(multiplier)
+            .sub(rewardDebt);
+
+          return pendingReward;
+        });
+
+        poolsInfo[poolId].wrapped = {
+          ...poolsInfo[poolId].wrapped,
+          pendingRewards,
+        };
+      }
+    }
+
     return poolsInfo;
+  }
+
+  static updatePoolInfo(poolInfo: FarmState, lpVault: SplAccount, slot: number, chainTime: number) {
+    if (poolInfo.version === 3 || poolInfo.version === 5) {
+      if (poolInfo.lastSlot.gte(new BN(slot))) return poolInfo;
+
+      const spread = new BN(slot).sub(poolInfo.lastSlot);
+      poolInfo.lastSlot = new BN(slot);
+
+      for (const itemRewardInfo of poolInfo.rewardInfos) {
+        if (lpVault.amount.eq(new BN(0))) continue;
+
+        const reward = itemRewardInfo.perSlotReward.mul(spread);
+        itemRewardInfo.perShareReward = itemRewardInfo.perShareReward.add(
+          reward.mul(new BN(10).pow(new BN(poolInfo.version === 3 ? 9 : 15))).div(lpVault.amount),
+        );
+        itemRewardInfo.totalReward = itemRewardInfo.totalReward.add(reward);
+      }
+    } else if (poolInfo.version === 6) {
+      for (const itemRewardInfo of poolInfo.rewardInfos) {
+        if (itemRewardInfo.rewardState.eq(new BN(0))) continue;
+        const updateTime = BN.min(new BN(chainTime), itemRewardInfo.rewardEndTime);
+        if (itemRewardInfo.rewardOpenTime.gte(updateTime)) continue;
+        const spread = updateTime.sub(itemRewardInfo.rewardLastUpdateTime);
+        let reward = spread.mul(itemRewardInfo.rewardPerSecond);
+        const leftReward = itemRewardInfo.totalReward.sub(itemRewardInfo.totalRewardEmissioned);
+        if (leftReward.lt(reward)) {
+          reward = leftReward;
+          itemRewardInfo.rewardLastUpdateTime = itemRewardInfo.rewardLastUpdateTime.add(
+            leftReward.div(itemRewardInfo.rewardPerSecond),
+          );
+        } else {
+          itemRewardInfo.rewardLastUpdateTime = updateTime;
+        }
+        if (lpVault.amount.eq(new BN(0))) continue;
+        itemRewardInfo.accRewardPerShare = itemRewardInfo.accRewardPerShare.add(
+          reward.mul(poolInfo.rewardMultiplier).div(lpVault.amount),
+        );
+        itemRewardInfo.totalRewardEmissioned = itemRewardInfo.totalRewardEmissioned.add(reward);
+      }
+    }
+    return poolInfo;
   }
 }

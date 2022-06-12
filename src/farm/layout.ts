@@ -85,13 +85,12 @@ export const REAL_FARM_STATE_LAYOUT_V6 = struct([
 export const FARM_STATE_LAYOUT_V3 = new Proxy(
   REAL_FARM_STATE_LAYOUT_V3 as GetStructureFromLayoutSchema<
     {
+      version: 3,
       rewardInfos: {
         rewardVault: PublicKey;
         totalReward: BN;
         perSlotReward: BN;
         perShareReward: BN;
-
-        version: 3;
       }[];
     } & GetLayoutSchemaFromStructure<typeof REAL_FARM_STATE_LAYOUT_V3>
   >,
@@ -102,14 +101,13 @@ export const FARM_STATE_LAYOUT_V3 = new Proxy(
           const originalResult = target.decode(...decodeParams);
           return {
             ...originalResult,
+            version: 3,
             rewardInfos: [
               {
                 rewardVault: originalResult.rewardVault,
                 totalReward: originalResult.totalReward,
                 perSlotReward: originalResult.perSlotReward,
                 perShareReward: originalResult.perShareReward,
-
-                version: 3,
               },
             ],
           };
@@ -122,13 +120,12 @@ export const FARM_STATE_LAYOUT_V3 = new Proxy(
 export const FARM_STATE_LAYOUT_V5 = new Proxy(
   REAL_FARM_STATE_LAYOUT_V5 as GetStructureFromLayoutSchema<
     {
+      version: 5,
       rewardInfos: {
         rewardVault: PublicKey;
         totalReward: BN;
         perSlotReward: BN;
         perShareReward: BN;
-
-        version: 5;
       }[];
     } & GetLayoutSchemaFromStructure<typeof REAL_FARM_STATE_LAYOUT_V5>
   >,
@@ -139,22 +136,19 @@ export const FARM_STATE_LAYOUT_V5 = new Proxy(
           const originalResult = target.decode(...decodeParams);
           return {
             ...originalResult,
+            version: 5,
             rewardInfos: [
               {
                 rewardVault: originalResult.rewardVaultA,
                 totalReward: originalResult.totalRewardA,
                 perSlotReward: originalResult.perSlotRewardA,
                 perShareReward: originalResult.perShareRewardA,
-
-                version: 5,
               },
               {
                 rewardVault: originalResult.rewardVaultB,
                 totalReward: originalResult.totalRewardB,
                 perSlotReward: originalResult.perSlotRewardB,
                 perShareReward: originalResult.perShareRewardB,
-
-                version: 5,
               },
             ],
           };
@@ -167,6 +161,7 @@ export const FARM_STATE_LAYOUT_V5 = new Proxy(
 export const FARM_STATE_LAYOUT_V6 = new Proxy(
   REAL_FARM_STATE_LAYOUT_V6 as GetStructureFromLayoutSchema<
     {
+      version: 6,
       rewardInfos: {
         rewardState: BN;
         rewardOpenTime: BN;
@@ -180,8 +175,6 @@ export const FARM_STATE_LAYOUT_V6 = new Proxy(
         rewardVault: PublicKey;
         rewardMint: PublicKey;
         rewardSender: PublicKey;
-
-        version: 6;
       }[];
     } & GetLayoutSchemaFromStructure<typeof REAL_FARM_STATE_LAYOUT_V6>
   >,
@@ -192,10 +185,9 @@ export const FARM_STATE_LAYOUT_V6 = new Proxy(
           const originalResult = target.decode(...decodeParams);
           return {
             ...originalResult,
+            version:6,
             rewardInfos: originalResult.rewardInfos.map((item) => ({
               ...item,
-
-              version: 6,
             })),
           };
         };
@@ -276,7 +268,6 @@ export type FarmLedgerV3_2 = GetStructureSchema<FarmLedgerLayoutV3_2>;
 export type FarmLedgerV5_1 = GetStructureSchema<FarmLedgerLayoutV5_1>;
 export type FarmLedgerV5_2 = GetStructureSchema<FarmLedgerLayoutV5_2>;
 export type FarmLedgerV6_1 = GetStructureSchema<FarmLedgerLayoutV6_1>;
-export type FarmLedgerOld = FarmLedgerV3_1 | FarmLedgerV3_2 | FarmLedgerV5_1 | FarmLedgerV5_2;
 export type FarmLedger = FarmLedgerV3_1 | FarmLedgerV3_2 | FarmLedgerV5_1 | FarmLedgerV5_2 | FarmLedgerV6_1;
 
 /* ================= index ================= */
