@@ -105,7 +105,10 @@ export interface FarmCreateInstructionParamsV6 {
     rewardEndTime: BigNumberish;
   }[];
 
-  lockMint: PublicKey;
+  lockInfo: {
+    lockMint: PublicKey;
+    lockVault: PublicKey;
+  }
 }
 
 export type FarmCreateInstructionParams = FarmCreateInstructionParamsV6;
@@ -245,7 +248,7 @@ export class Farm extends Base {
     programId: PublicKey;
     poolId: PublicKey;
     mint: PublicKey;
-    type: "lpVault" | "rewardVault" | "lockVault";
+    type: "lpVault" | "rewardVault" ;
   }) {
     const { publicKey } = await findProgramAddress(
       [
@@ -256,8 +259,6 @@ export class Farm extends Base {
             ? "lp_vault_associated_seed"
             : type === "rewardVault"
             ? "reward_vault_associated_seed"
-            : type === "lockVault"
-            ? "lock_vault_associated_seed"
             : "",
           "utf-8",
         ),
@@ -709,13 +710,6 @@ export class Farm extends Base {
       type: "lpVault",
     });
 
-    const lockVault = await Farm.getAssociatedLedgerPoolAccount({
-      programId: poolInfo.programId,
-      poolId: farmId.publicKey,
-      mint: poolInfo.lockMint,
-      type: "lockVault",
-    });
-
     const rewardInfoConfig: {
       isSet: BN;
       rewardPerSecond: BN;
@@ -793,7 +787,7 @@ export class Farm extends Base {
 
     const lockUserAccount = await this._selectTokenAccount({
       tokenAccounts: userKeys.tokenAccounts,
-      mint: poolInfo.lockMint,
+      mint: poolInfo.lockInfo.lockMint,
       owner: userKeys.owner,
       config: { associatedOnly: false },
     });
@@ -822,8 +816,8 @@ export class Farm extends Base {
       AccountMetaReadonly(authority, false),
       AccountMeta(lpVault, false),
       AccountMetaReadonly(poolInfo.lpMint, false),
-      AccountMeta(lockVault, false),
-      AccountMetaReadonly(poolInfo.lockMint, false),
+      AccountMeta(poolInfo.lockInfo.lockVault, false),
+      AccountMetaReadonly(poolInfo.lockInfo.lockMint, false),
       AccountMeta(lockUserAccount ?? PublicKey.default, false),
       AccountMetaReadonly(userKeys.owner, true),
     ];

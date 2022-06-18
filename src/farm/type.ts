@@ -50,9 +50,9 @@ export interface FarmPoolJsonInfoV6 {
   readonly programId: string;
   readonly authority: string;
   readonly lpVault: string;
-  readonly lockNint: string;
-  readonly lockVault: string;
-  readonly lockAmount: string;
+  readonly rewardPeriodMax: number;
+  readonly rewardPeriodMin: number;
+  readonly rewardPeriodExtend: number;
   readonly creator: string;
   readonly upcoming: boolean;
   readonly rewardInfos: rewardInfoV6[];
