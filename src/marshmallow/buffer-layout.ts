@@ -87,7 +87,7 @@ export type Blob<P extends string = ""> = Layout<Buffer, P>;
 interface BlobConstructor {
   new (...params: ConstructorParameters<LayoutConstructor>): Blob;
 }
-export const Blob = _Blob as BlobConstructor;
+export const Blob = _Blob as unknown as BlobConstructor;
 //#endregion
 
 export const greedy = _greedy as <P extends string = "">(elementSpan?: number, property?: P) => Layout<number, P>;
@@ -151,7 +151,7 @@ export const unionLayoutDiscriminator = _unionLayoutDiscriminator as <P extends 
   layout: Layout<any, P>,
   property?: P,
 ) => any;
-export const blob = _blob as <P extends string = "">(length: number | Layout<number, P>, property?: P) => Blob<P>;
+export const blob = _blob as unknown as <P extends string = "">(length: number | Layout<number, P>, property?: P) => Blob<P>;
 export const cstr = _cstr as <P extends string = "">(property?: P) => Layout<string, P>;
 export const utf8 = _utf8 as <P extends string = "">(maxSpan: number, property?: P) => Layout<string, P>;
 export const bits = _bits as unknown as <T, P extends string = "">(
