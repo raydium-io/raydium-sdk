@@ -1,34 +1,19 @@
-import { Keypair, Signer } from "@solana/web3.js";
-import { SystemProgram } from "@solana/web3.js";
-import { Connection, PublicKey, TransactionInstruction } from "@solana/web3.js";
+import { Connection, Keypair, PublicKey, Signer, SystemProgram, TransactionInstruction } from "@solana/web3.js";
 import BN from "bn.js";
-import { Base, TokenAccount } from "../base";
 
+import { Base, TokenAccount } from "../base";
 import {
-  AccountMeta,
-  AccountMetaReadonly,
-  findProgramAddress,
-  GetMultipleAccountsInfoConfig,
-  getMultipleAccountsInfoWithCustomFlags,
-  Logger,
-  PublicKeyish,
-  SYSTEM_PROGRAM_ID,
-  SYSVAR_CLOCK_PUBKEY,
-  SYSVAR_RENT_PUBKEY,
-  TOKEN_PROGRAM_ID,
-  validateAndParsePublicKey,
+  AccountMeta, AccountMetaReadonly, findProgramAddress, GetMultipleAccountsInfoConfig,
+  getMultipleAccountsInfoWithCustomFlags, Logger, PublicKeyish, SYSTEM_PROGRAM_ID, SYSVAR_CLOCK_PUBKEY,
+  SYSVAR_RENT_PUBKEY, TOKEN_PROGRAM_ID, validateAndParsePublicKey,
 } from "../common";
 import { BigNumberish, parseBigNumberish, TEN, Token } from "../entity";
-import { struct, u64, u8, seq } from "../marshmallow";
-import { SPL_ACCOUNT_LAYOUT, SplAccount, Spl } from "../spl";
+import { seq, struct, u64, u8 } from "../marshmallow";
+import { Spl, SPL_ACCOUNT_LAYOUT, SplAccount } from "../spl";
 
 import { FARM_PROGRAMID_TO_VERSION, FARM_VERSION_TO_PROGRAMID } from "./id";
 import {
-  FARM_VERSION_TO_LEDGER_LAYOUT,
-  FARM_VERSION_TO_STATE_LAYOUT,
-  FarmLedger,
-  FarmState,
-  FARM_STATE_LAYOUT_V6,
+  FARM_STATE_LAYOUT_V6, FARM_VERSION_TO_LEDGER_LAYOUT, FARM_VERSION_TO_STATE_LAYOUT, FarmLedger, FarmState,
 } from "./layout";
 
 const logger = Logger.from("Farm");
@@ -108,7 +93,7 @@ export interface FarmCreateInstructionParamsV6 {
   lockInfo: {
     lockMint: PublicKey;
     lockVault: PublicKey;
-  }
+  };
 }
 
 export type FarmCreateInstructionParams = FarmCreateInstructionParamsV6;
@@ -248,7 +233,7 @@ export class Farm extends Base {
     programId: PublicKey;
     poolId: PublicKey;
     mint: PublicKey;
-    type: "lpVault" | "rewardVault" ;
+    type: "lpVault" | "rewardVault";
   }) {
     const { publicKey } = await findProgramAddress(
       [
@@ -623,7 +608,7 @@ export class Farm extends Base {
 
     const keys = [
       AccountMeta(poolKeys.id, false),
-      AccountMetaReadonly(userKeys.ledger, false),
+      AccountMeta(userKeys.ledger, false),
       AccountMetaReadonly(userKeys.owner, true),
       // system
       AccountMetaReadonly(SYSTEM_PROGRAM_ID, false),
@@ -652,7 +637,7 @@ export class Farm extends Base {
 
     const keys = [
       AccountMeta(poolKeys.id, false),
-      AccountMetaReadonly(userKeys.ledger, false),
+      AccountMeta(userKeys.ledger, false),
       AccountMetaReadonly(userKeys.owner, true),
       // system
       AccountMetaReadonly(SYSTEM_PROGRAM_ID, false),
