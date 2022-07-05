@@ -2,11 +2,24 @@
   "editor.formatOnSave": false,
   "editor.defaultFormatter": "esbenp.prettier-vscode",
   "editor.tabSize": 2,
+  // format flow
   "editor.codeActionsOnSave": ["source.formatDocument", "source.organizeImports.sortImports"],
   "eslint.validate": ["typescript"],
-  "[json]": {
-    "editor.defaultFormatter": "vscode.json-language-features"
+  // https://marketplace.visualstudio.com/items?itemName=dozerg.tsimportsorter
+  "tsImportSorter.configuration.groupRules": [
+    ["^@\\w", "^\\w"],
+    ["^@/"],
+    ["^\\.\\."],
+    ["^\\."],
+    { "flags": "scripts" }
+  ],
+  "tsImportSorter.configuration.keepUnused": [".*"],
+  "tsImportSorter.configuration.wrappingStyle": {
+    "maxNamesPerWrappedLine": 0,
+    "maxBindingNamesPerLine": 0,
+    "maxDefaultAndBindingNamesPerLine": 0
   },
+  // aaron-bond.better-comments
   "better-comments.multilineComments": true,
   "better-comments.tags": [
     {
@@ -54,19 +67,5 @@
       "bold": false,
       "italic": false
     }
-  ],
-  // https://marketplace.visualstudio.com/items?itemName=dozerg.tsimportsorter
-  "tsImportSorter.configuration.groupRules": [
-    ["^@\\w", "^\\w"],
-    ["^@/"],
-    ["^\\.\\."],
-    ["^\\."],
-    { "flags": "scripts" }
-  ],
-  "tsImportSorter.configuration.keepUnused": [".*"],
-  "tsImportSorter.configuration.wrappingStyle": {
-    "maxNamesPerWrappedLine": 0,
-    "maxBindingNamesPerLine": 0,
-    "maxDefaultAndBindingNamesPerLine": 0
-  }
+  ]
 }

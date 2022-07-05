@@ -31,6 +31,8 @@ class Package {
 }
 
 (async function () {
+  if (process.env.SKIP_POSTINSTALL) process.exit(0);
+
   fs.readFile("package.json", "utf-8", function (error, contents) {
     if (!contents) {
       return consola.error("There doesn't seem to be a package.json here");
@@ -57,4 +59,6 @@ class Package {
       stdio: "inherit",
     });
   });
+
+  process.env.SKIP_POSTINSTALL = "true";
 })();

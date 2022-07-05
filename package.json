@@ -1,6 +1,6 @@
 {
   "name": "@raydium-io/raydium-sdk",
-  "version": "1.1.0-beta.5",
+  "version": "2.0.0-beta.0",
   "description": "An SDK for building applications on top of Raydium.",
   "license": "GPL-3.0",
   "main": "./lib/index.js",
@@ -28,13 +28,14 @@
     "build-dist": "rm -rf dist && mkdir dist && yarn build-docs",
     "build-lib": "rm -rf lib && tsup src --format cjs,esm --dts --sourcemap --no-splitting --minify -d lib --silent",
     "build-all": "yarn build-dist && yarn build-lib",
-    "install-peers": "ts-node ./misc/install-peers.ts",
+    "postinstall": "ts-node ./misc/install-peers.ts",
     "build": "yarn build-lib",
     "push": "yarn build && yarn publish",
     "prepare": "husky install"
   },
   "peerDependencies": {
     "@solana/web3.js": "^1.43.0",
+    "axios": "^0.27.2",
     "bn.js": "^5.2.0"
   },
   "dependencies": {
@@ -45,6 +46,9 @@
     "decimal.js-light": "^2.5.1",
     "fecha": "^4.2.3",
     "lodash": "^4.17.21",
+    "pino": "^8.1.0",
+    "pino-caller": "^3.2.0",
+    "pino-pretty": "^8.1.0",
     "toformat": "^2.0.0"
   },
   "devDependencies": {
@@ -71,6 +75,8 @@
     "lint-staged": "^12.4.1",
     "npm-check-updates": "^12.5.12",
     "prettier": "^2.6.2",
+    "ts-jest": "^27.0.7",
+    "ts-jest-resolver": "^2.0.0",
     "ts-node": "^10.7.0",
     "tsup": "^5.12.8",
     "typedoc": "^0.22.15",

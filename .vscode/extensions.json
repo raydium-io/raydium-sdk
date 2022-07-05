@@ -1,10 +1,14 @@
 {
   "recommendations": [
+    // prettier
     "esbenp.prettier-vscode",
+    // control prettier format flow
     "rohit-gohri.format-code-action",
+    // import sorter
     "dozerg.tsimportsorter",
+    // colorful comments
     "aaron-bond.better-comments",
-    "salbert.comment-ts",
-    "richie5um2.vscode-sort-json"
+    // ts comments automate
+    "salbert.comment-ts"
   ]
 }

@@ -7,54 +7,23 @@
 
 An SDK for building applications on top of Raydium.
 
-## Installation
+## Usage Guide
 
-### Yarn
+### Installation
 
 ```
 $ yarn add @raydium-io/raydium-sdk
 ```
 
-### npm
+### Load the Raydium instance
 
 ```
-$ npm install @raydium-io/raydium-sdk --save
+const raydium = await Raydium.load({
+  connection,
+});
 ```
 
-## Hosting JSON files
-
-### Tokens List
-
-- Solana format: https://api.raydium.io/v2/sdk/token/solana.mainnet.json
-- Raydium format: https://api.raydium.io/v2/sdk/token/raydium.mainnet.json
-
-### Token Icons
-
-- /icons/{mint}.png
-
-### Liquidity Pools List
-
-**_Includes all pubkeys that build transaction need_**
-
-- https://api.raydium.io/v2/sdk/liquidity/mainnet.json
-
-### Farm/Staking Pools List
-
-**_Includes all pubkeys that build transaction need_**
-
-- https://api.raydium.io/v2/sdk/farm/mainnet.json
-
-## Program IDs
-
-| Function        | Version | Mainnet                                      |
-| --------------- | ------- | -------------------------------------------- |
-| AMM / Liquidity | 4       | 675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8 |
-| Farm / Staking  | 3       | EhhTKczWMGQt46ynNeRX1WfeagwwJd7ufHvCDjRxjo5Q |
-| Farm / Staking  | 5       | 9KEPoZmtHUrBbhWN1v1KWLMkkvwY6WLtAVUCPRtRjP4z |
-| AMM Route       | 1       | routeUGWgWzqBWFcrCfv8tritsqukccJPu3q5GPP3xS  |
-| Serum           | 3       | 9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin |
-
-## Usage
+## Features
 
 ### Marshmallow
 
@@ -63,14 +32,9 @@ $ npm install @raydium-io/raydium-sdk --save
 ![](snapshots/marshmallow/1.png)
 ![](snapshots/marshmallow/2.png)
 
-## Development
-
-```
-yarn install && yarn install-peers
-```
-
 ## Reference
 
+- https://github.com/coral-xyz/anchor/tree/master/ts
 - https://github.com/ethers-io/ethers.js/tree/master/packages/bignumber
 - https://github.com/pancakeswap/pancake-swap-sdk
 - https://github.com/project-serum/serum-ts
