@@ -1,8 +1,8 @@
 import axios, { AxiosInstance } from "axios";
 
-import { createLogger } from "./utility";
+import { createLogger } from "./common";
 
-const logger = createLogger("Utility:Api");
+const logger = createLogger("Common.Api");
 
 export class Api {
   public _api: AxiosInstance;

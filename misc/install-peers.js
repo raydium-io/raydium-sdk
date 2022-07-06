@@ -1,10 +1,8 @@
-import { spawn } from "child_process";
-import consola from "consola";
-import fs from "fs";
+const { spawn } = require("child_process");
+const consola = require("consola");
+const fs = require("fs");
 
 class Package {
-  public contents;
-
   constructor(contents) {
     try {
       this.contents = JSON.parse(contents);
