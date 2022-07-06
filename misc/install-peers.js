@@ -1,5 +1,4 @@
 const { spawn } = require("child_process");
-const consola = require("consola");
 const fs = require("fs");
 
 class Package {
@@ -33,17 +32,17 @@ class Package {
 
   fs.readFile("package.json", "utf-8", function (error, contents) {
     if (!contents) {
-      return consola.error("There doesn't seem to be a package.json here");
+      return console.error("There doesn't seem to be a package.json here");
     }
 
     const packageContents = new Package(contents);
 
     if (!packageContents.isValid()) {
-      return consola.error("Invalid package.json contents");
+      return console.error("Invalid package.json contents");
     }
 
     if (!packageContents.hasPeerDependencies()) {
-      return consola.warn("This package doesn't seem to have any peerDependencies");
+      return console.warn("This package doesn't seem to have any peerDependencies");
     }
 
     const peerDependencies = packageContents.peerDependencies;
