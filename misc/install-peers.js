@@ -30,32 +30,31 @@ class Package {
 (async function () {
   if (process.env.SKIP_POSTINSTALL) process.exit(0);
 
-  fs.readFile("package.json", "utf-8", function (error, contents) {
-    if (!contents) {
-      return console.error("There doesn't seem to be a package.json here");
-    }
+  const contents = fs.readFileSync("package.json", "utf-8");
+  if (!contents) {
+    return console.error("There doesn't seem to be a package.json here");
+  }
 
-    const packageContents = new Package(contents);
+  const packageContents = new Package(contents);
 
-    if (!packageContents.isValid()) {
-      return console.error("Invalid package.json contents");
-    }
+  if (!packageContents.isValid()) {
+    return console.error("Invalid package.json contents");
+  }
 
-    if (!packageContents.hasPeerDependencies()) {
-      return console.warn("This package doesn't seem to have any peerDependencies");
-    }
+  if (!packageContents.hasPeerDependencies()) {
+    return console.warn("This package doesn't seem to have any peerDependencies");
+  }
 
-    const peerDependencies = packageContents.peerDependencies;
+  const peerDependencies = packageContents.peerDependencies;
 
-    const packages = Object.keys(peerDependencies).map(function (key) {
-      return `${key}@${peerDependencies[key]}`;
-    });
-
-    spawn(`yarn`, ["add", "--peer", "--no-lockfile", ...packages], {
-      detached: true,
-      stdio: "inherit",
-    });
+  const packages = Object.keys(peerDependencies).map(function (key) {
+    return `${key}@${peerDependencies[key]}`;
   });
 
   process.env.SKIP_POSTINSTALL = "true";
+
+  spawn(`yarn`, ["add", "--peer", "--no-lockfile", ...packages], {
+    detached: true,
+    stdio: "inherit",
+  });
 })();

@@ -69,7 +69,6 @@
     "dotenv": "^10.0.0",
     "eslint": "^8.15.0",
     "eslint-plugin-tsdoc": "^0.2.16",
-    "got": "^11.8.3",
     "husky": "^7.0.4",
     "jest": "^27.5.1",
     "lint-staged": "^12.4.1",
