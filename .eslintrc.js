@@ -12,5 +12,6 @@ module.exports = {
     "tsdoc/syntax": "warn",
     "@typescript-eslint/no-explicit-any": 0,
     "object-shorthand": ["error", "always"],
+    "@typescript-eslint/explicit-function-return-type": ["error"],
   },
 };

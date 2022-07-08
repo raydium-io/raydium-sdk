@@ -2,9 +2,11 @@ import { get, set } from "lodash";
 import pino, { LevelWithSilent, Logger } from "pino";
 import pretty from "pino-pretty";
 
-const moduleLoggers: Record<string, Logger> = {};
+export type ModuleName = "Common.Api";
 
-const moduleLevels: Record<string, LevelWithSilent> = {};
+const moduleLoggers: { [key in ModuleName]?: Logger } = {};
+
+const moduleLevels: { [key in ModuleName]?: LevelWithSilent } = {};
 
 const stream = pretty({
   colorize: true,
@@ -27,10 +29,7 @@ export function createLogger(moduleName: string): Logger {
   return logger;
 }
 
-const modules = ["Common"];
-const moduleChilds = ["Common.Api"];
-
-export function setLoggerLevel(moduleName: string, level: LevelWithSilent) {
+export function setLoggerLevel(moduleName: ModuleName, level: LevelWithSilent): void {
   set(moduleLevels, moduleName, level);
 
   const logger = get(moduleLoggers, moduleName);

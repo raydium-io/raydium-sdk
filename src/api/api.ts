@@ -1,0 +1,87 @@
+import axios, { AxiosInstance } from "axios";
+
+import { createLogger, sleep } from "../common";
+import { Cluster } from "../solana";
+
+import { FarmPools, LiquidityPools, Tokens } from "./type";
+
+const logger = createLogger("Common.Api");
+
+export async function endlessRetry<T>(name: string, call: () => Promise<T>, interval = 1000): Promise<T> {
+  let result: T | undefined;
+
+  while (result == undefined) {
+    try {
+      logger.debug(`Request ${name} through endlessRetry`);
+      result = await call();
+    } catch (err) {
+      logger.error(`Request ${name} failed, retry after ${interval} ms`, err);
+      await sleep(interval);
+    }
+  }
+
+  return result;
+}
+
+export class Api {
+  public cluster: Cluster;
+
+  public api: AxiosInstance;
+
+  constructor(cluster: Cluster, timeout: number) {
+    this.cluster = cluster;
+
+    this.api = axios.create({ baseURL: "https://api.raydium.io/v2", timeout });
+
+    this.api.interceptors.request.use(
+      (config) => {
+        // before request
+        const { method, baseURL, url } = config;
+
+        logger.debug(`${method?.toUpperCase()} ${baseURL}${url}`);
+
+        return config;
+      },
+      (error) => {
+        // request error
+        logger.error(`Request failed`);
+
+        return Promise.reject(error);
+      },
+    );
+    this.api.interceptors.response.use(
+      (response) => {
+        // 2xx
+        const { config, data, status } = response;
+        const { method, baseURL, url } = config;
+
+        logger.debug(`${method?.toUpperCase()} ${baseURL}${url}  ${status}`);
+
+        return data;
+      },
+      (error) => {
+        // https://axios-http.com/docs/handling_errors
+        // not 2xx
+        const { config, response = {} } = error;
+        const { status } = response;
+        const { method, baseURL, url } = config;
+
+        logger.error(`${method.toUpperCase()} ${baseURL}${url} ${status || error.message}`);
+
+        return Promise.reject(error);
+      },
+    );
+  }
+
+  async getTokens(): Promise<Tokens> {
+    return this.api.get(`/token/${this.cluster}`);
+  }
+
+  async getLiquidityPools(): Promise<LiquidityPools> {
+    return this.api.get(`/liquidity/${this.cluster}`);
+  }
+
+  async getFarmPools(): Promise<FarmPools> {
+    return this.api.get(`/farm/${this.cluster}`);
+  }
+}
