@@ -10,7 +10,6 @@ import {
   TransactionInstruction,
 } from "@solana/web3.js";
 import BN from "bn.js";
-import { split } from "lodash";
 
 import { ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID, validateAndParsePublicKey } from "../common";
 import { BigNumberish, parseBigNumberish } from "../entity";
@@ -72,7 +71,9 @@ export class Spl {
     );
 
     const lamportsAlreadyPresent = (await getAccount(connection, accountKey)).lamports;
-    const lamportsToTransfer = parseBigNumberish(amount).add(new BN(balanceNeededForRent)).sub(new BN(lamportsAlreadyPresent));
+    const lamportsToTransfer = parseBigNumberish(amount)
+      .add(new BN(balanceNeededForRent))
+      .sub(new BN(lamportsAlreadyPresent));
 
     instructions.push(
       SystemProgram.transfer({
