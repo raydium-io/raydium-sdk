@@ -17,10 +17,20 @@ $ yarn add @raydium-io/raydium-sdk
 
 ### Load the Raydium instance
 
-```
+```javascript
+import { Raydium } from "@raydium-io/raydium-sdk";
+
 const raydium = await Raydium.load({
   connection,
 });
+```
+
+### Enable special logger
+
+```javascript
+import { setLoggerLevel } from "@raydium-io/raydium-sdk";
+
+setLoggerLevel("Common.Api", "debug");
 ```
 
 ## Features

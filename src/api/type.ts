@@ -1,30 +1,23 @@
 /* ================= token ================= */
-export type TokenExtensionKey = "coingeckoId" | "website" | "whitepaper";
-
-export type TokenExtensions = { [key in TokenExtensionKey]?: string };
-
-export interface TokenInfo {
+export interface ApiTokenInfo {
   symbol: string;
   name: string;
   mint: string;
   decimals: number;
   icon: string;
-  extensions: TokenExtensions;
+  extensions: { [key in "coingeckoId" | "website" | "whitepaper"]?: string };
 }
 
-export interface Tokens {
-  official: TokenInfo[];
-  unOfficial: TokenInfo[];
-  unNamed: TokenInfo[];
-  blacklist: TokenInfo[];
-}
+export type ApiTokenCategory = "official" | "unOfficial" | "unNamed" | "blacklist";
+
+export type ApiTokens = { [key in ApiTokenCategory]: ApiTokenInfo[] };
 
 /* ================= liquidity ================= */
 export type LiquidityVersion = 2 | 3 | 4;
 
 export type SerumVersion = 1 | 2 | 3;
 
-export interface LiquidityPoolInfo {
+export interface ApiLiquidityPoolInfo {
   // base
   id: string;
   baseMint: string;
@@ -57,10 +50,7 @@ export interface LiquidityPoolInfo {
   marketEventQueue: string;
 }
 
-export interface LiquidityPools {
-  official: LiquidityPoolInfo[];
-  unOfficial: LiquidityPoolInfo[];
-}
+export type ApiLiquidityPools = { [key in "official" | "unOfficial"]: ApiLiquidityPoolInfo[] };
 
 /* ================= farm ================= */
 export type FarmVersion = 3 | 4 | 5 | 6;
@@ -79,7 +69,7 @@ export interface FarmRewardInfoV6 {
   rewardSender: string;
 }
 
-export interface StakePoolInfo {
+export interface ApiStakePoolInfo {
   // base
   id: string;
   symbol: string;
@@ -95,14 +85,14 @@ export interface StakePoolInfo {
   upcoming: boolean;
 }
 
-export interface FarmPoolInfo extends StakePoolInfo {
+export interface ApiFarmPoolInfo extends ApiStakePoolInfo {
   baseMint: string;
   quoteMint: string;
 }
 
-export interface FarmPools {
-  stake: StakePoolInfo[];
-  raydium: FarmPoolInfo[];
-  fusion: FarmPoolInfo[];
-  ecosystem: FarmPoolInfo[];
+export interface ApiFarmPools {
+  stake: ApiStakePoolInfo[];
+  raydium: ApiFarmPoolInfo[];
+  fusion: ApiFarmPoolInfo[];
+  ecosystem: ApiFarmPoolInfo[];
 }

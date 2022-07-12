@@ -3,7 +3,7 @@ import axios, { AxiosInstance } from "axios";
 import { createLogger, sleep } from "../common";
 import { Cluster } from "../solana";
 
-import { FarmPools, LiquidityPools, Tokens } from "./type";
+import { ApiFarmPools, ApiLiquidityPools, ApiTokens } from "./type";
 
 const logger = createLogger("Common.Api");
 
@@ -73,15 +73,15 @@ export class Api {
     );
   }
 
-  async getTokens(): Promise<Tokens> {
+  async getTokens(): Promise<ApiTokens> {
     return this.api.get(`/token/${this.cluster}`);
   }
 
-  async getLiquidityPools(): Promise<LiquidityPools> {
+  async getLiquidityPools(): Promise<ApiLiquidityPools> {
     return this.api.get(`/liquidity/${this.cluster}`);
   }
 
-  async getFarmPools(): Promise<FarmPools> {
+  async getFarmPools(): Promise<ApiFarmPools> {
     return this.api.get(`/farm/${this.cluster}`);
   }
 }
