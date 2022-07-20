@@ -1,4 +1,6 @@
-import { AccountInfo, Connection, PublicKey, Signer, Transaction, TransactionInstruction } from "@solana/web3.js";
+import {
+  AccountInfo, ComputeBudgetProgram, Connection, PublicKey, Signer, Transaction, TransactionInstruction,
+} from "@solana/web3.js";
 import BN from "bn.js";
 
 import { Base, TokenAccount } from "../base";
@@ -852,6 +854,13 @@ export class Liquidity extends Base {
       signers,
       bypassAssociatedCheck,
     });
+
+    frontInstructions.push(
+      ComputeBudgetProgram.requestUnits({
+        units: 400000,
+        additionalFee: 0,
+      }),
+    );
 
     frontInstructions.push(
       this.makeRemoveLiquidityInstruction({
