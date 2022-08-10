@@ -4,8 +4,11 @@ import { merge } from "lodash";
 import { Api, ApiFarmPools, ApiLiquidityPools, ApiTokens } from "../api";
 import { getTimestamp } from "../common";
 import { Cluster } from "../solana";
-import Farms from "./farms";
+
 import Account from "./account";
+import Farm from "./farm";
+import Liquidity from "./liquidity";
+
 export interface RaydiumLoadParams {
   /* ================= solana ================= */
   // solana web3 connection
@@ -36,25 +39,23 @@ export interface RaydiumApiBatchRequestParams {
   apiFarmPoolsCache?: ApiFarmPools;
 }
 
-export type RaydiumConstructorParams = Required<RaydiumLoadParams> & Required<RaydiumApiBatchRequestParams>;
+export type RaydiumConstructorParams = Required<RaydiumLoadParams> & RaydiumApiBatchRequestParams;
 
 export class Raydium {
   public connection: Connection;
   public cluster: Cluster;
   public user: PublicKey | null;
-  public farms: Farms;
+  public farm: Farm;
   public account: Account;
+  public liqudity: Liquidity;
   public rawBalances: Map<string, string> = new Map();
 
   public api: Api;
-  public apiCache: Map<
-    Cluster,
-    {
-      tokens?: { fetched: number; data: ApiTokens };
-      liquidityPools?: { fetched: number; data: ApiLiquidityPools };
-      farmPools?: { fetched: number; data: ApiFarmPools };
-    }
-  >;
+  public apiCache: {
+    tokens?: { fetched: number; data: ApiTokens };
+    liquidityPools?: { fetched: number; data: ApiLiquidityPools };
+    farmPools?: { fetched: number; data: ApiFarmPools };
+  };
 
   constructor(config: RaydiumConstructorParams) {
     const { connection, cluster, user, api, apiTokensCache, apiLiquidityPoolsCache, apiFarmPoolsCache } = config;
@@ -64,17 +65,19 @@ export class Raydium {
     this.user = user;
 
     this.api = api;
-    this.apiCache = new Map();
-    this.farms = new Farms(this);
+    this.apiCache = {};
+    this.farm = new Farm(this);
     this.account = new Account(this);
+    this.liqudity = new Liquidity(this);
 
     // set api cache
     const now = getTimestamp();
-    this.apiCache.set(cluster, {
-      tokens: { fetched: now, data: apiTokensCache },
-      liquidityPools: { fetched: now, data: apiLiquidityPoolsCache },
-      farmPools: { fetched: now, data: apiFarmPoolsCache },
-    });
+
+    this.apiCache = {
+      ...(apiTokensCache ? { tokens: { fetched: now, data: apiTokensCache } } : {}),
+      ...(apiLiquidityPoolsCache ? { liquidityPools: { fetched: now, data: apiLiquidityPoolsCache } } : {}),
+      ...(apiFarmPoolsCache ? { farmPools: { fetched: now, data: apiFarmPoolsCache } } : {}),
+    };
   }
 
   static async load(config: RaydiumLoadParams): Promise<Raydium> {
@@ -92,23 +95,23 @@ export class Raydium {
 
     const api = new Api({ cluster, timeout: apiRequestTimeout });
 
-    const [tokens, liquidities, farms] = await Raydium.apiBatchRequest({ api });
+    const tokens = await api.getTokens();
 
     return new Raydium({
       ...custom,
-      ...{ api, apiTokensCache: tokens, apiLiquidityPoolsCache: liquidities, apiFarmPoolsCache: farms },
+      ...{ api, apiTokensCache: tokens },
     });
   }
 
-  static async apiBatchRequest(
-    params: RaydiumApiBatchRequestParams,
-  ): Promise<[ApiTokens, ApiLiquidityPools, ApiFarmPools]> {
-    const { api, apiTokensCache, apiLiquidityPoolsCache, apiFarmPoolsCache } = params;
+  public async fetchLiquidity(): Promise<void> {
+    if (this.apiCache.liquidityPools) return;
+    const data = await this.api.getLiquidityPools();
+    this.apiCache.liquidityPools = { fetched: Date.now(), data };
+  }
 
-    return [
-      apiTokensCache || (await api.getTokens()),
-      apiLiquidityPoolsCache || (await api.getLiquidityPools()),
-      apiFarmPoolsCache || (await api.getFarmPools()),
-    ];
+  public async fetchFarms(): Promise<void> {
+    if (this.apiCache.farmPools) return;
+    const data = await this.api.getFarmPools();
+    this.apiCache.farmPools = { fetched: Date.now(), data };
   }
 }
