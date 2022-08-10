@@ -1,12 +1,11 @@
 import { Connection, PublicKey } from "@solana/web3.js";
-import { isEmpty, merge } from "lodash";
+import { merge } from "lodash";
 
 import { Api, ApiFarmPools, ApiLiquidityPools, ApiTokens } from "../api";
 import { getTimestamp } from "../common";
 import { Cluster } from "../solana";
-
-import { RaydiumTokenInfo } from "./type";
-
+import Farms from "./farms";
+import Account from "./account";
 export interface RaydiumLoadParams {
   /* ================= solana ================= */
   // solana web3 connection
@@ -43,6 +42,9 @@ export class Raydium {
   public connection: Connection;
   public cluster: Cluster;
   public user: PublicKey | null;
+  public farms: Farms;
+  public account: Account;
+  public rawBalances: Map<string, string> = new Map();
 
   public api: Api;
   public apiCache: Map<
@@ -63,6 +65,8 @@ export class Raydium {
 
     this.api = api;
     this.apiCache = new Map();
+    this.farms = new Farms(this);
+    this.account = new Account(this);
 
     // set api cache
     const now = getTimestamp();
@@ -86,13 +90,13 @@ export class Raydium {
     );
     const { cluster, apiRequestTimeout } = custom;
 
-    const api = new Api(cluster, apiRequestTimeout);
+    const api = new Api({ cluster, timeout: apiRequestTimeout });
 
-    const [tokens, liquidityPools, farmPools] = await this.apiBatchRequest({ api });
+    const [tokens, liquidities, farms] = await Raydium.apiBatchRequest({ api });
 
     return new Raydium({
       ...custom,
-      ...{ api, apiTokensCache: tokens, apiLiquidityPoolsCache: liquidityPools, apiFarmPoolsCache: farmPools },
+      ...{ api, apiTokensCache: tokens, apiLiquidityPoolsCache: liquidities, apiFarmPoolsCache: farms },
     });
   }
 
@@ -101,34 +105,10 @@ export class Raydium {
   ): Promise<[ApiTokens, ApiLiquidityPools, ApiFarmPools]> {
     const { api, apiTokensCache, apiLiquidityPoolsCache, apiFarmPoolsCache } = params;
 
-    const requests: (
-      | (() => Promise<ApiTokens>)
-      | (() => Promise<ApiLiquidityPools>)
-      | (() => Promise<ApiFarmPools>)
-    )[] = [
-      // (): Promise<ApiTokens> => api.getTokens(),
-      // (): Promise<ApiLiquidityPools> => api.getLiquidityPools(),
-      // (): Promise<ApiFarmPools> => api.getFarmPools(),
+    return [
+      apiTokensCache || (await api.getTokens()),
+      apiLiquidityPoolsCache || (await api.getLiquidityPools()),
+      apiFarmPoolsCache || (await api.getFarmPools()),
     ];
-
-    if (!apiTokensCache) {
-      requests.push(() => api.getTokens());
-    } else {
-      requests.push(async () => apiTokensCache);
-    }
-
-    if (!apiLiquidityPoolsCache) {
-      requests.push(() => api.getLiquidityPools());
-    } else {
-      requests.push(async () => apiLiquidityPoolsCache);
-    }
-
-    if (!apiFarmPoolsCache) {
-      requests.push(() => api.getFarmPools());
-    } else {
-      requests.push(async () => apiFarmPoolsCache);
-    }
-
-    return (await Promise.all(requests.map((fn) => fn()))) as [ApiTokens, ApiLiquidityPools, ApiFarmPools];
   }
 }

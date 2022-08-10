@@ -23,12 +23,17 @@ export async function endlessRetry<T>(name: string, call: () => Promise<T>, inte
   return result;
 }
 
+export interface ApiProps {
+  cluster: Cluster;
+  timeout: number;
+}
+
 export class Api {
   public cluster: Cluster;
 
   public api: AxiosInstance;
 
-  constructor(cluster: Cluster, timeout: number) {
+  constructor({ cluster, timeout }: ApiProps) {
     this.cluster = cluster;
 
     this.api = axios.create({ baseURL: "https://api.raydium.io/v2", timeout });
