@@ -78,6 +78,8 @@ export class Raydium {
       ...(apiLiquidityPoolsCache ? { liquidityPools: { fetched: now, data: apiLiquidityPoolsCache } } : {}),
       ...(apiFarmPoolsCache ? { farmPools: { fetched: now, data: apiFarmPoolsCache } } : {}),
     };
+
+    !apiTokensCache && this.fetchTokens();
   }
 
   static async load(config: RaydiumLoadParams): Promise<Raydium> {
@@ -95,23 +97,31 @@ export class Raydium {
 
     const api = new Api({ cluster, timeout: apiRequestTimeout });
 
-    const tokens = await api.getTokens();
-
     return new Raydium({
       ...custom,
-      ...{ api, apiTokensCache: tokens },
+      api,
     });
   }
 
-  public async fetchLiquidity(): Promise<void> {
-    if (this.apiCache.liquidityPools) return;
-    const data = await this.api.getLiquidityPools();
-    this.apiCache.liquidityPools = { fetched: Date.now(), data };
+  public async fetchTokens(forceUpdate?: boolean): Promise<ApiTokens> {
+    if (this.apiCache.tokens && !forceUpdate) return this.apiCache.tokens.data;
+    const data = await this.api.getTokens();
+    this.apiCache.tokens = { fetched: Date.now(), data };
+
+    return data;
   }
 
-  public async fetchFarms(): Promise<void> {
-    if (this.apiCache.farmPools) return;
+  public async fetchLiquidity(forceUpdate?: boolean): Promise<ApiLiquidityPools> {
+    if (this.apiCache.liquidityPools && !forceUpdate) return this.apiCache.liquidityPools.data;
+    const data = await this.api.getLiquidityPools();
+    this.apiCache.liquidityPools = { fetched: Date.now(), data };
+    return data;
+  }
+
+  public async fetchFarms(forceUpdate?: boolean): Promise<ApiFarmPools> {
+    if (this.apiCache.farmPools && !forceUpdate) return this.apiCache.farmPools.data;
     const data = await this.api.getFarmPools();
     this.apiCache.farmPools = { fetched: Date.now(), data };
+    return data;
   }
 }
