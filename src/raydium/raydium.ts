@@ -1,85 +1,101 @@
-import { Connection, PublicKey } from "@solana/web3.js";
+import { Connection, Keypair, PublicKey, sendAndConfirmTransaction, Signer, Transaction } from "@solana/web3.js";
 import { merge } from "lodash";
+import { Logger } from "pino";
 
 import { Api, ApiFarmPools, ApiLiquidityPools, ApiTokens } from "../api";
-import { getTimestamp } from "../common";
+import { createLogger } from "../common/logger";
+import { Owner } from "../common/owner";
 import { Cluster } from "../solana";
 
-import Account from "./account";
+import Account, { DefaultAccountProp } from "./account";
 import Farm from "./farm";
 import Liquidity from "./liquidity";
 
-export interface RaydiumLoadParams {
+export interface RaydiumLoadParams extends DefaultAccountProp {
   /* ================= solana ================= */
   // solana web3 connection
   connection: Connection;
   // solana cluster/network/env
   cluster?: Cluster;
   // user public key
-  user?: PublicKey;
+  user?: PublicKey | Keypair;
   /* ================= api ================= */
   // if provide tokens, the api request will be skipped on call Raydium.load
-  // apiTokensCache?: Tokens;
+  // defaultApiTokens?: Tokens;
   // if provide liquidity pools, the api request will be skipped on call Raydium.load
-  // apiLiquidityPoolsCache?: LiquidityPools;
+  // defaultApiLiquidityPools?: LiquidityPools;
   // if provide farm pools, the api request will be skipped on call Raydium.load
-  // apiFarmPoolsCache?: FarmPools;
+  // defaultApiFarmPools?: FarmPools;
   // TODO ETAG
   // api request interval in ms, -1 means never request again, 0 means always use fresh data, default is 5 mins (5 * 60 * 1000)
   apiRequestInterval?: number;
   // api request timeout in ms, default is 10 secs (10 * 1000)
   apiRequestTimeout?: number;
+  signAllTransactions?: (transactions: Transaction[]) => Promise<Transaction[]>;
 }
 
 export interface RaydiumApiBatchRequestParams {
-  // api instance
   api: Api;
-  apiTokensCache?: ApiTokens;
-  apiLiquidityPoolsCache?: ApiLiquidityPools;
-  apiFarmPoolsCache?: ApiFarmPools;
+  defaultApiTokens?: ApiTokens;
+  defaultApiLiquidityPools?: ApiLiquidityPools;
+  defaultApiFarmPools?: ApiFarmPools;
 }
 
 export type RaydiumConstructorParams = Required<RaydiumLoadParams> & RaydiumApiBatchRequestParams;
 
+interface ApiData {
+  tokens?: { fetched: number; data: ApiTokens };
+  liquidityPools?: { fetched: number; data: ApiLiquidityPools };
+  farmPools?: { fetched: number; data: ApiFarmPools };
+}
+
+const apiCacheData: ApiData = {};
 export class Raydium {
-  public connection: Connection;
   public cluster: Cluster;
-  public user: PublicKey | null;
   public farm: Farm;
   public account: Account;
   public liqudity: Liquidity;
   public rawBalances: Map<string, string> = new Map();
+  public apiData: ApiData;
 
-  public api: Api;
-  public apiCache: {
-    tokens?: { fetched: number; data: ApiTokens };
-    liquidityPools?: { fetched: number; data: ApiLiquidityPools };
-    farmPools?: { fetched: number; data: ApiFarmPools };
-  };
+  private _connection: Connection;
+  private _owner: Owner | undefined;
+  private api: Api;
+  private _signAllTransactions?: (transactions: Transaction[]) => Promise<Transaction[]>;
+  private logger: Logger;
 
   constructor(config: RaydiumConstructorParams) {
-    const { connection, cluster, user, api, apiTokensCache, apiLiquidityPoolsCache, apiFarmPoolsCache } = config;
+    const { connection, cluster, user, api, defaultApiTokens, defaultApiLiquidityPools, defaultApiFarmPools } = config;
 
-    this.connection = connection;
+    this._connection = connection;
     this.cluster = cluster;
-    this.user = user;
+    this._owner = new Owner(user);
+    this._signAllTransactions = config.signAllTransactions;
 
     this.api = api;
-    this.apiCache = {};
-    this.farm = new Farm(this);
-    this.account = new Account(this);
-    this.liqudity = new Liquidity(this);
+    this.logger = createLogger("Raydium");
+    this.farm = new Farm({ scope: this, moduleName: "Raydium.Farm" });
+    this.account = new Account({
+      scope: this,
+      moduleName: "Raydium.Account",
+      defaultTokenAccounts: config.defaultTokenAccounts,
+      defaultTokenAccountRowInfos: config.defaultTokenAccountRowInfos,
+    });
+    this.liqudity = new Liquidity({ scope: this, moduleName: "Raydium.Liquidity" });
 
-    // set api cache
-    const now = getTimestamp();
+    const now = new Date().getTime();
 
-    this.apiCache = {
-      ...(apiTokensCache ? { tokens: { fetched: now, data: apiTokensCache } } : {}),
-      ...(apiLiquidityPoolsCache ? { liquidityPools: { fetched: now, data: apiLiquidityPoolsCache } } : {}),
-      ...(apiFarmPoolsCache ? { farmPools: { fetched: now, data: apiFarmPoolsCache } } : {}),
+    const [apiTokensCache, apiLiquidityPoolsCache, apiFarmPoolsCache] = [
+      defaultApiTokens ? { fetched: now, data: defaultApiTokens } : apiCacheData.tokens,
+      defaultApiLiquidityPools ? { fetched: now, data: defaultApiLiquidityPools } : apiCacheData.liquidityPools,
+      defaultApiFarmPools ? { fetched: now, data: defaultApiFarmPools } : apiCacheData.farmPools,
+    ];
+
+    this.apiData = {
+      ...(apiTokensCache ? { tokens: apiTokensCache } : {}),
+      ...(apiLiquidityPoolsCache ? { liquidityPools: apiLiquidityPoolsCache } : {}),
+      ...(apiFarmPoolsCache ? { farmPools: apiFarmPoolsCache } : {}),
     };
-
-    !apiTokensCache && this.fetchTokens();
   }
 
   static async load(config: RaydiumLoadParams): Promise<Raydium> {
@@ -96,32 +112,85 @@ export class Raydium {
     const { cluster, apiRequestTimeout } = custom;
 
     const api = new Api({ cluster, timeout: apiRequestTimeout });
-
-    return new Raydium({
+    const raydium = new Raydium({
       ...custom,
       api,
     });
+
+    await raydium.fetchTokens();
+
+    return raydium;
+  }
+
+  get owner(): Owner {
+    if (!this._owner) throw new Error("please connect wallet first");
+    return this._owner;
+  }
+
+  get connection(): Connection {
+    if (!this._connection) throw new Error("please provide connection");
+    return this._connection;
+  }
+
+  get signAllTransactions(): ((transactions: Transaction[]) => Promise<Transaction[]>) | undefined {
+    return this._signAllTransactions;
+  }
+
+  public updateConfig(params: Pick<RaydiumLoadParams, "connection" | "user">): void {
+    Object.keys(params).map((key) => {
+      this[`_${key}`] = params[key];
+    });
+  }
+
+  public checkowner(): void {
+    if (!this.owner) {
+      this.logger.error("please provide wallet address");
+      throw new Error("please provide wallet address");
+    }
   }
 
   public async fetchTokens(forceUpdate?: boolean): Promise<ApiTokens> {
-    if (this.apiCache.tokens && !forceUpdate) return this.apiCache.tokens.data;
-    const data = await this.api.getTokens();
-    this.apiCache.tokens = { fetched: Date.now(), data };
+    if (this.apiData.tokens && !forceUpdate) return this.apiData.tokens.data;
+    const dataObject = {
+      fetched: Date.now(),
+      data: await this.api.getTokens(),
+    };
+    this.apiData.tokens = dataObject;
+    apiCacheData.tokens = dataObject;
 
-    return data;
+    return dataObject.data;
   }
 
   public async fetchLiquidity(forceUpdate?: boolean): Promise<ApiLiquidityPools> {
-    if (this.apiCache.liquidityPools && !forceUpdate) return this.apiCache.liquidityPools.data;
-    const data = await this.api.getLiquidityPools();
-    this.apiCache.liquidityPools = { fetched: Date.now(), data };
-    return data;
+    if (this.apiData.liquidityPools && !forceUpdate) return this.apiData.liquidityPools.data;
+    const dataObject = {
+      fetched: Date.now(),
+      data: await this.api.getLiquidityPools(),
+    };
+    this.apiData.liquidityPools = dataObject;
+    apiCacheData.liquidityPools = dataObject;
+    return dataObject.data;
   }
 
   public async fetchFarms(forceUpdate?: boolean): Promise<ApiFarmPools> {
-    if (this.apiCache.farmPools && !forceUpdate) return this.apiCache.farmPools.data;
-    const data = await this.api.getFarmPools();
-    this.apiCache.farmPools = { fetched: Date.now(), data };
-    return data;
+    if (this.apiData.farmPools && !forceUpdate) return this.apiData.farmPools.data;
+    const dataObject = {
+      fetched: Date.now(),
+      data: await this.api.getFarmPools(),
+    };
+    this.apiData.farmPools = dataObject;
+    apiCacheData.farmPools = dataObject;
+
+    return dataObject.data;
+  }
+
+  public async buildTx(tx: Transaction, signers?: Signer[]): Promise<string> {
+    if (this.signAllTransactions) {
+      const txxx = await this.signAllTransactions!([tx]);
+      return this.connection.sendRawTransaction(txxx[0].serialize());
+    }
+    if (signers?.length) return sendAndConfirmTransaction(this.connection, tx, signers);
+
+    throw new Error("no wallet connected");
   }
 }

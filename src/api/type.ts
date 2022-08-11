@@ -13,7 +13,7 @@ export type ApiTokenCategory = "official" | "unOfficial" | "unNamed" | "blacklis
 export type ApiTokens = { [key in ApiTokenCategory]: ApiTokenInfo[] };
 
 /* ================= liquidity ================= */
-export type LiquidityVersion = 2 | 3 | 4;
+export type LiquidityVersion = 2 | 3 | 4 | 6;
 
 export type SerumVersion = 1 | 2 | 3;
 

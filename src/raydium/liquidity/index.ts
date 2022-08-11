@@ -1,10 +1,9 @@
-import { ApiFarmPools } from "../../api";
-import Module from "../module";
-import { Raydium } from "../raydium";
+import { ApiLiquidityPoolInfo } from "../../api";
+import Module, { ModuleProps } from "../module";
 
 export default class Liqudity extends Module {
-  constructor(scope: Raydium) {
-    super(scope);
+  constructor(params: ModuleProps) {
+    super(params);
   }
 
   public async init(): Promise<void> {
@@ -12,8 +11,10 @@ export default class Liqudity extends Module {
     await this.scope.fetchLiquidity();
   }
 
-  public getFarms(): ApiFarmPools | undefined {
+  public getAllPools(): ApiLiquidityPoolInfo[] {
     this.checkDisabled();
-    return this.scope.apiCache.farmPools?.data;
+    if (!this.scope.apiData.liquidityPools) return [];
+    const { data } = this.scope.apiData.liquidityPools;
+    return [...(data.official ?? []), ...(data.unOfficial ?? [])];
   }
 }

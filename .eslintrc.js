@@ -13,5 +13,6 @@ module.exports = {
     "@typescript-eslint/no-explicit-any": 0,
     "object-shorthand": ["error", "always"],
     "@typescript-eslint/explicit-function-return-type": ["error"],
+    "@typescript-eslint/no-non-null-assertion": "off",
   },
 };
