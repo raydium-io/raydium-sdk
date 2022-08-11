@@ -7,18 +7,19 @@ import { createLogger } from "../common/logger";
 import { Owner } from "../common/owner";
 import { Cluster } from "../solana";
 
-import Account, { DefaultAccountProp } from "./account";
-import Farm from "./farm";
-import Liquidity from "./liquidity";
+import Account, { TokenAccountDataProp } from "./account/account";
+import Farm from "./farm/farm";
+import Liquidity from "./liquidity/liquidity";
+import { SignAllTransactions } from "./type";
 
-export interface RaydiumLoadParams extends DefaultAccountProp {
+export interface RaydiumLoadParams extends TokenAccountDataProp {
   /* ================= solana ================= */
   // solana web3 connection
   connection: Connection;
   // solana cluster/network/env
   cluster?: Cluster;
   // user public key
-  user?: PublicKey | Keypair;
+  owner?: PublicKey | Keypair;
   /* ================= api ================= */
   // if provide tokens, the api request will be skipped on call Raydium.load
   // defaultApiTokens?: Tokens;
@@ -31,7 +32,7 @@ export interface RaydiumLoadParams extends DefaultAccountProp {
   apiRequestInterval?: number;
   // api request timeout in ms, default is 10 secs (10 * 1000)
   apiRequestTimeout?: number;
-  signAllTransactions?: (transactions: Transaction[]) => Promise<Transaction[]>;
+  signAllTransactions?: SignAllTransactions;
 }
 
 export interface RaydiumApiBatchRequestParams {
@@ -65,11 +66,11 @@ export class Raydium {
   private logger: Logger;
 
   constructor(config: RaydiumConstructorParams) {
-    const { connection, cluster, user, api, defaultApiTokens, defaultApiLiquidityPools, defaultApiFarmPools } = config;
+    const { connection, cluster, owner, api, defaultApiTokens, defaultApiLiquidityPools, defaultApiFarmPools } = config;
 
     this._connection = connection;
     this.cluster = cluster;
-    this._owner = new Owner(user);
+    this._owner = new Owner(owner);
     this._signAllTransactions = config.signAllTransactions;
 
     this.api = api;
@@ -78,8 +79,8 @@ export class Raydium {
     this.account = new Account({
       scope: this,
       moduleName: "Raydium.Account",
-      defaultTokenAccounts: config.defaultTokenAccounts,
-      defaultTokenAccountRowInfos: config.defaultTokenAccountRowInfos,
+      tokenAccounts: config.tokenAccounts,
+      tokenAccountRowInfos: config.tokenAccountRowInfos,
     });
     this.liqudity = new Liquidity({ scope: this, moduleName: "Raydium.Liquidity" });
 
@@ -103,7 +104,7 @@ export class Raydium {
       // default
       {
         cluster: "mainnet",
-        user: null,
+        owner: null,
         apiRequestInterval: 5 * 60 * 1000,
         apiRequestTimeout: 10 * 1000,
       },
@@ -132,7 +133,12 @@ export class Raydium {
     return this._connection;
   }
 
-  public updateConfig(params: Pick<RaydiumLoadParams, "connection" | "user">): void {
+  get signAllTransactions(): SignAllTransactions | undefined {
+    return this._signAllTransactions;
+  }
+
+  public updateConfig({ owner, ...params }: Pick<RaydiumLoadParams, "connection" | "owner">): void {
+    if (owner) this._owner = new Owner(owner);
     Object.keys(params).map((key) => {
       this[`_${key}`] = params[key];
     });
@@ -170,6 +176,7 @@ export class Raydium {
 
   public async fetchFarms(forceUpdate?: boolean): Promise<ApiFarmPools> {
     if (this.apiData.farmPools && !forceUpdate) return this.apiData.farmPools.data;
+
     const dataObject = {
       fetched: Date.now(),
       data: await this.api.getFarmPools(),
@@ -180,15 +187,18 @@ export class Raydium {
     return dataObject.data;
   }
 
-  public buildTx(tx: Transaction, signers?: Signer[]): { tx: Transaction; excute: () => Promise<string> } {
+  public buildTx(
+    transaction: Transaction,
+    signers?: Signer[],
+  ): { transaction: Transaction; excute: () => Promise<string> } {
     return {
-      tx,
+      transaction,
       excute: async (): Promise<string> => {
         if (this._signAllTransactions) {
-          const signedTx = await this._signAllTransactions([tx]);
+          const signedTx = await this._signAllTransactions([transaction]);
           return this.connection.sendRawTransaction(signedTx[0].serialize());
         }
-        if (signers?.length) return sendAndConfirmTransaction(this.connection, tx, signers);
+        if (signers?.length) return sendAndConfirmTransaction(this.connection, transaction, signers);
 
         throw new Error("no wallet connected");
       },

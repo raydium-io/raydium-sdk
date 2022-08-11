@@ -1,6 +1,8 @@
+import { PublicKey } from "@solana/web3.js";
 import { Logger } from "pino";
 
 import { createLogger } from "../common/logger";
+import { TxBuilder } from "../common/txTool";
 import { Raydium } from "../raydium";
 
 export interface ModuleProps {
@@ -17,10 +19,20 @@ export default class Module {
     this.logger = createLogger(moduleName);
   }
 
-  public logAndCreateError(...args: (string | number | Record<string, any>)[]): Error {
+  protected createTxBuilder(feePayer?: PublicKey): TxBuilder {
+    this.scope.checkowner();
+    return new TxBuilder({
+      connection: this.scope.connection,
+      feePayer: feePayer || this.scope.owner.publicKey,
+      owner: this.scope.owner,
+      signAllTransactions: this.scope.signAllTransactions,
+    });
+  }
+
+  public logAndCreateError(...args: (string | number | Record<string, any>)[]): void {
     const message = args.map((arg) => (typeof arg === "object" ? JSON.stringify(arg) : arg)).join(", ");
     this.logger.error(message);
-    return new Error(message);
+    throw new Error(message);
   }
 
   public checkDisabled(): void {

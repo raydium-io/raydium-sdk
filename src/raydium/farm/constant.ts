@@ -1,5 +1,14 @@
 import { PublicKey } from "@solana/web3.js";
 
+import {
+  FarmLedgerLayout,
+  farmLedgerLayoutV3_2,
+  farmLedgerLayoutV5_2,
+  farmLedgerLayoutV6_1,
+  FarmStateLayout,
+  farmStateV6Layout,
+} from "./layout";
+
 /* ================= program public keys ================= */
 export const FARM_PROGRAM_ID_V3 = "EhhTKczWMGQt46ynNeRX1WfeagwwJd7ufHvCDjRxjo5Q";
 export const FARM_PROGRAM_ID_V3_PUBKEY = new PublicKey(FARM_PROGRAM_ID_V3);
@@ -30,3 +39,20 @@ export const FARM_VERSION_TO_PROGRAMID: { [key in FarmVersion]?: PublicKey } & {
 
 export const FARM_LOCK_MINT = new PublicKey("4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R");
 export const FARM_LOCK_VAULT = new PublicKey("FrspKwj8i3pNmKwXreTveC4fu7KL5ZbGeXdZBe2XViu1");
+
+/* ================= index ================= */
+// version => farm state layout
+export const FARM_VERSION_TO_STATE_LAYOUT: {
+  [version in FarmVersion]?: FarmStateLayout;
+} = {
+  6: farmStateV6Layout,
+};
+
+// version => farm ledger layout
+export const FARM_VERSION_TO_LEDGER_LAYOUT: {
+  [version in FarmVersion]?: FarmLedgerLayout;
+} = {
+  3: farmLedgerLayoutV3_2,
+  5: farmLedgerLayoutV5_2,
+  6: farmLedgerLayoutV6_1,
+};

@@ -7,7 +7,7 @@ interface AccountMetaProps {
   isWritable?: boolean;
 }
 
-export function accountMeta({ pubkey, isSigner = false, isWritable = false }: AccountMetaProps): AccountMeta {
+export function accountMeta({ pubkey, isSigner = false, isWritable = true }: AccountMetaProps): AccountMeta {
   return {
     pubkey,
     isWritable,
