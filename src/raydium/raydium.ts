@@ -132,10 +132,6 @@ export class Raydium {
     return this._connection;
   }
 
-  get signAllTransactions(): ((transactions: Transaction[]) => Promise<Transaction[]>) | undefined {
-    return this._signAllTransactions;
-  }
-
   public updateConfig(params: Pick<RaydiumLoadParams, "connection" | "user">): void {
     Object.keys(params).map((key) => {
       this[`_${key}`] = params[key];
@@ -184,13 +180,18 @@ export class Raydium {
     return dataObject.data;
   }
 
-  public async buildTx(tx: Transaction, signers?: Signer[]): Promise<string> {
-    if (this.signAllTransactions) {
-      const txxx = await this.signAllTransactions!([tx]);
-      return this.connection.sendRawTransaction(txxx[0].serialize());
-    }
-    if (signers?.length) return sendAndConfirmTransaction(this.connection, tx, signers);
+  public buildTx(tx: Transaction, signers?: Signer[]): { tx: Transaction; excute: () => Promise<string> } {
+    return {
+      tx,
+      excute: async (): Promise<string> => {
+        if (this._signAllTransactions) {
+          const signedTx = await this._signAllTransactions([tx]);
+          return this.connection.sendRawTransaction(signedTx[0].serialize());
+        }
+        if (signers?.length) return sendAndConfirmTransaction(this.connection, tx, signers);
 
-    throw new Error("no wallet connected");
+        throw new Error("no wallet connected");
+      },
+    };
   }
 }

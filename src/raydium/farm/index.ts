@@ -1,11 +1,5 @@
 import {
-  Keypair,
-  PublicKey,
-  sendAndConfirmTransaction,
-  Signer,
-  SystemProgram,
-  Transaction,
-  TransactionInstruction,
+  Keypair, PublicKey, sendAndConfirmTransaction, Signer, SystemProgram, Transaction, TransactionInstruction,
 } from "@solana/web3.js";
 import BN from "bn.js";
 
@@ -56,28 +50,9 @@ export default class Farm extends Module {
       programId: getFarmProgramId(6)!,
     };
 
-    const data = await this.makeCreateFarmInstructionV6({
+    return await this.makeCreateFarmInstructionV6({
       poolInfo,
     });
-
-    const tx = new Transaction();
-    tx.add(...data.instructions);
-
-    const txxx = await this.scope.signAllTransactions!([tx]);
-    this.scope.connection.sendRawTransaction(txxx[0].serialize());
-
-    if (data.newAccounts.length) {
-      await attachRecentBlockhash({
-        connection: this.scope.connection,
-        owner: this.scope.owner.publicKey,
-        transactions: [tx],
-      });
-      tx.partialSign(...data.newAccounts);
-
-      sendAndConfirmTransaction(this.scope.connection, tx, data.newAccounts);
-    }
-
-    return data;
   }
 
   public async makeCreateFarmInstructionV6({
