@@ -14,6 +14,9 @@ import {
   u8,
 } from "../../marshmallow";
 
+export const associatedLedgerAccountLayout = struct([u8("instruction")]);
+export const withdrawRewardLayout = struct([u8("instruction")]);
+
 const farmStateRewardInfoV6Layout = struct([
   u64("rewardState"),
   u64("rewardOpenTime"),
@@ -297,3 +300,5 @@ export type FarmLedgerV5_1 = GetStructureSchema<FarmLedgerLayoutV5_1>;
 export type FarmLedgerV5_2 = GetStructureSchema<FarmLedgerLayoutV5_2>;
 export type FarmLedgerV6_1 = GetStructureSchema<FarmLedgerLayoutV6_1>;
 export type FarmLedger = FarmLedgerV3_1 | FarmLedgerV3_2 | FarmLedgerV5_1 | FarmLedgerV5_2 | FarmLedgerV6_1;
+
+export const dwLayout = struct([u8("instruction"), u64("amount")]);

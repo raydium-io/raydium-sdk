@@ -16,6 +16,12 @@ interface TxBuilderInit {
   signAllTransactions?: (transactions: Transaction[]) => Promise<Transaction[]>;
 }
 
+export interface AddInstructionParam {
+  instructions?: TransactionInstruction[];
+  endInstructions?: TransactionInstruction[];
+  signers?: Signer[];
+}
+
 export class TxBuilder {
   private connection: Connection;
   private owner?: Owner;
@@ -32,15 +38,7 @@ export class TxBuilder {
     this.owner = params.owner;
   }
 
-  public addInstruction({
-    instructions = [],
-    endInstructions = [],
-    signers = [],
-  }: {
-    instructions?: TransactionInstruction[];
-    endInstructions?: TransactionInstruction[];
-    signers?: Signer[];
-  }): TxBuilder {
+  public addInstruction({ instructions = [], endInstructions = [], signers = [] }: AddInstructionParam): TxBuilder {
     this.instructions.push(...instructions);
     this.endInstructions.push(...endInstructions);
     this.signers.push(...signers);
@@ -50,9 +48,9 @@ export class TxBuilder {
   public async build(): Promise<{
     transaction: Transaction;
     signers: Signer[];
-    excute: () => Promise<string>;
+    execute: () => Promise<string>;
   }> {
-    const recentBlockHash = await getRecentBlockhash(this.connection);
+    const recentBlockHash = await getRecentBlockHash(this.connection);
 
     const transaction = new Transaction();
     transaction.recentBlockhash = recentBlockHash;
@@ -62,7 +60,7 @@ export class TxBuilder {
     return {
       transaction,
       signers: this.signers,
-      excute: async (): Promise<string> => {
+      execute: async (): Promise<string> => {
         if (this.owner) {
           return sendAndConfirmTransaction(this.connection, transaction, this.signers);
         }
@@ -76,7 +74,7 @@ export class TxBuilder {
   }
 }
 
-export async function getRecentBlockhash(connection: Connection): Promise<string> {
+export async function getRecentBlockHash(connection: Connection): Promise<string> {
   try {
     return (await connection.getLatestBlockhash?.())?.blockhash || (await connection.getRecentBlockhash()).blockhash;
   } catch {

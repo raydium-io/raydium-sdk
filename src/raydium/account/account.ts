@@ -1,10 +1,12 @@
 import { ASSOCIATED_TOKEN_PROGRAM_ID, Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { Commitment, PublicKey } from "@solana/web3.js";
 
+import { AddInstructionParam } from "../../common/txTool";
+import { TOKEN_WSOL } from "../../token";
 import Module, { ModuleProps } from "../module";
 
 import { TokenAccount, TokenAccountRaw } from "./types";
-import { parseTokenAccountResp } from "./util";
+import { closeAccountInstruction, parseTokenAccountResp } from "./util";
 
 export interface TokenAccountDataProp {
   tokenAccounts?: TokenAccount[];
@@ -14,13 +16,16 @@ export default class Account extends Module {
   private _tokenAccounts: TokenAccount[] = [];
   private _tokenAccountRawInfos: TokenAccountRaw[] = [];
   private _ataCache: Map<string, PublicKey> = new Map();
-  private _accountChangeLisenerId?: number;
+  private _accountChangeListenerId?: number;
   private _accountListener: (() => void)[] = [];
+  private _clientOwnedToken = false;
 
   constructor(params: TokenAccountDataProp & ModuleProps) {
     super(params);
-    this._tokenAccounts = params.tokenAccounts || [];
-    this._tokenAccountRawInfos = params.tokenAccountRowInfos || [];
+    const { tokenAccounts, tokenAccountRowInfos } = params;
+    this._tokenAccounts = tokenAccounts || [];
+    this._tokenAccountRawInfos = tokenAccountRowInfos || [];
+    this._clientOwnedToken = !!(tokenAccounts || tokenAccountRowInfos);
   }
 
   get tokenAccounts(): TokenAccount[] {
@@ -40,8 +45,9 @@ export default class Account extends Module {
   public updateTokenAccount({ tokenAccounts, tokenAccountRowInfos }: TokenAccountDataProp): Account {
     if (tokenAccounts) this._tokenAccounts = tokenAccounts;
     if (tokenAccountRowInfos) this._tokenAccountRawInfos = tokenAccountRowInfos;
-    this._accountChangeLisenerId && this.scope.connection.removeAccountChangeListener(this._accountChangeLisenerId);
-    this._accountChangeLisenerId = undefined;
+    this._accountChangeListenerId && this.scope.connection.removeAccountChangeListener(this._accountChangeListenerId);
+    this._accountChangeListenerId = undefined;
+    this._clientOwnedToken = true;
     return this;
   }
 
@@ -57,7 +63,7 @@ export default class Account extends Module {
 
   public async getAssociatedTokenAccount(mint: PublicKey): Promise<PublicKey> {
     this.scope.checkOwner();
-    const userPubStr = this.scope.owner.toString();
+    const userPubStr = this.scope.owner.publicKey.toBase58();
     if (this._ataCache.has(userPubStr)) this._ataCache.get(userPubStr) as PublicKey;
     const ataPubKey = await Token.getAssociatedTokenAddress(
       ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -70,11 +76,17 @@ export default class Account extends Module {
     return ataPubKey;
   }
 
-  public async getWalletTokenAccounts(config?: { commitment: Commitment }): Promise<{
+  public async fetchWalletTokenAccounts(config?: { forceUpdate?: boolean; commitment?: Commitment }): Promise<{
     tokenAccounts: TokenAccount[];
     tokenAccountRawInfos: TokenAccountRaw[];
   }> {
-    if (this._tokenAccounts.length) {
+    if (this._clientOwnedToken) {
+      return {
+        tokenAccounts: this._tokenAccounts,
+        tokenAccountRawInfos: this._tokenAccountRawInfos,
+      };
+    }
+    if (!config?.forceUpdate && this._tokenAccounts) {
       return {
         tokenAccounts: this._tokenAccounts,
         tokenAccountRawInfos: this._tokenAccountRawInfos,
@@ -103,10 +115,10 @@ export default class Account extends Module {
     this._tokenAccounts = tokenAccounts;
     this._tokenAccountRawInfos = tokenAccountRawInfos;
 
-    this._accountChangeLisenerId && this.scope.connection.removeAccountChangeListener(this._accountChangeLisenerId);
-    this._accountChangeLisenerId = this.scope.connection.onAccountChange(
+    this._accountChangeListenerId && this.scope.connection.removeAccountChangeListener(this._accountChangeListenerId);
+    this._accountChangeListenerId = this.scope.connection.onAccountChange(
       this.scope.owner.publicKey,
-      () => this.getWalletTokenAccounts(),
+      () => this.fetchWalletTokenAccounts({ forceUpdate: true }),
       "confirmed",
     );
 
@@ -114,14 +126,14 @@ export default class Account extends Module {
   }
 
   // user token account needed
-  public async selectTokenAccount({
+  public async getCreatedTokenAccount({
     mint,
-    associatedOnly = false,
+    associatedOnly = true,
   }: {
     mint: PublicKey;
     associatedOnly?: boolean;
   }): Promise<PublicKey | undefined> {
-    await this.getWalletTokenAccounts();
+    await this.fetchWalletTokenAccounts();
     const tokenAccounts = this._tokenAccounts
       .filter(({ mint: accountMint }) => accountMint?.equals(mint))
       // sort by balance
@@ -135,5 +147,45 @@ export default class Account extends Module {
         return publicKey;
       }
     }
+  }
+
+  public async checkOrCreateAta({
+    mint,
+    autoUnwrapWSOLToSOL,
+  }: {
+    mint: PublicKey;
+    autoUnwrapWSOLToSOL?: boolean;
+  }): Promise<{ pubKey: PublicKey; newInstructions: AddInstructionParam }> {
+    await this.fetchWalletTokenAccounts();
+    let tokenAccountAddress = this.scope.account.tokenAccounts.find(
+      ({ mint: accountTokenMint }) => accountTokenMint?.toBase58() === mint.toBase58(),
+    )?.publicKey;
+
+    const owner = this.scope.owner.publicKey;
+    const newTxInstructions: AddInstructionParam = {};
+
+    if (!tokenAccountAddress) {
+      const ataAddress = await this.getAssociatedTokenAccount(mint);
+      const instruction = await Token.createAssociatedTokenAccountInstruction(
+        ASSOCIATED_TOKEN_PROGRAM_ID,
+        TOKEN_PROGRAM_ID,
+        mint,
+        ataAddress,
+        owner,
+        owner,
+      );
+      newTxInstructions.instructions = [instruction];
+      tokenAccountAddress = ataAddress;
+    }
+    if (autoUnwrapWSOLToSOL && TOKEN_WSOL.mint === mint.toBase58()) {
+      newTxInstructions.endInstructions = [
+        closeAccountInstruction({ owner, payer: owner, tokenAccount: tokenAccountAddress }),
+      ];
+    }
+
+    return {
+      pubKey: tokenAccountAddress,
+      newInstructions: newTxInstructions,
+    };
   }
 }

@@ -8,6 +8,7 @@ import {
   FarmStateLayout,
   farmStateV6Layout,
 } from "./layout";
+import { RewardInfoWithKey } from "./type";
 
 /* ================= program public keys ================= */
 export const FARM_PROGRAM_ID_V3 = "EhhTKczWMGQt46ynNeRX1WfeagwwJd7ufHvCDjRxjo5Q";
@@ -55,4 +56,54 @@ export const FARM_VERSION_TO_LEDGER_LAYOUT: {
   3: farmLedgerLayoutV3_2,
   5: farmLedgerLayoutV5_2,
   6: farmLedgerLayoutV6_1,
+};
+
+export const isValidFarmVersion = (version: number): boolean => [3, 5, 6].indexOf(version) !== -1;
+
+export const farmDespotVersionToInstruction = (version: number): number | undefined => {
+  return {
+    3: 10,
+    5: 11,
+    6: 1,
+  }[version];
+};
+
+export const farmWithdrawVersionToInstruction = (version: number): number | undefined => {
+  return {
+    3: 11,
+    5: 12,
+    6: 2,
+  }[version];
+};
+
+export const validateFarmRewards = (params: {
+  version: number;
+  rewardInfos: RewardInfoWithKey[];
+  rewardTokenAccountsPublicKeys: PublicKey[];
+}): (() => string | undefined) => {
+  const { version, rewardInfos, rewardTokenAccountsPublicKeys } = params;
+
+  const infoMsg = `rewardInfo:${JSON.stringify(rewardInfos)}, rewardAccount:${JSON.stringify(
+    rewardTokenAccountsPublicKeys,
+  )}`;
+
+  const validator = {
+    3: (): string | undefined => {
+      if (rewardInfos.length !== 1 || rewardTokenAccountsPublicKeys.length !== 1) {
+        return `rewardInfos or rewardTokenAccounts lengths not equal 1: ${infoMsg}`;
+      }
+    },
+    5: (): string | undefined => {
+      if (rewardInfos.length !== rewardTokenAccountsPublicKeys.length) {
+        return `rewardInfos and rewardTokenAccounts lengths not equal: ${infoMsg}`;
+      }
+    },
+    6: (): string | undefined => {
+      if (!rewardTokenAccountsPublicKeys.length || rewardInfos.length !== rewardTokenAccountsPublicKeys.length) {
+        return `no rewardTokenAccounts or rewardInfos and rewardTokenAccounts lengths not equal: ${infoMsg}`;
+      }
+    },
+  };
+
+  return validator[version]?.();
 };

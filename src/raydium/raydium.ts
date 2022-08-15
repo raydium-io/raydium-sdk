@@ -1,8 +1,9 @@
-import { Connection, Keypair, PublicKey, sendAndConfirmTransaction, Signer, Transaction } from "@solana/web3.js";
+import { Connection, Keypair, PublicKey, Transaction } from "@solana/web3.js";
 import { merge } from "lodash";
 import { Logger } from "pino";
 
 import { Api, ApiFarmPools, ApiLiquidityPools, ApiTokens } from "../api";
+import { EMPTY_CONNECTION, EMPTY_OWNER } from "../common/error";
 import { createLogger } from "../common/logger";
 import { Owner } from "../common/owner";
 import { Cluster } from "../solana";
@@ -124,8 +125,7 @@ export class Raydium {
   }
 
   get owner(): Owner {
-    if (!this._owner)
-      throw new Error("please provide owner in initialization or you can set by calling raydium.setOwner(owner)");
+    if (!this._owner) throw new Error(EMPTY_OWNER);
     return this._owner;
   }
 
@@ -135,8 +135,13 @@ export class Raydium {
   }
 
   get connection(): Connection {
-    if (!this._connection) throw new Error("please provide connection");
+    if (!this._connection) throw new Error(EMPTY_CONNECTION);
     return this._connection;
+  }
+
+  public setConnection(connection: Connection): Raydium {
+    this._connection = connection;
+    return this;
   }
 
   get signAllTransactions(): SignAllTransactions | undefined {
@@ -145,8 +150,8 @@ export class Raydium {
 
   public checkOwner(): void {
     if (!this.owner) {
-      this.logger.error("please provide wallet address");
-      throw new Error("please provide wallet address");
+      this.logger.error(EMPTY_OWNER);
+      throw new Error(EMPTY_OWNER);
     }
   }
 
@@ -184,23 +189,5 @@ export class Raydium {
     apiCacheData.farmPools = dataObject;
 
     return dataObject.data;
-  }
-
-  public buildTx(
-    transaction: Transaction,
-    signers?: Signer[],
-  ): { transaction: Transaction; excute: () => Promise<string> } {
-    return {
-      transaction,
-      excute: async (): Promise<string> => {
-        if (this._signAllTransactions) {
-          const signedTx = await this._signAllTransactions([transaction]);
-          return this.connection.sendRawTransaction(signedTx[0].serialize());
-        }
-        if (signers?.length) return sendAndConfirmTransaction(this.connection, transaction, signers);
-
-        throw new Error("no wallet connected");
-      },
-    };
   }
 }

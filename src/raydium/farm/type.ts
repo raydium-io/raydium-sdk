@@ -2,6 +2,10 @@ import { PublicKey } from "@solana/web3.js";
 import BN from "bn.js";
 
 import { BigNumberish } from "../../common/bignumber";
+import { SplAccount } from "../account/types";
+import { UnionCover } from "../type";
+
+import { FarmStateV3, FarmStateV5, FarmStateV6 } from "./layout";
 
 export interface APIRewardInfo {
   rewardMint: string;
@@ -10,6 +14,15 @@ export interface APIRewardInfo {
   rewardEndTime: number;
   rewardPerSecond: string | number;
   rewardSender?: string;
+}
+
+export interface RewardInfoWithKey {
+  rewardMint: PublicKey;
+  rewardVault: PublicKey;
+  rewardOpenTime: number;
+  rewardEndTime: number;
+  rewardPerSecond: string | number;
+  rewardSender?: PublicKey;
 }
 export interface FarmPoolJsonInfo {
   id: string;
@@ -77,6 +90,11 @@ export interface RewardSetParam {
   payer?: PublicKey;
 }
 
+export interface FarmDWParam {
+  farmId: string;
+  amount: BigNumberish;
+}
+
 /* ================= pool keys ================= */
 export type FarmPoolKeys = {
   readonly id: PublicKey;
@@ -100,3 +118,31 @@ export type FarmPoolKeys = {
       }
   )[];
 };
+
+type SdkParsedFarmInfoBase = {
+  jsonInfo: FarmPoolJsonInfo;
+  id: PublicKey;
+  lpMint: PublicKey;
+  programId: PublicKey;
+  authority: PublicKey;
+  lpVault: SplAccount;
+  rewardInfos: RewardInfoWithKey[];
+  /** only when user have deposited and connected wallet */
+  ledger?: {
+    id: PublicKey;
+    owner: PublicKey;
+    state: BN;
+    deposited: BN;
+    rewardDebts: BN[];
+  };
+  /** only when user have deposited and connected wallet */
+  wrapped?: {
+    pendingRewards: BN[];
+  };
+};
+
+export type SdkParsedFarmInfo = UnionCover<
+  FarmPoolJsonInfo,
+  SdkParsedFarmInfoBase &
+    ({ version: 6; state: FarmStateV6 } | { version: 3; state: FarmStateV3 } | { version: 5; state: FarmStateV5 })
+>;

@@ -20,7 +20,7 @@ export interface TokenAccount {
   isNative: boolean;
 }
 
-export interface SelectTokenAccountParams {
+export interface getCreatedTokenAccountParams {
   mint: PublicKey;
   config?: { associatedOnly?: boolean };
 }

@@ -1,19 +1,19 @@
-import { Connection, PublicKey } from "@solana/web3.js";
+import { Connection, PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY, TransactionInstruction } from "@solana/web3.js";
 import BN from "bn.js";
 
-import { getMultipleAccountsInfoWithCustomFlags, parseBigNumberish } from "../../common";
-import { GetMultipleAccountsInfoConfig } from "../../common/accountInfo";
+import { GetMultipleAccountsInfoConfig, getMultipleAccountsInfoWithCustomFlags } from "../../common/accountInfo";
+import { parseBigNumberish } from "../../common/bignumber";
 import { createLogger } from "../../common/logger";
-import { PublicKeyish, validateAndParsePublicKey } from "../../common/pubKey";
+import { accountMeta, PublicKeyish, tryParsePublicKey, validateAndParsePublicKey } from "../../common/pubKey";
 import { splAccountLayout } from "../account/layout";
 import { SplAccount } from "../account/types";
 
 import {
   FARM_PROGRAMID_TO_VERSION, FARM_VERSION_TO_LEDGER_LAYOUT, FARM_VERSION_TO_PROGRAMID, FARM_VERSION_TO_STATE_LAYOUT,
   FarmVersion,
-} from "./constant";
-import { FarmLedger, FarmLedgerLayout, FarmState, FarmStateLayout } from "./layout";
-import { FarmPoolKeys, FarmRewardInfo, FarmRewardInfoConfig } from "./type";
+} from "./config";
+import { associatedLedgerAccountLayout, FarmLedger, FarmLedgerLayout, FarmState, FarmStateLayout } from "./layout";
+import { FarmPoolJsonInfo, FarmPoolKeys, FarmRewardInfo, FarmRewardInfoConfig, SdkParsedFarmInfo } from "./type";
 
 const logger = createLogger("Raydium.farm.util");
 const errorLogger = (msg: string): void => {
@@ -77,7 +77,7 @@ export async function getAssociatedLedgerAccount({
   programId: PublicKey;
   poolId: PublicKey;
   owner: PublicKey;
-}): Promise<any> {
+}): Promise<PublicKey> {
   const { publicKey } = await findProgramAddress(
     [
       poolId.toBuffer(),
@@ -316,4 +316,78 @@ export async function fetchMultipleFarmInfoAndUpdate({
   }
 
   return poolsInfo;
+}
+
+export function farmInfoStringToPubKey(farmInfo: FarmPoolJsonInfo): FarmPoolKeys {
+  const { rewardInfos, ...orgFarmInfo } = farmInfo;
+  const newInfo = {
+    ...Object.keys(orgFarmInfo).reduce(
+      (acc, cur) => ({
+        ...acc,
+        [cur]: typeof orgFarmInfo[cur] !== "object" ? tryParsePublicKey(orgFarmInfo[cur]) : orgFarmInfo[cur],
+      }),
+      {} as FarmPoolKeys,
+    ),
+    rewardInfos: rewardInfos.map((reward) => ({
+      ...reward,
+      rewardMint: tryParsePublicKey(reward.rewardMint) as PublicKey,
+      rewardVault: tryParsePublicKey(reward.rewardVault) as PublicKey,
+      rewardSender: reward.rewardSender ? tryParsePublicKey(reward.rewardSender) : undefined,
+    })),
+  };
+  return newInfo;
+}
+
+/** and state info  */
+export async function mergeSdkFarmInfo(
+  options: FarmFetchMultipleInfoParams,
+  payload: {
+    jsonInfos: FarmPoolJsonInfo[];
+  },
+): Promise<SdkParsedFarmInfo[]> {
+  const rawInfos = await fetchMultipleFarmInfoAndUpdate(options);
+  const result = options.pools.map(
+    (pool, idx) =>
+      ({
+        ...payload.jsonInfos[idx],
+        ...pool,
+        ...rawInfos[String(pool.id)],
+        jsonInfo: payload.jsonInfos[idx],
+      } as unknown as SdkParsedFarmInfo),
+  );
+  return result;
+}
+
+export async function createAssociatedLedgerAccountInstruction(params: {
+  version: number;
+  id: PublicKey;
+  programId: PublicKey;
+  ledger: PublicKey;
+  owner: PublicKey;
+}): Promise<TransactionInstruction> {
+  const { version, id, ledger, programId, owner } = params;
+  const instruction = { 3: 9, 5: 10 }[version];
+  if (!instruction) errorLogger(`invalid farm pool version: ${version}`);
+
+  const data = Buffer.alloc(associatedLedgerAccountLayout.span);
+  associatedLedgerAccountLayout.encode(
+    {
+      instruction: instruction!,
+    },
+    data,
+  );
+
+  const keys = [
+    accountMeta({ pubkey: id }),
+    accountMeta({ pubkey: ledger }),
+    accountMeta({ pubkey: owner, isWritable: false }),
+    accountMeta({ pubkey: SystemProgram.programId, isWritable: false }),
+    accountMeta({ pubkey: SYSVAR_RENT_PUBKEY, isWritable: false }),
+  ];
+
+  return new TransactionInstruction({
+    programId,
+    keys,
+    data,
+  });
 }

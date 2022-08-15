@@ -1,6 +1,8 @@
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { AccountMeta, PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY } from "@solana/web3.js";
 
+import { ReplaceType } from "../raydium/type";
+
 interface AccountMetaProps {
   pubkey: PublicKey;
   isSigner?: boolean;
@@ -38,4 +40,12 @@ export function validateAndParsePublicKey(publicKey: PublicKeyish): PublicKey {
   }
 
   throw new Error("invalid public key");
+}
+
+export function tryParsePublicKey(v: string): PublicKey | string {
+  try {
+    return new PublicKey(v);
+  } catch (e) {
+    return v;
+  }
 }
