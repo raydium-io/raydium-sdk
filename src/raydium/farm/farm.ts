@@ -12,11 +12,7 @@ import { FARM_LOCK_MINT, FARM_LOCK_VAULT } from "./constant";
 import { farmAddRewardLayout, farmRewardLayout, farmRewardRestartLayout, farmStateV6Layout } from "./layout";
 import { FarmPoolJsonInfo, FarmRewardInfo, FarmRewardInfoConfig, RewardInfoKey, RewardSetParam } from "./type";
 import {
-  calRewardAmount,
-  getAssociatedAuthority,
-  getAssociatedLedgerPoolAccount,
-  getFarmProgramId,
-  rewardInfoToConfig,
+  calRewardAmount, getAssociatedAuthority, getAssociatedLedgerPoolAccount, getFarmProgramId, rewardInfoToConfig,
 } from "./util";
 
 export default class Farm extends Module {
@@ -50,9 +46,9 @@ export default class Farm extends Module {
 
   public async createFarm({ poolId, rewardInfos, payer }: RewardSetParam): Promise<MakeTransaction> {
     this.checkDisabled();
-    this.scope.checkowner();
+    this.scope.checkOwner();
 
-    const poolJsonInfo = this.scope.liqudity.getAllPools().find((j) => j.id === poolId);
+    const poolJsonInfo = this.scope.liquidity.getAllPools().find((j) => j.id === poolId);
     if (!poolJsonInfo) this.logAndCreateError("invalid pool id");
 
     const lpMint = new PublicKey(poolJsonInfo!.lpMint);
@@ -109,7 +105,7 @@ export default class Farm extends Module {
       });
 
       if (!userRewardTokenPub)
-        this.logAndCreateError("cannot found target token accounts", this.scope.account.tokenAccouns);
+        this.logAndCreateError("cannot found target token accounts", this.scope.account.tokenAccounts);
 
       const rewardMint = rewardInfo.rewardMint.equals(PublicKey.default)
         ? new PublicKey(TOKEN_WSOL.mint)
@@ -131,7 +127,7 @@ export default class Farm extends Module {
     });
 
     if (!lockUserAccount)
-      this.logAndCreateError("cannot found lock vault", "tokenAccounts", this.scope.account.tokenAccouns);
+      this.logAndCreateError("cannot found lock vault", "tokenAccounts", this.scope.account.tokenAccounts);
 
     const data = Buffer.alloc(farmRewardLayout.span);
     farmRewardLayout.encode(
@@ -217,7 +213,7 @@ export default class Farm extends Module {
       txBuilder,
     });
     if (!userRewardTokenPub)
-      this.logAndCreateError("cannot found target token accounts", this.scope.account.tokenAccouns);
+      this.logAndCreateError("cannot found target token accounts", this.scope.account.tokenAccounts);
 
     const data = Buffer.alloc(farmRewardRestartLayout.span);
     farmRewardRestartLayout.encode(
@@ -275,7 +271,7 @@ export default class Farm extends Module {
       txBuilder,
     });
     if (!userRewardTokenPub)
-      this.logAndCreateError("annot found target token accounts", this.scope.account.tokenAccouns);
+      this.logAndCreateError("annot found target token accounts", this.scope.account.tokenAccounts);
 
     const rewardMint = newRewardInfo.rewardMint.equals(PublicKey.default)
       ? new PublicKey(TOKEN_WSOL.mint)

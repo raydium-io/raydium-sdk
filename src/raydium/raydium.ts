@@ -55,7 +55,7 @@ export class Raydium {
   public cluster: Cluster;
   public farm: Farm;
   public account: Account;
-  public liqudity: Liquidity;
+  public liquidity: Liquidity;
   public rawBalances: Map<string, string> = new Map();
   public apiData: ApiData;
 
@@ -70,7 +70,7 @@ export class Raydium {
 
     this._connection = connection;
     this.cluster = cluster;
-    this._owner = new Owner(owner);
+    this._owner = owner ? new Owner(owner) : undefined;
     this._signAllTransactions = config.signAllTransactions;
 
     this.api = api;
@@ -82,7 +82,7 @@ export class Raydium {
       tokenAccounts: config.tokenAccounts,
       tokenAccountRowInfos: config.tokenAccountRowInfos,
     });
-    this.liqudity = new Liquidity({ scope: this, moduleName: "Raydium.Liquidity" });
+    this.liquidity = new Liquidity({ scope: this, moduleName: "Raydium.Liquidity" });
 
     const now = new Date().getTime();
 
@@ -124,8 +124,14 @@ export class Raydium {
   }
 
   get owner(): Owner {
-    if (!this._owner) throw new Error("please connect wallet first");
+    if (!this._owner)
+      throw new Error("please provide owner in initialization or you can set by calling raydium.setOwner(owner)");
     return this._owner;
+  }
+
+  public setOwner(owner: PublicKey | Keypair): Raydium {
+    this._owner = new Owner(owner);
+    return this;
   }
 
   get connection(): Connection {
@@ -137,14 +143,7 @@ export class Raydium {
     return this._signAllTransactions;
   }
 
-  public updateConfig({ owner, ...params }: Pick<RaydiumLoadParams, "connection" | "owner">): void {
-    if (owner) this._owner = new Owner(owner);
-    Object.keys(params).map((key) => {
-      this[`_${key}`] = params[key];
-    });
-  }
-
-  public checkowner(): void {
+  public checkOwner(): void {
     if (!this.owner) {
       this.logger.error("please provide wallet address");
       throw new Error("please provide wallet address");

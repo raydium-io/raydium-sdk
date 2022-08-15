@@ -20,7 +20,7 @@ export default class Module {
   }
 
   protected createTxBuilder(feePayer?: PublicKey): TxBuilder {
-    this.scope.checkowner();
+    this.scope.checkOwner();
     return new TxBuilder({
       connection: this.scope.connection,
       feePayer: feePayer || this.scope.owner.publicKey,

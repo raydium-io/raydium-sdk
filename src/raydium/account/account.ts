@@ -23,10 +23,10 @@ export default class Account extends Module {
     this._tokenAccountRawInfos = params.tokenAccountRowInfos || [];
   }
 
-  get tokenAccouns(): TokenAccount[] {
+  get tokenAccounts(): TokenAccount[] {
     return this._tokenAccounts;
   }
-  get tokenAccounRawInfos(): TokenAccountRaw[] {
+  get tokenAccountRawInfos(): TokenAccountRaw[] {
     return this._tokenAccountRawInfos;
   }
 
@@ -56,7 +56,7 @@ export default class Account extends Module {
   }
 
   public async getAssociatedTokenAccount(mint: PublicKey): Promise<PublicKey> {
-    this.scope.checkowner();
+    this.scope.checkOwner();
     const userPubStr = this.scope.owner.toString();
     if (this._ataCache.has(userPubStr)) this._ataCache.get(userPubStr) as PublicKey;
     const ataPubKey = await Token.getAssociatedTokenAddress(
@@ -74,13 +74,13 @@ export default class Account extends Module {
     tokenAccounts: TokenAccount[];
     tokenAccountRawInfos: TokenAccountRaw[];
   }> {
-    this.scope.checkowner();
     if (this._tokenAccounts.length) {
       return {
         tokenAccounts: this._tokenAccounts,
         tokenAccountRawInfos: this._tokenAccountRawInfos,
       };
     }
+    this.scope.checkOwner();
 
     const defaultConfig = {};
     const customConfig = { ...defaultConfig, ...config };
