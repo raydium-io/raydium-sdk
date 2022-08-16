@@ -13,6 +13,7 @@ import {
   u64,
   u8,
 } from "../marshmallow";
+import { poolTypeV6 } from "./farm";
 
 import { FarmVersion } from "./type";
 
@@ -63,7 +64,8 @@ const FARM_STATE_LAYOUT_V6_REWARD_INFO = struct([
   publicKey("rewardVault"),
   publicKey("rewardMint"),
   publicKey("rewardSender"),
-  seq(u64(), 16, "padding"),
+  u64("rewardType"),
+  seq(u64(), 15, "padding"),
 ]);
 
 export const REAL_FARM_STATE_LAYOUT_V6 = struct([
@@ -176,6 +178,7 @@ export const FARM_STATE_LAYOUT_V6 = new Proxy(
         rewardVault: PublicKey;
         rewardMint: PublicKey;
         rewardSender: PublicKey;
+        rewardType: keyof typeof poolTypeV6;
       }[];
     } & GetLayoutSchemaFromStructure<typeof REAL_FARM_STATE_LAYOUT_V6>
   >,
@@ -189,6 +192,7 @@ export const FARM_STATE_LAYOUT_V6 = new Proxy(
             version:6,
             rewardInfos: originalResult.rewardInfos.map((item) => ({
               ...item,
+              rewardType: (Object.entries(poolTypeV6).find(i => String(i[1]) === item.rewardType.toString())?? ['Standard SPL']) [0],
             })),
           };
         };
