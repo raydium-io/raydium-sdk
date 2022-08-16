@@ -18,6 +18,8 @@ import {
 
 const logger = Logger.from("Farm");
 
+export const poolTypeV6 = {'Standard SPL': 0, 'Option tokens': 1} as const
+
 /* ================= pool keys ================= */
 export type FarmPoolKeys = {
   readonly id: PublicKey;
@@ -38,9 +40,11 @@ export type FarmPoolKeys = {
         readonly rewardOpenTime: number;
         readonly rewardEndTime: number;
         readonly rewardPerSecond: number;
+        readonly rewardType: keyof typeof poolTypeV6;
       }
   )[];
 };
+
 
 /* ================= user keys ================= */
 /**
@@ -59,6 +63,7 @@ export interface FarmRewardInfo {
   rewardPerSecond: BigNumberish;
   rewardOpenTime: BigNumberish;
   rewardEndTime: BigNumberish;
+  rewardType: keyof typeof poolTypeV6;
 }
 /* ================= make instruction and transaction ================= */
 export interface FarmDepositInstructionParams {
@@ -88,6 +93,7 @@ export interface FarmCreateInstructionParamsV6 {
     rewardPerSecond: BigNumberish;
     rewardOpenTime: BigNumberish;
     rewardEndTime: BigNumberish;
+    rewardType: keyof typeof poolTypeV6;
   }[];
 
   lockInfo: {
@@ -700,6 +706,7 @@ export class Farm extends Base {
       rewardPerSecond: BN;
       rewardOpenTime: BN;
       rewardEndTime: BN;
+      rewardType: BN;
     }[] = [];
     const rewardInfoKey: {
       rewardMint: PublicKey;
@@ -714,11 +721,25 @@ export class Farm extends Base {
         "rewardInfo.rewardOpenTime",
         rewardInfo.rewardOpenTime,
       );
+      logger.assertArgument(
+        poolTypeV6[rewardInfo.rewardType] !== undefined,
+        "reward type error",
+        "rewardInfo.rewardType",
+        rewardInfo.rewardType,
+      );
+      logger.assertArgument(
+        rewardInfo.rewardPerSecond > 0,
+        "rewardPerSecond error",
+        "rewardInfo.rewardPerSecond",
+        rewardInfo.rewardPerSecond,
+      );
+
       rewardInfoConfig.push({
         isSet: new BN(1),
         rewardPerSecond: parseBigNumberish(rewardInfo.rewardPerSecond),
         rewardOpenTime: parseBigNumberish(rewardInfo.rewardOpenTime),
         rewardEndTime: parseBigNumberish(rewardInfo.rewardEndTime),
+        rewardType: parseBigNumberish(poolTypeV6[rewardInfo.rewardType]),
       });
 
       let userRewardToken;
@@ -779,7 +800,7 @@ export class Farm extends Base {
 
     logger.assertArgument(lockUserAccount !== null, "cannot found lock vault", "tokenAccounts", userKeys.tokenAccounts);
 
-    const rewardTimeInfo = struct([u64("isSet"), u64("rewardPerSecond"), u64("rewardOpenTime"), u64("rewardEndTime")]);
+    const rewardTimeInfo = struct([u64("isSet"), u64("rewardPerSecond"), u64("rewardOpenTime"), u64("rewardEndTime"), u64("rewardType")]);
 
     const LAYOUT = struct([u8("instruction"), u64("nonce"), seq(rewardTimeInfo, 5, "rewardTimeInfo")]);
     const data = Buffer.alloc(LAYOUT.span);
@@ -1102,6 +1123,7 @@ export class Farm extends Base {
       u64("rewardPerSecond"),
       u64("rewardOpenTime"),
       u64("rewardEndTime"),
+      u64("rewardType"),
     ]);
     const data = Buffer.alloc(LAYOUT.span);
     LAYOUT.encode(
@@ -1111,6 +1133,7 @@ export class Farm extends Base {
         rewardPerSecond: parseBigNumberish(newRewardInfo.rewardPerSecond),
         rewardOpenTime: parseBigNumberish(newRewardInfo.rewardOpenTime),
         rewardEndTime: parseBigNumberish(newRewardInfo.rewardEndTime),
+        rewardType: parseBigNumberish(poolTypeV6[newRewardInfo.rewardType]),
       },
       data,
     );

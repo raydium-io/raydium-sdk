@@ -29,9 +29,11 @@ interface rewardInfoV3V4V5 {
 interface rewardInfoV6 {
   readonly rewardMint: string;
   readonly rewardVault: string;
-  readonly openTime: number;
-  readonly endTime: number;
-  readonly perSecond: number;
+  readonly rewardOpenTime: number;
+  readonly rewardEndTime: number;
+  readonly rewardPerSecond: number;
+  readonly rewardSender: string;
+  readonly rewardType: string;
 }
 export interface FarmPoolJsonInfoV3V4V5 {
   readonly id: string;
