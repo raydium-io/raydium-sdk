@@ -1,4 +1,4 @@
-import { PublicKey } from "@solana/web3.js";
+import { PublicKey, TransactionInstruction } from "@solana/web3.js";
 import { intersection, xor } from "lodash";
 
 import { ApiLiquidityPoolInfo } from "../../api/type";
@@ -8,17 +8,22 @@ import { jsonInfo2PoolKeys } from "../../common/utility";
 import { CurrencyAmount, Percent, Price, Token, TokenAmount } from "../../module";
 import { getPoolEnabledFeatures, includesToken } from "../liquidity/util";
 import ModuleBase from "../moduleBase";
-import { RouteType } from "../swap/type";
+import { MakeTransaction } from "../type";
 
-import { defaultRoutes, swapRouteMiddleMints } from "./constant";
+import { defaultRoutes, ROUTE_PROGRAM_ID_V1, swapRouteMiddleMints } from "./constant";
+import { makeSwapInFixedInInstruction, makeSwapOutFixedInInstruction } from "./instruction";
 import {
   AvailableSwapPools,
   GetAmountOutReturn,
   GetBestAmountOutParams,
   RouteComputeAmountOutParams,
   RouteInfo,
+  RouteSwapInstructionParams,
+  RouteSwapTransactionParams,
+  RouteType,
+  TradeParams,
 } from "./type";
-import { groupPools } from "./util";
+import { getAssociatedMiddleStatusAccount, groupPools } from "./util";
 
 export default class Swap extends ModuleBase {
   public async load(): Promise<void> {
@@ -26,38 +31,7 @@ export default class Swap extends ModuleBase {
     await this.scope.fetchLiquidity();
   }
 
-  public async getAvailablePools(params: {
-    currencyInMint: PublicKey;
-    currencyOutMint: PublicKey;
-  }): Promise<AvailableSwapPools> {
-    const { currencyInMint, currencyOutMint } = params;
-    const [mintIn, mintOut] = [currencyInMint.toBase58(), currencyOutMint.toBase58()];
-    const availablePools = this.scope.liquidity.allPools.filter(
-      (info) =>
-        (info.baseMint === mintIn && info.quoteMint === mintOut) ||
-        (info.baseMint === mintOut && info.quoteMint === mintIn),
-    );
-
-    const routeMiddleSet = new Set([...swapRouteMiddleMints, mintIn, mintOut]);
-    const candidateTokenMints = Array.from(routeMiddleSet); // list with swap tokens
-    routeMiddleSet.delete(mintIn);
-    routeMiddleSet.delete(mintOut);
-    const routeOnlyMints = Array.from(routeMiddleSet); // list without swap tokens
-    const routeRelated = this.scope.liquidity.allPools.filter((info) => {
-      const isCandidate = candidateTokenMints.includes(info.baseMint) && candidateTokenMints.includes(info.quoteMint);
-      const onlyInRoute = routeOnlyMints.includes(info.baseMint) && routeOnlyMints.includes(info.quoteMint);
-      return isCandidate && !onlyInRoute;
-    });
-
-    const best = await this.getBestPool({
-      availablePools,
-      officialPoolIdSet: this.scope.liquidity.allPoolIdSet.official,
-    });
-
-    return { availablePools, best, routeRelated };
-  }
-
-  public async getBestPool({
+  private async _getBestPool({
     availablePools,
     officialPoolIdSet,
   }: {
@@ -82,7 +56,7 @@ export default class Swap extends ModuleBase {
     return largest.jsonInfo;
   }
 
-  public computeRouteAmountOut({
+  private _computeRouteAmountOut({
     fromPoolKeys,
     toPoolKeys,
     fromPoolInfo,
@@ -207,13 +181,144 @@ export default class Swap extends ModuleBase {
     };
   }
 
+  /* ================= make instruction and transaction ================= */
+  private _makeSwapInstruction(params: RouteSwapInstructionParams): TransactionInstruction[] {
+    const { fixedSide } = params;
+
+    if (fixedSide === "in") {
+      return [makeSwapInFixedInInstruction(params), makeSwapOutFixedInInstruction(params)];
+    }
+
+    this.logAndCreateError("invalid params", "params", params);
+    throw new Error(`invalid params, params: ${params}`);
+  }
+
+  private async _swapWithRoute(params: RouteSwapTransactionParams): Promise<MakeTransaction> {
+    const { fromPoolKeys, toPoolKeys, amountIn, amountOut, fixedSide, config } = params;
+    this.logger.debug("amountIn:", amountIn, "amountOut:", amountOut);
+    if (amountIn.isZero() || amountOut.isZero())
+      this.logAndCreateError("amounts must greater than zero", "currencyAmounts", {
+        amountIn: amountIn.toFixed(),
+        amountOut: amountOut.toFixed(),
+      });
+
+    const { bypassAssociatedCheck = false } = config || {};
+    // handle currency in & out (convert SOL to WSOL)
+    const tokenIn = amountIn instanceof TokenAmount ? amountIn.token : Token.WSOL;
+    const tokenOut = amountOut instanceof TokenAmount ? amountOut.token : Token.WSOL;
+
+    const tokenAccountIn = await this.scope.account.getCreatedTokenAccount({
+      mint: tokenIn.mint,
+      associatedOnly: false,
+    });
+    const tokenAccountOut = await this.scope.account.getCreatedTokenAccount({
+      mint: tokenOut.mint,
+    });
+
+    const fromPoolMints = [fromPoolKeys.baseMint.toBase58(), fromPoolKeys.quoteMint.toBase58()];
+    const toPoolMints = [toPoolKeys.baseMint.toBase58(), toPoolKeys.quoteMint.toBase58()];
+    const intersectionMints = intersection(fromPoolMints, toPoolMints);
+    const _middleMint = intersectionMints[0];
+    const middleMint = new PublicKey(_middleMint);
+    const tokenAccountMiddle = await this.scope.account.getCreatedTokenAccount({
+      mint: middleMint,
+    });
+
+    const [amountInRaw, amountOutRaw] = [amountIn.raw, amountOut.raw];
+
+    const txBuilder = this.createTxBuilder();
+
+    const { tokenAccount: _tokenAccountIn, ...accountInInstruction } = await this.scope.account.handleTokenAccount({
+      side: "in",
+      amount: amountInRaw,
+      mint: tokenIn.mint,
+      tokenAccount: tokenAccountIn,
+      bypassAssociatedCheck,
+    });
+    txBuilder.addInstruction(accountInInstruction);
+    const { tokenAccount: _tokenAccountOut, ...accountOutInstruction } = await this.scope.account.handleTokenAccount({
+      side: "out",
+      amount: 0,
+      mint: tokenOut.mint,
+      tokenAccount: tokenAccountOut,
+      bypassAssociatedCheck,
+    });
+    txBuilder.addInstruction(accountOutInstruction);
+    const { tokenAccount: _tokenAccountMiddle, ...accountMiddleInstruction } =
+      await this.scope.account.handleTokenAccount({
+        side: "in",
+        amount: 0,
+        mint: middleMint,
+        tokenAccount: tokenAccountMiddle,
+        bypassAssociatedCheck,
+      });
+    txBuilder.addInstruction(accountMiddleInstruction);
+    txBuilder.addInstruction({
+      instructions: this._makeSwapInstruction({
+        fromPoolKeys,
+        toPoolKeys,
+        userKeys: {
+          inTokenAccount: _tokenAccountIn,
+          outTokenAccount: _tokenAccountOut,
+          middleTokenAccount: _tokenAccountMiddle,
+          middleStatusAccount: await getAssociatedMiddleStatusAccount({
+            programId: ROUTE_PROGRAM_ID_V1,
+            fromPoolId: fromPoolKeys.id,
+            middleMint,
+            owner: this.scope.ownerPubKey,
+          }),
+          owner: this.scope.ownerPubKey,
+        },
+        amountIn: amountInRaw,
+        amountOut: amountOutRaw,
+        fixedSide,
+      }),
+    });
+    return await txBuilder.build();
+  }
+
+  public async getAvailablePools(params: {
+    currencyIn: PublicKey;
+    currencyOut: PublicKey;
+  }): Promise<AvailableSwapPools> {
+    this.checkDisabled();
+    const { currencyIn, currencyOut } = params;
+    const [mintIn, mintOut] = [currencyIn.toBase58(), currencyOut.toBase58()];
+    const availablePools = this.scope.liquidity.allPools.filter(
+      (info) =>
+        (info.baseMint === mintIn && info.quoteMint === mintOut) ||
+        (info.baseMint === mintOut && info.quoteMint === mintIn),
+    );
+
+    const routeMiddleSet = new Set([...swapRouteMiddleMints, mintIn, mintOut]);
+    const candidateTokenMints = Array.from(routeMiddleSet); // list with swap tokens
+    routeMiddleSet.delete(mintIn);
+    routeMiddleSet.delete(mintOut);
+    const routeOnlyMints = Array.from(routeMiddleSet); // list without swap tokens
+    const routeRelated = this.scope.liquidity.allPools.filter((info) => {
+      const isCandidate = candidateTokenMints.includes(info.baseMint) && candidateTokenMints.includes(info.quoteMint);
+      const onlyInRoute = routeOnlyMints.includes(info.baseMint) && routeOnlyMints.includes(info.quoteMint);
+      return isCandidate && !onlyInRoute;
+    });
+
+    const best = await this._getBestPool({
+      availablePools,
+      officialPoolIdSet: this.scope.liquidity.allPoolIdSet.official,
+    });
+
+    return { availablePools, best, routeRelated };
+  }
+
   public async getBestAmountOut({
+    inputMint,
+    outputMint,
     pools,
     amountIn,
     currencyOut,
     slippage,
     features,
   }: GetBestAmountOutParams): Promise<GetAmountOutReturn> {
+    this.checkDisabled();
     const sdkParsedInfo = await this.scope.liquidity.sdkParseJsonLiquidityInfo(pools || []);
     const _pools = (pools || []).map((pool, idx) => ({
       poolKeys: jsonInfo2PoolKeys(pool),
@@ -221,7 +326,8 @@ export default class Swap extends ModuleBase {
     }));
     const _features = features || defaultRoutes;
     this.logger.debug("features:", _features);
-    if (!_pools.length) this.logAndCreateError("must provide at least one source of trade", _pools);
+    if (!_pools.length && (!inputMint || !outputMint))
+      this.logAndCreateError("please provide at least one source of trade or (inputMint & outputMint)", _pools);
 
     // the route of the trade
     let routes: RouteInfo[] = [];
@@ -281,7 +387,7 @@ export default class Swap extends ModuleBase {
 
         // * if currencies not match with pool, will throw error
         try {
-          const { amountOut, minAmountOut, executionPrice, priceImpact, fee } = this.computeRouteAmountOut({
+          const { amountOut, minAmountOut, executionPrice, priceImpact, fee } = this._computeRouteAmountOut({
             fromPoolKeys,
             toPoolKeys,
             fromPoolInfo,
@@ -320,5 +426,40 @@ export default class Swap extends ModuleBase {
       priceImpact: _priceImpact,
       fee: _fee,
     };
+  }
+
+  public async trade(params: TradeParams): Promise<MakeTransaction> {
+    this.checkDisabled();
+    this.scope.checkOwner();
+    const { routes, routeType, amountIn, amountOut, fixedSide, config } = params;
+    if (routeType === "amm") {
+      if (routes.length !== 1)
+        this.logAndCreateError("invalid routes with routeType", "routes", {
+          routeType,
+          routes,
+        });
+      return await this.scope.liquidity.swapWithAMM({
+        poolKeys: routes[0].keys,
+        amountIn,
+        amountOut,
+        fixedSide,
+        config,
+      });
+    } else if (routeType === "route") {
+      if (routes.length !== 2)
+        this.logAndCreateError("invalid routes with routeType", "routes", {
+          routeType,
+          routes,
+        });
+      return await this._swapWithRoute({
+        fromPoolKeys: routes[0].keys,
+        toPoolKeys: routes[1].keys,
+        amountIn,
+        amountOut,
+        fixedSide,
+        config,
+      });
+    }
+    return await this.createTxBuilder().build();
   }
 }

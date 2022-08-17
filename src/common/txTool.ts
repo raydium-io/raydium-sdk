@@ -43,6 +43,22 @@ export class TxBuilder {
     this.owner = params.owner;
   }
 
+  get AllTxData(): {
+    instructions: TransactionInstruction[];
+    endInstructions: TransactionInstruction[];
+    signers: Signer[];
+  } {
+    return {
+      instructions: this.instructions,
+      endInstructions: this.endInstructions,
+      signers: this.signers,
+    };
+  }
+
+  get allInstructions(): TransactionInstruction[] {
+    return [...this.instructions, ...this.endInstructions];
+  }
+
   public addInstruction({ instructions = [], endInstructions = [], signers = [] }: AddInstructionParam): TxBuilder {
     this.instructions.push(...instructions);
     this.endInstructions.push(...endInstructions);
@@ -178,4 +194,16 @@ export function parseSimulateValue(log: string, key: string): any {
   }
 
   return results[1];
+}
+
+export interface ProgramAddress {
+  publicKey: PublicKey;
+  nonce: number;
+}
+export async function findProgramAddress(
+  seeds: Array<Buffer | Uint8Array>,
+  programId: PublicKey,
+): Promise<ProgramAddress> {
+  const [publicKey, nonce] = await PublicKey.findProgramAddress(seeds, programId);
+  return { publicKey, nonce };
 }

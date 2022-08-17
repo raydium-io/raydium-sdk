@@ -1,7 +1,8 @@
-import { Commitment, Connection, PublicKey } from "@solana/web3.js";
+import { Commitment, PublicKey, Signer, Transaction } from "@solana/web3.js";
 import BN from "bn.js";
 
 import { ApiLiquidityPoolInfo } from "../../api/type";
+import { BigNumberish } from "../../common/bignumber";
 import { Currency, CurrencyAmount, Percent, Price, Token, TokenAmount } from "../../module";
 import { ReplaceType } from "../type";
 
@@ -10,6 +11,7 @@ export type LiquidityPoolKeysV4 = {
   [T in keyof ApiLiquidityPoolInfo]: string extends ApiLiquidityPoolInfo[T] ? PublicKey : ApiLiquidityPoolInfo[T];
 };
 
+export type SwapSide = "in" | "out";
 export type AmountSide = "base" | "quote";
 /**
  * Full liquidity pool keys that build transaction need
@@ -85,3 +87,51 @@ export type LiquidityComputeAmountOutReturn =
       priceImpact: Percent;
       fee: CurrencyAmount;
     };
+
+export interface LiquiditySwapTransactionParams {
+  poolKeys: LiquidityPoolKeys;
+  payer?: PublicKey;
+  amountIn: CurrencyAmount | TokenAmount;
+  amountOut: CurrencyAmount | TokenAmount;
+  fixedSide: SwapSide;
+  config?: {
+    bypassAssociatedCheck?: boolean;
+  };
+}
+export interface LiquiditySwapFixedOutInstructionParamsV4 {
+  poolKeys: LiquidityPoolKeys;
+  userKeys: {
+    tokenAccountIn: PublicKey;
+    tokenAccountOut: PublicKey;
+    owner: PublicKey;
+  };
+  // maximum amount in
+  maxAmountIn: BigNumberish;
+  amountOut: BigNumberish;
+}
+
+/**
+ * Swap instruction params
+ */
+export interface LiquiditySwapInstructionParams {
+  poolKeys: LiquidityPoolKeys;
+  userKeys: {
+    tokenAccountIn: PublicKey;
+    tokenAccountOut: PublicKey;
+    owner: PublicKey;
+  };
+  amountIn: BigNumberish;
+  amountOut: BigNumberish;
+  fixedSide: SwapSide;
+}
+
+export interface LiquiditySwapFixedInInstructionParamsV4 {
+  poolKeys: LiquidityPoolKeys;
+  userKeys: {
+    tokenAccountIn: PublicKey;
+    tokenAccountOut: PublicKey;
+    owner: PublicKey;
+  };
+  amountIn: BigNumberish;
+  minAmountOut: BigNumberish;
+}

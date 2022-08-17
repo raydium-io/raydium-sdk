@@ -1,41 +1,7 @@
-import { TransactionInstruction } from "@solana/web3.js";
-
-import { accountMeta } from "../../common/pubKey";
-import { struct, u8 } from "../../marshmallow";
 import { CurrencyAmount, Token, TokenAmount } from "../../module";
 
 import { LiquidityPoolStatus } from "./constant";
 import { AmountSide, LiquidityPoolInfo, LiquidityPoolKeys } from "./type";
-
-export function makeSimulatePoolInfoInstruction(poolKeys: LiquidityPoolKeys): TransactionInstruction {
-  const LAYOUT = struct([u8("instruction"), u8("simulateType")]);
-  const data = Buffer.alloc(LAYOUT.span);
-  LAYOUT.encode(
-    {
-      instruction: 12,
-      simulateType: 0,
-    },
-    data,
-  );
-
-  const keys = [
-    // amm
-    accountMeta({ pubkey: poolKeys.id, isWritable: false }),
-    accountMeta({ pubkey: poolKeys.authority, isWritable: false }),
-    accountMeta({ pubkey: poolKeys.openOrders, isWritable: false }),
-    accountMeta({ pubkey: poolKeys.baseVault, isWritable: false }),
-    accountMeta({ pubkey: poolKeys.quoteVault, isWritable: false }),
-    accountMeta({ pubkey: poolKeys.lpMint, isWritable: false }),
-    // serum
-    accountMeta({ pubkey: poolKeys.marketId, isWritable: false }),
-  ];
-
-  return new TransactionInstruction({
-    programId: poolKeys.programId,
-    keys,
-    data,
-  });
-}
 
 /**
  * Get currency amount side of liquidity pool

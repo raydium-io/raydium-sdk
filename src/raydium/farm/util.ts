@@ -1,10 +1,11 @@
-import { Connection, PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY, TransactionInstruction } from "@solana/web3.js";
+import { Connection, PublicKey } from "@solana/web3.js";
 import BN from "bn.js";
 
 import { GetMultipleAccountsInfoConfig, getMultipleAccountsInfoWithCustomFlags } from "../../common/accountInfo";
 import { parseBigNumberish } from "../../common/bignumber";
 import { createLogger } from "../../common/logger";
-import { accountMeta, PublicKeyish, tryParsePublicKey, validateAndParsePublicKey } from "../../common/pubKey";
+import { PublicKeyish, tryParsePublicKey, validateAndParsePublicKey } from "../../common/pubKey";
+import { findProgramAddress, ProgramAddress } from "../../common/txTool";
 import { splAccountLayout } from "../account/layout";
 import { SplAccount } from "../account/types";
 
@@ -12,24 +13,10 @@ import {
   FARM_PROGRAMID_TO_VERSION, FARM_VERSION_TO_LEDGER_LAYOUT, FARM_VERSION_TO_PROGRAMID, FARM_VERSION_TO_STATE_LAYOUT,
   FarmVersion,
 } from "./config";
-import { associatedLedgerAccountLayout, FarmLedger, FarmLedgerLayout, FarmState, FarmStateLayout } from "./layout";
+import { FarmLedger, FarmLedgerLayout, FarmState, FarmStateLayout } from "./layout";
 import { FarmPoolJsonInfo, FarmPoolKeys, FarmRewardInfo, FarmRewardInfoConfig, SdkParsedFarmInfo } from "./type";
 
 const logger = createLogger("Raydium.farm.util");
-
-interface ProgramAddress {
-  publicKey: PublicKey;
-  nonce: number;
-}
-
-export async function findProgramAddress(
-  seeds: Array<Buffer | Uint8Array>,
-  programId: PublicKey,
-): Promise<ProgramAddress> {
-  const [publicKey, nonce] = await PublicKey.findProgramAddress(seeds, programId);
-  return { publicKey, nonce };
-}
-
 interface AssociatedLedgerPoolAccount {
   programId: PublicKey;
   poolId: PublicKey;
@@ -353,38 +340,4 @@ export async function mergeSdkFarmInfo(
       } as unknown as SdkParsedFarmInfo),
   );
   return result;
-}
-
-export async function createAssociatedLedgerAccountInstruction(params: {
-  version: number;
-  id: PublicKey;
-  programId: PublicKey;
-  ledger: PublicKey;
-  owner: PublicKey;
-}): Promise<TransactionInstruction> {
-  const { version, id, ledger, programId, owner } = params;
-  const instruction = { 3: 9, 5: 10 }[version];
-  if (!instruction) logger.logWithError(`invalid farm pool version: ${version}`);
-
-  const data = Buffer.alloc(associatedLedgerAccountLayout.span);
-  associatedLedgerAccountLayout.encode(
-    {
-      instruction: instruction!,
-    },
-    data,
-  );
-
-  const keys = [
-    accountMeta({ pubkey: id }),
-    accountMeta({ pubkey: ledger }),
-    accountMeta({ pubkey: owner, isWritable: false }),
-    accountMeta({ pubkey: SystemProgram.programId, isWritable: false }),
-    accountMeta({ pubkey: SYSVAR_RENT_PUBKEY, isWritable: false }),
-  ];
-
-  return new TransactionInstruction({
-    programId,
-    keys,
-    data,
-  });
 }

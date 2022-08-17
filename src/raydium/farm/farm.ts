@@ -6,8 +6,8 @@ import BN from "bn.js";
 
 import { accountMeta, AddInstructionParam, commonSystemAccountMeta, parseBigNumberish, TxBuilder } from "../../common";
 import { SOLMint } from "../../common/pubKey";
-import { closeAccountInstruction, createWrappedNativeAccountInstructions } from "../account/util";
-import ModuleBase, { ModuleBaseProps } from "../moduleBase";
+import { createWrappedNativeAccountInstructions } from "../account/instruction";
+import ModuleBase from "../moduleBase";
 import { TOKEN_WSOL } from "../token/constant";
 import { MakeTransaction } from "../type";
 
@@ -15,6 +15,7 @@ import {
   FARM_LOCK_MINT, FARM_LOCK_VAULT, farmDespotVersionToInstruction, farmWithdrawVersionToInstruction, isValidFarmVersion,
   validateFarmRewards,
 } from "./config";
+import { createAssociatedLedgerAccountInstruction } from "./instruction";
 import {
   dwLayout, farmAddRewardLayout, farmRewardLayout, farmRewardRestartLayout, farmStateV6Layout, withdrawRewardLayout,
 } from "./layout";
@@ -22,9 +23,8 @@ import {
   FarmDWParam, FarmPoolJsonInfo, FarmRewardInfo, FarmRewardInfoConfig, RewardInfoKey, RewardSetParam, SdkParsedFarmInfo,
 } from "./type";
 import {
-  calFarmRewardAmount, createAssociatedLedgerAccountInstruction, farmInfoStringToPubKey, farmRewardInfoToConfig,
-  getAssociatedAuthority, getAssociatedLedgerAccount, getAssociatedLedgerPoolAccount, getFarmProgramId,
-  mergeSdkFarmInfo,
+  calFarmRewardAmount, farmInfoStringToPubKey, farmRewardInfoToConfig, getAssociatedAuthority,
+  getAssociatedLedgerAccount, getAssociatedLedgerPoolAccount, getFarmProgramId, mergeSdkFarmInfo,
 } from "./util";
 
 export default class Farm extends ModuleBase {
@@ -70,30 +70,21 @@ export default class Farm extends ModuleBase {
     return farmInfo!;
   }
 
+  // token account needed
   private async _getUserRewardInfo({ payer, rewardInfo }: { payer: PublicKey; rewardInfo: FarmRewardInfo }): Promise<{
     rewardPubKey?: PublicKey;
     newInstruction?: AddInstructionParam;
   }> {
     if (rewardInfo.rewardMint.equals(SOLMint)) {
-      const { instructions, signer } = await createWrappedNativeAccountInstructions({
+      const txInstructions = await createWrappedNativeAccountInstructions({
         connection: this.scope.connection,
         owner: this.scope.ownerPubKey,
         payer,
         amount: calFarmRewardAmount(rewardInfo),
       });
       return {
-        rewardPubKey: signer.publicKey,
-        newInstruction: {
-          instructions,
-          signers: [signer],
-          endInstructions: [
-            closeAccountInstruction({
-              tokenAccount: signer.publicKey,
-              payer,
-              owner: this.scope.ownerPubKey,
-            }),
-          ],
-        },
+        rewardPubKey: txInstructions.signers![0].publicKey,
+        newInstruction: txInstructions,
       };
     }
 
@@ -104,6 +95,7 @@ export default class Farm extends ModuleBase {
     };
   }
 
+  // token account needed
   public async create({ poolId, rewardInfos, payer }: RewardSetParam): Promise<MakeTransaction> {
     this.checkDisabled();
     this.scope.checkOwner();
@@ -225,6 +217,7 @@ export default class Farm extends ModuleBase {
       .build();
   }
 
+  // token account needed
   public async restartReward({
     farmId,
     payer,
@@ -295,6 +288,7 @@ export default class Farm extends ModuleBase {
       .build();
   }
 
+  // token account needed
   public async addNewRewardToken(params: {
     farmId: string;
     payer?: PublicKey;
@@ -514,6 +508,7 @@ export default class Farm extends ModuleBase {
       .build();
   }
 
+  // token account needed
   public async withdrawFarmReward({
     farmId,
     withdrawMint,
@@ -542,23 +537,14 @@ export default class Farm extends ModuleBase {
     });
 
     if (withdrawMint.equals(SOLMint)) {
-      const { instructions, signer } = await createWrappedNativeAccountInstructions({
+      const txInstruction = await createWrappedNativeAccountInstructions({
         connection: this.scope.connection,
         owner: this.scope.ownerPubKey,
         payer: this.scope.ownerPubKey,
         amount: calFarmRewardAmount(rewardInfo!),
       });
-      userRewardToken = signer.publicKey;
-      txBuilder.addInstruction({ instructions, signers: [signer] });
-      txBuilder.addInstruction({
-        endInstructions: [
-          closeAccountInstruction({
-            tokenAccount: signer.publicKey,
-            payer: this.scope.ownerPubKey,
-            owner: this.scope.ownerPubKey,
-          }),
-        ],
-      });
+      userRewardToken = txInstruction.signers![0].publicKey;
+      txBuilder.addInstruction(txInstruction);
     } else {
       const selectUserRewardToken = await this.scope.account.getCreatedTokenAccount({
         mint: withdrawMint,

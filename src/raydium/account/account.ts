@@ -5,8 +5,9 @@ import { AddInstructionParam } from "../../common/txTool";
 import ModuleBase, { ModuleBaseProps } from "../moduleBase";
 import { TOKEN_WSOL } from "../token/constant";
 
-import { TokenAccount, TokenAccountRaw } from "./types";
-import { closeAccountInstruction, parseTokenAccountResp } from "./util";
+import { closeAccountInstruction, createWrappedNativeAccountInstructions } from "./instruction";
+import { HandleTokenAccountParams, TokenAccount, TokenAccountRaw } from "./types";
+import { parseTokenAccountResp } from "./util";
 
 export interface TokenAccountDataProp {
   tokenAccounts?: TokenAccount[];
@@ -177,5 +178,48 @@ export default class Account extends ModuleBase {
       pubKey: tokenAccountAddress,
       newInstructions: newTxInstructions,
     };
+  }
+
+  public async handleTokenAccount(
+    params: HandleTokenAccountParams,
+  ): Promise<AddInstructionParam & { tokenAccount: PublicKey }> {
+    const { side, amount, mint, tokenAccount, payer = this.scope.ownerPubKey, bypassAssociatedCheck } = params;
+
+    const txBuilder = this.createTxBuilder();
+
+    const ata = await Token.getAssociatedTokenAddress(
+      ASSOCIATED_TOKEN_PROGRAM_ID,
+      TOKEN_PROGRAM_ID,
+      mint,
+      this.scope.ownerPubKey,
+      true,
+    );
+
+    if (new PublicKey(TOKEN_WSOL.mint).equals(mint)) {
+      const txInstruction = await createWrappedNativeAccountInstructions({
+        connection: this.scope.connection,
+        owner: this.scope.ownerPubKey,
+        payer,
+        amount,
+      });
+      txBuilder.addInstruction(txInstruction);
+      return { tokenAccount: txInstruction.signers![0].publicKey, ...txInstruction };
+    } else if (!tokenAccount || (side === "out" && !ata.equals(tokenAccount) && !bypassAssociatedCheck)) {
+      return {
+        tokenAccount: ata,
+        instructions: [
+          Token.createAssociatedTokenAccountInstruction(
+            ASSOCIATED_TOKEN_PROGRAM_ID,
+            TOKEN_PROGRAM_ID,
+            mint,
+            ata,
+            this.scope.ownerPubKey,
+            this.scope.ownerPubKey,
+          ),
+        ],
+      };
+    }
+
+    return { tokenAccount };
   }
 }

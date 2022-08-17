@@ -1,3 +1,4 @@
+import { TransactionInstruction } from "@solana/web3.js";
 import BN from "bn.js";
 
 import { ApiLiquidityPoolInfo } from "../../api";
@@ -7,24 +8,20 @@ import { parseSimulateLogToJson, parseSimulateValue, simulateMultipleInstruction
 import { jsonInfo2PoolKeys } from "../../common/utility";
 import { CurrencyAmount, Percent, Price, Token, TokenAmount } from "../../module";
 import ModuleBase, { ModuleBaseProps } from "../moduleBase";
+import { MakeTransaction } from "../type";
 
 import { LIQUIDITY_FEES_DENOMINATOR, LIQUIDITY_FEES_NUMERATOR } from "./constant";
 import {
-  formatLayout,
-  getDxByDyBaseIn,
-  getDyByDxBaseIn,
-  getStablePrice,
-  MODEL_DATA_PUBKEY,
-  StableModelLayout,
+  makeSimulatePoolInfoInstruction, makeSwapFixedInInstruction, makeSwapFixedOutInstruction,
+} from "./instruction";
+import {
+  formatLayout, getDxByDyBaseIn, getDyByDxBaseIn, getStablePrice, MODEL_DATA_PUBKEY, StableModelLayout,
 } from "./stable";
 import {
-  LiquidityComputeAmountOutParams,
-  LiquidityComputeAmountOutReturn,
-  LiquidityFetchMultipleInfoParams,
-  LiquidityPoolInfo,
-  SDKParsedLiquidityInfo,
+  LiquidityComputeAmountOutParams, LiquidityComputeAmountOutReturn, LiquidityFetchMultipleInfoParams, LiquidityPoolInfo,
+  LiquiditySwapInstructionParams, LiquiditySwapTransactionParams, SDKParsedLiquidityInfo,
 } from "./type";
-import { getAmountSide, includesToken, makeSimulatePoolInfoInstruction } from "./util";
+import { getAmountSide, includesToken } from "./util";
 
 let stableModelData: StableModelLayout = {
   accountType: 0,
@@ -64,7 +61,7 @@ export default class Liquidity extends ModuleBase {
     };
   }
 
-  public async initStableModelLayout(): Promise<void> {
+  private async _initStableModelLayout(): Promise<void> {
     if (stableModelData.validDataCount === 0) {
       if (this.scope.connection) {
         const acc = await this.scope.connection.getAccountInfo(MODEL_DATA_PUBKEY);
@@ -74,7 +71,7 @@ export default class Liquidity extends ModuleBase {
   }
 
   public async fetchMultipleLiquidityInfo({ pools }: LiquidityFetchMultipleInfoParams): Promise<LiquidityPoolInfo[]> {
-    await this.initStableModelLayout();
+    await this._initStableModelLayout();
 
     const instructions = pools.map((pool) => makeSimulatePoolInfoInstruction(pool));
     const logs = await simulateMultipleInstruction(this.scope.connection, instructions, "GetPoolData");
@@ -139,6 +136,7 @@ export default class Liquidity extends ModuleBase {
     currencyOut,
     slippage,
   }: LiquidityComputeAmountOutParams): LiquidityComputeAmountOutReturn {
+    this.checkDisabled();
     const logger = createLogger("Liquidity computeAmountOut");
     const tokenIn = amountIn instanceof TokenAmount ? amountIn.token : Token.WSOL;
     const tokenOut = currencyOut instanceof Token ? currencyOut : Token.WSOL;
@@ -173,20 +171,12 @@ export default class Liquidity extends ModuleBase {
       });
     } else {
       const p = getStablePrice(stableModelData, baseReserve.toNumber(), quoteReserve.toNumber(), false);
-      if (input === "quote")
-        currentPrice = new Price({
-          baseCurrency: currencyIn,
-          denominator: new BN(p * 1e6),
-          quoteCurrency: currencyOut,
-          numerator: new BN(1e6),
-        });
-      else
-        currentPrice = new Price({
-          baseCurrency: currencyIn,
-          denominator: new BN(1e6),
-          quoteCurrency: currencyOut,
-          numerator: new BN(p * 1e6),
-        });
+      currentPrice = new Price({
+        baseCurrency: currencyIn,
+        denominator: input === "quote" ? new BN(p * 1e6) : new BN(1e6),
+        quoteCurrency: currencyOut,
+        numerator: input === "quote" ? new BN(1e6) : new BN(p * 1e6),
+      });
     }
     logger.debug("currentPrice:", `1 ${currencyIn.symbol} ≈ ${currentPrice.toFixed()} ${currencyOut.symbol}`);
     logger.debug(
@@ -208,25 +198,10 @@ export default class Liquidity extends ModuleBase {
       } else {
         feeRaw = amountInRaw.mul(new BN(2)).div(new BN(10000));
         const amountInWithFee = amountInRaw.sub(feeRaw);
-        if (input === "quote")
-          amountOutRaw = new BN(
-            getDyByDxBaseIn(
-              stableModelData,
-              quoteReserve.toNumber(),
-              baseReserve.toNumber(),
-              amountInWithFee.toNumber(),
-            ),
-          );
-        else {
-          amountOutRaw = new BN(
-            getDxByDyBaseIn(
-              stableModelData,
-              quoteReserve.toNumber(),
-              baseReserve.toNumber(),
-              amountInWithFee.toNumber(),
-            ),
-          );
-        }
+        const convertFn = input === "quote" ? getDyByDxBaseIn : getDxByDyBaseIn;
+        amountOutRaw = new BN(
+          convertFn(stableModelData, quoteReserve.toNumber(), baseReserve.toNumber(), amountInWithFee.toNumber()),
+        );
       }
     }
 
@@ -240,8 +215,7 @@ export default class Liquidity extends ModuleBase {
       currencyOut instanceof Token
         ? new TokenAmount(currencyOut, minAmountOutRaw)
         : new CurrencyAmount(currencyOut, minAmountOutRaw);
-    logger.debug("amountOut:", amountOut.toFixed());
-    logger.debug("minAmountOut:", minAmountOut.toFixed());
+    logger.debug("amountOut:", amountOut.toFixed(), "minAmountOut:", minAmountOut.toFixed());
 
     let executionPrice = new Price({
       baseCurrency: currencyIn,
@@ -267,7 +241,6 @@ export default class Liquidity extends ModuleBase {
       parseInt(String(Math.abs(parseFloat(executionPrice.toFixed()) - parseFloat(currentPrice.toFixed())) * 1e9)),
       parseInt(String(parseFloat(currentPrice.toFixed()) * 1e9)),
     );
-
     const fee =
       currencyIn instanceof Token ? new TokenAmount(currencyIn, feeRaw) : new CurrencyAmount(currencyIn, feeRaw);
 
@@ -279,5 +252,100 @@ export default class Liquidity extends ModuleBase {
       priceImpact,
       fee,
     };
+  }
+
+  public makeSwapInstruction(params: LiquiditySwapInstructionParams): TransactionInstruction {
+    const { poolKeys, userKeys, amountIn, amountOut, fixedSide } = params;
+    const { version } = poolKeys;
+
+    if (version === 4 || version === 5) {
+      const props = { poolKeys, userKeys };
+      if (fixedSide === "in") {
+        return makeSwapFixedInInstruction(
+          {
+            ...props,
+            amountIn,
+            minAmountOut: amountOut,
+          },
+          version,
+        );
+      } else if (fixedSide === "out") {
+        return makeSwapFixedOutInstruction(
+          {
+            ...props,
+            maxAmountIn: amountIn,
+            amountOut,
+          },
+          version,
+        );
+      }
+      this.logAndCreateError("invalid params", "params", params);
+    }
+
+    this.logAndCreateError("invalid version", "poolKeys.version", version);
+    throw new Error("invalid version");
+  }
+
+  public async swapWithAMM(params: LiquiditySwapTransactionParams): Promise<MakeTransaction> {
+    const { poolKeys, payer, amountIn, amountOut, fixedSide, config } = params;
+    this.logger.debug("amountIn:", amountIn);
+    this.logger.debug("amountOut:", amountOut);
+    if (amountIn.isZero() || amountOut.isZero())
+      this.logAndCreateError("amounts must greater than zero", "currencyAmounts", {
+        amountIn: amountIn.toFixed(),
+        amountOut: amountOut.toFixed(),
+      });
+
+    const txBuilder = this.createTxBuilder();
+    const { bypassAssociatedCheck = false } = config || {}
+
+    // handle currency in & out (convert SOL to WSOL)
+    const tokenIn = amountIn instanceof TokenAmount ? amountIn.token : Token.WSOL;
+    const tokenOut = amountOut instanceof TokenAmount ? amountOut.token : Token.WSOL;
+
+    const tokenAccountIn = await this.scope.account.getCreatedTokenAccount({
+      mint: tokenIn.mint,
+      associatedOnly: false,
+    });
+    const tokenAccountOut = await this.scope.account.getCreatedTokenAccount({
+      mint: tokenOut.mint,
+    });
+
+    const [amountInRaw, amountOutRaw] = [amountIn.raw, amountOut.raw];
+
+    const { tokenAccount: _tokenAccountIn, ...inTxInstructions } = await this.scope.account.handleTokenAccount({
+      side: "in",
+      amount: amountInRaw,
+      mint: tokenIn.mint,
+      tokenAccount: tokenAccountIn,
+      bypassAssociatedCheck,
+    });
+    txBuilder.addInstruction(inTxInstructions);
+
+    const { tokenAccount: _tokenAccountOut, ...outTxInstructions } = await this.scope.account.handleTokenAccount({
+      side: "out",
+      amount: 0,
+      mint: tokenOut.mint,
+      tokenAccount: tokenAccountOut,
+      payer,
+      bypassAssociatedCheck,
+    });
+    txBuilder.addInstruction(outTxInstructions);
+    txBuilder.addInstruction({
+      instructions: [
+        this.makeSwapInstruction({
+          poolKeys,
+          userKeys: {
+            tokenAccountIn: _tokenAccountIn,
+            tokenAccountOut: _tokenAccountOut,
+            owner: this.scope.ownerPubKey,
+          },
+          amountIn: amountInRaw,
+          amountOut: amountOutRaw,
+          fixedSide,
+        }),
+      ],
+    });
+    return await txBuilder.build();
   }
 }

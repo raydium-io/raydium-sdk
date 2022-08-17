@@ -1,6 +1,7 @@
 import { PublicKey } from "@solana/web3.js";
 import BN from "bn.js";
 
+import { BigNumberish } from "../../common/bignumber";
 import { GetStructureSchema } from "../../marshmallow";
 
 import { splAccountLayout } from "./layout";
@@ -23,4 +24,13 @@ export interface TokenAccount {
 export interface getCreatedTokenAccountParams {
   mint: PublicKey;
   config?: { associatedOnly?: boolean };
+}
+
+export interface HandleTokenAccountParams {
+  side: "in" | "out";
+  amount: BigNumberish;
+  mint: PublicKey;
+  tokenAccount?: PublicKey;
+  payer?: PublicKey;
+  bypassAssociatedCheck: boolean;
 }
