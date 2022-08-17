@@ -15,7 +15,11 @@ const stream = pretty({
 });
 const globalLogger = pino({ base: null }, stream);
 
-export function createLogger(moduleName: string): Logger {
+export interface LoggerInstance extends Logger {
+  logWithError: (...args: any) => void;
+}
+
+export function createLogger(moduleName: string): LoggerInstance {
   let logger = get(moduleLoggers, moduleName);
 
   if (!logger) {
@@ -25,6 +29,12 @@ export function createLogger(moduleName: string): Logger {
     logger = globalLogger.child({ name: moduleName }, { level });
     set(moduleLoggers, moduleName, logger);
   }
+
+  logger.logWithError = (...args): void => {
+    const msg = args.map((arg) => (typeof arg === "object" ? JSON.stringify(arg) : arg)).join(", ");
+    logger.error(msg);
+    throw new Error(msg);
+  };
 
   return logger;
 }

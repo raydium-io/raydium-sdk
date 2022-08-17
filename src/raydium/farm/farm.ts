@@ -5,9 +5,10 @@ import {
 import BN from "bn.js";
 
 import { accountMeta, AddInstructionParam, commonSystemAccountMeta, parseBigNumberish, TxBuilder } from "../../common";
-import { TOKEN_WSOL } from "../../token";
+import { SOLMint } from "../../common/pubKey";
 import { closeAccountInstruction, createWrappedNativeAccountInstructions } from "../account/util";
-import Module, { ModuleProps } from "../module";
+import ModuleBase, { ModuleBaseProps } from "../moduleBase";
+import { TOKEN_WSOL } from "../token/constant";
 import { MakeTransaction } from "../type";
 
 import {
@@ -21,16 +22,14 @@ import {
   FarmDWParam, FarmPoolJsonInfo, FarmRewardInfo, FarmRewardInfoConfig, RewardInfoKey, RewardSetParam, SdkParsedFarmInfo,
 } from "./type";
 import {
-  calRewardAmount, createAssociatedLedgerAccountInstruction, farmInfoStringToPubKey, getAssociatedAuthority,
-  getAssociatedLedgerAccount, getAssociatedLedgerPoolAccount, getFarmProgramId, mergeSdkFarmInfo, rewardInfoToConfig,
+  calFarmRewardAmount, createAssociatedLedgerAccountInstruction, farmInfoStringToPubKey, farmRewardInfoToConfig,
+  getAssociatedAuthority, getAssociatedLedgerAccount, getAssociatedLedgerPoolAccount, getFarmProgramId,
+  mergeSdkFarmInfo,
 } from "./util";
 
-export default class Farm extends Module {
+export default class Farm extends ModuleBase {
   private _farmPools: FarmPoolJsonInfo[] = [];
   private _sdkParsedFarmPools: SdkParsedFarmInfo[] = [];
-  constructor(params: ModuleProps) {
-    super(params);
-  }
 
   public async load(): Promise<void> {
     this.checkDisabled();
@@ -46,27 +45,27 @@ export default class Farm extends Module {
       {
         connection: this.scope.connection,
         pools: this._farmPools.map(farmInfoStringToPubKey),
-        owner: this.scope.owner.publicKey,
+        owner: this.scope.ownerPubKey,
         config: { commitment: "confirmed" },
       },
       { jsonInfos: this._farmPools },
     );
   }
 
-  public getAll(): FarmPoolJsonInfo[] {
+  get allFarms(): FarmPoolJsonInfo[] {
     return this._farmPools;
   }
-  public getParsedAll(): SdkParsedFarmInfo[] {
+  get allParsedFarms(): SdkParsedFarmInfo[] {
     return this._sdkParsedFarmPools;
   }
 
   public getFarm(farmId: string): FarmPoolJsonInfo {
-    const farmInfo = this.getAll().find((farm) => farm.id === farmId);
+    const farmInfo = this.allFarms.find((farm) => farm.id === farmId);
     if (!farmInfo) this.logAndCreateError("invalid farm id");
     return farmInfo!;
   }
   public getParsedFarm(farmId: string): SdkParsedFarmInfo {
-    const farmInfo = this.getParsedAll().find((farm) => new PublicKey(farmId).equals(farm.id));
+    const farmInfo = this.allParsedFarms.find((farm) => new PublicKey(farmId).equals(farm.id));
     if (!farmInfo) this.logAndCreateError("invalid farm id");
     return farmInfo!;
   }
@@ -75,12 +74,12 @@ export default class Farm extends Module {
     rewardPubKey?: PublicKey;
     newInstruction?: AddInstructionParam;
   }> {
-    if (rewardInfo.rewardMint.equals(PublicKey.default)) {
+    if (rewardInfo.rewardMint.equals(SOLMint)) {
       const { instructions, signer } = await createWrappedNativeAccountInstructions({
         connection: this.scope.connection,
-        owner: this.scope.owner.publicKey,
+        owner: this.scope.ownerPubKey,
         payer,
-        amount: calRewardAmount(rewardInfo),
+        amount: calFarmRewardAmount(rewardInfo),
       });
       return {
         rewardPubKey: signer.publicKey,
@@ -91,7 +90,7 @@ export default class Farm extends Module {
             closeAccountInstruction({
               tokenAccount: signer.publicKey,
               payer,
-              owner: this.scope.owner.publicKey,
+              owner: this.scope.ownerPubKey,
             }),
           ],
         },
@@ -109,7 +108,7 @@ export default class Farm extends Module {
     this.checkDisabled();
     this.scope.checkOwner();
 
-    const poolJsonInfo = this.scope.liquidity.getAllPools().find((j) => j.id === poolId);
+    const poolJsonInfo = this.scope.liquidity.allPools.find((j) => j.id === poolId);
     if (!poolJsonInfo) this.logAndCreateError("invalid pool id");
 
     const lpMint = new PublicKey(poolJsonInfo!.lpMint);
@@ -122,7 +121,7 @@ export default class Farm extends Module {
     };
 
     const txBuilder = this.createTxBuilder();
-    const payerPubKey = payer ?? this.scope.owner.publicKey;
+    const payerPubKey = payer ?? this.scope.ownerPubKey;
     const farmKeyPair = Keypair.generate();
     const lamports = await this.scope.connection.getMinimumBalanceForRentExemption(farmStateV6Layout.span);
 
@@ -157,7 +156,7 @@ export default class Farm extends Module {
     for (const rewardInfo of poolInfo.rewardInfos) {
       if (rewardInfo.rewardOpenTime >= rewardInfo.rewardEndTime)
         this.logAndCreateError("start time error", "rewardInfo.rewardOpenTime", rewardInfo.rewardOpenTime.toString());
-      rewardInfoConfig.push(rewardInfoToConfig(rewardInfo));
+      rewardInfoConfig.push(farmRewardInfoToConfig(rewardInfo));
 
       const { rewardPubKey, newInstruction } = await this._getUserRewardInfo({
         rewardInfo,
@@ -167,9 +166,7 @@ export default class Farm extends Module {
 
       if (!rewardPubKey) this.logAndCreateError("cannot found target token accounts", this.scope.account.tokenAccounts);
 
-      const rewardMint = rewardInfo.rewardMint.equals(PublicKey.default)
-        ? new PublicKey(TOKEN_WSOL.mint)
-        : rewardInfo.rewardMint;
+      const rewardMint = rewardInfo.rewardMint.equals(SOLMint) ? new PublicKey(TOKEN_WSOL.mint) : rewardInfo.rewardMint;
       rewardInfoKey.push({
         rewardMint,
         rewardVault: await getAssociatedLedgerPoolAccount({
@@ -207,8 +204,8 @@ export default class Farm extends Module {
       accountMeta({ pubkey: poolInfo.lpMint, isWritable: false }),
       accountMeta({ pubkey: poolInfo.lockInfo.lockVault }),
       accountMeta({ pubkey: poolInfo.lockInfo.lockMint, isWritable: false }),
-      accountMeta({ pubkey: lockUserAccount ?? PublicKey.default }),
-      accountMeta({ pubkey: this.scope.owner.publicKey, isWritable: false }),
+      accountMeta({ pubkey: lockUserAccount ?? SOLMint }),
+      accountMeta({ pubkey: this.scope.ownerPubKey, isWritable: false, isSigner: true }),
     ];
 
     for (const item of rewardInfoKey) {
@@ -250,16 +247,16 @@ export default class Farm extends Module {
     if (newRewardInfo.rewardOpenTime >= newRewardInfo.rewardEndTime)
       this.logAndCreateError("start time error", "newRewardInfo", newRewardInfo);
 
-    const payerPubKey = payer || this.scope.owner.publicKey;
+    const payerPubKey = payer || this.scope.ownerPubKey;
 
-    const rewardMint = newRewardInfo.rewardMint.equals(PublicKey.default)
+    const rewardMint = newRewardInfo.rewardMint.equals(SOLMint)
       ? new PublicKey(TOKEN_WSOL.mint)
       : newRewardInfo.rewardMint;
     const rewardInfo = poolKeys.rewardInfos.find((item) => new PublicKey(item.rewardMint).equals(rewardMint));
 
     if (!rewardInfo) this.logAndCreateError("configuration does not exist", "rewardMint", rewardMint);
 
-    const rewardVault = rewardInfo!.rewardVault ? new PublicKey(rewardInfo!.rewardVault) : PublicKey.default;
+    const rewardVault = rewardInfo!.rewardVault ? new PublicKey(rewardInfo!.rewardVault) : SOLMint;
     const txBuilder = this.createTxBuilder();
 
     const { rewardPubKey: userRewardTokenPub, newInstruction } = await this._getUserRewardInfo({
@@ -288,7 +285,7 @@ export default class Farm extends Module {
       accountMeta({ pubkey: poolKeys.lpVault, isWritable: false }),
       accountMeta({ pubkey: rewardVault }),
       accountMeta({ pubkey: userRewardTokenPub! }),
-      accountMeta({ pubkey: this.scope.owner.publicKey, isWritable: false }),
+      accountMeta({ pubkey: this.scope.ownerPubKey, isWritable: false, isSigner: true }),
     ];
 
     return await txBuilder
@@ -306,7 +303,7 @@ export default class Farm extends Module {
     const { farmId, newRewardInfo, payer } = params;
     const farmInfo = this.getFarm(farmId)!;
     if (farmInfo!.version !== 6) this.logAndCreateError("invalid farm version", farmInfo!.version);
-    const payerPubKey = payer ?? this.scope.owner.publicKey;
+    const payerPubKey = payer ?? this.scope.ownerPubKey;
     const txBuilder = this.createTxBuilder();
 
     const rewardVault = await getAssociatedLedgerPoolAccount({
@@ -325,7 +322,7 @@ export default class Farm extends Module {
     if (!userRewardTokenPub)
       this.logAndCreateError("annot found target token accounts", this.scope.account.tokenAccounts);
 
-    const rewardMint = newRewardInfo.rewardMint.equals(PublicKey.default)
+    const rewardMint = newRewardInfo.rewardMint.equals(SOLMint)
       ? new PublicKey(TOKEN_WSOL.mint)
       : newRewardInfo.rewardMint;
     const data = Buffer.alloc(farmAddRewardLayout.span);
@@ -347,7 +344,7 @@ export default class Farm extends Module {
       accountMeta({ pubkey: rewardMint, isWritable: false }),
       accountMeta({ pubkey: rewardVault }),
       accountMeta({ pubkey: userRewardTokenPub! }),
-      accountMeta({ pubkey: this.scope.owner.publicKey, isWritable: false }),
+      accountMeta({ pubkey: this.scope.ownerPubKey, isWritable: false, isSigner: true }),
     ];
 
     return await txBuilder
@@ -386,7 +383,7 @@ export default class Farm extends Module {
     const ledgerAddress = await getAssociatedLedgerAccount({
       programId: new PublicKey(farmInfo.programId),
       poolId: new PublicKey(farmInfo.id),
-      owner: this.scope.owner.publicKey,
+      owner: this.scope.ownerPubKey,
     });
 
     if (!farmInfo.ledger && farmInfo.version < 6 /* start from v6, no need init ledger any more */) {
@@ -395,7 +392,7 @@ export default class Farm extends Module {
         programId: farmInfo.programId,
         version: farmInfo.version,
         ledger: ledgerAddress,
-        owner: this.scope.owner.publicKey,
+        owner: this.scope.ownerPubKey,
       });
       txBuilder.addInstruction({ instructions: [instruction] });
     }
@@ -404,7 +401,7 @@ export default class Farm extends Module {
       accountMeta({ pubkey: farmInfo.id }),
       accountMeta({ pubkey: farmInfo.authority, isWritable: false }),
       accountMeta({ pubkey: ledgerAddress }),
-      accountMeta({ pubkey: this.scope.owner.publicKey, isWritable: false }),
+      accountMeta({ pubkey: this.scope.ownerPubKey, isWritable: false, isSigner: true }),
       accountMeta({ pubkey: lpTokenAccount }),
       accountMeta({ pubkey: farmInfo.lpVault.mint }),
       accountMeta({ pubkey: rewardTokenAccountsPublicKeys[0] }),
@@ -452,7 +449,7 @@ export default class Farm extends Module {
             accountMeta({ pubkey: farmInfo.authority, isWritable: false }),
             accountMeta({ pubkey: farmInfo.lpVault.mint }),
             accountMeta({ pubkey: ledgerAddress }),
-            accountMeta({ pubkey: this.scope.owner.publicKey, isWritable: false }),
+            accountMeta({ pubkey: this.scope.ownerPubKey, isWritable: false, isSigner: true }),
             accountMeta({ pubkey: lpTokenAccount }),
           ]
         : [...lowVersionKeys];
@@ -498,7 +495,7 @@ export default class Farm extends Module {
             accountMeta({ pubkey: farmInfo.authority, isWritable: false }),
             accountMeta({ pubkey: farmInfo.lpVault.mint }),
             accountMeta({ pubkey: ledgerAddress }),
-            accountMeta({ pubkey: this.scope.owner.publicKey, isWritable: false }),
+            accountMeta({ pubkey: this.scope.ownerPubKey, isWritable: false, isSigner: true }),
             accountMeta({ pubkey: lpTokenAccount }),
           ]
         : [...lowVersionKeys];
@@ -531,25 +528,25 @@ export default class Farm extends Module {
     if (version !== 6) this.logAndCreateError("invalid farm version", farmInfo!.version);
 
     const rewardInfo = farmInfo.rewardInfos.find((item) =>
-      item.rewardMint.equals(withdrawMint.equals(PublicKey.default) ? new PublicKey(TOKEN_WSOL.mint) : withdrawMint),
+      item.rewardMint.equals(withdrawMint.equals(SOLMint) ? new PublicKey(TOKEN_WSOL.mint) : withdrawMint),
     );
     if (!rewardInfo) this.logAndCreateError("withdraw mint error", "rewardInfos", farmInfo);
 
-    const rewardVault = rewardInfo?.rewardVault ?? PublicKey.default;
+    const rewardVault = rewardInfo?.rewardVault ?? SOLMint;
     const txBuilder = this.createTxBuilder();
 
     let userRewardToken: PublicKey;
     this._getUserRewardInfo({
-      payer: this.scope.owner.publicKey,
+      payer: this.scope.ownerPubKey,
       rewardInfo: rewardInfo!,
     });
 
-    if (withdrawMint.equals(PublicKey.default)) {
+    if (withdrawMint.equals(SOLMint)) {
       const { instructions, signer } = await createWrappedNativeAccountInstructions({
         connection: this.scope.connection,
-        owner: this.scope.owner.publicKey,
-        payer: this.scope.owner.publicKey,
-        amount: calRewardAmount(rewardInfo!),
+        owner: this.scope.ownerPubKey,
+        payer: this.scope.ownerPubKey,
+        amount: calFarmRewardAmount(rewardInfo!),
       });
       userRewardToken = signer.publicKey;
       txBuilder.addInstruction({ instructions, signers: [signer] });
@@ -557,8 +554,8 @@ export default class Farm extends Module {
         endInstructions: [
           closeAccountInstruction({
             tokenAccount: signer.publicKey,
-            payer: this.scope.owner.publicKey,
-            owner: this.scope.owner.publicKey,
+            payer: this.scope.ownerPubKey,
+            owner: this.scope.ownerPubKey,
           }),
         ],
       });
@@ -576,8 +573,8 @@ export default class Farm extends Module {
               TOKEN_PROGRAM_ID,
               withdrawMint,
               userRewardToken,
-              this.scope.owner.publicKey,
-              this.scope.owner.publicKey,
+              this.scope.ownerPubKey,
+              this.scope.ownerPubKey,
             ),
           ],
         });
@@ -596,7 +593,7 @@ export default class Farm extends Module {
       accountMeta({ pubkey: farmInfo.lpVault.mint, isWritable: false }),
       accountMeta({ pubkey: rewardVault }),
       accountMeta({ pubkey: userRewardToken }),
-      accountMeta({ pubkey: this.scope.owner.publicKey, isSigner: false }),
+      accountMeta({ pubkey: this.scope.ownerPubKey, isWritable: false, isSigner: true }),
     ];
 
     return await txBuilder

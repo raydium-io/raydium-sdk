@@ -3,18 +3,19 @@ import { Logger } from "pino";
 
 import { createLogger } from "../common/logger";
 import { TxBuilder } from "../common/txTool";
-import { Raydium } from "../raydium";
 
-export interface ModuleProps {
+import { Raydium } from "./";
+
+export interface ModuleBaseProps {
   scope: Raydium;
   moduleName: string;
 }
-export default class Module {
+export default class ModuleBase {
   public scope: Raydium;
   private disabled = false;
-  private logger: Logger;
+  protected logger: Logger;
 
-  constructor({ scope, moduleName }: ModuleProps) {
+  constructor({ scope, moduleName }: ModuleBaseProps) {
     this.scope = scope;
     this.logger = createLogger(moduleName);
   }
@@ -23,7 +24,7 @@ export default class Module {
     this.scope.checkOwner();
     return new TxBuilder({
       connection: this.scope.connection,
-      feePayer: feePayer || this.scope.owner.publicKey,
+      feePayer: feePayer || this.scope.ownerPubKey,
       owner: this.scope.owner,
       signAllTransactions: this.scope.signAllTransactions,
     });

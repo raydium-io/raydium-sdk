@@ -16,10 +16,7 @@ import { associatedLedgerAccountLayout, FarmLedger, FarmLedgerLayout, FarmState,
 import { FarmPoolJsonInfo, FarmPoolKeys, FarmRewardInfo, FarmRewardInfoConfig, SdkParsedFarmInfo } from "./type";
 
 const logger = createLogger("Raydium.farm.util");
-const errorLogger = (msg: string): void => {
-  logger.error(msg);
-  throw new Error(msg);
-};
+
 interface ProgramAddress {
   publicKey: PublicKey;
   nonce: number;
@@ -106,7 +103,7 @@ export function getFarmProgramId(version: number): PublicKey | undefined {
   return programId;
 }
 
-export function rewardInfoToConfig(data: FarmRewardInfo): FarmRewardInfoConfig {
+export function farmRewardInfoToConfig(data: FarmRewardInfo): FarmRewardInfoConfig {
   return {
     isSet: new BN(1),
     rewardPerSecond: parseBigNumberish(data.rewardPerSecond),
@@ -115,7 +112,7 @@ export function rewardInfoToConfig(data: FarmRewardInfo): FarmRewardInfoConfig {
   };
 }
 
-export function calRewardAmount(data: FarmRewardInfo): BN {
+export function calFarmRewardAmount(data: FarmRewardInfo): BN {
   return parseBigNumberish(data.rewardEndTime)
     .sub(parseBigNumberish(data.rewardOpenTime))
     .mul(parseBigNumberish(data.rewardPerSecond));
@@ -251,7 +248,7 @@ export async function fetchMultipleFarmInfoAndUpdate({
     if (key === "state") {
       const stateLayout = getFarmStateLayout(version)!;
       if (!accountInfo || !accountInfo.data || accountInfo.data.length !== stateLayout.span) {
-        errorLogger(`invalid farm state account info, pools.id, ${pubkey}`);
+        logger.logWithError(`invalid farm state account info, pools.id, ${pubkey}`);
       }
 
       poolsInfo[_poolId] = {
@@ -260,7 +257,7 @@ export async function fetchMultipleFarmInfoAndUpdate({
       };
     } else if (key === "lpVault") {
       if (!accountInfo || !accountInfo.data || accountInfo.data.length !== splAccountLayout.span) {
-        errorLogger(`invalid farm lp vault account info, pools.lpVault, ${pubkey}`);
+        logger.logWithError(`invalid farm lp vault account info, pools.lpVault, ${pubkey}`);
       }
 
       poolsInfo[_poolId] = {
@@ -271,7 +268,7 @@ export async function fetchMultipleFarmInfoAndUpdate({
       const LEDGER_LAYOUT = getFarmLedgerLayout(version)!;
       if (accountInfo && accountInfo.data) {
         if (accountInfo.data.length !== LEDGER_LAYOUT.span) {
-          errorLogger(`invalid farm ledger account info, ledger, ${pubkey}`);
+          logger.logWithError(`invalid farm ledger account info, ledger, ${pubkey}`);
         }
 
         poolsInfo[_poolId] = {
@@ -367,7 +364,7 @@ export async function createAssociatedLedgerAccountInstruction(params: {
 }): Promise<TransactionInstruction> {
   const { version, id, ledger, programId, owner } = params;
   const instruction = { 3: 9, 5: 10 }[version];
-  if (!instruction) errorLogger(`invalid farm pool version: ${version}`);
+  if (!instruction) logger.logWithError(`invalid farm pool version: ${version}`);
 
   const data = Buffer.alloc(associatedLedgerAccountLayout.span);
   associatedLedgerAccountLayout.encode(

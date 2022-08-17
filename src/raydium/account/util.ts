@@ -13,7 +13,7 @@ import {
 import BN from "bn.js";
 
 import { BigNumberish, createLogger, parseBigNumberish, validateAndParsePublicKey } from "../../common";
-import { TOKEN_WSOL } from "../../token";
+import { TOKEN_WSOL } from "../token/constant";
 
 import { splAccountLayout } from "./layout";
 import { TokenAccount, TokenAccountRaw } from "./types";

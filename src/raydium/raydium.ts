@@ -11,6 +11,8 @@ import { Cluster } from "../solana";
 import Account, { TokenAccountDataProp } from "./account/account";
 import Farm from "./farm/farm";
 import Liquidity from "./liquidity/liquidity";
+import Swap from "./swap/swap";
+import TokenModule from "./token/token";
 import { SignAllTransactions } from "./type";
 
 export interface RaydiumLoadParams extends TokenAccountDataProp {
@@ -57,6 +59,8 @@ export class Raydium {
   public farm: Farm;
   public account: Account;
   public liquidity: Liquidity;
+  public token: TokenModule;
+  public swap: Swap;
   public rawBalances: Map<string, string> = new Map();
   public apiData: ApiData;
 
@@ -84,6 +88,8 @@ export class Raydium {
       tokenAccountRowInfos: config.tokenAccountRowInfos,
     });
     this.liquidity = new Liquidity({ scope: this, moduleName: "Raydium.Liquidity" });
+    this.token = new TokenModule({ scope: this, moduleName: "Raydium.token" });
+    this.swap = new Swap({ scope: this, moduleName: "Raydium.swap" });
 
     const now = new Date().getTime();
 
@@ -119,7 +125,7 @@ export class Raydium {
       api,
     });
 
-    await raydium.fetchTokens();
+    await raydium.token.load();
 
     return raydium;
   }
@@ -128,17 +134,18 @@ export class Raydium {
     if (!this._owner) throw new Error(EMPTY_OWNER);
     return this._owner;
   }
-
+  get ownerPubKey(): PublicKey {
+    if (!this._owner) throw new Error(EMPTY_OWNER);
+    return this._owner.publicKey;
+  }
   public setOwner(owner: PublicKey | Keypair): Raydium {
     this._owner = new Owner(owner);
     return this;
   }
-
   get connection(): Connection {
     if (!this._connection) throw new Error(EMPTY_CONNECTION);
     return this._connection;
   }
-
   public setConnection(connection: Connection): Raydium {
     this._connection = connection;
     return this;

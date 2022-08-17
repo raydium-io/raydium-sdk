@@ -2,8 +2,8 @@ import { ASSOCIATED_TOKEN_PROGRAM_ID, Token, TOKEN_PROGRAM_ID } from "@solana/sp
 import { Commitment, PublicKey } from "@solana/web3.js";
 
 import { AddInstructionParam } from "../../common/txTool";
-import { TOKEN_WSOL } from "../../token";
-import Module, { ModuleProps } from "../module";
+import ModuleBase, { ModuleBaseProps } from "../moduleBase";
+import { TOKEN_WSOL } from "../token/constant";
 
 import { TokenAccount, TokenAccountRaw } from "./types";
 import { closeAccountInstruction, parseTokenAccountResp } from "./util";
@@ -12,7 +12,7 @@ export interface TokenAccountDataProp {
   tokenAccounts?: TokenAccount[];
   tokenAccountRowInfos?: TokenAccountRaw[];
 }
-export default class Account extends Module {
+export default class Account extends ModuleBase {
   private _tokenAccounts: TokenAccount[] = [];
   private _tokenAccountRawInfos: TokenAccountRaw[] = [];
   private _ataCache: Map<string, PublicKey> = new Map();
@@ -20,7 +20,7 @@ export default class Account extends Module {
   private _accountListener: (() => void)[] = [];
   private _clientOwnedToken = false;
 
-  constructor(params: TokenAccountDataProp & ModuleProps) {
+  constructor(params: TokenAccountDataProp & ModuleBaseProps) {
     super(params);
     const { tokenAccounts, tokenAccountRowInfos } = params;
     this._tokenAccounts = tokenAccounts || [];
@@ -33,13 +33,6 @@ export default class Account extends Module {
   }
   get tokenAccountRawInfos(): TokenAccountRaw[] {
     return this._tokenAccountRawInfos;
-  }
-
-  get userKeys(): { owner: PublicKey | undefined; tokenAccounts: TokenAccount[] } {
-    return {
-      owner: this.scope.owner.publicKey,
-      tokenAccounts: this._tokenAccounts,
-    };
   }
 
   public updateTokenAccount({ tokenAccounts, tokenAccountRowInfos }: TokenAccountDataProp): Account {
@@ -63,13 +56,13 @@ export default class Account extends Module {
 
   public async getAssociatedTokenAccount(mint: PublicKey): Promise<PublicKey> {
     this.scope.checkOwner();
-    const userPubStr = this.scope.owner.publicKey.toBase58();
+    const userPubStr = this.scope.ownerPubKey.toBase58();
     if (this._ataCache.has(userPubStr)) this._ataCache.get(userPubStr) as PublicKey;
     const ataPubKey = await Token.getAssociatedTokenAddress(
       ASSOCIATED_TOKEN_PROGRAM_ID,
       TOKEN_PROGRAM_ID,
       mint,
-      this.scope.owner.publicKey,
+      this.scope.ownerPubKey,
       true,
     );
     this._ataCache.set(this.scope.owner.toString(), ataPubKey);
@@ -97,12 +90,9 @@ export default class Account extends Module {
     const defaultConfig = {};
     const customConfig = { ...defaultConfig, ...config };
 
-    const solAccountResp = await this.scope.connection.getAccountInfo(
-      this.scope.owner.publicKey,
-      customConfig.commitment,
-    );
+    const solAccountResp = await this.scope.connection.getAccountInfo(this.scope.ownerPubKey, customConfig.commitment);
     const ownerTokenAccountResp = await this.scope.connection.getTokenAccountsByOwner(
-      this.scope.owner.publicKey,
+      this.scope.ownerPubKey,
       { programId: TOKEN_PROGRAM_ID },
       customConfig.commitment,
     );
@@ -117,7 +107,7 @@ export default class Account extends Module {
 
     this._accountChangeListenerId && this.scope.connection.removeAccountChangeListener(this._accountChangeListenerId);
     this._accountChangeListenerId = this.scope.connection.onAccountChange(
-      this.scope.owner.publicKey,
+      this.scope.ownerPubKey,
       () => this.fetchWalletTokenAccounts({ forceUpdate: true }),
       "confirmed",
     );
@@ -161,7 +151,7 @@ export default class Account extends Module {
       ({ mint: accountTokenMint }) => accountTokenMint?.toBase58() === mint.toBase58(),
     )?.publicKey;
 
-    const owner = this.scope.owner.publicKey;
+    const owner = this.scope.ownerPubKey;
     const newTxInstructions: AddInstructionParam = {};
 
     if (!tokenAccountAddress) {

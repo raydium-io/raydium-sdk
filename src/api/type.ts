@@ -10,10 +10,15 @@ export interface ApiTokenInfo {
 
 export type ApiTokenCategory = "official" | "unOfficial" | "unNamed" | "blacklist";
 
-export type ApiTokens = { [key in ApiTokenCategory]: ApiTokenInfo[] };
+export type ApiTokens = {
+  official: ApiTokenInfo[];
+  unOfficial: ApiTokenInfo[];
+  unNamed: string[];
+  blacklist: string[];
+};
 
 /* ================= liquidity ================= */
-export type LiquidityVersion = 2 | 3 | 4 | 6;
+export type LiquidityVersion = 4 | 5;
 
 export type SerumVersion = 1 | 2 | 3;
 

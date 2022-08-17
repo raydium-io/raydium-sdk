@@ -48,19 +48,14 @@ export async function getMultipleAccountsInfo(
     // @ts-ignore
     const unsafeResponse: MultipleAccountsJsonRpcResponse[] = await connection._rpcBatchRequest(batch);
     results = unsafeResponse.map((unsafeRes: MultipleAccountsJsonRpcResponse) => {
-      if (unsafeRes.error) {
-        logger.error(`failed to get info for multiple accounts, RPC_ERROR, ${unsafeRes.error.message}`);
-        throw new Error("failed to get info for multiple accounts");
-      }
+      if (unsafeRes.error)
+        logger.logWithError(`failed to get info for multiple accounts, RPC_ERROR, ${unsafeRes.error.message}`);
 
       return unsafeRes.result.value.map((accountInfo) => {
         if (accountInfo) {
           const { data, executable, lamports, owner, rentEpoch } = accountInfo;
 
-          if (data.length !== 2 && data[1] !== "base64") {
-            logger.error(`info must be base64 encoded, RPC_ERROR`);
-            throw new Error("info must be base64 encoded");
-          }
+          if (data.length !== 2 && data[1] !== "base64") logger.logWithError(`info must be base64 encoded, RPC_ERROR`);
 
           return {
             data: Buffer.from(data[0], "base64"),
@@ -80,8 +75,7 @@ export async function getMultipleAccountsInfo(
       )) as (AccountInfo<Buffer> | null)[][];
     } catch (error) {
       if (error instanceof Error) {
-        logger.error(`failed to get info for multiple accounts, RPC_ERROR, ${error.message}`);
-        throw new Error("failed to get info for multiple accounts");
+        logger.logWithError(`failed to get info for multiple accounts, RPC_ERROR, ${error.message}`);
       }
     }
   }

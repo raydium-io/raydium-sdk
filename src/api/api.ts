@@ -79,14 +79,14 @@ export class Api {
   }
 
   async getTokens(): Promise<ApiTokens> {
-    return this.api.get(`/token/${this.cluster}`);
+    return this.api.get(`/sdk/token/raydium.mainnet.json`);
   }
 
   async getLiquidityPools(): Promise<ApiLiquidityPools> {
-    return this.api.get(`/liquidity/${this.cluster}`);
+    return this.api.get(`/sdk/liquidity/${this.cluster}`);
   }
 
   async getFarmPools(): Promise<ApiFarmPools> {
-    return this.api.get(`/farm/${this.cluster}`);
+    return this.api.get(`/sdk/farm-v2/${this.cluster}`);
   }
 }
