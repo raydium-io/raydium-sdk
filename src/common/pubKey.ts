@@ -28,6 +28,8 @@ export function validateAndParsePublicKey(publicKey: PublicKeyish): PublicKey {
     return publicKey;
   }
 
+  if (publicKey === "sol") return WSOLMint;
+
   if (typeof publicKey === "string") {
     try {
       const key = new PublicKey(publicKey);

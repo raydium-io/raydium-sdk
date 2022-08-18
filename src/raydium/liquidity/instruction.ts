@@ -1,6 +1,7 @@
 import { SystemProgram, TransactionInstruction } from "@solana/web3.js";
 
 import { parseBigNumberish } from "../../common/bignumber";
+import { createLogger } from "../../common/logger";
 import { accountMeta } from "../../common/pubKey";
 import { struct, u8 } from "../../marshmallow";
 
@@ -10,7 +11,42 @@ import {
   LiquidityPoolKeys,
   LiquiditySwapFixedInInstructionParamsV4,
   LiquiditySwapFixedOutInstructionParamsV4,
+  LiquiditySwapInstructionParams,
 } from "./type";
+
+const logger = createLogger("Raydium.liqudity.instruction");
+
+export function makeSwapInstruction(params: LiquiditySwapInstructionParams): TransactionInstruction {
+  const { poolKeys, userKeys, amountIn, amountOut, fixedSide } = params;
+  const { version } = poolKeys;
+
+  if (version === 4 || version === 5) {
+    const props = { poolKeys, userKeys };
+    if (fixedSide === "in") {
+      return makeSwapFixedInInstruction(
+        {
+          ...props,
+          amountIn,
+          minAmountOut: amountOut,
+        },
+        version,
+      );
+    } else if (fixedSide === "out") {
+      return makeSwapFixedOutInstruction(
+        {
+          ...props,
+          maxAmountIn: amountIn,
+          amountOut,
+        },
+        version,
+      );
+    }
+    logger.logWithError("invalid params", "params", params);
+  }
+
+  logger.logWithError("invalid version", "poolKeys.version", version);
+  throw new Error("invalid version");
+}
 
 export function makeSimulatePoolInfoInstruction(poolKeys: LiquidityPoolKeys): TransactionInstruction {
   const LAYOUT = struct([u8("instruction"), u8("simulateType")]);

@@ -11,6 +11,7 @@ import { Cluster } from "../solana";
 import Account, { TokenAccountDataProp } from "./account/account";
 import Farm from "./farm/farm";
 import Liquidity from "./liquidity/liquidity";
+import Route from "./route/route";
 import TokenModule from "./token/token";
 import Trade from "./trade/trade";
 import { SignAllTransactions } from "./type";
@@ -30,7 +31,6 @@ export interface RaydiumLoadParams extends TokenAccountDataProp {
   // defaultApiLiquidityPools?: LiquidityPools;
   // if provide farm pools, the api request will be skipped on call Raydium.load
   // defaultApiFarmPools?: FarmPools;
-  // TODO ETAG
   // api request interval in ms, -1 means never request again, 0 means always use fresh data, default is 5 mins (5 * 60 * 1000)
   apiRequestInterval?: number;
   // api request timeout in ms, default is 10 secs (10 * 1000)
@@ -61,6 +61,7 @@ export class Raydium {
   public liquidity: Liquidity;
   public token: TokenModule;
   public trade: Trade;
+  public route: Route;
   public rawBalances: Map<string, string> = new Map();
   public apiData: ApiData;
 
@@ -90,6 +91,7 @@ export class Raydium {
     this.liquidity = new Liquidity({ scope: this, moduleName: "Raydium.Liquidity" });
     this.token = new TokenModule({ scope: this, moduleName: "Raydium.token" });
     this.trade = new Trade({ scope: this, moduleName: "Raydium.trade" });
+    this.route = new Route({ scope: this, moduleName: "Raydium.route" });
 
     const now = new Date().getTime();
 

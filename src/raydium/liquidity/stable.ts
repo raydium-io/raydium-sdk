@@ -299,3 +299,31 @@ export function getStablePrice(
     layoutData.multiplier;
   return baseCoin ? price : 1 / price;
 }
+
+export class StableLayout {
+  private readonly connection: Connection;
+  private _layoutData: StableModelLayout = {
+    accountType: 0,
+    status: 0,
+    multiplier: 0,
+    validDataCount: 0,
+    DataElement: [],
+  };
+
+  constructor({ connection }: { connection: Connection }) {
+    this.connection = connection;
+  }
+
+  get stableModelData(): StableModelLayout {
+    return this._layoutData;
+  }
+
+  public async initStableModelLayout(): Promise<void> {
+    if (this._layoutData.validDataCount === 0) {
+      if (this.connection) {
+        const acc = await this.connection.getAccountInfo(MODEL_DATA_PUBKEY);
+        if (acc) this._layoutData = formatLayout(acc?.data);
+      }
+    }
+  }
+}

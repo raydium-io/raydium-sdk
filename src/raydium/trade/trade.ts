@@ -1,22 +1,17 @@
-import { PublicKey, TransactionInstruction } from "@solana/web3.js";
-import { intersection, xor } from "lodash";
-
 import { ApiLiquidityPoolInfo } from "../../api/type";
-import { BN_ZERO } from "../../common/bignumber";
+import { BN_ZERO, parseBigNumberish } from "../../common/bignumber";
 import { div, gte } from "../../common/fractionUtil";
+import { validateAndParsePublicKey } from "../../common/pubKey";
 import { jsonInfo2PoolKeys } from "../../common/utility";
-import { CurrencyAmount, Percent, Price, Token, TokenAmount } from "../../module";
-import { getPoolEnabledFeatures, includesToken } from "../liquidity/util";
+import { Percent, Price, TokenAmount } from "../../module";
 import ModuleBase from "../moduleBase";
+import { defaultRoutes, swapRouteMiddleMints } from "../route/constant";
 import { MakeTransaction } from "../type";
 
-import { defaultRoutes, ROUTE_PROGRAM_ID_V1, swapRouteMiddleMints } from "./constant";
-import { makeSwapInFixedInInstruction, makeSwapOutFixedInInstruction } from "./instruction";
 import {
-  AvailableSwapPools, CustomSwapParams, GetAmountOutReturn, GetBestAmountOutParams, RouteComputeAmountOutData,
-  RouteComputeAmountOutParams, RouteInfo, RouteSwapInstructionParams, RouteSwapTransactionParams, RouteType, SwapParams,
+  AvailableSwapPools, CustomSwapParams, GetAmountOutReturn, GetBestAmountOutParams, RouteInfo, RouteType, SwapParams,
 } from "./type";
-import { getAssociatedMiddleStatusAccount, groupPools } from "./util";
+import { groupPools } from "./util";
 
 export default class Trade extends ModuleBase {
   public async load(): Promise<void> {
@@ -24,7 +19,7 @@ export default class Trade extends ModuleBase {
     await this.scope.fetchLiquidity();
   }
 
-  private async _getBestPool({
+  private async _getBestSwapPool({
     availablePools,
     officialPoolIdSet,
   }: {
@@ -49,227 +44,13 @@ export default class Trade extends ModuleBase {
     return largest.jsonInfo;
   }
 
-  private _computeRouteAmountOut({
-    fromPoolKeys,
-    toPoolKeys,
-    fromPoolInfo,
-    toPoolInfo,
-    amountIn,
-    outputToken,
-    slippage,
-  }: RouteComputeAmountOutParams): RouteComputeAmountOutData {
-    const { swap: fromPoolSwapEnabled } = getPoolEnabledFeatures(fromPoolInfo);
-    const { swap: toPoolSwapEnabled } = getPoolEnabledFeatures(toPoolInfo);
-    if (!fromPoolSwapEnabled || !toPoolSwapEnabled)
-      this.logAndCreateError("pools swap not enabled", "pools", {
-        fromPoolKeys,
-        toPoolKeys,
-        fromPoolInfo,
-        toPoolInfo,
-      });
-
-    const tokenIn = amountIn.token;
-    const tokenOut = outputToken instanceof Token ? outputToken : Token.WSOL;
-
-    if (!includesToken(tokenIn, fromPoolKeys) || !includesToken(tokenOut, toPoolKeys))
-      this.logAndCreateError("pools cannot be routed", "pools", {
-        fromPoolKeys,
-        toPoolKeys,
-      });
-
-    const fromPoolMints = [fromPoolKeys.baseMint.toBase58(), fromPoolKeys.quoteMint.toBase58()];
-    const toPoolMints = [toPoolKeys.baseMint.toBase58(), toPoolKeys.quoteMint.toBase58()];
-    const mints = [...fromPoolMints, ...toPoolMints];
-    const decimals = [
-      fromPoolInfo.baseDecimals,
-      fromPoolInfo.quoteDecimals,
-      toPoolInfo.baseDecimals,
-      toPoolInfo.quoteDecimals,
-    ];
-    const [mintIn, mintOut] = [tokenIn.mint.toBase58(), tokenOut.mint.toBase58()];
-
-    const xorMints = xor(fromPoolMints, toPoolMints);
-    if (xorMints.length !== 2 || xorMints.includes(mintIn) || xorMints.includes(mintOut))
-      this.logAndCreateError("xor tokens not match", "pools", {
-        fromPoolKeys,
-        toPoolKeys,
-      });
-
-    const intersectionMints = intersection(fromPoolMints, toPoolMints);
-    if (intersectionMints.length !== 1)
-      this.logAndCreateError("cannot found middle token of two pools", "pools", {
-        fromPoolKeys,
-        toPoolKeys,
-      });
-
-    const _middleMint = intersectionMints[0];
-    const index = mints.indexOf(_middleMint);
-    if (index === -1)
-      this.logAndCreateError("cannot found middle token", "pools", {
-        fromPoolKeys,
-        toPoolKeys,
-      });
-
-    const middleMintDecimals = decimals[index];
-    const middleMint = new PublicKey(_middleMint);
-    const middleToken = new Token({ mint: middleMint, decimals: middleMintDecimals });
-
-    this.logDebug(`from pool:`, fromPoolKeys);
-    this.logDebug("to pool:", toPoolKeys);
-    this.logDebug("intersection mints:", intersectionMints);
-    this.logDebug("xor mints:", xorMints);
-    this.logDebug("middleMint:", _middleMint);
-
-    const {
-      minAmountOut: minMiddleAmountOut,
-      priceImpact: firstPriceImpact,
-      fee: firstFee,
-    } = this.scope.liquidity.computeAmountOut({
-      poolKeys: fromPoolKeys,
-      poolInfo: fromPoolInfo,
-      amountIn,
-      outputToken: middleToken,
-      slippage,
-    });
-    const {
-      amountOut,
-      minAmountOut,
-      priceImpact: secondPriceImpact,
-      fee: secondFee,
-    } = this.scope.liquidity.computeAmountOut({
-      poolKeys: toPoolKeys,
-      poolInfo: toPoolInfo,
-      amountIn: minMiddleAmountOut,
-      outputToken,
-      slippage,
-    });
-
-    let executionPrice: Price | null = null;
-    const [amountInRaw, amountOutRaw] = [amountIn.raw, amountOut.raw];
-    const currencyIn = amountIn.token;
-    if (!amountInRaw.isZero() && !amountOutRaw.isZero()) {
-      executionPrice = new Price({
-        baseCurrency: currencyIn,
-        denominator: amountInRaw,
-        quoteCurrency: outputToken,
-        numerator: amountOutRaw,
-      });
-      this.logDebug("executionPrice:", `1 ${currencyIn.symbol} ≈ ${executionPrice.toFixed()} ${outputToken.symbol}`);
-      this.logDebug(
-        "executionPrice invert:",
-        `1 ${outputToken.symbol} ≈ ${executionPrice.invert().toFixed()} ${currencyIn.symbol}`,
-      );
-    }
-
-    return {
-      amountOut,
-      minAmountOut,
-      executionPrice,
-      priceImpact: firstPriceImpact.add(secondPriceImpact),
-      fee: [firstFee, secondFee],
-    };
-  }
-
-  /* ================= make instruction and transaction ================= */
-  private _makeSwapInstruction(params: RouteSwapInstructionParams): TransactionInstruction[] {
-    const { fixedSide } = params;
-
-    if (fixedSide === "in") {
-      return [makeSwapInFixedInInstruction(params), makeSwapOutFixedInInstruction(params)];
-    }
-
-    this.logAndCreateError("invalid params", "params", params);
-    throw new Error(`invalid params, params: ${params}`);
-  }
-
-  public async swapWithRoute(params: RouteSwapTransactionParams): Promise<MakeTransaction> {
-    const { fromPoolKeys, toPoolKeys, amountIn, amountOut, fixedSide, config } = params;
-    this.logDebug("amountIn:", amountIn, "amountOut:", amountOut);
-    if (amountIn.isZero() || amountOut.isZero())
-      this.logAndCreateError("amounts must greater than zero", "currencyAmounts", {
-        amountIn: amountIn.toFixed(),
-        amountOut: amountOut.toFixed(),
-      });
-
-    const { bypassAssociatedCheck = false } = config || {};
-    // handle currency in & out (convert SOL to WSOL)
-    const tokenIn = amountIn instanceof TokenAmount ? amountIn.token : Token.WSOL;
-    const tokenOut = amountOut instanceof TokenAmount ? amountOut.token : Token.WSOL;
-
-    const tokenAccountIn = await this.scope.account.getCreatedTokenAccount({
-      mint: tokenIn.mint,
-      associatedOnly: false,
-    });
-    const tokenAccountOut = await this.scope.account.getCreatedTokenAccount({
-      mint: tokenOut.mint,
-    });
-
-    const fromPoolMints = [fromPoolKeys.baseMint.toBase58(), fromPoolKeys.quoteMint.toBase58()];
-    const toPoolMints = [toPoolKeys.baseMint.toBase58(), toPoolKeys.quoteMint.toBase58()];
-    const intersectionMints = intersection(fromPoolMints, toPoolMints);
-    const _middleMint = intersectionMints[0];
-    const middleMint = new PublicKey(_middleMint);
-    const tokenAccountMiddle = await this.scope.account.getCreatedTokenAccount({
-      mint: middleMint,
-    });
-
-    const [amountInRaw, amountOutRaw] = [amountIn.raw, amountOut.raw];
-
-    const txBuilder = this.createTxBuilder();
-
-    const { tokenAccount: _tokenAccountIn, ...accountInInstruction } = await this.scope.account.handleTokenAccount({
-      side: "in",
-      amount: amountInRaw,
-      mint: tokenIn.mint,
-      tokenAccount: tokenAccountIn,
-      bypassAssociatedCheck,
-    });
-    txBuilder.addInstruction(accountInInstruction);
-    const { tokenAccount: _tokenAccountOut, ...accountOutInstruction } = await this.scope.account.handleTokenAccount({
-      side: "out",
-      amount: 0,
-      mint: tokenOut.mint,
-      tokenAccount: tokenAccountOut,
-      bypassAssociatedCheck,
-    });
-    txBuilder.addInstruction(accountOutInstruction);
-    const { tokenAccount: _tokenAccountMiddle, ...accountMiddleInstruction } =
-      await this.scope.account.handleTokenAccount({
-        side: "in",
-        amount: 0,
-        mint: middleMint,
-        tokenAccount: tokenAccountMiddle,
-        bypassAssociatedCheck,
-      });
-    txBuilder.addInstruction(accountMiddleInstruction);
-    txBuilder.addInstruction({
-      instructions: this._makeSwapInstruction({
-        fromPoolKeys,
-        toPoolKeys,
-        userKeys: {
-          inTokenAccount: _tokenAccountIn,
-          outTokenAccount: _tokenAccountOut,
-          middleTokenAccount: _tokenAccountMiddle,
-          middleStatusAccount: await getAssociatedMiddleStatusAccount({
-            programId: ROUTE_PROGRAM_ID_V1,
-            fromPoolId: fromPoolKeys.id,
-            middleMint,
-            owner: this.scope.ownerPubKey,
-          }),
-          owner: this.scope.ownerPubKey,
-        },
-        amountIn: amountInRaw,
-        amountOut: amountOutRaw,
-        fixedSide,
-      }),
-    });
-    return await txBuilder.build();
-  }
-
-  public async getAvailablePools(params: { inputMint: PublicKey; outputMint: PublicKey }): Promise<AvailableSwapPools> {
+  public async getAvailablePools(params: { inputMint: string; outputMint: string }): Promise<AvailableSwapPools> {
     this.checkDisabled();
     const { inputMint, outputMint } = params;
-    const [mintIn, mintOut] = [inputMint.toBase58(), outputMint.toBase58()];
+    const [mintIn, mintOut] = [
+      validateAndParsePublicKey(inputMint).toBase58(),
+      validateAndParsePublicKey(outputMint).toBase58(),
+    ];
     const availablePools = this.scope.liquidity.allPools.filter(
       (info) =>
         (info.baseMint === mintIn && info.quoteMint === mintOut) ||
@@ -286,7 +67,7 @@ export default class Trade extends ModuleBase {
       return isCandidate && !onlyInRoute;
     });
 
-    const best = await this._getBestPool({
+    const best = await this._getBestSwapPool({
       availablePools,
       officialPoolIdSet: this.scope.liquidity.allPoolIdSet.official,
     });
@@ -310,8 +91,8 @@ export default class Trade extends ModuleBase {
     this.checkDisabled();
     if (!pools) {
       const { routedPools } = await this.getAvailablePools({
-        inputMint: inputToken.mint,
-        outputMint: outputToken.mint,
+        inputMint: inputToken.mint.toBase58(),
+        outputMint: outputToken.mint.toBase58(),
       });
       pools = routedPools;
     }
@@ -383,7 +164,7 @@ export default class Trade extends ModuleBase {
 
         // * if currencies not match with pool, will throw error
         try {
-          const { amountOut, minAmountOut, executionPrice, priceImpact, fee } = this._computeRouteAmountOut({
+          const { amountOut, minAmountOut, executionPrice, priceImpact, fee } = this.scope.route.computeRouteAmountOut({
             fromPoolKeys,
             toPoolKeys,
             fromPoolInfo,
@@ -424,7 +205,7 @@ export default class Trade extends ModuleBase {
     };
   }
 
-  public async swap(params: SwapParams): Promise<MakeTransaction> {
+  public async directSwap(params: SwapParams): Promise<MakeTransaction> {
     this.checkDisabled();
     const { inputMint, outputMint, amountIn, slippage, config } = params;
     const inputToken = this.scope.token.mintToToken(inputMint);
@@ -432,11 +213,11 @@ export default class Trade extends ModuleBase {
     const { routes, routeType, minAmountOut } = await this.getBestAmountOut({
       inputToken,
       outputToken,
-      amountIn,
+      amountIn: parseBigNumberish(amountIn),
       slippage,
     });
 
-    return await this.routeSwap({
+    return await this.swap({
       routes,
       routeType,
       amountIn: new TokenAmount(inputToken, amountIn),
@@ -446,7 +227,7 @@ export default class Trade extends ModuleBase {
     });
   }
 
-  public async routeSwap(params: CustomSwapParams): Promise<MakeTransaction> {
+  public async swap(params: CustomSwapParams): Promise<MakeTransaction> {
     this.checkDisabled();
     this.scope.checkOwner();
     const { routes, routeType, amountIn, amountOut, fixedSide, config } = params;
@@ -459,7 +240,7 @@ export default class Trade extends ModuleBase {
         config,
       });
     } else if (routeType === "route" && routes.length === 2) {
-      return await this.swapWithRoute({
+      return await this.scope.route.swapWithRoute({
         fromPoolKeys: routes[0].keys,
         toPoolKeys: routes[1].keys,
         amountIn,

@@ -42,6 +42,9 @@ interface CreateWrappedTokenAccount {
   amount: BigNumberish;
   commitment?: Commitment;
 }
+/**
+ * WrappedNative account = wsol account
+ */
 export async function createWrappedNativeAccountInstructions(
   params: CreateWrappedTokenAccount,
 ): Promise<AddInstructionParam> {

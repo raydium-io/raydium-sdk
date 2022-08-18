@@ -82,8 +82,8 @@ export type LiquidityComputeAmountOutReturn = {
 export interface LiquiditySwapTransactionParams {
   poolKeys: LiquidityPoolKeys;
   payer?: PublicKey;
-  amountIn: CurrencyAmount | TokenAmount;
-  amountOut: CurrencyAmount | TokenAmount;
+  amountIn: TokenAmount;
+  amountOut: TokenAmount;
   fixedSide: SwapSide;
   config?: {
     bypassAssociatedCheck?: boolean;

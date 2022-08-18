@@ -2,12 +2,27 @@ import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { SystemProgram, TransactionInstruction } from "@solana/web3.js";
 
 import { parseBigNumberish } from "../../common/bignumber";
+import { createLogger } from "../../common/logger";
 import { accountMeta } from "../../common/pubKey";
 import { MODEL_DATA_PUBKEY } from "../liquidity/stable";
 
 import { ROUTE_PROGRAM_ID_V1 } from "./constant";
 import { routeSwapInLayout, routeSwapOutLayout } from "./layout";
-import { RouteSwapInFixedInInstructionParams, RouteSwapOutFixedInInstructionParams } from "./type";
+import {
+  RouteSwapInFixedInInstructionParams, RouteSwapInstructionParams, RouteSwapOutFixedInInstructionParams,
+} from "./type";
+
+const logger = createLogger("Raydium.route.instruction")
+export function makeSwapInstruction(params: RouteSwapInstructionParams): TransactionInstruction[] {
+  const { fixedSide } = params;
+
+  if (fixedSide === "in") {
+    return [makeSwapInFixedInInstruction(params), makeSwapOutFixedInInstruction(params)];
+  }
+
+  logger.logWithError("invalid params", "params", params);
+  throw new Error(`invalid params, params: ${params}`);
+}
 
 export function makeSwapInFixedInInstruction({
   fromPoolKeys,

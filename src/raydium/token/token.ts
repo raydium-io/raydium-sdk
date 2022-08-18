@@ -1,6 +1,6 @@
 import { PublicKey } from "@solana/web3.js";
 
-import { SOLMint } from "../../common/pubKey";
+import { PublicKeyish, SOLMint, validateAndParsePublicKey } from "../../common/pubKey";
 import { Token } from "../../module/token";
 import ModuleBase, { ModuleBaseProps } from "../moduleBase";
 
@@ -55,9 +55,10 @@ export default class TokenModule extends ModuleBase {
     return this._tokenMap;
   }
 
-  public mintToToken(mint: PublicKey): Token {
-    const tokenInfo = this.allTokenMap.get(mint.toBase58());
-    if (!tokenInfo) this.logAndCreateError("token not found, mint:", mint.toBase58());
+  public mintToToken(mint: PublicKeyish): Token {
+    const _mint = validateAndParsePublicKey(mint);
+    const tokenInfo = this.allTokenMap.get(_mint.toBase58());
+    if (!tokenInfo) this.logAndCreateError("token not found, mint:", _mint.toBase58());
     const { decimals, name, symbol } = tokenInfo!;
     return new Token({ mint, decimals, name, symbol });
   }
