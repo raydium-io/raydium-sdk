@@ -65,28 +65,19 @@ export interface LiquidityFetchMultipleInfoParams {
 export interface LiquidityComputeAmountOutParams {
   poolKeys: LiquidityPoolKeys;
   poolInfo: LiquidityPoolInfo;
-  amountIn: CurrencyAmount | TokenAmount;
-  currencyOut: Currency | Token;
+  amountIn: TokenAmount;
+  outputToken: Token;
   slippage: Percent;
 }
 
-export type LiquidityComputeAmountOutReturn =
-  | {
-      amountOut: CurrencyAmount;
-      minAmountOut: CurrencyAmount;
-      currentPrice: Price;
-      executionPrice: Price | null;
-      priceImpact: Percent;
-      fee: CurrencyAmount;
-    }
-  | {
-      amountOut: TokenAmount;
-      minAmountOut: TokenAmount;
-      currentPrice: Price;
-      executionPrice: Price | null;
-      priceImpact: Percent;
-      fee: CurrencyAmount;
-    };
+export type LiquidityComputeAmountOutReturn = {
+  amountOut: TokenAmount;
+  minAmountOut: TokenAmount;
+  currentPrice: Price;
+  executionPrice: Price | null;
+  priceImpact: Percent;
+  fee: TokenAmount;
+};
 
 export interface LiquiditySwapTransactionParams {
   poolKeys: LiquidityPoolKeys;

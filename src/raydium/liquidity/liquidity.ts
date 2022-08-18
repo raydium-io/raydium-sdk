@@ -40,8 +40,7 @@ export default class Liquidity extends ModuleBase {
     super(params);
   }
 
-  public async init(): Promise<void> {
-    this.checkDisabled();
+  public async load(): Promise<void> {
     await this.scope.fetchLiquidity();
     if (!this.scope.apiData.liquidityPools) return;
     const { data } = this.scope.apiData.liquidityPools;
@@ -133,55 +132,55 @@ export default class Liquidity extends ModuleBase {
     poolKeys,
     poolInfo,
     amountIn,
-    currencyOut,
+    outputToken,
     slippage,
   }: LiquidityComputeAmountOutParams): LiquidityComputeAmountOutReturn {
     this.checkDisabled();
     const logger = createLogger("Liquidity computeAmountOut");
     const tokenIn = amountIn instanceof TokenAmount ? amountIn.token : Token.WSOL;
-    const tokenOut = currencyOut instanceof Token ? currencyOut : Token.WSOL;
+    const tokenOut = outputToken instanceof Token ? outputToken : Token.WSOL;
     if (!includesToken(tokenIn, poolKeys) || !includesToken(tokenOut, poolKeys))
       logger.logWithError("token not match with pool", "poolKeys", poolKeys);
 
     const { baseReserve, quoteReserve } = poolInfo;
-    logger.debug("baseReserve:", baseReserve.toString());
-    logger.debug("quoteReserve:", quoteReserve.toString());
+    this.logDebug("baseReserve:", baseReserve.toString());
+    this.logDebug("quoteReserve:", quoteReserve.toString());
 
-    const currencyIn = amountIn instanceof TokenAmount ? amountIn.token : amountIn.currency;
-    logger.debug("currencyIn:", currencyIn);
-    logger.debug("amountIn:", amountIn.toFixed());
-    logger.debug("currencyOut:", currencyOut);
-    logger.debug("slippage:", `${slippage.toSignificant()}%`);
+    const inputToken = amountIn.token;
+    this.logDebug("inputToken:", inputToken);
+    this.logDebug("amountIn:", amountIn.toFixed());
+    this.logDebug("outputToken:", outputToken);
+    this.logDebug("slippage:", `${slippage.toSignificant()}%`);
 
     const reserves = [baseReserve, quoteReserve];
     const input = getAmountSide(amountIn, poolKeys);
     if (input === "quote") {
       reserves.reverse();
     }
-    logger.debug("input side:", input);
+    this.logDebug("input side:", input);
 
     const [reserveIn, reserveOut] = reserves;
     let currentPrice;
     if (poolKeys.version === 4) {
       currentPrice = new Price({
-        baseCurrency: currencyIn,
+        baseCurrency: inputToken,
         denominator: reserveIn,
-        quoteCurrency: currencyOut,
+        quoteCurrency: outputToken,
         numerator: reserveOut,
       });
     } else {
       const p = getStablePrice(stableModelData, baseReserve.toNumber(), quoteReserve.toNumber(), false);
       currentPrice = new Price({
-        baseCurrency: currencyIn,
+        baseCurrency: inputToken,
         denominator: input === "quote" ? new BN(p * 1e6) : new BN(1e6),
-        quoteCurrency: currencyOut,
+        quoteCurrency: outputToken,
         numerator: input === "quote" ? new BN(1e6) : new BN(p * 1e6),
       });
     }
-    logger.debug("currentPrice:", `1 ${currencyIn.symbol} ≈ ${currentPrice.toFixed()} ${currencyOut.symbol}`);
-    logger.debug(
+    this.logDebug("currentPrice:", `1 ${inputToken.symbol} ≈ ${currentPrice.toFixed()} ${outputToken.symbol}`);
+    this.logDebug(
       "currentPrice invert:",
-      `1 ${currencyOut.symbol} ≈ ${currentPrice.invert().toFixed()} ${currencyIn.symbol}`,
+      `1 ${outputToken.symbol} ≈ ${currentPrice.invert().toFixed()} ${inputToken.symbol}`,
     );
 
     const amountInRaw = amountIn.raw;
@@ -207,33 +206,27 @@ export default class Liquidity extends ModuleBase {
 
     const _slippage = new Percent(BN_ONE).add(slippage);
     const minAmountOutRaw = _slippage.invert().mul(amountOutRaw).quotient;
-    const amountOut =
-      currencyOut instanceof Token
-        ? new TokenAmount(currencyOut, amountOutRaw)
-        : new CurrencyAmount(currencyOut, amountOutRaw);
-    const minAmountOut =
-      currencyOut instanceof Token
-        ? new TokenAmount(currencyOut, minAmountOutRaw)
-        : new CurrencyAmount(currencyOut, minAmountOutRaw);
-    logger.debug("amountOut:", amountOut.toFixed(), "minAmountOut:", minAmountOut.toFixed());
+    const amountOut = new TokenAmount(outputToken, amountOutRaw);
+    const minAmountOut = new TokenAmount(outputToken, minAmountOutRaw);
+    this.logDebug("amountOut:", amountOut.toFixed(), "minAmountOut:", minAmountOut.toFixed());
 
     let executionPrice = new Price({
-      baseCurrency: currencyIn,
+      baseCurrency: inputToken,
       denominator: amountInRaw.sub(feeRaw),
-      quoteCurrency: currencyOut,
+      quoteCurrency: outputToken,
       numerator: amountOutRaw,
     });
     if (!amountInRaw.isZero() && !amountOutRaw.isZero()) {
       executionPrice = new Price({
-        baseCurrency: currencyIn,
+        baseCurrency: inputToken,
         denominator: amountInRaw.sub(feeRaw),
-        quoteCurrency: currencyOut,
+        quoteCurrency: outputToken,
         numerator: amountOutRaw,
       });
-      logger.debug("executionPrice:", `1 ${currencyIn.symbol} ≈ ${executionPrice.toFixed()} ${currencyOut.symbol}`);
-      logger.debug(
+      this.logDebug("executionPrice:", `1 ${inputToken.symbol} ≈ ${executionPrice.toFixed()} ${outputToken.symbol}`);
+      this.logDebug(
         "executionPrice invert:",
-        `1 ${currencyOut.symbol} ≈ ${executionPrice.invert().toFixed()} ${currencyIn.symbol}`,
+        `1 ${outputToken.symbol} ≈ ${executionPrice.invert().toFixed()} ${inputToken.symbol}`,
       );
     }
 
@@ -241,8 +234,7 @@ export default class Liquidity extends ModuleBase {
       parseInt(String(Math.abs(parseFloat(executionPrice.toFixed()) - parseFloat(currentPrice.toFixed())) * 1e9)),
       parseInt(String(parseFloat(currentPrice.toFixed()) * 1e9)),
     );
-    const fee =
-      currencyIn instanceof Token ? new TokenAmount(currencyIn, feeRaw) : new CurrencyAmount(currencyIn, feeRaw);
+    const fee =new TokenAmount(inputToken, feeRaw)
 
     return {
       amountOut,
@@ -288,8 +280,8 @@ export default class Liquidity extends ModuleBase {
 
   public async swapWithAMM(params: LiquiditySwapTransactionParams): Promise<MakeTransaction> {
     const { poolKeys, payer, amountIn, amountOut, fixedSide, config } = params;
-    this.logger.debug("amountIn:", amountIn);
-    this.logger.debug("amountOut:", amountOut);
+    this.logDebug("amountIn:", amountIn);
+    this.logDebug("amountOut:", amountOut);
     if (amountIn.isZero() || amountOut.isZero())
       this.logAndCreateError("amounts must greater than zero", "currencyAmounts", {
         amountIn: amountIn.toFixed(),
@@ -297,7 +289,7 @@ export default class Liquidity extends ModuleBase {
       });
 
     const txBuilder = this.createTxBuilder();
-    const { bypassAssociatedCheck = false } = config || {}
+    const { bypassAssociatedCheck = false } = config || {};
 
     // handle currency in & out (convert SOL to WSOL)
     const tokenIn = amountIn instanceof TokenAmount ? amountIn.token : Token.WSOL;

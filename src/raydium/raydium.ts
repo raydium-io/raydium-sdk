@@ -11,8 +11,8 @@ import { Cluster } from "../solana";
 import Account, { TokenAccountDataProp } from "./account/account";
 import Farm from "./farm/farm";
 import Liquidity from "./liquidity/liquidity";
-import Swap from "./swap/swap";
 import TokenModule from "./token/token";
+import Trade from "./trade/trade";
 import { SignAllTransactions } from "./type";
 
 export interface RaydiumLoadParams extends TokenAccountDataProp {
@@ -60,7 +60,7 @@ export class Raydium {
   public account: Account;
   public liquidity: Liquidity;
   public token: TokenModule;
-  public swap: Swap;
+  public trade: Trade;
   public rawBalances: Map<string, string> = new Map();
   public apiData: ApiData;
 
@@ -89,7 +89,7 @@ export class Raydium {
     });
     this.liquidity = new Liquidity({ scope: this, moduleName: "Raydium.Liquidity" });
     this.token = new TokenModule({ scope: this, moduleName: "Raydium.token" });
-    this.swap = new Swap({ scope: this, moduleName: "Raydium.swap" });
+    this.trade = new Trade({ scope: this, moduleName: "Raydium.trade" });
 
     const now = new Date().getTime();
 
@@ -126,6 +126,8 @@ export class Raydium {
     });
 
     await raydium.token.load();
+    await raydium.liquidity.load();
+    await raydium.farm.load();
 
     return raydium;
   }

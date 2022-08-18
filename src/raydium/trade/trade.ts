@@ -13,19 +13,12 @@ import { MakeTransaction } from "../type";
 import { defaultRoutes, ROUTE_PROGRAM_ID_V1, swapRouteMiddleMints } from "./constant";
 import { makeSwapInFixedInInstruction, makeSwapOutFixedInInstruction } from "./instruction";
 import {
-  AvailableSwapPools,
-  GetAmountOutReturn,
-  GetBestAmountOutParams,
-  RouteComputeAmountOutParams,
-  RouteInfo,
-  RouteSwapInstructionParams,
-  RouteSwapTransactionParams,
-  RouteType,
-  TradeParams,
+  AvailableSwapPools, CustomSwapParams, GetAmountOutReturn, GetBestAmountOutParams, RouteComputeAmountOutData,
+  RouteComputeAmountOutParams, RouteInfo, RouteSwapInstructionParams, RouteSwapTransactionParams, RouteType, SwapParams,
 } from "./type";
 import { getAssociatedMiddleStatusAccount, groupPools } from "./util";
 
-export default class Swap extends ModuleBase {
+export default class Trade extends ModuleBase {
   public async load(): Promise<void> {
     this.checkDisabled();
     await this.scope.fetchLiquidity();
@@ -62,9 +55,9 @@ export default class Swap extends ModuleBase {
     fromPoolInfo,
     toPoolInfo,
     amountIn,
-    currencyOut,
+    outputToken,
     slippage,
-  }: RouteComputeAmountOutParams): any {
+  }: RouteComputeAmountOutParams): RouteComputeAmountOutData {
     const { swap: fromPoolSwapEnabled } = getPoolEnabledFeatures(fromPoolInfo);
     const { swap: toPoolSwapEnabled } = getPoolEnabledFeatures(toPoolInfo);
     if (!fromPoolSwapEnabled || !toPoolSwapEnabled)
@@ -75,8 +68,8 @@ export default class Swap extends ModuleBase {
         toPoolInfo,
       });
 
-    const tokenIn = amountIn instanceof TokenAmount ? amountIn.token : Token.WSOL;
-    const tokenOut = currencyOut instanceof Token ? currencyOut : Token.WSOL;
+    const tokenIn = amountIn.token;
+    const tokenOut = outputToken instanceof Token ? outputToken : Token.WSOL;
 
     if (!includesToken(tokenIn, fromPoolKeys) || !includesToken(tokenOut, toPoolKeys))
       this.logAndCreateError("pools cannot be routed", "pools", {
@@ -93,8 +86,7 @@ export default class Swap extends ModuleBase {
       toPoolInfo.baseDecimals,
       toPoolInfo.quoteDecimals,
     ];
-    const mintIn = tokenIn.mint.toBase58();
-    const mintOut = tokenOut.mint.toBase58();
+    const [mintIn, mintOut] = [tokenIn.mint.toBase58(), tokenOut.mint.toBase58()];
 
     const xorMints = xor(fromPoolMints, toPoolMints);
     if (xorMints.length !== 2 || xorMints.includes(mintIn) || xorMints.includes(mintOut))
@@ -122,11 +114,11 @@ export default class Swap extends ModuleBase {
     const middleMint = new PublicKey(_middleMint);
     const middleToken = new Token({ mint: middleMint, decimals: middleMintDecimals });
 
-    this.logger.debug("from pool:", fromPoolKeys);
-    this.logger.debug("to pool:", toPoolKeys);
-    this.logger.debug("intersection mints:", intersectionMints);
-    this.logger.debug("xor mints:", xorMints);
-    this.logger.debug("middleMint:", _middleMint);
+    this.logDebug(`from pool:`, fromPoolKeys);
+    this.logDebug("to pool:", toPoolKeys);
+    this.logDebug("intersection mints:", intersectionMints);
+    this.logDebug("xor mints:", xorMints);
+    this.logDebug("middleMint:", _middleMint);
 
     const {
       minAmountOut: minMiddleAmountOut,
@@ -136,7 +128,7 @@ export default class Swap extends ModuleBase {
       poolKeys: fromPoolKeys,
       poolInfo: fromPoolInfo,
       amountIn,
-      currencyOut: middleToken,
+      outputToken: middleToken,
       slippage,
     });
     const {
@@ -148,27 +140,24 @@ export default class Swap extends ModuleBase {
       poolKeys: toPoolKeys,
       poolInfo: toPoolInfo,
       amountIn: minMiddleAmountOut,
-      currencyOut,
+      outputToken,
       slippage,
     });
 
     let executionPrice: Price | null = null;
     const [amountInRaw, amountOutRaw] = [amountIn.raw, amountOut.raw];
-    const currencyIn = amountIn instanceof TokenAmount ? amountIn.token : amountIn.currency;
+    const currencyIn = amountIn.token;
     if (!amountInRaw.isZero() && !amountOutRaw.isZero()) {
       executionPrice = new Price({
         baseCurrency: currencyIn,
         denominator: amountInRaw,
-        quoteCurrency: currencyOut,
+        quoteCurrency: outputToken,
         numerator: amountOutRaw,
       });
-      this.logger.debug(
-        "executionPrice:",
-        `1 ${currencyIn.symbol} ≈ ${executionPrice.toFixed()} ${currencyOut.symbol}`,
-      );
-      this.logger.debug(
+      this.logDebug("executionPrice:", `1 ${currencyIn.symbol} ≈ ${executionPrice.toFixed()} ${outputToken.symbol}`);
+      this.logDebug(
         "executionPrice invert:",
-        `1 ${currencyOut.symbol} ≈ ${executionPrice.invert().toFixed()} ${currencyIn.symbol}`,
+        `1 ${outputToken.symbol} ≈ ${executionPrice.invert().toFixed()} ${currencyIn.symbol}`,
       );
     }
 
@@ -193,9 +182,9 @@ export default class Swap extends ModuleBase {
     throw new Error(`invalid params, params: ${params}`);
   }
 
-  private async _swapWithRoute(params: RouteSwapTransactionParams): Promise<MakeTransaction> {
+  public async swapWithRoute(params: RouteSwapTransactionParams): Promise<MakeTransaction> {
     const { fromPoolKeys, toPoolKeys, amountIn, amountOut, fixedSide, config } = params;
-    this.logger.debug("amountIn:", amountIn, "amountOut:", amountOut);
+    this.logDebug("amountIn:", amountIn, "amountOut:", amountOut);
     if (amountIn.isZero() || amountOut.isZero())
       this.logAndCreateError("amounts must greater than zero", "currencyAmounts", {
         amountIn: amountIn.toFixed(),
@@ -277,27 +266,23 @@ export default class Swap extends ModuleBase {
     return await txBuilder.build();
   }
 
-  public async getAvailablePools(params: {
-    currencyIn: PublicKey;
-    currencyOut: PublicKey;
-  }): Promise<AvailableSwapPools> {
+  public async getAvailablePools(params: { inputMint: PublicKey; outputMint: PublicKey }): Promise<AvailableSwapPools> {
     this.checkDisabled();
-    const { currencyIn, currencyOut } = params;
-    const [mintIn, mintOut] = [currencyIn.toBase58(), currencyOut.toBase58()];
+    const { inputMint, outputMint } = params;
+    const [mintIn, mintOut] = [inputMint.toBase58(), outputMint.toBase58()];
     const availablePools = this.scope.liquidity.allPools.filter(
       (info) =>
         (info.baseMint === mintIn && info.quoteMint === mintOut) ||
         (info.baseMint === mintOut && info.quoteMint === mintIn),
     );
 
-    const routeMiddleSet = new Set([...swapRouteMiddleMints, mintIn, mintOut]);
-    const candidateTokenMints = Array.from(routeMiddleSet); // list with swap tokens
-    routeMiddleSet.delete(mintIn);
-    routeMiddleSet.delete(mintOut);
-    const routeOnlyMints = Array.from(routeMiddleSet); // list without swap tokens
-    const routeRelated = this.scope.liquidity.allPools.filter((info) => {
-      const isCandidate = candidateTokenMints.includes(info.baseMint) && candidateTokenMints.includes(info.quoteMint);
-      const onlyInRoute = routeOnlyMints.includes(info.baseMint) && routeOnlyMints.includes(info.quoteMint);
+    const candidateTokenMintsSet = new Set([...swapRouteMiddleMints, mintIn, mintOut]); // list with swap tokens
+    const routeOnlyMintsSet = new Set(JSON.parse(JSON.stringify([...candidateTokenMintsSet]))); // list without swap tokens
+    routeOnlyMintsSet.delete(mintIn);
+    routeOnlyMintsSet.delete(mintOut);
+    const routedPools = this.scope.liquidity.allPools.filter((info) => {
+      const isCandidate = candidateTokenMintsSet.has(info.baseMint) && candidateTokenMintsSet.has(info.quoteMint);
+      const onlyInRoute = routeOnlyMintsSet.has(info.baseMint) && routeOnlyMintsSet.has(info.quoteMint);
       return isCandidate && !onlyInRoute;
     });
 
@@ -306,36 +291,47 @@ export default class Swap extends ModuleBase {
       officialPoolIdSet: this.scope.liquidity.allPoolIdSet.official,
     });
 
-    return { availablePools, best, routeRelated };
+    return { availablePools, best, routedPools };
   }
 
+  /**
+   * Get best amount out
+   *
+   * @param pools - pools to calculate best swap rate, if not passed, will find automatically - optional
+   */
   public async getBestAmountOut({
-    inputMint,
-    outputMint,
     pools,
     amountIn,
-    currencyOut,
+    inputToken,
+    outputToken,
     slippage,
     features,
   }: GetBestAmountOutParams): Promise<GetAmountOutReturn> {
     this.checkDisabled();
+    if (!pools) {
+      const { routedPools } = await this.getAvailablePools({
+        inputMint: inputToken.mint,
+        outputMint: outputToken.mint,
+      });
+      pools = routedPools;
+    }
     const sdkParsedInfo = await this.scope.liquidity.sdkParseJsonLiquidityInfo(pools || []);
     const _pools = (pools || []).map((pool, idx) => ({
       poolKeys: jsonInfo2PoolKeys(pool),
       poolInfo: sdkParsedInfo[idx],
     }));
     const _features = features || defaultRoutes;
-    this.logger.debug("features:", _features);
-    if (!_pools.length && (!inputMint || !outputMint))
+    this.logDebug("features:", _features);
+    if (!_pools.length)
       this.logAndCreateError("please provide at least one source of trade or (inputMint & outputMint)", _pools);
 
     // the route of the trade
     let routes: RouteInfo[] = [];
     let routeType: RouteType = "amm";
 
+    const _amountIn = new TokenAmount(inputToken, amountIn);
     // the output amount for the trade assuming no slippage
-    let _amountOut =
-      currencyOut instanceof Token ? new TokenAmount(currencyOut, 0) : new CurrencyAmount(currencyOut, 0);
+    let _amountOut = new TokenAmount(outputToken, 0);
     let _minAmountOut = _amountOut;
 
     let _currentPrice: Price | null = null;
@@ -344,7 +340,7 @@ export default class Swap extends ModuleBase {
 
     // the percent difference between the mid price before the trade and the trade execution price
     let _priceImpact = new Percent(BN_ZERO);
-    let _fee: CurrencyAmount[] = [];
+    let _fee: TokenAmount[] = [];
 
     // amm directly
     if (_features.includes("amm")) {
@@ -355,8 +351,8 @@ export default class Swap extends ModuleBase {
             this.scope.liquidity.computeAmountOut({
               poolKeys,
               poolInfo,
-              amountIn,
-              currencyOut,
+              amountIn: _amountIn,
+              outputToken,
               slippage,
             });
 
@@ -392,8 +388,8 @@ export default class Swap extends ModuleBase {
             toPoolKeys,
             fromPoolInfo,
             toPoolInfo,
-            amountIn,
-            currencyOut,
+            amountIn: _amountIn,
+            outputToken,
             slippage,
           });
 
@@ -428,16 +424,33 @@ export default class Swap extends ModuleBase {
     };
   }
 
-  public async trade(params: TradeParams): Promise<MakeTransaction> {
+  public async swap(params: SwapParams): Promise<MakeTransaction> {
+    this.checkDisabled();
+    const { inputMint, outputMint, amountIn, slippage, config } = params;
+    const inputToken = this.scope.token.mintToToken(inputMint);
+    const outputToken = this.scope.token.mintToToken(outputMint);
+    const { routes, routeType, minAmountOut } = await this.getBestAmountOut({
+      inputToken,
+      outputToken,
+      amountIn,
+      slippage,
+    });
+
+    return await this.routeSwap({
+      routes,
+      routeType,
+      amountIn: new TokenAmount(inputToken, amountIn),
+      amountOut: new TokenAmount(outputToken, minAmountOut.toSignificant()),
+      fixedSide: "in",
+      config,
+    });
+  }
+
+  public async routeSwap(params: CustomSwapParams): Promise<MakeTransaction> {
     this.checkDisabled();
     this.scope.checkOwner();
     const { routes, routeType, amountIn, amountOut, fixedSide, config } = params;
-    if (routeType === "amm") {
-      if (routes.length !== 1)
-        this.logAndCreateError("invalid routes with routeType", "routes", {
-          routeType,
-          routes,
-        });
+    if (routeType === "amm" && routes.length === 1) {
       return await this.scope.liquidity.swapWithAMM({
         poolKeys: routes[0].keys,
         amountIn,
@@ -445,13 +458,8 @@ export default class Swap extends ModuleBase {
         fixedSide,
         config,
       });
-    } else if (routeType === "route") {
-      if (routes.length !== 2)
-        this.logAndCreateError("invalid routes with routeType", "routes", {
-          routeType,
-          routes,
-        });
-      return await this._swapWithRoute({
+    } else if (routeType === "route" && routes.length === 2) {
+      return await this.swapWithRoute({
         fromPoolKeys: routes[0].keys,
         toPoolKeys: routes[1].keys,
         amountIn,
@@ -460,6 +468,10 @@ export default class Swap extends ModuleBase {
         config,
       });
     }
+    this.logAndCreateError("invalid routes with routeType", "routes", {
+      routeType,
+      routes,
+    });
     return await this.createTxBuilder().build();
   }
 }

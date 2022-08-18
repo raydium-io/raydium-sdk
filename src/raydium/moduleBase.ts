@@ -10,6 +10,9 @@ export interface ModuleBaseProps {
   scope: Raydium;
   moduleName: string;
 }
+
+const joinMsg = (...args: (string | number | Record<string, any>)[]): string =>
+  args.map((arg) => (typeof arg === "object" ? JSON.stringify(arg) : arg)).join(", ");
 export default class ModuleBase {
   public scope: Raydium;
   private disabled = false;
@@ -30,8 +33,16 @@ export default class ModuleBase {
     });
   }
 
+  public logDebug(...args: (string | number | Record<string, any>)[]): void {
+    this.logDebug(joinMsg(args));
+  }
+
+  public logInfo(...args: (string | number | Record<string, any>)[]): void {
+    this.logger.info(joinMsg(args));
+  }
+
   public logAndCreateError(...args: (string | number | Record<string, any>)[]): void {
-    const message = args.map((arg) => (typeof arg === "object" ? JSON.stringify(arg) : arg)).join(", ");
+    const message = joinMsg(args);
     this.logger.error(message);
     throw new Error(message);
   }

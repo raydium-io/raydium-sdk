@@ -1,8 +1,9 @@
 import { PublicKey } from "@solana/web3.js";
+import BN from "bn.js";
 
 import { ApiLiquidityPoolInfo } from "../../api/type";
 import { BigNumberish } from "../../common/bignumber";
-import { Currency, CurrencyAmount, Percent, Price, Token, TokenAmount } from "../../module";
+import { Currency, CurrencyAmount, Fraction, Percent, Price, Token, TokenAmount } from "../../module";
 import { LiquidityPoolInfo, LiquidityPoolKeys, SerumSource, SwapSide } from "../liquidity/type";
 
 export type TradeSource = "amm" | "serum" | "stable";
@@ -14,12 +15,11 @@ export interface RouteInfo {
 }
 
 export interface GetBestAmountOutParams {
-  inputMint?: PublicKey;
-  outputMint?: PublicKey;
   pools?: ApiLiquidityPoolInfo[];
   markets?: SerumSource[];
-  amountIn: CurrencyAmount | TokenAmount;
-  currencyOut: Currency | Token;
+  inputToken: Token;
+  outputToken: Token;
+  amountIn: BN;
   slippage: Percent;
   midTokens?: Currency | Token[];
   features?: RouteType[];
@@ -28,19 +28,19 @@ export interface GetBestAmountOutParams {
 export interface GetAmountOutReturn {
   routes: RouteInfo[];
   routeType: "amm" | "route";
-  amountOut: CurrencyAmount;
-  minAmountOut: CurrencyAmount;
+  amountOut: TokenAmount;
+  minAmountOut: TokenAmount;
   fixedSide: "in";
   currentPrice: Price | null;
   executionPrice: Price | null;
   priceImpact: Percent;
-  fee: CurrencyAmount[];
+  fee: TokenAmount[];
 }
 
 export interface AvailableSwapPools {
   availablePools: ApiLiquidityPoolInfo[];
   best?: ApiLiquidityPoolInfo;
-  routeRelated: ApiLiquidityPoolInfo[];
+  routedPools: ApiLiquidityPoolInfo[];
 }
 
 export interface RouteComputeAmountOutParams {
@@ -48,12 +48,32 @@ export interface RouteComputeAmountOutParams {
   toPoolKeys: LiquidityPoolKeys;
   fromPoolInfo: LiquidityPoolInfo;
   toPoolInfo: LiquidityPoolInfo;
-  amountIn: CurrencyAmount | TokenAmount;
-  currencyOut: Currency | Token;
+  amountIn: TokenAmount;
+  outputToken: Token;
   slippage: Percent;
 }
 
-export interface TradeParams {
+export interface RouteComputeAmountOutData {
+  amountOut: TokenAmount;
+  minAmountOut: TokenAmount;
+  executionPrice: Price | null;
+  priceImpact: Fraction;
+  fee: TokenAmount[];
+}
+
+export interface SwapParams {
+  inputMint: PublicKey;
+  outputMint: PublicKey;
+  payer?: PublicKey;
+  amountIn: BN;
+  fixedSide: SwapSide;
+  slippage: Percent;
+  config?: {
+    bypassAssociatedCheck?: boolean;
+  };
+}
+
+export interface CustomSwapParams {
   routes: RouteInfo[];
   routeType: RouteType;
   payer?: PublicKey;

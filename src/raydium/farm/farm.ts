@@ -32,8 +32,7 @@ export default class Farm extends ModuleBase {
   private _sdkParsedFarmPools: SdkParsedFarmInfo[] = [];
 
   public async load(): Promise<void> {
-    this.checkDisabled();
-    await this.scope.fetchLiquidity();
+    await this.scope.liquidity.load();
     await this.scope.fetchFarms();
 
     this._farmPools = Object.keys(this.scope.apiData.farmPools || {}).reduce(

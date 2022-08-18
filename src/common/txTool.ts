@@ -82,7 +82,7 @@ export class TxBuilder {
       transaction,
       signers: this.signers,
       execute: async (): Promise<string> => {
-        if (this.owner) {
+        if (this.owner?.isKeyPair) {
           return sendAndConfirmTransaction(this.connection, transaction, this.signers);
         }
         if (this.signAllTransactions) {
@@ -163,11 +163,11 @@ export async function simulateMultipleInstruction(
   const logs: string[] = [];
   for (const result of results) {
     const { value } = result;
-    logger.debug("simulate result:", result);
+    logger.debug(`simulate result: ${JSON.stringify(result)}`);
 
     if (value.logs) {
       const filteredLog = value.logs.filter((log) => log && log.includes(keyword));
-      logger.debug("filteredLog:", logs);
+      logger.debug(`filteredLog: ${JSON.stringify(logs)}`);
       if (!filteredLog.length) logger.logWithError(` "simulate log not match keyword, keyword: ${keyword}`);
       logs.push(...filteredLog);
     }

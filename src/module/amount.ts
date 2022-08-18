@@ -51,7 +51,6 @@ export class CurrencyAmount extends Fraction {
       // parse fractional string
       if (typeof amount === "string" || typeof amount === "number" || typeof amount === "bigint") {
         const [integral, fractional] = splitNumber(amount.toString(), currency.decimals);
-
         integralAmount = parseBigNumberish(integral);
         fractionalAmount = parseBigNumberish(fractional);
       }

@@ -1,4 +1,7 @@
+import { PublicKey } from "@solana/web3.js";
+
 import { SOLMint } from "../../common/pubKey";
+import { Token } from "../../module/token";
 import ModuleBase, { ModuleBaseProps } from "../moduleBase";
 
 import { quantumSOLHydratedTokenJsonInfo } from "./constant";
@@ -45,10 +48,17 @@ export default class TokenModule extends ModuleBase {
     this._tokenMap.set(quantumSOLHydratedTokenJsonInfo.mint.toBase58(), quantumSOLHydratedTokenJsonInfo);
   }
 
-  public getAll(): TokenJson[] {
+  get allTokens(): TokenJson[] {
     return this._tokens;
   }
-  public getAllMap(): Map<string, SplToken> {
+  get allTokenMap(): Map<string, SplToken> {
     return this._tokenMap;
+  }
+
+  public mintToToken(mint: PublicKey): Token {
+    const tokenInfo = this.allTokenMap.get(mint.toBase58());
+    if (!tokenInfo) this.logAndCreateError("token not found, mint:", mint.toBase58());
+    const { decimals, name, symbol } = tokenInfo!;
+    return new Token({ mint, decimals, name, symbol });
   }
 }
