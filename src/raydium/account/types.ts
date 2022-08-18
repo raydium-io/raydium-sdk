@@ -33,4 +33,5 @@ export interface HandleTokenAccountParams {
   tokenAccount?: PublicKey;
   payer?: PublicKey;
   bypassAssociatedCheck: boolean;
+  skipCloseAccount?: boolean;
 }

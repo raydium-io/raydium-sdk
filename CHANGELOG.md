@@ -347,7 +347,7 @@ const { transaction, signers, excute } = await raydium.trade.directSwap({
 const txId = excute()
 ```
 
-#### custom controll route swap
+#### custom controlled route swap
 
 ```
 const { availablePools, best, routedPools } = await raydium.trade.getAvailablePools({

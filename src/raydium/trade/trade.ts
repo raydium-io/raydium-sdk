@@ -1,9 +1,9 @@
-import { ApiLiquidityPoolInfo } from "../../api/type";
 import { BN_ZERO, parseBigNumberish } from "../../common/bignumber";
 import { div, gte } from "../../common/fractionUtil";
 import { validateAndParsePublicKey } from "../../common/pubKey";
 import { jsonInfo2PoolKeys } from "../../common/utility";
 import { Percent, Price, TokenAmount } from "../../module";
+import { LiquidityPoolJsonInfo } from "../liquidity/type";
 import ModuleBase from "../moduleBase";
 import { defaultRoutes, swapRouteMiddleMints } from "../route/constant";
 import { MakeTransaction } from "../type";
@@ -23,9 +23,9 @@ export default class Trade extends ModuleBase {
     availablePools,
     officialPoolIdSet,
   }: {
-    availablePools: ApiLiquidityPoolInfo[];
+    availablePools: LiquidityPoolJsonInfo[];
     officialPoolIdSet: Set<string>;
-  }): Promise<ApiLiquidityPoolInfo | undefined> {
+  }): Promise<LiquidityPoolJsonInfo | undefined> {
     if (availablePools.length === 0) return undefined;
     if (availablePools.length === 1) return availablePools[0];
     const officials = availablePools.filter((info) => officialPoolIdSet.has(info.id));

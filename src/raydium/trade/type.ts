@@ -1,9 +1,8 @@
 import { PublicKey } from "@solana/web3.js";
 
-import { ApiLiquidityPoolInfo } from "../../api/type";
 import { BigNumberish } from "../../common/bignumber";
 import { Currency, Percent, Price, Token, TokenAmount } from "../../module";
-import { LiquidityPoolKeys, SerumSource, SwapSide } from "../liquidity/type";
+import { LiquidityPoolJsonInfo, LiquidityPoolKeys, SerumSource, SwapSide } from "../liquidity/type";
 
 export type TradeSource = "amm" | "serum" | "stable";
 export type RouteType = "amm" | "serum" | "route";
@@ -14,7 +13,7 @@ export interface RouteInfo {
 }
 
 export interface GetBestAmountOutParams {
-  pools?: ApiLiquidityPoolInfo[];
+  pools?: LiquidityPoolJsonInfo[];
   markets?: SerumSource[];
   inputToken: Token;
   outputToken: Token;
@@ -61,7 +60,7 @@ export interface CustomSwapParams {
 }
 
 export interface AvailableSwapPools {
-  availablePools: ApiLiquidityPoolInfo[];
-  best?: ApiLiquidityPoolInfo;
-  routedPools: ApiLiquidityPoolInfo[];
+  availablePools: LiquidityPoolJsonInfo[];
+  best?: LiquidityPoolJsonInfo;
+  routedPools: LiquidityPoolJsonInfo[];
 }

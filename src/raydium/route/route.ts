@@ -8,7 +8,7 @@ import ModuleBase, { ModuleBaseProps } from "../moduleBase";
 import { MakeTransaction } from "../type";
 
 import { ROUTE_PROGRAM_ID_V1 } from "./constant";
-import { makeSwapInstruction } from "./instruction";
+import { makeRouteSwapInstruction } from "./instruction";
 import { RouteComputeAmountOutData, RouteComputeAmountOutParams, RouteSwapTransactionParams } from "./type";
 import { getAssociatedMiddleStatusAccount } from "./util";
 
@@ -150,7 +150,7 @@ export default class Route extends ModuleBase {
         amountIn: amountIn.toFixed(),
         amountOut: amountOut.toFixed(),
       });
-
+    const { account } = this.scope;
     const { bypassAssociatedCheck = false } = config || {};
     const [tokenIn, tokenOut] = [amountIn.token, amountOut.token];
 
@@ -174,33 +174,35 @@ export default class Route extends ModuleBase {
     const [amountInRaw, amountOutRaw] = [amountIn.raw, amountOut.raw];
 
     const txBuilder = this.createTxBuilder();
-    const { tokenAccount: _tokenAccountIn, ...accountInInstruction } = await this.scope.account.handleTokenAccount({
+    const { tokenAccount: _tokenAccountIn, ...accountInInstruction } = await account.handleTokenAccount({
       side: "in",
       amount: amountInRaw,
       mint: tokenIn.mint,
       tokenAccount: tokenAccountIn,
       bypassAssociatedCheck,
+      skipCloseAccount: true,
     });
     txBuilder.addInstruction(accountInInstruction);
-    const { tokenAccount: _tokenAccountOut, ...accountOutInstruction } = await this.scope.account.handleTokenAccount({
+    const { tokenAccount: _tokenAccountOut, ...accountOutInstruction } = await account.handleTokenAccount({
       side: "out",
       amount: 0,
       mint: tokenOut.mint,
       tokenAccount: tokenAccountOut,
       bypassAssociatedCheck,
+      skipCloseAccount: true,
     });
     txBuilder.addInstruction(accountOutInstruction);
-    const { tokenAccount: _tokenAccountMiddle, ...accountMiddleInstruction } =
-      await this.scope.account.handleTokenAccount({
-        side: "in",
-        amount: 0,
-        mint: middleMint,
-        tokenAccount: tokenAccountMiddle,
-        bypassAssociatedCheck,
-      });
+    const { tokenAccount: _tokenAccountMiddle, ...accountMiddleInstruction } = await account.handleTokenAccount({
+      side: "in",
+      amount: 0,
+      mint: middleMint,
+      tokenAccount: tokenAccountMiddle,
+      bypassAssociatedCheck,
+      skipCloseAccount: true,
+    });
     txBuilder.addInstruction(accountMiddleInstruction);
     txBuilder.addInstruction({
-      instructions: makeSwapInstruction({
+      instructions: makeRouteSwapInstruction({
         fromPoolKeys,
         toPoolKeys,
         userKeys: {

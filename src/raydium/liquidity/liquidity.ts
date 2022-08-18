@@ -1,29 +1,49 @@
+import { ComputeBudgetProgram } from "@solana/web3.js";
 import BN from "bn.js";
 
-import { ApiLiquidityPoolInfo } from "../../api";
-import { BN_ONE, BN_ZERO } from "../../common/bignumber";
+import { BN_ONE, BN_ZERO, divCeil } from "../../common/bignumber";
 import { createLogger } from "../../common/logger";
-import { parseSimulateLogToJson, parseSimulateValue, simulateMultipleInstruction } from "../../common/txTool";
 import { jsonInfo2PoolKeys } from "../../common/utility";
 import { Percent, Price, TokenAmount } from "../../module";
+import { makeTransferInstruction } from "../account/instruction";
 import ModuleBase, { ModuleBaseProps } from "../moduleBase";
 import { MakeTransaction } from "../type";
 
 import { LIQUIDITY_FEES_DENOMINATOR, LIQUIDITY_FEES_NUMERATOR } from "./constant";
-import { makeSimulatePoolInfoInstruction, makeSwapInstruction } from "./instruction";
+import {
+  makeAddLiquidityInstruction,
+  makeAMMSwapInstruction,
+  makeCreatePoolInstruction,
+  makeInitPoolInstruction,
+  makeRemoveLiquidityInstruction,
+} from "./instruction";
 import { getDxByDyBaseIn, getDyByDxBaseIn, getStablePrice, StableLayout } from "./stable";
 import {
+  AmountSide,
+  CreatePoolParam,
+  InitPoolParam,
+  LiquidityAddTransactionParams,
   LiquidityComputeAmountOutParams,
   LiquidityComputeAmountOutReturn,
+  LiquidityComputeAnotherAmountParams,
   LiquidityFetchMultipleInfoParams,
   LiquidityPoolInfo,
+  LiquidityPoolJsonInfo,
+  LiquidityRemoveTransactionParams,
   LiquiditySwapTransactionParams,
   SDKParsedLiquidityInfo,
 } from "./type";
-import { getAmountSide, includesToken } from "./util";
+import {
+  getAmountSide,
+  getAmountsSide,
+  getAssociatedPoolKeys,
+  includesToken,
+  isValidFixedSide,
+  makeSimulationPoolInfo,
+} from "./util";
 
 export default class Liquidity extends ModuleBase {
-  private _poolInfos: ApiLiquidityPoolInfo[] = [];
+  private _poolInfos: LiquidityPoolJsonInfo[] = [];
   private _officialIds: Set<string> = new Set();
   private _unOfficialIds: Set<string> = new Set();
   private _sdkParseInfoCache: Map<string, SDKParsedLiquidityInfo[]> = new Map();
@@ -43,7 +63,7 @@ export default class Liquidity extends ModuleBase {
     this._unOfficialIds = new Set(unOfficial.map((i) => i.id));
   }
 
-  get allPools(): ApiLiquidityPoolInfo[] {
+  get allPools(): LiquidityPoolJsonInfo[] {
     return this._poolInfos;
   }
   get allPoolIdSet(): { official: Set<string>; unOfficial: Set<string> } {
@@ -53,52 +73,20 @@ export default class Liquidity extends ModuleBase {
     };
   }
 
-  public async fetchMultipleLiquidityInfo({ pools }: LiquidityFetchMultipleInfoParams): Promise<LiquidityPoolInfo[]> {
+  public async fetchMultipleInfo(params: LiquidityFetchMultipleInfoParams): Promise<LiquidityPoolInfo[]> {
     await this._stableLayout.initStableModelLayout();
-
-    const instructions = pools.map((pool) => makeSimulatePoolInfoInstruction(pool));
-    const logs = await simulateMultipleInstruction(this.scope.connection, instructions, "GetPoolData");
-
-    const poolsInfo = logs.map((log) => {
-      const json = parseSimulateLogToJson(log, "GetPoolData");
-      const status = new BN(parseSimulateValue(json, "status"));
-      const baseDecimals = Number(parseSimulateValue(json, "coin_decimals"));
-      const quoteDecimals = Number(parseSimulateValue(json, "pc_decimals"));
-      const lpDecimals = Number(parseSimulateValue(json, "lp_decimals"));
-      const baseReserve = new BN(parseSimulateValue(json, "pool_coin_amount"));
-      const quoteReserve = new BN(parseSimulateValue(json, "pool_pc_amount"));
-      const lpSupply = new BN(parseSimulateValue(json, "pool_lp_supply"));
-      let startTime = "0";
-      try {
-        startTime = parseSimulateValue(json, "pool_open_time");
-      } catch (error) {
-        startTime = "0";
-      }
-
-      return {
-        status,
-        baseDecimals,
-        quoteDecimals,
-        lpDecimals,
-        baseReserve,
-        quoteReserve,
-        lpSupply,
-        startTime: new BN(startTime),
-      };
-    });
-
-    return poolsInfo;
+    return await makeSimulationPoolInfo({ ...params, connection: this.scope.connection });
   }
 
   public async sdkParseJsonLiquidityInfo(
-    liquidityJsonInfos: ApiLiquidityPoolInfo[],
+    liquidityJsonInfos: LiquidityPoolJsonInfo[],
   ): Promise<SDKParsedLiquidityInfo[]> {
     if (!liquidityJsonInfos.length) return [];
 
     const key = liquidityJsonInfos.map((jsonInfo) => jsonInfo.id).join("-");
     if (this._sdkParseInfoCache.has(key)) return this._sdkParseInfoCache.get(key)!;
     try {
-      const info = await this.fetchMultipleLiquidityInfo({ pools: liquidityJsonInfos.map(jsonInfo2PoolKeys) });
+      const info = await this.fetchMultipleInfo({ pools: liquidityJsonInfos.map(jsonInfo2PoolKeys) });
       const result = info.map((sdkParsed, idx) => ({
         jsonInfo: liquidityJsonInfos[idx],
         ...jsonInfo2PoolKeys(liquidityJsonInfos[idx]),
@@ -235,6 +223,72 @@ export default class Liquidity extends ModuleBase {
     };
   }
 
+  /**
+   * Compute the another currency amount of add liquidity
+   *
+   * @param params - {@link LiquidityComputeAnotherAmountParams}
+   *
+   * @returns
+   * anotherCurrencyAmount - currency amount without slippage
+   * @returns
+   * maxAnotherCurrencyAmount - currency amount with slippage
+   *
+   * @example
+   * ```
+   * Liquidity.computeAnotherAmount({
+   *   // 1%
+   *   slippage: new Percent(1, 100)
+   * })
+   * ```
+   */
+  public computeAnotherAmount({
+    poolKeys,
+    poolInfo,
+    amount,
+    anotherCurrency,
+    slippage,
+  }: LiquidityComputeAnotherAmountParams): { anotherAmount: TokenAmount; maxAnotherAmount: TokenAmount } {
+    const { baseReserve, quoteReserve } = poolInfo;
+    this.logDebug("baseReserve:", baseReserve.toString(), "quoteReserve:", quoteReserve.toString());
+
+    const currencyIn = amount.token;
+    this.logDebug(
+      "currencyIn:",
+      currencyIn,
+      "amount:",
+      amount.toFixed(),
+      "anotherCurrency:",
+      anotherCurrency,
+      "slippage:",
+      `${slippage.toSignificant()}%`,
+    );
+
+    // input is fixed
+    const input = getAmountSide(amount, poolKeys);
+    this.logDebug("input side:", input);
+
+    // round up
+    let amountRaw = BN_ZERO;
+    if (!amount.isZero()) {
+      amountRaw =
+        input === "base"
+          ? divCeil(amount.raw.mul(quoteReserve), baseReserve)
+          : divCeil(amount.raw.mul(baseReserve), quoteReserve);
+    }
+
+    const _slippage = new Percent(BN_ONE).add(slippage);
+    const slippageAdjustedAmount = _slippage.mul(amountRaw).quotient;
+
+    const _anotherAmount = new TokenAmount(anotherCurrency, amountRaw);
+    const _maxAnotherAmount = new TokenAmount(anotherCurrency, slippageAdjustedAmount);
+    this.logDebug("anotherAmount:", _anotherAmount.toFixed(), "maxAnotherAmount:", _maxAnotherAmount.toFixed());
+
+    return {
+      anotherAmount: _anotherAmount,
+      maxAnotherAmount: _maxAnotherAmount,
+    };
+  }
+
   public async swapWithAMM(params: LiquiditySwapTransactionParams): Promise<MakeTransaction> {
     const { poolKeys, payer, amountIn, amountOut, fixedSide, config } = params;
     this.logDebug("amountIn:", amountIn);
@@ -279,7 +333,7 @@ export default class Liquidity extends ModuleBase {
     txBuilder.addInstruction(outTxInstructions);
     txBuilder.addInstruction({
       instructions: [
-        makeSwapInstruction({
+        makeAMMSwapInstruction({
           poolKeys,
           userKeys: {
             tokenAccountIn: _tokenAccountIn,
@@ -289,6 +343,263 @@ export default class Liquidity extends ModuleBase {
           amountIn: amountInRaw,
           amountOut: amountOutRaw,
           fixedSide,
+        }),
+      ],
+    });
+    return await txBuilder.build();
+  }
+
+  public async createPool(params: CreatePoolParam): Promise<MakeTransaction> {
+    this.checkDisabled();
+    this.scope.checkOwner();
+    if (params.version !== 4) this.logAndCreateError("invalid version", "poolKeys.version", params.version);
+    const txBuilder = this.createTxBuilder();
+    const poolKeys = await getAssociatedPoolKeys(params);
+
+    return await txBuilder
+      .addInstruction({
+        instructions: [makeCreatePoolInstruction({ ...poolKeys, owner: this.scope.ownerPubKey })],
+      })
+      .build();
+  }
+
+  public async initPool(params: InitPoolParam): Promise<MakeTransaction> {
+    if (params.version !== 4) this.logAndCreateError("invalid version", "poolKeys.version", params.version);
+    const { baseAmount, quoteAmount, startTime = 0, config } = params;
+    const poolKeys = await getAssociatedPoolKeys(params);
+    const { baseMint, quoteMint, lpMint, baseVault, quoteVault } = poolKeys;
+    const txBuilder = this.createTxBuilder();
+    const { account } = this.scope;
+
+    const bypassAssociatedCheck = !!config?.bypassAssociatedCheck;
+    const baseTokenAccount = await account.getCreatedTokenAccount({
+      mint: baseMint,
+      associatedOnly: false,
+    });
+    const quoteTokenAccount = await account.getCreatedTokenAccount({
+      mint: quoteMint,
+      associatedOnly: false,
+    });
+
+    if (!baseTokenAccount && !quoteTokenAccount)
+      this.logAndCreateError("cannot found target token accounts", "tokenAccounts", account.tokenAccounts);
+
+    const lpTokenAccount = await account.getCreatedTokenAccount({
+      mint: lpMint,
+      associatedOnly: false,
+    });
+
+    const { tokenAccount: _baseTokenAccount, ...baseTokenAccountInstruction } = await account.handleTokenAccount({
+      side: "in",
+      amount: baseAmount.raw,
+      mint: baseMint,
+      tokenAccount: baseTokenAccount,
+      bypassAssociatedCheck,
+    });
+    txBuilder.addInstruction(baseTokenAccountInstruction);
+
+    const { tokenAccount: _quoteTokenAccount, ...quoteTokenAccountInstruction } = await account.handleTokenAccount({
+      side: "in",
+      amount: quoteAmount.raw,
+      mint: quoteMint,
+      tokenAccount: quoteTokenAccount,
+      bypassAssociatedCheck,
+    });
+    txBuilder.addInstruction(quoteTokenAccountInstruction);
+    const { tokenAccount: _lpTokenAccount, ...lpTokenAccountInstruction } = await account.handleTokenAccount({
+      side: "out",
+      amount: 0,
+      mint: lpMint,
+      tokenAccount: lpTokenAccount,
+      bypassAssociatedCheck,
+    });
+    txBuilder.addInstruction(lpTokenAccountInstruction);
+    // initPoolLayout
+    txBuilder.addInstruction({
+      instructions: [
+        makeTransferInstruction({
+          source: _baseTokenAccount,
+          destination: baseVault,
+          owner: this.scope.ownerPubKey,
+          amount: baseAmount.raw,
+        }),
+        makeTransferInstruction({
+          source: _quoteTokenAccount,
+          destination: quoteVault,
+          owner: this.scope.ownerPubKey,
+          amount: quoteAmount.raw,
+        }),
+        makeInitPoolInstruction({
+          poolKeys,
+          userKeys: { lpTokenAccount: _lpTokenAccount, payer: this.scope.ownerPubKey },
+          startTime,
+        }),
+      ],
+    });
+
+    return await txBuilder.build();
+  }
+
+  public async addLiquidity(params: LiquidityAddTransactionParams): Promise<MakeTransaction> {
+    const { poolId, amountInA, amountInB, fixedSide, config } = params;
+    const poolInfo = this.allPools.find((pool) => pool.id === poolId.toBase58());
+    if (!poolInfo) this.logAndCreateError("pool not found", poolId);
+    const poolKeys = await this.sdkParseJsonLiquidityInfo([poolInfo!])[0];
+    if (!poolKeys) this.logAndCreateError("pool pass error", poolKeys);
+
+    this.logDebug("amountInA:", amountInA, "amountInB:", amountInB);
+    if (amountInA.isZero() || amountInB.isZero())
+      this.logAndCreateError("amounts must greater than zero", "amountInA & amountInB", {
+        amountInA: amountInA.toFixed(),
+        amountInB: amountInB.toFixed(),
+      });
+    const { account } = this.scope;
+    const bypassAssociatedCheck = config?.bypassAssociatedCheck || false;
+    const [tokenA, tokenB] = [amountInA.token, amountInB.token];
+
+    const tokenAccountA = await account.getCreatedTokenAccount({
+      mint: tokenA.mint,
+      associatedOnly: false,
+    });
+    const tokenAccountB = await account.getCreatedTokenAccount({
+      mint: tokenB.mint,
+      associatedOnly: false,
+    });
+    if (!tokenAccountA && !tokenAccountB)
+      this.logAndCreateError("cannot found target token accounts", "tokenAccounts", account.tokenAccounts);
+
+    const lpTokenAccount = await account.getCreatedTokenAccount({
+      mint: poolKeys.lpMint,
+    });
+
+    const tokens = [tokenA, tokenB];
+    const _tokenAccounts = [tokenAccountA, tokenAccountB];
+    const rawAmounts = [amountInA.raw, amountInB.raw];
+
+    // handle amount a & b and direction
+    const [sideA] = getAmountsSide(amountInA, amountInB, poolKeys);
+    let _fixedSide: AmountSide = "base";
+    if (!["quote", "base"].includes(sideA) || !isValidFixedSide(fixedSide))
+      this.logAndCreateError("invalid fixedSide", "fixedSide", fixedSide);
+    if (sideA === "quote") {
+      tokens.reverse();
+      _tokenAccounts.reverse();
+      rawAmounts.reverse();
+      _fixedSide = fixedSide === "a" ? "quote" : "base";
+    } else if (sideA === "base") {
+      _fixedSide = fixedSide === "a" ? "base" : "quote";
+    }
+
+    const [baseToken, quoteToken] = tokens;
+    const [baseTokenAccount, quoteTokenAccount] = _tokenAccounts;
+    const [baseAmountRaw, quoteAmountRaw] = rawAmounts;
+    const txBuilder = this.createTxBuilder();
+
+    const { tokenAccount: _baseTokenAccount, ...baseInstruction } = await account.handleTokenAccount({
+      side: "in",
+      amount: baseAmountRaw,
+      mint: baseToken.mint,
+      tokenAccount: baseTokenAccount,
+      bypassAssociatedCheck,
+    });
+    txBuilder.addInstruction(baseInstruction);
+    const { tokenAccount: _quoteTokenAccount, ...quoteInstruction } = await account.handleTokenAccount({
+      side: "in",
+      amount: quoteAmountRaw,
+      mint: quoteToken.mint,
+      tokenAccount: quoteTokenAccount,
+      bypassAssociatedCheck,
+    });
+    txBuilder.addInstruction(quoteInstruction);
+    const { tokenAccount: _lpTokenAccount, ...lpInstruction } = await account.handleTokenAccount({
+      side: "out",
+      amount: 0,
+      mint: poolKeys.lpMint,
+      tokenAccount: lpTokenAccount,
+      bypassAssociatedCheck,
+    });
+    txBuilder.addInstruction(lpInstruction);
+    txBuilder.addInstruction({
+      instructions: [
+        makeAddLiquidityInstruction({
+          poolKeys,
+          userKeys: {
+            baseTokenAccount: _baseTokenAccount,
+            quoteTokenAccount: _quoteTokenAccount,
+            lpTokenAccount: _lpTokenAccount,
+            owner: this.scope.ownerPubKey,
+          },
+          baseAmountIn: baseAmountRaw,
+          quoteAmountIn: quoteAmountRaw,
+          fixedSide: _fixedSide,
+        }),
+      ],
+    });
+    return await txBuilder.build();
+  }
+
+  public async removeLiquidity(params: LiquidityRemoveTransactionParams): Promise<MakeTransaction> {
+    const { poolId, amountIn, config } = params;
+    const poolInfo = this.allPools.find((pool) => pool.id === poolId.toBase58());
+    if (!poolInfo) this.logAndCreateError("pool not found", poolId);
+    const poolKeys = await this.sdkParseJsonLiquidityInfo([poolInfo!])[0];
+    if (!poolKeys) this.logAndCreateError("pool pass error", poolKeys);
+
+    const { baseMint, quoteMint, lpMint } = poolKeys;
+    this.logDebug("amountIn:", amountIn);
+    if (amountIn.isZero()) this.logAndCreateError("amount must greater than zero", "amountIn", amountIn.toFixed());
+    if (!amountIn.token.mint.equals(lpMint))
+      this.logAndCreateError("amountIn's token not match lpMint", "amountIn", amountIn);
+
+    const { account } = this.scope;
+    const lpTokenAccount = await account.getCreatedTokenAccount({
+      mint: lpMint,
+      associatedOnly: false,
+    });
+    if (!lpTokenAccount) this.logAndCreateError("cannot found lpTokenAccount", "tokenAccounts", account.tokenAccounts);
+
+    const baseTokenAccount = await account.getCreatedTokenAccount({
+      mint: baseMint,
+    });
+    const quoteTokenAccount = await account.getCreatedTokenAccount({
+      mint: quoteMint,
+    });
+
+    const txBuilder = this.createTxBuilder();
+    const bypassAssociatedCheck = config?.bypassAssociatedCheck || false;
+
+    const { tokenAccount: _baseTokenAccount, ...baseInstruction } = await account.handleTokenAccount({
+      side: "out",
+      amount: 0,
+      mint: baseMint,
+      tokenAccount: baseTokenAccount,
+      bypassAssociatedCheck,
+    });
+    txBuilder.addInstruction(baseInstruction);
+    const { tokenAccount: _quoteTokenAccount, ...quoteInstruction } = await account.handleTokenAccount({
+      side: "out",
+      amount: 0,
+      mint: quoteMint,
+      tokenAccount: quoteTokenAccount,
+      bypassAssociatedCheck,
+    });
+    txBuilder.addInstruction(quoteInstruction);
+
+    txBuilder.addInstruction({
+      instructions: [
+        ComputeBudgetProgram.requestUnits({
+          units: 400000,
+          additionalFee: 0,
+        }),
+        makeRemoveLiquidityInstruction({
+          poolKeys,
+          userKeys: {
+            lpTokenAccount: lpTokenAccount!,
+            baseTokenAccount: _baseTokenAccount,
+            quoteTokenAccount: _quoteTokenAccount,
+            owner: this.scope.ownerPubKey,
+          },
+          amountIn: amountIn.raw,
         }),
       ],
     });

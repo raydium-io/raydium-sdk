@@ -74,13 +74,7 @@ export default class Account extends ModuleBase {
     tokenAccounts: TokenAccount[];
     tokenAccountRawInfos: TokenAccountRaw[];
   }> {
-    if (this._clientOwnedToken) {
-      return {
-        tokenAccounts: this._tokenAccounts,
-        tokenAccountRawInfos: this._tokenAccountRawInfos,
-      };
-    }
-    if (!config?.forceUpdate && this._tokenAccounts) {
+    if (this._clientOwnedToken || (!config?.forceUpdate && this._tokenAccounts)) {
       return {
         tokenAccounts: this._tokenAccounts,
         tokenAccountRawInfos: this._tokenAccountRawInfos,
@@ -183,7 +177,15 @@ export default class Account extends ModuleBase {
   public async handleTokenAccount(
     params: HandleTokenAccountParams,
   ): Promise<AddInstructionParam & { tokenAccount: PublicKey }> {
-    const { side, amount, mint, tokenAccount, payer = this.scope.ownerPubKey, bypassAssociatedCheck } = params;
+    const {
+      side,
+      amount,
+      mint,
+      tokenAccount,
+      payer = this.scope.ownerPubKey,
+      bypassAssociatedCheck,
+      skipCloseAccount,
+    } = params;
 
     const txBuilder = this.createTxBuilder();
 
@@ -201,6 +203,7 @@ export default class Account extends ModuleBase {
         owner: this.scope.ownerPubKey,
         payer,
         amount,
+        skipCloseAccount,
       });
       txBuilder.addInstruction(txInstruction);
       return { tokenAccount: txInstruction.signers![0].publicKey, ...txInstruction };

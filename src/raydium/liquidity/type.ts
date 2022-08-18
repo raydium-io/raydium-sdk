@@ -1,16 +1,18 @@
-import { Commitment, PublicKey, Signer, Transaction } from "@solana/web3.js";
+import { Commitment, PublicKey } from "@solana/web3.js";
 import BN from "bn.js";
 
-import { ApiLiquidityPoolInfo } from "../../api/type";
+import { ApiLiquidityPoolInfo, LiquidityVersion } from "../../api/type";
 import { BigNumberish } from "../../common/bignumber";
-import { Currency, CurrencyAmount, Percent, Price, Token, TokenAmount } from "../../module";
+import { Percent, Price, Token, TokenAmount } from "../../module";
 import { ReplaceType } from "../type";
 
+export type LiquidityPoolJsonInfo = ApiLiquidityPoolInfo;
 /* ================= pool keys ================= */
 export type LiquidityPoolKeysV4 = {
-  [T in keyof ApiLiquidityPoolInfo]: string extends ApiLiquidityPoolInfo[T] ? PublicKey : ApiLiquidityPoolInfo[T];
+  [T in keyof LiquidityPoolJsonInfo]: string extends LiquidityPoolJsonInfo[T] ? PublicKey : LiquidityPoolJsonInfo[T];
 };
 
+export type LiquiditySide = "a" | "b";
 export type SwapSide = "in" | "out";
 export type AmountSide = "base" | "quote";
 /**
@@ -29,8 +31,8 @@ export interface LiquidityPoolInfo {
   startTime: BN;
 }
 
-export type SDKParsedLiquidityInfo = ReplaceType<ApiLiquidityPoolInfo, string, PublicKey> & {
-  jsonInfo: ApiLiquidityPoolInfo;
+export type SDKParsedLiquidityInfo = ReplaceType<LiquidityPoolJsonInfo, string, PublicKey> & {
+  jsonInfo: LiquidityPoolJsonInfo;
   status: BN;
   baseDecimals: number;
   quoteDecimals: number;
@@ -125,4 +127,115 @@ export interface LiquiditySwapFixedInInstructionParamsV4 {
   };
   amountIn: BigNumberish;
   minAmountOut: BigNumberish;
+}
+
+export interface LiquidityAssociatedPoolKeysV4
+  extends Omit<
+    LiquidityPoolKeysV4,
+    | "marketBaseVault"
+    | "marketQuoteVault"
+    | "marketBids"
+    | "marketAsks"
+    | "marketEventQueue"
+    | "baseDecimals"
+    | "quoteDecimals"
+    | "lpDecimals"
+  > {
+  nonce: number;
+}
+
+/**
+ * Associated liquidity pool keys
+ * @remarks
+ * without partial markets keys
+ */
+export type LiquidityAssociatedPoolKeys = LiquidityAssociatedPoolKeysV4;
+
+export interface CreatePoolParam {
+  version: LiquidityVersion;
+  baseMint: PublicKey;
+  quoteMint: PublicKey;
+  marketId: PublicKey;
+}
+
+export interface InitPoolParam extends CreatePoolParam {
+  baseAmount: TokenAmount;
+  quoteAmount: TokenAmount;
+  startTime?: BigNumberish;
+  config?: {
+    bypassAssociatedCheck?: boolean;
+  };
+}
+
+export type LiquidityInitPoolInstructionParams = {
+  poolKeys: LiquidityAssociatedPoolKeysV4;
+  userKeys: {
+    lpTokenAccount: PublicKey;
+    payer: PublicKey;
+  };
+  startTime: BigNumberish;
+};
+
+/**
+ * Add liquidity transaction params
+ */
+export interface LiquidityAddTransactionParams {
+  poolId: PublicKey;
+  payer?: PublicKey;
+  amountInA: TokenAmount;
+  amountInB: TokenAmount;
+  fixedSide: LiquiditySide;
+  config?: {
+    bypassAssociatedCheck?: boolean;
+  };
+}
+
+/* ================= user keys ================= */
+/**
+ * Full user keys that build transaction need
+ */
+export interface LiquidityUserKeys {
+  baseTokenAccount: PublicKey;
+  quoteTokenAccount: PublicKey;
+  lpTokenAccount: PublicKey;
+  owner: PublicKey;
+}
+
+export interface LiquidityAddInstructionParamsV4 {
+  poolKeys: LiquidityPoolKeys;
+  userKeys: LiquidityUserKeys;
+  baseAmountIn: BigNumberish;
+  quoteAmountIn: BigNumberish;
+  fixedSide: AmountSide;
+}
+
+/**
+ * Add liquidity instruction params
+ */
+export type LiquidityAddInstructionParams = LiquidityAddInstructionParamsV4;
+
+export interface LiquidityRemoveInstructionParamsV4 {
+  poolKeys: LiquidityPoolKeys;
+  userKeys: LiquidityUserKeys;
+  amountIn: BigNumberish;
+}
+export interface LiquidityRemoveTransactionParams {
+  poolId: PublicKey;
+  payer?: PublicKey;
+  amountIn: TokenAmount;
+  config?: {
+    bypassAssociatedCheck?: boolean;
+  };
+}
+/**
+ * Remove liquidity instruction params
+ */
+export type LiquidityRemoveInstructionParams = LiquidityRemoveInstructionParamsV4;
+
+export interface LiquidityComputeAnotherAmountParams {
+  poolKeys: LiquidityPoolKeys;
+  poolInfo: LiquidityPoolInfo;
+  amount: TokenAmount;
+  anotherCurrency: Token;
+  slippage: Percent;
 }

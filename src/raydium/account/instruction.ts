@@ -1,4 +1,4 @@
-import { Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import { Token, TOKEN_PROGRAM_ID, u64 as _u64 } from "@solana/spl-token";
 import {
   Commitment,
   Connection,
@@ -12,6 +12,7 @@ import BN from "bn.js";
 
 import { BigNumberish, parseBigNumberish, validateAndParsePublicKey } from "../../common";
 import { AddInstructionParam } from "../../common/txTool";
+import { u64 } from "../../marshmallow";
 import { TOKEN_WSOL } from "../token/constant";
 
 import { splAccountLayout } from "./layout";
@@ -41,6 +42,7 @@ interface CreateWrappedTokenAccount {
   owner: PublicKey;
   amount: BigNumberish;
   commitment?: Commitment;
+  skipCloseAccount?: boolean;
 }
 /**
  * WrappedNative account = wsol account
@@ -48,7 +50,7 @@ interface CreateWrappedTokenAccount {
 export async function createWrappedNativeAccountInstructions(
   params: CreateWrappedTokenAccount,
 ): Promise<AddInstructionParam> {
-  const { connection, amount, commitment, payer, owner } = params;
+  const { connection, amount, commitment, payer, owner, skipCloseAccount } = params;
 
   const balanceNeeded = await connection.getMinimumBalanceForRentExemption(splAccountLayout.span, commitment);
   const lamports = parseBigNumberish(amount).add(new BN(balanceNeeded));
@@ -70,12 +72,41 @@ export async function createWrappedNativeAccountInstructions(
         owner,
       }),
     ],
-    endInstructions: [
-      closeAccountInstruction({
-        tokenAccount: newAccount.publicKey,
-        payer,
-        owner,
-      }),
-    ],
+    endInstructions: skipCloseAccount
+      ? []
+      : [
+          closeAccountInstruction({
+            tokenAccount: newAccount.publicKey,
+            payer,
+            owner,
+          }),
+        ],
   };
+}
+
+export function makeTransferInstruction({
+  source,
+  destination,
+  owner,
+  amount,
+  multiSigners = [],
+}: {
+  source: PublicKey;
+  destination: PublicKey;
+  owner: PublicKey;
+  amount: BigNumberish;
+  multiSigners?: Signer[];
+}): TransactionInstruction {
+  const LAYOUT = u64("amount");
+  const data = Buffer.alloc(LAYOUT.span);
+  LAYOUT.encode(parseBigNumberish(amount), data);
+
+  return Token.createTransferInstruction(
+    TOKEN_PROGRAM_ID,
+    source,
+    destination,
+    owner,
+    multiSigners,
+    _u64.fromBuffer(data),
+  );
 }

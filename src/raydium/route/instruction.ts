@@ -9,11 +9,13 @@ import { MODEL_DATA_PUBKEY } from "../liquidity/stable";
 import { ROUTE_PROGRAM_ID_V1 } from "./constant";
 import { routeSwapInLayout, routeSwapOutLayout } from "./layout";
 import {
-  RouteSwapInFixedInInstructionParams, RouteSwapInstructionParams, RouteSwapOutFixedInInstructionParams,
+  RouteSwapInFixedInInstructionParams,
+  RouteSwapInstructionParams,
+  RouteSwapOutFixedInInstructionParams,
 } from "./type";
 
-const logger = createLogger("Raydium.route.instruction")
-export function makeSwapInstruction(params: RouteSwapInstructionParams): TransactionInstruction[] {
+const logger = createLogger("Raydium.route.instruction");
+export function makeRouteSwapInstruction(params: RouteSwapInstructionParams): TransactionInstruction[] {
   const { fixedSide } = params;
 
   if (fixedSide === "in") {
