@@ -1,3 +1,5 @@
+import { PublicKey } from "@solana/web3.js";
+
 import { BN_ZERO, parseBigNumberish } from "../../common/bignumber";
 import { div, gte } from "../../common/fractionUtil";
 import { validateAndParsePublicKey } from "../../common/pubKey";
@@ -9,7 +11,13 @@ import { defaultRoutes, swapRouteMiddleMints } from "../route/constant";
 import { MakeTransaction } from "../type";
 
 import {
-  AvailableSwapPools, CustomSwapParams, GetAmountOutReturn, GetBestAmountOutParams, RouteInfo, RouteType, SwapParams,
+  AvailableSwapPools,
+  CustomSwapParams,
+  GetAmountOutReturn,
+  GetBestAmountOutParams,
+  RouteInfo,
+  RouteType,
+  SwapParams,
 } from "./type";
 import { groupPools } from "./util";
 
@@ -44,13 +52,10 @@ export default class Trade extends ModuleBase {
     return largest.jsonInfo;
   }
 
-  public async getAvailablePools(params: { inputMint: string; outputMint: string }): Promise<AvailableSwapPools> {
+  public async getAvailablePools(params: { inputMint: PublicKey; outputMint: PublicKey }): Promise<AvailableSwapPools> {
     this.checkDisabled();
     const { inputMint, outputMint } = params;
-    const [mintIn, mintOut] = [
-      validateAndParsePublicKey(inputMint).toBase58(),
-      validateAndParsePublicKey(outputMint).toBase58(),
-    ];
+    const [mintIn, mintOut] = [inputMint.toBase58(), outputMint.toBase58()];
     const availablePools = this.scope.liquidity.allPools.filter(
       (info) =>
         (info.baseMint === mintIn && info.quoteMint === mintOut) ||
@@ -91,8 +96,8 @@ export default class Trade extends ModuleBase {
     this.checkDisabled();
     if (!pools) {
       const { routedPools } = await this.getAvailablePools({
-        inputMint: inputToken.mint.toBase58(),
-        outputMint: outputToken.mint.toBase58(),
+        inputMint: inputToken.mint,
+        outputMint: outputToken.mint,
       });
       pools = routedPools;
     }

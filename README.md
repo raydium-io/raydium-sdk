@@ -104,13 +104,13 @@ const raydium = await Raydium.load({
   signAllTransactions // optional - provide sign functions provided by @solana/wallet-adapter-react
 })
 
-raydium.liquidity.createPool({
+const { transaction, signers, execute } = raydium.liquidity.createPool({
   version: 4,
   baseMint: new PublicKey(),
   quoteMint: new PublicKey(),
-  marketId: new PublicKey()
+  marketId: new PublicKey() // https://docs.projectserum.com/serum-ecosystem/build-on-serum/add-a-market-on-serum-serum-academy
 })
-raydium.liquidity.initPool({
+const { transaction, signers, execute } = raydium.liquidity.initPool({
   version: 4,
   baseMint: new PublicKey(),
   quoteMint: new PublicKey(),
@@ -118,18 +118,20 @@ raydium.liquidity.initPool({
   baseAmount: new TokenAmount(raydium.token.mintToToken(mint), 10),
   quoteAmount: new TokenAmount(raydium.token.mintToToken(mint), 20),
 })
-raydium.liquidity.addLiquidity({
+const { transaction, signers, execute } = raydium.liquidity.addLiquidity({
   poolId: new PublicKey(pool),
   payer: new PublicKey(payer), // optional
   amountInA: new TokenAmount(raydium.token.mintToToken(mint), 20),
   amountInB: new TokenAmount(raydium.token.mintToToken(mint), 30),
   fixedSide: "a", // "a" or "b"
 })
-raydium.liquidity.removeLiquidity({
+const { transaction, signers, execute } = raydium.liquidity.removeLiquidity({
   poolId: new PublicKey(pool),
   payer: new PublicKey(payer), // optional
   amountIn: new TokenAmount(raydium.token.mintToToken(mint), 20),
 })
+
+const txId = execute()
 ```
 
 ### Farm
@@ -152,11 +154,12 @@ raydium.farm.create({
   poolId, // oneOf liquidity pool id in https://api.raydium.io/v2/sdk/liquidity/mainnet.json
   rewardInfos // reward info array
 })
-raydium.farm.restartReward({ farmId, rewardInfos })
-raydium.farm.addNewRewardToken({ poolId, newRewardInfo })
-raydium.farm.deposit({ farmId, amount })
-raydium.farm.withdraw({ farmId, amount })
-raydium.farm.withdraw({ farmId, withdrawMint: new PublicKey(xxx) })
+const { transaction, signers, execute } = raydium.farm.restartReward({ farmId, rewardInfos })
+const { transaction, signers, execute } = raydium.farm.addNewRewardToken({ poolId, newRewardInfo })
+const { transaction, signers, execute } = raydium.farm.deposit({ farmId, amount })
+const { transaction, signers, execute } = raydium.farm.withdraw({ farmId, amount })
+const { transaction, signers, execute } = raydium.farm.withdraw({ farmId, withdrawMint: new PublicKey(xxx) })
+const txId = execute()
 ```
 
 #### Reward info example

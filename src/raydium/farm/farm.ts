@@ -1,30 +1,56 @@
 import { ASSOCIATED_TOKEN_PROGRAM_ID, Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import {
-  AccountMeta, Keypair, PublicKey, SystemProgram, SYSVAR_CLOCK_PUBKEY, TransactionInstruction,
+  AccountMeta,
+  Keypair,
+  PublicKey,
+  SystemProgram,
+  SYSVAR_CLOCK_PUBKEY,
+  TransactionInstruction,
 } from "@solana/web3.js";
 import BN from "bn.js";
 
 import { accountMeta, AddInstructionParam, commonSystemAccountMeta, parseBigNumberish, TxBuilder } from "../../common";
-import { SOLMint } from "../../common/pubKey";
+import { PublicKeyish, SOLMint, validateAndParsePublicKey } from "../../common/pubKey";
 import { createWrappedNativeAccountInstructions } from "../account/instruction";
 import ModuleBase from "../moduleBase";
 import { TOKEN_WSOL } from "../token/constant";
 import { MakeTransaction } from "../type";
 
 import {
-  FARM_LOCK_MINT, FARM_LOCK_VAULT, farmDespotVersionToInstruction, farmWithdrawVersionToInstruction, isValidFarmVersion,
+  FARM_LOCK_MINT,
+  FARM_LOCK_VAULT,
+  farmDespotVersionToInstruction,
+  farmWithdrawVersionToInstruction,
+  isValidFarmVersion,
   validateFarmRewards,
 } from "./config";
 import { createAssociatedLedgerAccountInstruction } from "./instruction";
 import {
-  dwLayout, farmAddRewardLayout, farmRewardLayout, farmRewardRestartLayout, farmStateV6Layout, withdrawRewardLayout,
+  dwLayout,
+  farmAddRewardLayout,
+  farmRewardLayout,
+  farmRewardRestartLayout,
+  farmStateV6Layout,
+  withdrawRewardLayout,
 } from "./layout";
 import {
-  FarmDWParam, FarmPoolJsonInfo, FarmRewardInfo, FarmRewardInfoConfig, RewardInfoKey, RewardSetParam, SdkParsedFarmInfo,
+  FarmDWParam,
+  FarmPoolJsonInfo,
+  FarmRewardInfo,
+  FarmRewardInfoConfig,
+  RewardInfoKey,
+  RewardSetParam,
+  SdkParsedFarmInfo,
 } from "./type";
 import {
-  calFarmRewardAmount, farmInfoStringToPubKey, farmRewardInfoToConfig, getAssociatedAuthority,
-  getAssociatedLedgerAccount, getAssociatedLedgerPoolAccount, getFarmProgramId, mergeSdkFarmInfo,
+  calFarmRewardAmount,
+  farmInfoStringToPubKey,
+  farmRewardInfoToConfig,
+  getAssociatedAuthority,
+  getAssociatedLedgerAccount,
+  getAssociatedLedgerPoolAccount,
+  getFarmProgramId,
+  mergeSdkFarmInfo,
 } from "./util";
 
 export default class Farm extends ModuleBase {
@@ -58,13 +84,15 @@ export default class Farm extends ModuleBase {
     return this._sdkParsedFarmPools;
   }
 
-  public getFarm(farmId: string): FarmPoolJsonInfo {
-    const farmInfo = this.allFarms.find((farm) => farm.id === farmId);
+  public getFarm(farmId: PublicKeyish): FarmPoolJsonInfo {
+    const _farmId = validateAndParsePublicKey(farmId);
+    const farmInfo = this.allFarms.find((farm) => farm.id === _farmId.toBase58());
     if (!farmInfo) this.logAndCreateError("invalid farm id");
     return farmInfo!;
   }
-  public getParsedFarm(farmId: string): SdkParsedFarmInfo {
-    const farmInfo = this.allParsedFarms.find((farm) => new PublicKey(farmId).equals(farm.id));
+  public getParsedFarm(farmId: PublicKeyish): SdkParsedFarmInfo {
+    const _farmId = validateAndParsePublicKey(farmId);
+    const farmInfo = this.allParsedFarms.find((farm) => _farmId.equals(farm.id));
     if (!farmInfo) this.logAndCreateError("invalid farm id");
     return farmInfo!;
   }
@@ -99,7 +127,7 @@ export default class Farm extends ModuleBase {
     this.checkDisabled();
     this.scope.checkOwner();
 
-    const poolJsonInfo = this.scope.liquidity.allPools.find((j) => j.id === poolId);
+    const poolJsonInfo = this.scope.liquidity.allPools.find((j) => j.id === poolId?.toBase58());
     if (!poolJsonInfo) this.logAndCreateError("invalid pool id");
 
     const lpMint = new PublicKey(poolJsonInfo!.lpMint);
@@ -222,7 +250,7 @@ export default class Farm extends ModuleBase {
     payer,
     newRewardInfo,
   }: {
-    farmId: string;
+    farmId: PublicKey;
     newRewardInfo: FarmRewardInfo;
     payer?: PublicKey;
   }): Promise<MakeTransaction> {
@@ -289,7 +317,7 @@ export default class Farm extends ModuleBase {
 
   // token account needed
   public async addNewRewardToken(params: {
-    farmId: string;
+    farmId: PublicKey;
     payer?: PublicKey;
     newRewardInfo: FarmRewardInfo;
   }): Promise<MakeTransaction> {
@@ -512,7 +540,7 @@ export default class Farm extends ModuleBase {
     farmId,
     withdrawMint,
   }: {
-    farmId: string;
+    farmId: PublicKey;
     withdrawMint: PublicKey;
     payer?: PublicKey;
   }): Promise<MakeTransaction> {
