@@ -104,10 +104,32 @@ const raydium = await Raydium.load({
   signAllTransactions // optional - provide sign functions provided by @solana/wallet-adapter-react
 })
 
-raydium.liquidity.createPool()
-raydium.liquidity.initPool()
-raydium.liquidity.addLiquidity()
-raydium.liquidity.removeLiquidity()
+raydium.liquidity.createPool({
+  version: 4,
+  baseMint: new PublicKey(),
+  quoteMint: new PublicKey(),
+  marketId: new PublicKey()
+})
+raydium.liquidity.initPool({
+  version: 4,
+  baseMint: new PublicKey(),
+  quoteMint: new PublicKey(),
+  marketId: new PublicKey(),
+  baseAmount: new TokenAmount(raydium.token.mintToToken(mint), 10),
+  quoteAmount: new TokenAmount(raydium.token.mintToToken(mint), 20),
+})
+raydium.liquidity.addLiquidity({
+  poolId: new PublicKey(pool),
+  payer: new PublicKey(payer), // optional
+  amountInA: new TokenAmount(raydium.token.mintToToken(mint), 20),
+  amountInB: new TokenAmount(raydium.token.mintToToken(mint), 30),
+  fixedSide: "a", // "a" or "b"
+})
+raydium.liquidity.removeLiquidity({
+  poolId: new PublicKey(pool),
+  payer: new PublicKey(payer), // optional
+  amountIn: new TokenAmount(raydium.token.mintToToken(mint), 20),
+})
 ```
 
 ### Farm
@@ -121,16 +143,43 @@ const raydium = await Raydium.load({
   owner // please provide key pair, if want to handle tx by yourself, just provide publicKey
   signAllTransactions // optional - provide sign functions provided by @solana/wallet-adapter-react
 })
+```
 
-raydium.farm.create({ poolId, rewardInfos })
-raydium.farm.restartReward({ farmId, rewardInfos: [] })
-raydium.farm.addNewRewardToken({ poolId, newRewardInfo: [] })
+#### Farm methods
+
+```
+raydium.farm.create({
+  poolId, // oneOf liquidity pool id in https://api.raydium.io/v2/sdk/liquidity/mainnet.json
+  rewardInfos // reward info array
+})
+raydium.farm.restartReward({ farmId, rewardInfos })
+raydium.farm.addNewRewardToken({ poolId, newRewardInfo })
 raydium.farm.deposit({ farmId, amount })
 raydium.farm.withdraw({ farmId, amount })
 raydium.farm.withdraw({ farmId, withdrawMint: new PublicKey(xxx) })
 ```
 
+#### Reward info example
+
+```
+const startTime = new BN(new Date("2022-08-20 15:00").getTime() / 1000)
+const endTime = new BN(new Date("2022-08-30 15:00").getTime() / 1000)
+const rewardPerSecond = new BN(totalAmount / (endTime - startTime))
+
+const rewardInfo = {
+  poolId: "13uCPybNakXHGVd2DDVB7o2uwXuf9GqPFkvJMVgKy6UJ",
+  rewardInfos:[{
+    rewardOpenTime: startTime,
+    rewardEndTime: endTime,
+    rewardMint: new PublicKey("So11111111111111111111111111111111111111112"),
+    rewardPerSecond: rewardPerSecond.
+  }]
+}
+```
+
 ### Swap
+
+#### direct swap with automatically routes
 
 ```
 import { Raydium, Token, Percent, TokenAmount } from '@raydium-io/raydium-sdk'
@@ -141,12 +190,8 @@ const raydium = Raydium.load({
   owner // please provide key pair, if want to handle tx by yourself, just provide publicKey
   signAllTransactions // optional - provide sign functions provided by @solana/wallet-adapter-react
 })
-```
 
-#### direct swap with automatically routes
-
-```
-const { transaction, signers, excute } = await raydium.trade.directSwap({
+const { transaction, signers, execute } = await raydium.trade.directSwap({
   inputMint: ${rayMint},
   outputMint: "sol", // due to sol doesn't have mint, so raydium accept sol as mint
   amountIn: "1.2345",
@@ -154,7 +199,7 @@ const { transaction, signers, excute } = await raydium.trade.directSwap({
   fixedSide: "in"
 })
 
-const txId = excute()
+const txId = execute()
 ```
 
 #### custom controlled route swap
@@ -187,7 +232,7 @@ const { transaction, signers, execute } = await raydium.trade.swap({
   fixedSide: "in"
 })
 
-const txId = excute()
+const txId = execute()
 ```
 
 ## Reference
