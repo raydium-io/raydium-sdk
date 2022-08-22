@@ -1,12 +1,17 @@
-import { PublicKey } from "@solana/web3.js";
-
+import { BigNumberish, parseBigNumberish } from "../../common/bignumber";
 import { PublicKeyish, SOLMint, validateAndParsePublicKey } from "../../common/pubKey";
+import { TokenAmount } from "../../module/amount";
 import { Token } from "../../module/token";
 import ModuleBase, { ModuleBaseProps } from "../moduleBase";
 
 import { quantumSOLHydratedTokenJsonInfo } from "./constant";
 import { SplToken, TokenJson } from "./type";
 import { sortTokens } from "./util";
+
+export interface MintToTokenAmount {
+  mint: PublicKeyish;
+  amount: BigNumberish;
+}
 
 export default class TokenModule extends ModuleBase {
   private _tokens: TokenJson[] = [];
@@ -61,5 +66,9 @@ export default class TokenModule extends ModuleBase {
     if (!tokenInfo) this.logAndCreateError("token not found, mint:", _mint.toBase58());
     const { decimals, name, symbol } = tokenInfo!;
     return new Token({ mint, decimals, name, symbol });
+  }
+
+  public mintToTokenAmount({ mint, amount }: MintToTokenAmount): TokenAmount {
+    return new TokenAmount(this.mintToToken(mint), parseBigNumberish(amount));
   }
 }

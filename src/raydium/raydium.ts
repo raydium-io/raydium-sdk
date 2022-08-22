@@ -6,13 +6,16 @@ import { Api, ApiFarmPools, ApiLiquidityPools, ApiTokens } from "../api";
 import { EMPTY_CONNECTION, EMPTY_OWNER } from "../common/error";
 import { createLogger } from "../common/logger";
 import { Owner } from "../common/owner";
+import { PublicKeyish } from "../common/pubKey";
+import { TokenAmount } from "../module/amount";
+import { Token } from "../module/token";
 import { Cluster } from "../solana";
 
 import Account, { TokenAccountDataProp } from "./account/account";
 import Farm from "./farm/farm";
 import Liquidity from "./liquidity/liquidity";
 import Route from "./route/route";
-import TokenModule from "./token/token";
+import TokenModule, { MintToTokenAmount } from "./token/token";
 import Trade from "./trade/trade";
 import { SignAllTransactions } from "./type";
 
@@ -200,5 +203,13 @@ export class Raydium {
     apiCacheData.farmPools = dataObject;
 
     return dataObject.data;
+  }
+
+  public mintToToken(mint: PublicKeyish): Token {
+    return this.token.mintToToken(mint);
+  }
+
+  public mintToTokenAmount(params: MintToTokenAmount): TokenAmount {
+    return this.token.mintToTokenAmount(params);
   }
 }

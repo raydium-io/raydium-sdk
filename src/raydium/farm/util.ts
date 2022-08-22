@@ -10,7 +10,10 @@ import { splAccountLayout } from "../account/layout";
 import { SplAccount } from "../account/types";
 
 import {
-  FARM_PROGRAMID_TO_VERSION, FARM_VERSION_TO_LEDGER_LAYOUT, FARM_VERSION_TO_PROGRAMID, FARM_VERSION_TO_STATE_LAYOUT,
+  FARM_PROGRAMID_TO_VERSION,
+  FARM_VERSION_TO_LEDGER_LAYOUT,
+  FARM_VERSION_TO_PROGRAMID,
+  FARM_VERSION_TO_STATE_LAYOUT,
   FarmVersion,
 } from "./config";
 import { FarmLedger, FarmLedgerLayout, FarmState, FarmStateLayout } from "./layout";
@@ -107,13 +110,13 @@ export function calFarmRewardAmount(data: FarmRewardInfo): BN {
 
 export function getFarmLedgerLayout(version: number): FarmLedgerLayout | undefined {
   const ledgerLayout = FARM_VERSION_TO_LEDGER_LAYOUT[version];
-
+  if (!ledgerLayout) logger.logWithError("invalid version", version);
   return ledgerLayout;
 }
 
 export function getFarmStateLayout(version: number): FarmStateLayout | undefined {
   const stateLayout = FARM_VERSION_TO_STATE_LAYOUT[version];
-
+  if (!stateLayout) logger.logWithError("invalid version", version);
   return stateLayout;
 }
 
@@ -233,14 +236,14 @@ export async function fetchMultipleFarmInfoAndUpdate({
     const _poolId = poolId.toBase58();
 
     if (key === "state") {
-      const stateLayout = getFarmStateLayout(version)!;
-      if (!accountInfo || !accountInfo.data || accountInfo.data.length !== stateLayout.span) {
+      const stateLayout = getFarmStateLayout(version);
+      if (!accountInfo || !accountInfo.data || accountInfo.data.length !== stateLayout!.span) {
         logger.logWithError(`invalid farm state account info, pools.id, ${pubkey}`);
       }
 
       poolsInfo[_poolId] = {
         ...poolsInfo[_poolId],
-        ...{ state: stateLayout.decode(accountInfo!.data) },
+        ...{ state: stateLayout!.decode(accountInfo!.data) },
       };
     } else if (key === "lpVault") {
       if (!accountInfo || !accountInfo.data || accountInfo.data.length !== splAccountLayout.span) {
@@ -252,15 +255,15 @@ export async function fetchMultipleFarmInfoAndUpdate({
         ...{ lpVault: splAccountLayout.decode(accountInfo!.data) },
       };
     } else if (key === "ledger") {
-      const LEDGER_LAYOUT = getFarmLedgerLayout(version)!;
+      const legerLayout = getFarmLedgerLayout(version)!;
       if (accountInfo && accountInfo.data) {
-        if (accountInfo.data.length !== LEDGER_LAYOUT.span) {
+        if (accountInfo.data.length !== legerLayout.span) {
           logger.logWithError(`invalid farm ledger account info, ledger, ${pubkey}`);
         }
 
         poolsInfo[_poolId] = {
           ...poolsInfo[_poolId],
-          ...{ ledger: LEDGER_LAYOUT.decode(accountInfo.data) },
+          ...{ ledger: legerLayout.decode(accountInfo.data) },
         };
       }
     }
@@ -300,26 +303,6 @@ export async function fetchMultipleFarmInfoAndUpdate({
   }
 
   return poolsInfo;
-}
-
-export function farmInfoStringToPubKey(farmInfo: FarmPoolJsonInfo): FarmPoolKeys {
-  const { rewardInfos, ...orgFarmInfo } = farmInfo;
-  const newInfo = {
-    ...Object.keys(orgFarmInfo).reduce(
-      (acc, cur) => ({
-        ...acc,
-        [cur]: typeof orgFarmInfo[cur] !== "object" ? tryParsePublicKey(orgFarmInfo[cur]) : orgFarmInfo[cur],
-      }),
-      {} as FarmPoolKeys,
-    ),
-    rewardInfos: rewardInfos.map((reward) => ({
-      ...reward,
-      rewardMint: tryParsePublicKey(reward.rewardMint) as PublicKey,
-      rewardVault: tryParsePublicKey(reward.rewardVault) as PublicKey,
-      rewardSender: reward.rewardSender ? tryParsePublicKey(reward.rewardSender) : undefined,
-    })),
-  };
-  return newInfo;
 }
 
 /** and state info  */

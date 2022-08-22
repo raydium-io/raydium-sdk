@@ -1,15 +1,12 @@
 import { ASSOCIATED_TOKEN_PROGRAM_ID, Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import {
-  AccountMeta,
-  Keypair,
-  PublicKey,
-  SystemProgram,
-  SYSVAR_CLOCK_PUBKEY,
-  TransactionInstruction,
+  AccountMeta, Keypair, PublicKey, SystemProgram, SYSVAR_CLOCK_PUBKEY, TransactionInstruction,
 } from "@solana/web3.js";
 import BN from "bn.js";
 
-import { accountMeta, AddInstructionParam, commonSystemAccountMeta, parseBigNumberish, TxBuilder } from "../../common";
+import {
+  accountMeta, AddInstructionParam, commonSystemAccountMeta, jsonInfo2PoolKeys, parseBigNumberish, TxBuilder,
+} from "../../common";
 import { PublicKeyish, SOLMint, validateAndParsePublicKey } from "../../common/pubKey";
 import { createWrappedNativeAccountInstructions } from "../account/instruction";
 import ModuleBase from "../moduleBase";
@@ -17,40 +14,19 @@ import { TOKEN_WSOL } from "../token/constant";
 import { MakeTransaction } from "../type";
 
 import {
-  FARM_LOCK_MINT,
-  FARM_LOCK_VAULT,
-  farmDespotVersionToInstruction,
-  farmWithdrawVersionToInstruction,
-  isValidFarmVersion,
+  FARM_LOCK_MINT, FARM_LOCK_VAULT, farmDespotVersionToInstruction, farmWithdrawVersionToInstruction, isValidFarmVersion,
   validateFarmRewards,
 } from "./config";
 import { createAssociatedLedgerAccountInstruction } from "./instruction";
 import {
-  dwLayout,
-  farmAddRewardLayout,
-  farmRewardLayout,
-  farmRewardRestartLayout,
-  farmStateV6Layout,
-  withdrawRewardLayout,
+  dwLayout, farmAddRewardLayout, farmRewardLayout, farmRewardRestartLayout, farmStateV6Layout, withdrawRewardLayout,
 } from "./layout";
 import {
-  FarmDWParam,
-  FarmPoolJsonInfo,
-  FarmRewardInfo,
-  FarmRewardInfoConfig,
-  RewardInfoKey,
-  RewardSetParam,
-  SdkParsedFarmInfo,
+  FarmDWParam, FarmPoolJsonInfo, FarmRewardInfo, FarmRewardInfoConfig, RewardInfoKey, RewardSetParam, SdkParsedFarmInfo,
 } from "./type";
 import {
-  calFarmRewardAmount,
-  farmInfoStringToPubKey,
-  farmRewardInfoToConfig,
-  getAssociatedAuthority,
-  getAssociatedLedgerAccount,
-  getAssociatedLedgerPoolAccount,
-  getFarmProgramId,
-  mergeSdkFarmInfo,
+  calFarmRewardAmount, farmRewardInfoToConfig, getAssociatedAuthority, getAssociatedLedgerAccount,
+  getAssociatedLedgerPoolAccount, getFarmProgramId, mergeSdkFarmInfo,
 } from "./util";
 
 export default class Farm extends ModuleBase {
@@ -61,15 +37,17 @@ export default class Farm extends ModuleBase {
     await this.scope.liquidity.load();
     await this.scope.fetchFarms();
 
-    this._farmPools = Object.keys(this.scope.apiData.farmPools || {}).reduce(
-      (acc, cur) => acc.concat(this.scope.apiData.farmPools![cur].map((data) => ({ ...data, category: cur }))),
+    const data = this.scope.apiData.farmPools?.data || {};
+
+    this._farmPools = Object.keys(data || {}).reduce(
+      (acc, cur) => acc.concat(data[cur].map?.((data) => ({ ...data, category: cur })) || []),
       [],
     );
 
     this._sdkParsedFarmPools = await mergeSdkFarmInfo(
       {
         connection: this.scope.connection,
-        pools: this._farmPools.map(farmInfoStringToPubKey),
+        pools: this._farmPools.map(jsonInfo2PoolKeys),
         owner: this.scope.ownerPubKey,
         config: { commitment: "confirmed" },
       },

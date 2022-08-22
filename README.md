@@ -115,20 +115,20 @@ const { transaction, signers, execute } = raydium.liquidity.initPool({
   baseMint: new PublicKey(),
   quoteMint: new PublicKey(),
   marketId: new PublicKey(),
-  baseAmount: new TokenAmount(raydium.token.mintToToken(mint), 10),
-  quoteAmount: new TokenAmount(raydium.token.mintToToken(mint), 20),
+  baseAmount: raydium.mintToTokenAmount({ mint, amount: "10" }),
+  quoteAmount: raydium.mintToTokenAmount({ mint, amount: "20" }),
 })
 const { transaction, signers, execute } = raydium.liquidity.addLiquidity({
   poolId: new PublicKey(pool),
   payer: new PublicKey(payer), // optional
-  amountInA: new TokenAmount(raydium.token.mintToToken(mint), 20),
-  amountInB: new TokenAmount(raydium.token.mintToToken(mint), 30),
+  amountInA: raydium.mintToTokenAmount({ mint, amount: "20" }),
+  amountInB: raydium.mintToTokenAmount({ mint, amount: "30" }),
   fixedSide: "a", // "a" or "b"
 })
 const { transaction, signers, execute } = raydium.liquidity.removeLiquidity({
   poolId: new PublicKey(pool),
   payer: new PublicKey(payer), // optional
-  amountIn: new TokenAmount(raydium.token.mintToToken(mint), 20),
+  amountIn: raydium.mintToTokenAmount({ mint, amount: "20" }),
 })
 
 const txId = execute()
@@ -213,9 +213,9 @@ const { availablePools, best, routedPools } = await raydium.trade.getAvailablePo
   outputMint: "sol",
 })
 
-const inputToken = raydium.token.mintToToken("4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6Rdecimals")
+const inputToken = raydium.mintToToken("4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6Rdecimals")
 // or use new Token({ mint: "4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6Rdecimals: 6, name: "Raydium", symbol: "RAY" })
-const outToken = raydium.token.mintToToken("sol")
+const outToken = raydium.mintToToken("sol")
 // or use new Token({ mint: "sol" }) <= sdk will generate wsol token automatically
 
 const { amountOut, minAmountOut, routes, routeType } =
@@ -230,7 +230,7 @@ const { amountOut, minAmountOut, routes, routeType } =
 const { transaction, signers, execute } = await raydium.trade.swap({
   routes,
   routeType,
-  amountIn: new TokenAmount(raydium.token.mintToToken(${rayMint}), "1.2345"),
+  amountIn: raydium.mintToTokenAmount({ mint: ${rayMint}), amount: "1.2345" }),
   amountOut: minAmountOut,
   fixedSide: "in"
 })

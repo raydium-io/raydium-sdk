@@ -83,10 +83,10 @@ export class Api {
   }
 
   async getLiquidityPools(): Promise<ApiLiquidityPools> {
-    return this.api.get(`/sdk/liquidity/${this.cluster}`);
+    return this.api.get(`/sdk/liquidity/${this.cluster}.json`);
   }
 
   async getFarmPools(): Promise<ApiFarmPools> {
-    return this.api.get(`/sdk/farm-v2/${this.cluster}`);
+    return this.api.get(`/sdk/farm-v2/${this.cluster}.json`);
   }
 }

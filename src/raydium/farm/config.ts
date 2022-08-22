@@ -6,6 +6,8 @@ import {
   farmLedgerLayoutV5_2,
   farmLedgerLayoutV6_1,
   FarmStateLayout,
+  farmStateV3Layout,
+  farmStateV5Layout,
   farmStateV6Layout,
 } from "./layout";
 import { RewardInfoWithKey } from "./type";
@@ -46,6 +48,8 @@ export const FARM_LOCK_VAULT = new PublicKey("FrspKwj8i3pNmKwXreTveC4fu7KL5ZbGeX
 export const FARM_VERSION_TO_STATE_LAYOUT: {
   [version in FarmVersion]?: FarmStateLayout;
 } = {
+  3: farmStateV3Layout,
+  5: farmStateV5Layout,
   6: farmStateV6Layout,
 };
 

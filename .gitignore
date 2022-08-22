@@ -122,3 +122,5 @@ dist
 lib/
 .coverage/
 docs/
+
+example/node_modules/
