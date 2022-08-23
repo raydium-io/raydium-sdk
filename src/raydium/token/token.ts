@@ -1,4 +1,6 @@
-import { BigNumberish, parseBigNumberish } from "../../common/bignumber";
+import BN from "bn.js";
+
+import { BigNumberish, BN_TEN, parseBigNumberish } from "../../common/bignumber";
 import { PublicKeyish, SOLMint, validateAndParsePublicKey } from "../../common/pubKey";
 import { TokenAmount } from "../../module/amount";
 import { Token } from "../../module/token";
@@ -11,6 +13,7 @@ import { sortTokens } from "./util";
 export interface MintToTokenAmount {
   mint: PublicKeyish;
   amount: BigNumberish;
+  decimalDone?: boolean;
 }
 
 export default class TokenModule extends ModuleBase {
@@ -31,8 +34,9 @@ export default class TokenModule extends ModuleBase {
     this._tokens = [];
     this._tokenMap = new Map();
     const { data } = this.scope.apiData.tokens || { data: { official: [], unOfficial: [], blacklist: [] } };
+
     const blacklistSet = new Set(data.blacklist);
-    [(data.official, data.unOfficial)].forEach((tokenGroup, idx) => {
+    [data.official, data.unOfficial].forEach((tokenGroup, idx) => {
       tokenGroup.forEach((token) => {
         const category = idx === 0 ? "official" : "unOfficial";
         if (!blacklistSet.has(token.mint) && token.mint !== SOLMint.toBase58()) {
@@ -45,12 +49,11 @@ export default class TokenModule extends ModuleBase {
     this._tokens.forEach((token) => {
       this._tokenMap.set(token.mint, {
         ...token,
-        icon: "",
-        extensions: {},
         id: token.mint,
       });
     });
     this._tokenMap.set(quantumSOLHydratedTokenJsonInfo.mint.toBase58(), quantumSOLHydratedTokenJsonInfo);
+    this._tokenMap.set("sol", quantumSOLHydratedTokenJsonInfo);
   }
 
   get allTokens(): TokenJson[] {
@@ -68,7 +71,17 @@ export default class TokenModule extends ModuleBase {
     return new Token({ mint, decimals, name, symbol });
   }
 
-  public mintToTokenAmount({ mint, amount }: MintToTokenAmount): TokenAmount {
-    return new TokenAmount(this.mintToToken(mint), parseBigNumberish(amount));
+  public mintToTokenAmount({ mint, amount, decimalDone }: MintToTokenAmount): TokenAmount {
+    const token = this.mintToToken(mint);
+    let _amount = parseBigNumberish(amount);
+    if (!decimalDone) {
+      _amount = BN_TEN.pow(new BN(token.decimals)).mul(_amount);
+    }
+    return new TokenAmount(token, _amount);
+  }
+
+  public decimalAmount({ mint, amount }: MintToTokenAmount): BN {
+    const token = this.mintToToken(mint);
+    return BN_TEN.pow(new BN(token.decimals)).mul(parseBigNumberish(amount));
   }
 }

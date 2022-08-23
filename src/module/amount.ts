@@ -9,7 +9,7 @@ import toFormat, { WrappedBig } from "./formatter";
 import { Fraction } from "./fraction";
 import { Token } from "./token";
 
-const logger = createLogger("entity/amount");
+const logger = createLogger("Raydium_amount");
 
 const Big = toFormat(_Big);
 type Big = WrappedBig;

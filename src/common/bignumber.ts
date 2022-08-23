@@ -4,7 +4,7 @@ import { Fraction } from "../module";
 
 import { createLogger } from "./logger";
 
-const logger = createLogger("Raydium.bignumber");
+const logger = createLogger("Raydium_bignumber");
 
 export enum Rounding {
   ROUND_DOWN,

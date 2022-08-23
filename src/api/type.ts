@@ -1,3 +1,5 @@
+import { FarmRewardInfo, FarmVersion } from "../raydium/farm";
+
 /* ================= token ================= */
 export interface ApiTokenInfo {
   symbol: string;
@@ -58,13 +60,6 @@ export interface ApiLiquidityPoolInfo {
 export type ApiLiquidityPools = { [key in "official" | "unOfficial"]: ApiLiquidityPoolInfo[] };
 
 /* ================= farm ================= */
-export type FarmVersion = 3 | 4 | 5 | 6;
-
-export interface FarmRewardInfo {
-  rewardMint: string;
-  rewardVault: string;
-}
-
 export interface FarmRewardInfoV6 {
   rewardMint: string;
   rewardVault: string;

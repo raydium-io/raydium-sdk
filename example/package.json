@@ -30,15 +30,22 @@
     "raydium-update": "cd .. && yarn build-lib && cd example && yarn remove @raydium-io/raydium-sdk && yarn raydium-local"
   },
   "dependencies": {
+    "@emotion/react": "^11.10.0",
+    "@emotion/styled": "^11.10.0",
+    "@mui/material": "^5.10.1",
     "@raydium-io/raydium-sdk": "file:./../lib",
     "@solana/wallet-adapter-base": "^0.9.15",
     "@solana/wallet-adapter-react": "^0.15.17",
     "@solana/wallet-adapter-react-ui": "^0.9.15",
     "@solana/wallet-adapter-wallets": "^0.18.4",
     "@solana/web3.js": "^1.50.1",
+    "@types/react-router-dom": "^5.3.3",
+    "bn.js": "^5.2.1",
+    "lodash": "^4.17.21",
     "react": "^18.0.0",
     "react-app-rewired": "^2.2.1",
     "react-dom": "^18.0.0",
+    "react-router-dom": "^6.3.0",
     "react-scripts": "5.0.1",
     "web-vitals": "^2.1.4",
     "zustand": "^4.1.1"

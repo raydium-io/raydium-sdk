@@ -7,7 +7,7 @@ import { createLogger } from "../common/logger";
 
 import toFormat, { WrappedBig } from "./formatter";
 
-const logger = createLogger("module/fraction");
+const logger = createLogger("Raydium_fraction");
 
 const Big = toFormat(_Big);
 type Big = WrappedBig;
@@ -21,9 +21,9 @@ const toSignificantRounding = {
 };
 
 const toFixedRounding = {
-  [Rounding.ROUND_DOWN]: Big.roundDown,
-  [Rounding.ROUND_HALF_UP]: Big.roundHalfUp,
-  [Rounding.ROUND_UP]: Big.roundUp,
+  [Rounding.ROUND_DOWN]: _Big.roundDown,
+  [Rounding.ROUND_HALF_UP]: _Big.roundHalfUp,
+  [Rounding.ROUND_UP]: _Big.roundUp,
 };
 
 export class Fraction {
@@ -105,7 +105,7 @@ export class Fraction {
     if (decimalPlaces < 0) logger.logWithError(`${decimalPlaces} is negative.`);
 
     Big.DP = decimalPlaces;
-    Big.RM = toFixedRounding[rounding];
+    Big.RM = toFixedRounding[rounding] || 1;
     return new Big(this.numerator.toString()).div(this.denominator.toString()).toFormat(decimalPlaces, format);
   }
 }

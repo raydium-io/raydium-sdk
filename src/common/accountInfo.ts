@@ -21,7 +21,7 @@ export interface GetMultipleAccountsInfoConfig {
   commitment?: Commitment;
 }
 
-const logger = createLogger("Raydium.accountInfo.util");
+const logger = createLogger("Raydium_accountInfo_util");
 
 export async function getMultipleAccountsInfo(
   connection: Connection,

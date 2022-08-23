@@ -6,7 +6,7 @@ import { createLogger } from "../../common";
 import { splAccountLayout } from "./layout";
 import { TokenAccount, TokenAccountRaw } from "./types";
 
-const logger = createLogger("Raydium.Util");
+const logger = createLogger("Raydium_Util");
 
 export interface ParseTokenAccount {
   solAccountResp?: AccountInfo<Buffer> | null;

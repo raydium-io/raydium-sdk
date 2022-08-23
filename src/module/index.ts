@@ -1,5 +1,4 @@
 export * from "./amount";
-export * from "./constant";
 export * from "./currency";
 export * from "./formatter";
 export * from "./fraction";

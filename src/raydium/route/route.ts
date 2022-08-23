@@ -17,10 +17,6 @@ export default class Route extends ModuleBase {
     super(params);
   }
 
-  public async load(): Promise<void> {
-    this.checkDisabled();
-  }
-
   public computeRouteAmountOut({
     fromPoolKeys,
     toPoolKeys,
@@ -61,7 +57,7 @@ export default class Route extends ModuleBase {
     const [mintIn, mintOut] = [tokenIn.mint.toBase58(), tokenOut.mint.toBase58()];
 
     const xorMints = xor(fromPoolMints, toPoolMints);
-    if (xorMints.length !== 2 || xorMints.includes(mintIn) || xorMints.includes(mintOut))
+    if (xorMints.length !== 2 || !xorMints.includes(mintIn) || !xorMints.includes(mintOut))
       this.logAndCreateError("xor tokens not match", "pools", {
         fromPoolKeys,
         toPoolKeys,
@@ -86,11 +82,11 @@ export default class Route extends ModuleBase {
     const middleMint = new PublicKey(_middleMint);
     const middleToken = new Token({ mint: middleMint, decimals: middleMintDecimals });
 
-    this.logDebug(`from pool:`, fromPoolKeys);
-    this.logDebug("to pool:", toPoolKeys);
-    this.logDebug("intersection mints:", intersectionMints);
-    this.logDebug("xor mints:", xorMints);
-    this.logDebug("middleMint:", _middleMint);
+    this.logInfo(`from pool:`, fromPoolKeys);
+    this.logInfo("to pool:", toPoolKeys);
+    this.logInfo("intersection mints:", intersectionMints);
+    this.logInfo("xor mints:", xorMints);
+    this.logInfo("middleMint:", _middleMint);
 
     const {
       minAmountOut: minMiddleAmountOut,

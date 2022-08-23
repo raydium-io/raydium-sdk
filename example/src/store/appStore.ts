@@ -1,16 +1,20 @@
-import { Raydium } from '@raydium-io/raydium-sdk'
-import { Connection, PublicKey } from '@solana/web3.js'
+import { Raydium, RaydiumLoadParams } from '@raydium-io/raydium-sdk'
 import create from 'zustand'
 
 interface AppState {
   raydium?: Raydium
-  initRaydium: (payload: { owner: PublicKey; connection: Connection }) => Promise<void>
+  initialing: boolean
+  initRaydium: (payload: RaydiumLoadParams) => Promise<void>
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
   raydium: undefined,
+  initialing: false,
   initRaydium: async (payload) => {
+    if (get().initialing) return
+
+    set(() => ({ initialing: true }))
     const raydium = await Raydium.load(payload)
-    set(() => ({ raydium }))
+    set(() => ({ raydium, initialing: false }))
   },
 }))

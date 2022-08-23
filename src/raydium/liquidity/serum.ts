@@ -5,7 +5,7 @@ import { createLogger } from "../../common/logger";
 
 import { LIQUIDITY_VERSION_TO_SERUM_VERSION } from "./constant";
 
-const logger = createLogger("Raydium.liquidity.serum");
+const logger = createLogger("Raydium_liquidity_serum");
 
 /* ================= program public keys ================= */
 export const _SERUM_PROGRAM_ID_V3 = "9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin";

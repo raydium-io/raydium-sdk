@@ -1,8 +1,6 @@
-import { PublicKey } from "@solana/web3.js";
-
-import { BN_ZERO, parseBigNumberish } from "../../common/bignumber";
+import { BN_ZERO } from "../../common/bignumber";
 import { div, gte } from "../../common/fractionUtil";
-import { validateAndParsePublicKey } from "../../common/pubKey";
+import { PublicKeyish, validateAndParsePublicKey } from "../../common/pubKey";
 import { jsonInfo2PoolKeys } from "../../common/utility";
 import { Percent, Price, TokenAmount } from "../../module";
 import { LiquidityPoolJsonInfo } from "../liquidity/type";
@@ -52,10 +50,16 @@ export default class Trade extends ModuleBase {
     return largest.jsonInfo;
   }
 
-  public async getAvailablePools(params: { inputMint: PublicKey; outputMint: PublicKey }): Promise<AvailableSwapPools> {
+  public async getAvailablePools(params: {
+    inputMint: PublicKeyish;
+    outputMint: PublicKeyish;
+  }): Promise<AvailableSwapPools> {
     this.checkDisabled();
     const { inputMint, outputMint } = params;
-    const [mintIn, mintOut] = [inputMint.toBase58(), outputMint.toBase58()];
+    const [mintIn, mintOut] = [
+      validateAndParsePublicKey(inputMint).toBase58(),
+      validateAndParsePublicKey(outputMint).toBase58(),
+    ];
     const availablePools = this.scope.liquidity.allPools.filter(
       (info) =>
         (info.baseMint === mintIn && info.quoteMint === mintOut) ||
@@ -106,6 +110,7 @@ export default class Trade extends ModuleBase {
       poolKeys: jsonInfo2PoolKeys(pool),
       poolInfo: sdkParsedInfo[idx],
     }));
+
     const _features = features || defaultRoutes;
     this.logDebug("features:", _features);
     if (!_pools.length)
@@ -143,6 +148,7 @@ export default class Trade extends ModuleBase {
             });
 
           if (amountOut.gt(_amountOut)) {
+            console.log("amm", poolInfo);
             routes = [{ source: "amm", keys: poolKeys }];
             routeType = "amm";
             _amountOut = amountOut;
@@ -152,8 +158,8 @@ export default class Trade extends ModuleBase {
             _priceImpact = priceImpact;
             _fee = [fee];
           }
-        } catch (error) {
-          this.logger.error(error);
+        } catch {
+          //
         }
       }
     }
@@ -161,11 +167,12 @@ export default class Trade extends ModuleBase {
     // amm route
     if (_features.includes("route")) {
       const groupedPools = groupPools(_pools);
-
       for (const grouped of groupedPools) {
         if (grouped.length !== 2) continue;
-        const { poolKeys: fromPoolKeys, poolInfo: fromPoolInfo } = grouped[0];
-        const { poolKeys: toPoolKeys, poolInfo: toPoolInfo } = grouped[1];
+
+        const [from, to] = grouped;
+        const { poolKeys: fromPoolKeys, poolInfo: fromPoolInfo } = from;
+        const { poolKeys: toPoolKeys, poolInfo: toPoolInfo } = to;
 
         // * if currencies not match with pool, will throw error
         try {
@@ -192,7 +199,7 @@ export default class Trade extends ModuleBase {
             _fee = fee;
           }
         } catch (error) {
-          this.logger.error(error);
+          //
         }
       }
     }
@@ -212,21 +219,21 @@ export default class Trade extends ModuleBase {
 
   public async directSwap(params: SwapParams): Promise<MakeTransaction> {
     this.checkDisabled();
-    const { inputMint, outputMint, amountIn, slippage, config } = params;
-    const inputToken = this.scope.token.mintToToken(inputMint);
-    const outputToken = this.scope.token.mintToToken(outputMint);
+    const { amountOut, amountIn, slippage, config } = params;
+    const inputToken = amountIn.token;
+    const outputToken = amountOut.token;
     const { routes, routeType, minAmountOut } = await this.getBestAmountOut({
       inputToken,
       outputToken,
-      amountIn: parseBigNumberish(amountIn),
+      amountIn: amountIn.raw!,
       slippage,
     });
 
     return await this.swap({
       routes,
       routeType,
-      amountIn: new TokenAmount(inputToken, amountIn),
-      amountOut: new TokenAmount(outputToken, minAmountOut.toSignificant()),
+      amountIn,
+      amountOut: minAmountOut,
       fixedSide: "in",
       config,
     });

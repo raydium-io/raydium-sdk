@@ -1,8 +1,10 @@
-import { Commitment, PublicKey } from "@solana/web3.js";
+import { PublicKey } from "@solana/web3.js";
 import BN from "bn.js";
 
 import { ApiLiquidityPoolInfo, LiquidityVersion } from "../../api/type";
+import { GetMultipleAccountsInfoConfig } from "../../common/accountInfo";
 import { BigNumberish } from "../../common/bignumber";
+import { PublicKeyish } from "../../common/pubKey";
 import { Percent, Price, Token, TokenAmount } from "../../module";
 import { ReplaceType } from "../type";
 
@@ -52,11 +54,6 @@ export interface SerumSource {
   marketKeys: [];
   bids: [];
   asks: [];
-}
-
-export interface GetMultipleAccountsInfoConfig {
-  batchRequest?: boolean;
-  commitment?: Commitment;
 }
 
 export interface LiquidityFetchMultipleInfoParams {
@@ -153,9 +150,9 @@ export type LiquidityAssociatedPoolKeys = LiquidityAssociatedPoolKeysV4;
 
 export interface CreatePoolParam {
   version: LiquidityVersion;
-  baseMint: PublicKey;
-  quoteMint: PublicKey;
-  marketId: PublicKey;
+  baseMint: PublicKeyish;
+  quoteMint: PublicKeyish;
+  marketId: PublicKeyish;
 }
 
 export interface InitPoolParam extends CreatePoolParam {

@@ -1,4 +1,5 @@
-import { Connection, Keypair, PublicKey, Transaction } from "@solana/web3.js";
+import { Connection, Keypair, PublicKey } from "@solana/web3.js";
+import BN from "bn.js";
 import { merge } from "lodash";
 import { Logger } from "pino";
 
@@ -17,7 +18,7 @@ import Liquidity from "./liquidity/liquidity";
 import Route from "./route/route";
 import TokenModule, { MintToTokenAmount } from "./token/token";
 import Trade from "./trade/trade";
-import { SignAllTransactions } from "./type";
+import { SendTransaction } from "./type";
 
 export interface RaydiumLoadParams extends TokenAccountDataProp {
   /* ================= solana ================= */
@@ -38,7 +39,7 @@ export interface RaydiumLoadParams extends TokenAccountDataProp {
   apiRequestInterval?: number;
   // api request timeout in ms, default is 10 secs (10 * 1000)
   apiRequestTimeout?: number;
-  signAllTransactions?: SignAllTransactions;
+  sendTransaction?: SendTransaction;
 }
 
 export interface RaydiumApiBatchRequestParams {
@@ -71,7 +72,7 @@ export class Raydium {
   private _connection: Connection;
   private _owner: Owner | undefined;
   private api: Api;
-  private _signAllTransactions?: (transactions: Transaction[]) => Promise<Transaction[]>;
+  private _sendTransaction?: SendTransaction;
   private logger: Logger;
 
   constructor(config: RaydiumConstructorParams) {
@@ -80,21 +81,21 @@ export class Raydium {
     this._connection = connection;
     this.cluster = cluster;
     this._owner = owner ? new Owner(owner) : undefined;
-    this._signAllTransactions = config.signAllTransactions;
+    this._sendTransaction = config.sendTransaction;
 
     this.api = api;
     this.logger = createLogger("Raydium");
-    this.farm = new Farm({ scope: this, moduleName: "Raydium.Farm" });
+    this.farm = new Farm({ scope: this, moduleName: "Raydium_Farm" });
     this.account = new Account({
       scope: this,
-      moduleName: "Raydium.Account",
+      moduleName: "Raydium_Account",
       tokenAccounts: config.tokenAccounts,
       tokenAccountRowInfos: config.tokenAccountRowInfos,
     });
-    this.liquidity = new Liquidity({ scope: this, moduleName: "Raydium.Liquidity" });
-    this.token = new TokenModule({ scope: this, moduleName: "Raydium.token" });
-    this.trade = new Trade({ scope: this, moduleName: "Raydium.trade" });
-    this.route = new Route({ scope: this, moduleName: "Raydium.route" });
+    this.liquidity = new Liquidity({ scope: this, moduleName: "Raydium_Liquidity" });
+    this.token = new TokenModule({ scope: this, moduleName: "Raydium_token" });
+    this.trade = new Trade({ scope: this, moduleName: "Raydium_trade" });
+    this.route = new Route({ scope: this, moduleName: "Raydium_route" });
 
     const now = new Date().getTime();
 
@@ -132,7 +133,6 @@ export class Raydium {
 
     await raydium.token.load();
     await raydium.liquidity.load();
-    await raydium.farm.load();
 
     return raydium;
   }
@@ -145,8 +145,8 @@ export class Raydium {
     if (!this._owner) throw new Error(EMPTY_OWNER);
     return this._owner.publicKey;
   }
-  public setOwner(owner: PublicKey | Keypair): Raydium {
-    this._owner = new Owner(owner);
+  public setOwner(owner?: PublicKey | Keypair): Raydium {
+    this._owner = owner ? new Owner(owner) : undefined;
     return this;
   }
   get connection(): Connection {
@@ -157,9 +157,12 @@ export class Raydium {
     this._connection = connection;
     return this;
   }
-
-  get signAllTransactions(): SignAllTransactions | undefined {
-    return this._signAllTransactions;
+  get sendTransaction(): SendTransaction | undefined {
+    return this._sendTransaction;
+  }
+  public setSendTransaction(sendTransaction?: SendTransaction): Raydium {
+    this._sendTransaction = sendTransaction;
+    return this;
   }
 
   public checkOwner(): void {
@@ -208,8 +211,10 @@ export class Raydium {
   public mintToToken(mint: PublicKeyish): Token {
     return this.token.mintToToken(mint);
   }
-
   public mintToTokenAmount(params: MintToTokenAmount): TokenAmount {
     return this.token.mintToTokenAmount(params);
+  }
+  public decimalAmount(params: MintToTokenAmount): BN {
+    return this.token.decimalAmount(params);
   }
 }

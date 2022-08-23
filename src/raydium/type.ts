@@ -1,4 +1,4 @@
-import { PublicKey, Signer, Transaction } from "@solana/web3.js";
+import { Connection, PublicKey, SendOptions, Signer, Transaction } from "@solana/web3.js";
 
 import { ApiTokenCategory, ApiTokenInfo } from "../api";
 
@@ -6,7 +6,11 @@ export interface RaydiumTokenInfo extends ApiTokenInfo {
   category: ApiTokenCategory;
 }
 
-export type SignAllTransactions = (transactions: Transaction[]) => Promise<Transaction[]>;
+export type SendTransaction = (
+  transaction: Transaction,
+  connection: Connection,
+  options?: SendOptions & { signers: Signer[] },
+) => Promise<string>;
 
 export interface MakeTransaction {
   signers: Signer[];

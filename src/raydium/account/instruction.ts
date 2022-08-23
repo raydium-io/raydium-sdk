@@ -36,7 +36,7 @@ export function closeAccountInstruction(params: {
   return Token.createCloseAccountInstruction(TOKEN_PROGRAM_ID, tokenAccount, payer, owner, multiSigners);
 }
 
-interface CreateWrappedTokenAccount {
+interface CreateWSolTokenAccount {
   connection: Connection;
   payer: PublicKey;
   owner: PublicKey;
@@ -47,9 +47,7 @@ interface CreateWrappedTokenAccount {
 /**
  * WrappedNative account = wsol account
  */
-export async function createWrappedNativeAccountInstructions(
-  params: CreateWrappedTokenAccount,
-): Promise<AddInstructionParam> {
+export async function createWSolAccountInstructions(params: CreateWSolTokenAccount): Promise<AddInstructionParam> {
   const { connection, amount, commitment, payer, owner, skipCloseAccount } = params;
 
   const balanceNeeded = await connection.getMinimumBalanceForRentExemption(splAccountLayout.span, commitment);

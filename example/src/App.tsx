@@ -1,5 +1,9 @@
+import AppBar from '@mui/material/AppBar'
+import Box from '@mui/material/Box'
+import Grid from '@mui/material/Grid'
+import Toolbar from '@mui/material/Toolbar'
 import { WalletAdapterNetwork } from '@solana/wallet-adapter-base'
-import { ConnectionProvider, useConnection, useWallet, WalletProvider } from '@solana/wallet-adapter-react'
+import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react'
 import { WalletModalProvider, WalletMultiButton } from '@solana/wallet-adapter-react-ui'
 import {
   GlowWalletAdapter,
@@ -8,18 +12,21 @@ import {
   SolflareWalletAdapter,
   TorusWalletAdapter,
 } from '@solana/wallet-adapter-wallets'
-import { FC, ReactNode, useEffect, useMemo } from 'react'
+import { FC, ReactNode, useMemo } from 'react'
+import { BrowserRouter, Link } from 'react-router-dom'
 
-import { useAppStore } from './store/appStore'
+import AppRoute, { ROUTE_PATH } from './AppRoute'
+import useInitSdk from './hook/useInitSdk'
 
-require('./App.css')
 require('@solana/wallet-adapter-react-ui/styles.css')
 
 const App: FC = () => {
   return (
-    <Context>
-      <Content />
-    </Context>
+    <BrowserRouter>
+      <Context>
+        <Content />
+      </Context>
+    </BrowserRouter>
   )
 }
 export default App
@@ -55,24 +62,32 @@ const Context: FC<{ children: ReactNode }> = ({ children }) => {
 }
 
 const Content: FC = () => {
-  const { publicKey } = useWallet()
-  const { connection } = useConnection()
-  const initRaydium = useAppStore((s) => s.initRaydium)
-  const raydium = useAppStore((s) => s.raydium)
-
-  useEffect(() => {
-    if (publicKey) {
-      console.log(123123111, raydium)
-      initRaydium({ owner: publicKey, connection })
-    }
-  }, [publicKey, connection])
-
-  useEffect(() => {
-    console.log(123123222, raydium)
-  }, [raydium])
+  useInitSdk()
   return (
-    <div className="App">
-      <WalletMultiButton />
+    <div>
+      <ButtonAppBar />
+      <AppRoute />
     </div>
+  )
+}
+
+const LinkStyle = { textDecoration: 'none', color: '#FFF', marginRight: '10px' }
+function ButtonAppBar() {
+  return (
+    <Box sx={{ flexGrow: 1 }}>
+      <AppBar position="static" sx={{ bg: 'gray' }}>
+        <Toolbar>
+          <Grid container alignItems="center" sx={{ flexGrow: 1, maxWidth: 'calc(100% - 160px)' }}>
+            <Link style={LinkStyle} to={ROUTE_PATH.HOME}>
+              Swap
+            </Link>
+            <Link style={LinkStyle} to={ROUTE_PATH.LIQUIDITY}>
+              Liquidity
+            </Link>
+          </Grid>
+          <WalletMultiButton style={{ minWidth: '200px' }} />
+        </Toolbar>
+      </AppBar>
+    </Box>
   )
 }

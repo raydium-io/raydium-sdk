@@ -3,6 +3,7 @@ import BN from "bn.js";
 
 import { LiquidityVersion } from "../../api/type";
 import { createLogger } from "../../common/logger";
+import { PublicKeyish, validateAndParsePublicKey } from "../../common/pubKey";
 import {
   findProgramAddress,
   parseSimulateLogToJson,
@@ -23,7 +24,7 @@ import {
   LiquidityPoolKeys,
 } from "./type";
 
-const logger = createLogger("Raydium.liquidity.util");
+const logger = createLogger("Raydium_liquidity_util");
 /**
  * Get currency amount side of liquidity pool
  * @param amount - the currency amount provided
@@ -159,16 +160,21 @@ export async function getLiquidityAssociatedAuthority({
 
 export async function getAssociatedPoolKeys({
   version,
-  marketId,
-  baseMint,
-  quoteMint,
+  marketId: _marketId,
+  baseMint: _baseMint,
+  quoteMint: _quoteMint,
 }: {
   version: LiquidityVersion;
-  marketId: PublicKey;
-  baseMint: PublicKey;
-  quoteMint: PublicKey;
+  marketId: PublicKeyish;
+  baseMint: PublicKeyish;
+  quoteMint: PublicKeyish;
 }): Promise<LiquidityAssociatedPoolKeys> {
   const programId = getLiquidityProgramId(version);
+  const [marketId, baseMint, quoteMint] = [
+    validateAndParsePublicKey(_marketId),
+    validateAndParsePublicKey(_baseMint),
+    validateAndParsePublicKey(_quoteMint),
+  ];
 
   const id = await getLiquidityAssociatedId({ name: "amm_associated_seed", programId, marketId });
   const lpMint = await getLiquidityAssociatedId({ name: "lp_mint_associated_seed", programId, marketId });

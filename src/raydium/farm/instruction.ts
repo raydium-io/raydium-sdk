@@ -5,7 +5,7 @@ import { accountMeta } from "../../common/pubKey";
 
 import { associatedLedgerAccountLayout } from "./layout";
 
-const logger = createLogger("Raydium.farm.instruction");
+const logger = createLogger("Raydium_farm_instruction");
 
 export async function createAssociatedLedgerAccountInstruction(params: {
   version: number;

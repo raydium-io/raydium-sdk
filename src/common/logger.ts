@@ -13,7 +13,7 @@ const stream = pretty({
   levelFirst: true,
   translateTime: "SYS:yyyymmdd HH:MM:ss.l",
 });
-const globalLogger = pino({ base: null }, stream);
+const globalLogger = pino({ base: null, level: "silent" }, stream);
 
 export interface LoggerInstance extends Logger {
   logWithError: (...args: any) => void;
@@ -24,7 +24,7 @@ export function createLogger(moduleName: string): LoggerInstance {
 
   if (!logger) {
     // default level is silent
-    const level = get(moduleLevels, moduleName, "silent");
+    const level = get(moduleLevels, moduleName);
 
     logger = globalLogger.child({ name: moduleName }, { level });
     set(moduleLoggers, moduleName, logger);
@@ -32,7 +32,7 @@ export function createLogger(moduleName: string): LoggerInstance {
 
   logger.logWithError = (...args): void => {
     const msg = args.map((arg) => (typeof arg === "object" ? JSON.stringify(arg) : arg)).join(", ");
-    logger.error(msg);
+    // logger.error(msg);
     throw new Error(msg);
   };
 

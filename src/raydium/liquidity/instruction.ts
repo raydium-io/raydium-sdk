@@ -6,21 +6,30 @@ import { accountMeta, commonSystemAccountMeta } from "../../common/pubKey";
 import { struct, u8 } from "../../marshmallow";
 
 import {
-  addLiquidityLayout, createPoolV4Layout, fixedSwapInLayout, fixedSwapOutLayout, initPoolLayout, removeLiquidityLayout,
+  addLiquidityLayout,
+  createPoolV4Layout,
+  fixedSwapInLayout,
+  fixedSwapOutLayout,
+  initPoolLayout,
+  removeLiquidityLayout,
 } from "./layout";
 import { MODEL_DATA_PUBKEY } from "./stable";
 import {
-  LiquidityAddInstructionParams, LiquidityAssociatedPoolKeys, LiquidityInitPoolInstructionParams, LiquidityPoolKeys,
-  LiquidityRemoveInstructionParams, LiquiditySwapFixedInInstructionParamsV4, LiquiditySwapFixedOutInstructionParamsV4,
+  LiquidityAddInstructionParams,
+  LiquidityAssociatedPoolKeys,
+  LiquidityInitPoolInstructionParams,
+  LiquidityPoolKeys,
+  LiquidityRemoveInstructionParams,
+  LiquiditySwapFixedInInstructionParamsV4,
+  LiquiditySwapFixedOutInstructionParamsV4,
   LiquiditySwapInstructionParams,
 } from "./type";
 
-const logger = createLogger("Raydium.liqudity.instruction");
+const logger = createLogger("Raydium_liquidity_instruction");
 
 export function makeAMMSwapInstruction(params: LiquiditySwapInstructionParams): TransactionInstruction {
   const { poolKeys, userKeys, amountIn, amountOut, fixedSide } = params;
   const { version } = poolKeys;
-
   if (version === 4 || version === 5) {
     const props = { poolKeys, userKeys };
     if (fixedSide === "in") {
@@ -335,8 +344,7 @@ export function makeRemoveLiquidityInstruction(params: LiquidityRemoveInstructio
     if (version === 5) {
       keys.push(accountMeta({ pubkey: MODEL_DATA_PUBKEY }));
     } else {
-      accountMeta({ pubkey: poolKeys.withdrawQueue }), 
-      accountMeta({ pubkey: poolKeys.lpVault });
+      accountMeta({ pubkey: poolKeys.withdrawQueue }), accountMeta({ pubkey: poolKeys.lpVault });
     }
 
     keys.push(

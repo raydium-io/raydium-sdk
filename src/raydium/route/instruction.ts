@@ -14,7 +14,7 @@ import {
   RouteSwapOutFixedInInstructionParams,
 } from "./type";
 
-const logger = createLogger("Raydium.route.instruction");
+const logger = createLogger("Raydium_route_instruction");
 export function makeRouteSwapInstruction(params: RouteSwapInstructionParams): TransactionInstruction[] {
   const { fixedSide } = params;
 

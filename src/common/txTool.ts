@@ -10,15 +10,17 @@ import {
   TransactionInstruction,
 } from "@solana/web3.js";
 
+import { SendTransaction } from "../raydium/type";
+
 import { createLogger } from "./logger";
 import { Owner } from "./owner";
 
-const logger = createLogger("Raydium.txTool");
+const logger = createLogger("Raydium_txTool");
 interface TxBuilderInit {
   connection: Connection;
   feePayer: PublicKey;
   owner?: Owner;
-  signAllTransactions?: (transactions: Transaction[]) => Promise<Transaction[]>;
+  sendTransaction?: SendTransaction;
 }
 
 export interface AddInstructionParam {
@@ -34,12 +36,12 @@ export class TxBuilder {
   private endInstructions: TransactionInstruction[] = [];
   private signers: Signer[] = [];
   private feePayer: PublicKey;
-  private signAllTransactions?: (transactions: Transaction[]) => Promise<Transaction[]>;
+  private sendTransaction?: SendTransaction;
 
   constructor(params: TxBuilderInit) {
     this.connection = params.connection;
     this.feePayer = params.feePayer;
-    this.signAllTransactions = params.signAllTransactions;
+    this.sendTransaction = params.sendTransaction;
     this.owner = params.owner;
   }
 
@@ -85,9 +87,11 @@ export class TxBuilder {
         if (this.owner?.isKeyPair) {
           return sendAndConfirmTransaction(this.connection, transaction, this.signers);
         }
-        if (this.signAllTransactions) {
-          const signedTx = await this.signAllTransactions([transaction]);
-          return this.connection.sendRawTransaction(signedTx[0].serialize());
+        if (this.sendTransaction) {
+          return await this.sendTransaction(transaction, this.connection, {
+            signers: this.signers,
+            skipPreflight: true,
+          });
         }
         throw new Error("please connect wallet first");
       },

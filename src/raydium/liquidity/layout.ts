@@ -1,4 +1,4 @@
-import { GetStructureSchema, publicKey, seq, struct, u128, u64, u8 } from "../../marshmallow";
+import { GetStructureSchema, publicKey, seq, struct, u128, u32, u64, u8 } from "../../marshmallow";
 
 export const fixedSwapInLayout = struct([u8("instruction"), u64("amountIn"), u64("minAmountOut")]);
 export const fixedSwapOutLayout = struct([u8("instruction"), u64("maxAmountIn"), u64("amountOut")]);
@@ -150,3 +150,15 @@ export const LIQUIDITY_VERSION_TO_STATE_LAYOUT: {
   4: liquidityStateV4Layout,
   5: liquidityStateV5Layout,
 };
+
+export const SPL_MINT_LAYOUT = struct([
+  u32("mintAuthorityOption"),
+  publicKey("mintAuthority"),
+  u64("supply"),
+  u8("decimals"),
+  u8("isInitialized"),
+  u32("freezeAuthorityOption"),
+  publicKey("freezeAuthority"),
+]);
+
+export type SplMintLayout = typeof SPL_MINT_LAYOUT;

@@ -5,7 +5,7 @@ import { Cluster } from "../solana";
 
 import { ApiFarmPools, ApiLiquidityPools, ApiTokens } from "./type";
 
-const logger = createLogger("Common.Api");
+const logger = createLogger("Raydium_Api");
 
 export async function endlessRetry<T>(name: string, call: () => Promise<T>, interval = 1000): Promise<T> {
   let result: T | undefined;

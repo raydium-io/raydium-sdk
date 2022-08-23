@@ -1,32 +1,62 @@
 import { ASSOCIATED_TOKEN_PROGRAM_ID, Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import {
-  AccountMeta, Keypair, PublicKey, SystemProgram, SYSVAR_CLOCK_PUBKEY, TransactionInstruction,
+  AccountMeta,
+  Keypair,
+  PublicKey,
+  SystemProgram,
+  SYSVAR_CLOCK_PUBKEY,
+  TransactionInstruction,
 } from "@solana/web3.js";
 import BN from "bn.js";
 
 import {
-  accountMeta, AddInstructionParam, commonSystemAccountMeta, jsonInfo2PoolKeys, parseBigNumberish, TxBuilder,
+  accountMeta,
+  AddInstructionParam,
+  commonSystemAccountMeta,
+  jsonInfo2PoolKeys,
+  parseBigNumberish,
+  TxBuilder,
 } from "../../common";
 import { PublicKeyish, SOLMint, validateAndParsePublicKey } from "../../common/pubKey";
-import { createWrappedNativeAccountInstructions } from "../account/instruction";
+import { createWSolAccountInstructions } from "../account/instruction";
 import ModuleBase from "../moduleBase";
 import { TOKEN_WSOL } from "../token/constant";
 import { MakeTransaction } from "../type";
 
 import {
-  FARM_LOCK_MINT, FARM_LOCK_VAULT, farmDespotVersionToInstruction, farmWithdrawVersionToInstruction, isValidFarmVersion,
+  FARM_LOCK_MINT,
+  FARM_LOCK_VAULT,
+  farmDespotVersionToInstruction,
+  farmWithdrawVersionToInstruction,
+  isValidFarmVersion,
   validateFarmRewards,
 } from "./config";
 import { createAssociatedLedgerAccountInstruction } from "./instruction";
 import {
-  dwLayout, farmAddRewardLayout, farmRewardLayout, farmRewardRestartLayout, farmStateV6Layout, withdrawRewardLayout,
+  dwLayout,
+  farmAddRewardLayout,
+  farmRewardLayout,
+  farmRewardRestartLayout,
+  farmStateV6Layout,
+  withdrawRewardLayout,
 } from "./layout";
 import {
-  FarmDWParam, FarmPoolJsonInfo, FarmRewardInfo, FarmRewardInfoConfig, RewardInfoKey, RewardSetParam, SdkParsedFarmInfo,
+  FarmDWParam,
+  FarmPoolJsonInfo,
+  FarmRewardInfo,
+  FarmRewardInfoConfig,
+  RewardInfoKey,
+  RewardSetParam,
+  SdkParsedFarmInfo,
 } from "./type";
 import {
-  calFarmRewardAmount, farmRewardInfoToConfig, getAssociatedAuthority, getAssociatedLedgerAccount,
-  getAssociatedLedgerPoolAccount, getFarmProgramId, mergeSdkFarmInfo,
+  calFarmRewardAmount,
+  farmRewardInfoToConfig,
+  getAssociatedAuthority,
+  getAssociatedLedgerAccount,
+  getAssociatedLedgerPoolAccount,
+  getFarmProgramId,
+  mergeSdkFarmInfo,
 } from "./util";
 
 export default class Farm extends ModuleBase {
@@ -81,7 +111,7 @@ export default class Farm extends ModuleBase {
     newInstruction?: AddInstructionParam;
   }> {
     if (rewardInfo.rewardMint.equals(SOLMint)) {
-      const txInstructions = await createWrappedNativeAccountInstructions({
+      const txInstructions = await createWSolAccountInstructions({
         connection: this.scope.connection,
         owner: this.scope.ownerPubKey,
         payer,
@@ -542,7 +572,7 @@ export default class Farm extends ModuleBase {
     });
 
     if (withdrawMint.equals(SOLMint)) {
-      const txInstruction = await createWrappedNativeAccountInstructions({
+      const txInstruction = await createWSolAccountInstructions({
         connection: this.scope.connection,
         owner: this.scope.ownerPubKey,
         payer: this.scope.ownerPubKey,

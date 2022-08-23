@@ -5,7 +5,7 @@ import { AddInstructionParam } from "../../common/txTool";
 import ModuleBase, { ModuleBaseProps } from "../moduleBase";
 import { TOKEN_WSOL } from "../token/constant";
 
-import { closeAccountInstruction, createWrappedNativeAccountInstructions } from "./instruction";
+import { closeAccountInstruction, createWSolAccountInstructions } from "./instruction";
 import { HandleTokenAccountParams, TokenAccount, TokenAccountRaw } from "./types";
 import { parseTokenAccountResp } from "./util";
 
@@ -198,7 +198,7 @@ export default class Account extends ModuleBase {
     );
 
     if (new PublicKey(TOKEN_WSOL.mint).equals(mint)) {
-      const txInstruction = await createWrappedNativeAccountInstructions({
+      const txInstruction = await createWSolAccountInstructions({
         connection: this.scope.connection,
         owner: this.scope.ownerPubKey,
         payer,

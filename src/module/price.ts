@@ -4,7 +4,7 @@ import { createLogger } from "../common/logger";
 import { Currency } from "./currency";
 import { Fraction } from "./fraction";
 
-const logger = createLogger("entity/price");
+const logger = createLogger("Raydium_price");
 
 interface PriceProps {
   baseCurrency: Currency;

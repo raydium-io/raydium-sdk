@@ -11,35 +11,18 @@ import { MakeTransaction } from "../type";
 
 import { LIQUIDITY_FEES_DENOMINATOR, LIQUIDITY_FEES_NUMERATOR } from "./constant";
 import {
-  makeAddLiquidityInstruction,
-  makeAMMSwapInstruction,
-  makeCreatePoolInstruction,
-  makeInitPoolInstruction,
+  makeAddLiquidityInstruction, makeAMMSwapInstruction, makeCreatePoolInstruction, makeInitPoolInstruction,
   makeRemoveLiquidityInstruction,
 } from "./instruction";
 import { getDxByDyBaseIn, getDyByDxBaseIn, getStablePrice, StableLayout } from "./stable";
 import {
-  AmountSide,
-  CreatePoolParam,
-  InitPoolParam,
-  LiquidityAddTransactionParams,
-  LiquidityComputeAmountOutParams,
-  LiquidityComputeAmountOutReturn,
-  LiquidityComputeAnotherAmountParams,
-  LiquidityFetchMultipleInfoParams,
-  LiquidityPoolInfo,
-  LiquidityPoolJsonInfo,
-  LiquidityRemoveTransactionParams,
-  LiquiditySwapTransactionParams,
+  AmountSide, CreatePoolParam, InitPoolParam, LiquidityAddTransactionParams, LiquidityComputeAmountOutParams,
+  LiquidityComputeAmountOutReturn, LiquidityComputeAnotherAmountParams, LiquidityFetchMultipleInfoParams,
+  LiquidityPoolInfo, LiquidityPoolJsonInfo, LiquidityRemoveTransactionParams, LiquiditySwapTransactionParams,
   SDKParsedLiquidityInfo,
 } from "./type";
 import {
-  getAmountSide,
-  getAmountsSide,
-  getAssociatedPoolKeys,
-  includesToken,
-  isValidFixedSide,
-  makeSimulationPoolInfo,
+  getAmountSide, getAmountsSide, getAssociatedPoolKeys, includesToken, isValidFixedSide, makeSimulationPoolInfo,
 } from "./util";
 
 export default class Liquidity extends ModuleBase {
@@ -108,9 +91,10 @@ export default class Liquidity extends ModuleBase {
     slippage,
   }: LiquidityComputeAmountOutParams): LiquidityComputeAmountOutReturn {
     this.checkDisabled();
-    const logger = createLogger("Liquidity computeAmountOut");
+    const logger = createLogger("Raydium_computeAmountOut");
     const tokenIn = amountIn.token;
     const tokenOut = outputToken;
+
     if (!includesToken(tokenIn, poolKeys) || !includesToken(tokenOut, poolKeys))
       logger.logWithError("token not match with pool", "poolKeys", poolKeys);
 
@@ -118,6 +102,7 @@ export default class Liquidity extends ModuleBase {
     this.logDebug("baseReserve:", baseReserve.toString(), "quoteReserve:", quoteReserve.toString());
     const inputToken = amountIn.token;
     this.logDebug("inputToken:", inputToken);
+
     this.logDebug("amountIn:", amountIn.toFixed());
     this.logDebug("outputToken:", outputToken);
     this.logDebug("slippage:", `${slippage.toSignificant()}%`);
@@ -126,7 +111,6 @@ export default class Liquidity extends ModuleBase {
     const input = getAmountSide(amountIn, poolKeys);
     if (input === "quote") reserves.reverse();
     this.logDebug("input side:", input);
-
     const [reserveIn, reserveOut] = reserves;
     let currentPrice;
     if (poolKeys.version === 4) {
@@ -155,11 +139,9 @@ export default class Liquidity extends ModuleBase {
       "currentPrice invert:",
       `1 ${outputToken.symbol} ≈ ${currentPrice.invert().toFixed()} ${inputToken.symbol}`,
     );
-
     const amountInRaw = amountIn.raw;
     let amountOutRaw = BN_ZERO;
     let feeRaw = BN_ZERO;
-
     if (!amountInRaw.isZero()) {
       if (poolKeys.version === 4) {
         feeRaw = amountInRaw.mul(LIQUIDITY_FEES_NUMERATOR).div(LIQUIDITY_FEES_DENOMINATOR);
@@ -200,6 +182,7 @@ export default class Liquidity extends ModuleBase {
         quoteCurrency: outputToken,
         numerator: amountOutRaw,
       });
+
       this.logDebug("executionPrice:", `1 ${inputToken.symbol} ≈ ${executionPrice.toFixed()} ${outputToken.symbol}`);
       this.logDebug(
         "executionPrice invert:",
@@ -443,9 +426,11 @@ export default class Liquidity extends ModuleBase {
   public async addLiquidity(params: LiquidityAddTransactionParams): Promise<MakeTransaction> {
     const { poolId, amountInA, amountInB, fixedSide, config } = params;
     const poolInfo = this.allPools.find((pool) => pool.id === poolId.toBase58());
+
     if (!poolInfo) this.logAndCreateError("pool not found", poolId);
-    const poolKeys = await this.sdkParseJsonLiquidityInfo([poolInfo!])[0];
-    if (!poolKeys) this.logAndCreateError("pool pass error", poolKeys);
+    const poolKeysList = await this.sdkParseJsonLiquidityInfo([poolInfo!]);
+    const poolKeys = poolKeysList[0];
+    if (!poolKeys) this.logAndCreateError("pool parse error", poolKeys);
 
     this.logDebug("amountInA:", amountInA, "amountInB:", amountInB);
     if (amountInA.isZero() || amountInB.isZero())
@@ -542,7 +527,8 @@ export default class Liquidity extends ModuleBase {
     const { poolId, amountIn, config } = params;
     const poolInfo = this.allPools.find((pool) => pool.id === poolId.toBase58());
     if (!poolInfo) this.logAndCreateError("pool not found", poolId);
-    const poolKeys = await this.sdkParseJsonLiquidityInfo([poolInfo!])[0];
+    const poolKeysList = await this.sdkParseJsonLiquidityInfo([poolInfo!]);
+    const poolKeys = poolKeysList[0];
     if (!poolKeys) this.logAndCreateError("pool pass error", poolKeys);
 
     const { baseMint, quoteMint, lpMint } = poolKeys;
