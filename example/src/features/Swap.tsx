@@ -25,8 +25,9 @@ export default function Swap() {
 
   useEffect(() => {
     async function calculateAmount() {
-      if (!inAmount || Number(inAmount) < 1) {
+      if (!inAmount || Number(inAmount) <= 0) {
         setOutAmount(undefined)
+        setMinOutAmount(undefined)
         return
       }
       setLoading(true)

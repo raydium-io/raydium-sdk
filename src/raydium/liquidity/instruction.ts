@@ -1,3 +1,4 @@
+import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { PublicKey, SystemProgram, TransactionInstruction } from "@solana/web3.js";
 
 import { parseBigNumberish } from "../../common/bignumber";
@@ -103,7 +104,7 @@ export function makeSwapFixedInInstruction(
   );
   const keys = [
     // amm
-    accountMeta({ pubkey: SystemProgram.programId, isWritable: false }),
+    accountMeta({ pubkey: TOKEN_PROGRAM_ID, isWritable: false }),
     accountMeta({ pubkey: poolKeys.id }),
     accountMeta({ pubkey: poolKeys.authority, isWritable: false }),
     accountMeta({ pubkey: poolKeys.openOrders }),
@@ -278,7 +279,7 @@ export function makeAddLiquidityInstruction(params: LiquidityAddInstructionParam
     );
 
     const keys = [
-      accountMeta({ pubkey: SystemProgram.programId, isWritable: false }),
+      accountMeta({ pubkey: TOKEN_PROGRAM_ID, isWritable: false }),
       // amm
       accountMeta({ pubkey: poolKeys.id }),
       accountMeta({ pubkey: poolKeys.authority, isWritable: false }),
@@ -330,11 +331,11 @@ export function makeRemoveLiquidityInstruction(params: LiquidityRemoveInstructio
 
     const keys = [
       // system
-      accountMeta({ pubkey: SystemProgram.programId, isWritable: false }),
+      accountMeta({ pubkey: TOKEN_PROGRAM_ID, isWritable: false }),
       // amm
       accountMeta({ pubkey: poolKeys.id }),
       accountMeta({ pubkey: poolKeys.authority, isWritable: false }),
-      accountMeta({ pubkey: poolKeys.openOrders, isWritable: false }),
+      accountMeta({ pubkey: poolKeys.openOrders }),
       accountMeta({ pubkey: poolKeys.targetOrders }),
       accountMeta({ pubkey: poolKeys.lpMint }),
       accountMeta({ pubkey: poolKeys.baseVault }),
@@ -344,7 +345,7 @@ export function makeRemoveLiquidityInstruction(params: LiquidityRemoveInstructio
     if (version === 5) {
       keys.push(accountMeta({ pubkey: MODEL_DATA_PUBKEY }));
     } else {
-      accountMeta({ pubkey: poolKeys.withdrawQueue }), accountMeta({ pubkey: poolKeys.lpVault });
+      keys.push(accountMeta({ pubkey: poolKeys.withdrawQueue }), accountMeta({ pubkey: poolKeys.lpVault }));
     }
 
     keys.push(

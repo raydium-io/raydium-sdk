@@ -110,6 +110,7 @@ const { transaction, signers, execute } = raydium.liquidity.createPool({
   quoteMint: new PublicKey(),
   marketId: new PublicKey() // https://docs.projectserum.com/serum-ecosystem/build-on-serum/add-a-market-on-serum-serum-academy
 })
+
 const { transaction, signers, execute } = raydium.liquidity.initPool({
   version: 4,
   baseMint: new PublicKey(),

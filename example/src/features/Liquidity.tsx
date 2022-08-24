@@ -4,15 +4,24 @@ import List from '@mui/material/List'
 import ListItem from '@mui/material/ListItem'
 import ListItemText from '@mui/material/ListItemText'
 import Typography from '@mui/material/Typography'
-import { getAssociatedPoolKeys, LiquidityPoolJsonInfo, SPL_MINT_LAYOUT } from '@raydium-io/raydium-sdk'
+import {
+  getAssociatedPoolKeys,
+  LiquidityPoolJsonInfo,
+  Percent,
+  SPL_MINT_LAYOUT,
+  Token,
+  TokenAmount,
+} from '@raydium-io/raydium-sdk'
 import { useConnection } from '@solana/wallet-adapter-react'
 import { PublicKey } from '@solana/web3.js'
+import { useEffect } from 'react'
 
 import { useAppStore } from '../store/appStore'
 
 export default function Liquidity() {
   const { connection } = useConnection()
   const raydium = useAppStore((state) => state.raydium)
+  const connected = useAppStore((state) => state.connected)
 
   const handleClickAdd = async (pool: LiquidityPoolJsonInfo) => {
     const { transaction, signers, execute } = await raydium!.liquidity.addLiquidity({
@@ -21,7 +30,7 @@ export default function Liquidity() {
       amountInB: raydium!.mintToTokenAmount({ mint: pool.quoteMint, amount: '30' }),
       fixedSide: 'a',
     })
-    const txId = execute()
+    // const txId = await execute()
   }
 
   const handleClickRemove = async (pool: LiquidityPoolJsonInfo) => {
@@ -29,7 +38,7 @@ export default function Liquidity() {
       poolId: new PublicKey(pool.id),
       amountIn: raydium!.mintToTokenAmount({ mint: pool.baseMint, amount: '20' }),
     })
-    const txId = execute()
+    // const txId = await execute()
   }
 
   const handleClickCreate = async (pool: LiquidityPoolJsonInfo) => {
@@ -70,6 +79,62 @@ export default function Liquidity() {
     })
     const txId = execute()
   }
+
+  useEffect(() => {
+    async function calculateLiquidityAmount() {
+      const poolBaseMint = '4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R'
+      const poolQuoteMint = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
+      const marketId = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
+      // const { transaction } = await raydium!.liquidity.createPool({
+      //   version: 4,
+      //   baseMint: poolBaseMint,
+      //   quoteMint: poolQuoteMint,
+      //   marketId,
+      // })
+
+      // const { transaction, execute } = await raydium!.liquidity.initPool({
+      //   version: 4,
+      //   baseMint: poolBaseMint,
+      //   quoteMint: poolQuoteMint,
+      //   baseAmount: raydium!.mintToTokenAmount({ mint: poolBaseMint, amount: 1 }),
+      //   quoteAmount: raydium!.mintToTokenAmount({ mint: poolQuoteMint, amount: 1 }),
+      //   marketId,
+      // })
+      // const txId = await execute()
+
+      // RAY - USDC pool
+      // const poolId = '6UmmUiYoBjSrhakAobJw8BvkmJtDVxaeBtbt7rxWo1mg'
+      // const poolInfo = raydium?.liquidity.allPoolMap.get(poolId)
+      // const { maxAnotherAmount, anotherAmount } = await raydium!.liquidity.computePairAmount({
+      //   poolId, // deUITokenAmount(coin2TokenAmount)
+      //   amount: raydium!.mintToTokenAmount({ mint: poolInfo!.baseMint, amount: 0.356289 }),
+      //   anotherCurrency: raydium!.mintToToken(poolInfo!.quoteMint),
+      //   slippage: new Percent(1, 100),
+      // })
+
+      /* 
+       * add
+      const { execute, transaction } = await raydium!.liquidity.addLiquidity({
+        poolId: poolId,
+        amountInA: raydium!.mintToTokenAmount({ mint: poolInfo!.baseMint, amount: 0.356175 }),
+        amountInB: res.maxAnotherAmount,
+        fixedSide: 'a', // a means base mint is input by user, b is calculated by sdk
+      })
+      const txId = await execute()
+      */
+
+      /*
+       * remove
+      const lpTokenAmount = raydium!.liquidity.lpMintToTokenAmount({ poolId, amount: lpAmount })
+      const { execute, transaction } = await raydium!.liquidity.removeLiquidity({
+        poolId: poolId,
+        amountIn: lpTokenAmount,
+      })
+      const txId = await execute()
+      */
+    }
+    connected && calculateLiquidityAmount()
+  }, [raydium, connected])
 
   if (!raydium) return <CircularProgress />
 

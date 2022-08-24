@@ -7,7 +7,7 @@ import { createLogger } from "../common/logger";
 
 import toFormat, { WrappedBig } from "./formatter";
 
-const logger = createLogger("Raydium_fraction");
+const logger = createLogger("module/fraction");
 
 const Big = toFormat(_Big);
 type Big = WrappedBig;

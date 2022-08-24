@@ -21,6 +21,7 @@ export default function useInitSdk() {
     if (raydium) {
       raydium.setOwner(publicKey || undefined)
       raydium.setSendTransaction(sendTransaction)
+      useAppStore.setState({ connected: !!publicKey })
     }
   }, [raydium, publicKey, sendTransaction])
 }

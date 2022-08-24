@@ -74,7 +74,7 @@ export default class Account extends ModuleBase {
     tokenAccounts: TokenAccount[];
     tokenAccountRawInfos: TokenAccountRaw[];
   }> {
-    if (this._clientOwnedToken || (!config?.forceUpdate && this._tokenAccounts)) {
+    if (this._clientOwnedToken || (!config?.forceUpdate && this._tokenAccounts.length)) {
       return {
         tokenAccounts: this._tokenAccounts,
         tokenAccountRawInfos: this._tokenAccountRawInfos,

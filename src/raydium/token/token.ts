@@ -1,8 +1,9 @@
 import BN from "bn.js";
 
-import { BigNumberish, BN_TEN, parseBigNumberish } from "../../common/bignumber";
+import { BigNumberish, BN_TEN, parseBigNumberish, parseNumberInfo, toBN } from "../../common/bignumber";
 import { PublicKeyish, SOLMint, validateAndParsePublicKey } from "../../common/pubKey";
 import { TokenAmount } from "../../module/amount";
+import { Fraction } from "../../module/fraction";
 import { Token } from "../../module/token";
 import ModuleBase, { ModuleBaseProps } from "../moduleBase";
 
@@ -73,15 +74,16 @@ export default class TokenModule extends ModuleBase {
 
   public mintToTokenAmount({ mint, amount, decimalDone }: MintToTokenAmount): TokenAmount {
     const token = this.mintToToken(mint);
-    let _amount = parseBigNumberish(amount);
-    if (!decimalDone) {
-      _amount = BN_TEN.pow(new BN(token.decimals)).mul(_amount);
-    }
-    return new TokenAmount(token, _amount);
+
+    if (decimalDone) return new TokenAmount(token, parseBigNumberish(amount));
+    return new TokenAmount(token, this.decimalAmount({ mint, amount, decimalDone }));
   }
 
   public decimalAmount({ mint, amount }: MintToTokenAmount): BN {
+    const numberDetails = parseNumberInfo(amount);
     const token = this.mintToToken(mint);
-    return BN_TEN.pow(new BN(token.decimals)).mul(parseBigNumberish(amount));
+    return toBN(
+      new Fraction(numberDetails.numerator, numberDetails.denominator).mul(new BN(10).pow(new BN(token.decimals))),
+    );
   }
 }

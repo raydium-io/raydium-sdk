@@ -1,10 +1,11 @@
 import { ComputeBudgetProgram } from "@solana/web3.js";
 import BN from "bn.js";
 
-import { BN_ONE, BN_ZERO, divCeil } from "../../common/bignumber";
+import { BN_ONE, BN_ZERO, divCeil, Numberish, parseNumberInfo, toBN } from "../../common/bignumber";
 import { createLogger } from "../../common/logger";
+import { PublicKeyish, validateAndParsePublicKey } from "../../common/pubKey";
 import { jsonInfo2PoolKeys } from "../../common/utility";
-import { Percent, Price, TokenAmount } from "../../module";
+import { Fraction, Percent, Price, Token, TokenAmount } from "../../module";
 import { makeTransferInstruction } from "../account/instruction";
 import ModuleBase, { ModuleBaseProps } from "../moduleBase";
 import { MakeTransaction } from "../type";
@@ -27,6 +28,7 @@ import {
 
 export default class Liquidity extends ModuleBase {
   private _poolInfos: LiquidityPoolJsonInfo[] = [];
+  private _poolInfoMap: Map<string, LiquidityPoolJsonInfo> = new Map();
   private _officialIds: Set<string> = new Set();
   private _unOfficialIds: Set<string> = new Set();
   private _sdkParseInfoCache: Map<string, SDKParsedLiquidityInfo[]> = new Map();
@@ -42,8 +44,18 @@ export default class Liquidity extends ModuleBase {
     const { data } = this.scope.apiData.liquidityPools;
     const [official, unOfficial] = [data.official || [], data.unOfficial || []];
     this._poolInfos = [...official, ...unOfficial];
-    this._officialIds = new Set(official.map((i) => i.id));
-    this._unOfficialIds = new Set(unOfficial.map((i) => i.id));
+    this._officialIds = new Set(
+      official.map((info) => {
+        this._poolInfoMap.set(info.id, info);
+        return info.id;
+      }),
+    );
+    this._unOfficialIds = new Set(
+      unOfficial.map((info) => {
+        this._poolInfoMap.set(info.id, info);
+        return info.id;
+      }),
+    );
   }
 
   get allPools(): LiquidityPoolJsonInfo[] {
@@ -54,6 +66,9 @@ export default class Liquidity extends ModuleBase {
       official: this._officialIds,
       unOfficial: this._unOfficialIds,
     };
+  }
+  get allPoolMap(): Map<string, LiquidityPoolJsonInfo> {
+    return this._poolInfoMap;
   }
 
   public async fetchMultipleInfo(params: LiquidityFetchMultipleInfoParams): Promise<LiquidityPoolInfo[]> {
@@ -224,14 +239,19 @@ export default class Liquidity extends ModuleBase {
    * })
    * ```
    */
-  public computeAnotherAmount({
-    poolKeys,
-    poolInfo,
+  public async computePairAmount({
+    poolId,
     amount,
     anotherCurrency,
     slippage,
-  }: LiquidityComputeAnotherAmountParams): { anotherAmount: TokenAmount; maxAnotherAmount: TokenAmount } {
-    const { baseReserve, quoteReserve } = poolInfo;
+  }: LiquidityComputeAnotherAmountParams): Promise<{ anotherAmount: TokenAmount; maxAnotherAmount: TokenAmount }> {
+    const poolIdPubKey = validateAndParsePublicKey(poolId);
+    const poolInfo = this._poolInfoMap.get(poolIdPubKey.toBase58());
+    if (!poolInfo) this.logAndCreateError("pool not found", poolIdPubKey.toBase58());
+    const parsedInfo = (await this.sdkParseJsonLiquidityInfo([poolInfo!]))[0];
+    if (!parsedInfo) this.logAndCreateError("pool parseInfo not found", poolIdPubKey.toBase58());
+
+    const { baseReserve, quoteReserve } = parsedInfo;
     this.logDebug("baseReserve:", baseReserve.toString(), "quoteReserve:", quoteReserve.toString());
 
     const currencyIn = amount.token;
@@ -247,7 +267,7 @@ export default class Liquidity extends ModuleBase {
     );
 
     // input is fixed
-    const input = getAmountSide(amount, poolKeys);
+    const input = getAmountSide(amount, jsonInfo2PoolKeys(poolInfo!));
     this.logDebug("input side:", input);
 
     // round up
@@ -425,7 +445,8 @@ export default class Liquidity extends ModuleBase {
 
   public async addLiquidity(params: LiquidityAddTransactionParams): Promise<MakeTransaction> {
     const { poolId, amountInA, amountInB, fixedSide, config } = params;
-    const poolInfo = this.allPools.find((pool) => pool.id === poolId.toBase58());
+    const _poolId = validateAndParsePublicKey(poolId);
+    const poolInfo = this.allPools.find((pool) => pool.id === _poolId.toBase58());
 
     if (!poolInfo) this.logAndCreateError("pool not found", poolId);
     const poolKeysList = await this.sdkParseJsonLiquidityInfo([poolInfo!]);
@@ -525,7 +546,8 @@ export default class Liquidity extends ModuleBase {
 
   public async removeLiquidity(params: LiquidityRemoveTransactionParams): Promise<MakeTransaction> {
     const { poolId, amountIn, config } = params;
-    const poolInfo = this.allPools.find((pool) => pool.id === poolId.toBase58());
+    const _poolId = validateAndParsePublicKey(poolId)
+    const poolInfo = this.allPools.find((pool) => pool.id === _poolId.toBase58());
     if (!poolInfo) this.logAndCreateError("pool not found", poolId);
     const poolKeysList = await this.sdkParseJsonLiquidityInfo([poolInfo!]);
     const poolKeys = poolKeysList[0];
@@ -590,5 +612,20 @@ export default class Liquidity extends ModuleBase {
       ],
     });
     return await txBuilder.build();
+  }
+
+  public lpMintToTokenAmount({ poolId, amount }: { poolId: PublicKeyish; amount: Numberish }): TokenAmount {
+    const poolKey = validateAndParsePublicKey(poolId);
+    if (!poolKey) this.logAndCreateError("pool not found");
+    const poolInfo = this._poolInfoMap.get(poolKey.toBase58())!;
+
+    const numberDetails = parseNumberInfo(amount);
+    const token = new Token({ mint: poolInfo.lpMint, decimals: poolInfo.lpDecimals });
+    return new TokenAmount(
+      token,
+      toBN(
+        new Fraction(numberDetails.numerator, numberDetails.denominator).mul(new BN(10).pow(new BN(token.decimals))),
+      ),
+    );
   }
 }

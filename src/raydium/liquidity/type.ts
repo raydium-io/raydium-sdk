@@ -177,7 +177,7 @@ export type LiquidityInitPoolInstructionParams = {
  * Add liquidity transaction params
  */
 export interface LiquidityAddTransactionParams {
-  poolId: PublicKey;
+  poolId: PublicKeyish;
   payer?: PublicKey;
   amountInA: TokenAmount;
   amountInB: TokenAmount;
@@ -217,7 +217,7 @@ export interface LiquidityRemoveInstructionParamsV4 {
   amountIn: BigNumberish;
 }
 export interface LiquidityRemoveTransactionParams {
-  poolId: PublicKey;
+  poolId: PublicKeyish;
   payer?: PublicKey;
   amountIn: TokenAmount;
   config?: {
@@ -230,8 +230,7 @@ export interface LiquidityRemoveTransactionParams {
 export type LiquidityRemoveInstructionParams = LiquidityRemoveInstructionParamsV4;
 
 export interface LiquidityComputeAnotherAmountParams {
-  poolKeys: LiquidityPoolKeys;
-  poolInfo: LiquidityPoolInfo;
+  poolId: PublicKeyish;
   amount: TokenAmount;
   anotherCurrency: Token;
   slippage: Percent;

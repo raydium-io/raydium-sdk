@@ -1,6 +1,6 @@
 import BN from "bn.js";
 
-import { Fraction } from "../module";
+import { Fraction, Percent, Price, TokenAmount } from "../module";
 
 import { createLogger } from "./logger";
 
@@ -102,4 +102,37 @@ export function divCeil(a: BN, b: BN): BN {
 
   // Round up
   return dm.div.negative !== 0 ? dm.div.isubn(1) : dm.div.iaddn(1);
+}
+
+export function shakeFractionDecimal(n: Fraction): string {
+  const [, sign = "", int = ""] = n.toFixed(2).match(/(-?)(\d*)\.?(\d*)/) ?? [];
+  return `${sign}${int}`;
+}
+
+export function toBN(n: Numberish, decimal: BigNumberish = 0): BN {
+  if (n instanceof BN) return n;
+  return new BN(shakeFractionDecimal(toFraction(n).mul(BN_TEN.pow(new BN(String(decimal))))));
+}
+
+export function toFraction(value: Numberish): Fraction {
+  //  to complete math format(may have decimal), not int
+  if (value instanceof Percent) return new Fraction(value.numerator, value.denominator);
+
+  if (value instanceof Price) return value.adjusted;
+
+  // to complete math format(may have decimal), not BN
+  if (value instanceof TokenAmount)
+    try {
+      return toFraction(value.toExact());
+    } catch {
+      return new Fraction(BN_ZERO);
+    }
+
+  // do not ideal with other fraction value
+  if (value instanceof Fraction) return value;
+
+  // wrap to Fraction
+  const n = String(value);
+  const details = parseNumberInfo(n);
+  return new Fraction(details.numerator, details.denominator);
 }

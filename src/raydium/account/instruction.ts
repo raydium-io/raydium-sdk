@@ -95,9 +95,9 @@ export function makeTransferInstruction({
   amount: BigNumberish;
   multiSigners?: Signer[];
 }): TransactionInstruction {
-  const LAYOUT = u64("amount");
-  const data = Buffer.alloc(LAYOUT.span);
-  LAYOUT.encode(parseBigNumberish(amount), data);
+  const layout = u64("amount");
+  const data = Buffer.alloc(layout.span);
+  layout.encode(parseBigNumberish(amount), data);
 
   return Token.createTransferInstruction(
     TOKEN_PROGRAM_ID,
