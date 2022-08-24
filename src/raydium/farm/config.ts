@@ -1,5 +1,7 @@
 import { PublicKey } from "@solana/web3.js";
 
+import { createLogger } from "../../common/logger";
+
 import {
   FarmLedgerLayout,
   farmLedgerLayoutV3_2,
@@ -11,6 +13,8 @@ import {
   farmStateV6Layout,
 } from "./layout";
 import { RewardInfoWithKey } from "./type";
+
+const logger = createLogger("Raydium_farm_config");
 
 /* ================= program public keys ================= */
 export const FARM_PROGRAM_ID_V3 = "EhhTKczWMGQt46ynNeRX1WfeagwwJd7ufHvCDjRxjo5Q";
@@ -64,20 +68,26 @@ export const FARM_VERSION_TO_LEDGER_LAYOUT: {
 
 export const isValidFarmVersion = (version: number): boolean => [3, 5, 6].indexOf(version) !== -1;
 
-export const farmDespotVersionToInstruction = (version: number): number | undefined => {
-  return {
-    3: 10,
-    5: 11,
-    6: 1,
-  }[version];
+const farmDepositInstruction = {
+  3: 10,
+  5: 11,
+  6: 1,
+};
+export const farmDespotVersionToInstruction = (version: number): number => {
+  const ver = farmDepositInstruction[version];
+  if (!ver) logger.logWithError("invalid deposit farm version");
+  return ver;
 };
 
-export const farmWithdrawVersionToInstruction = (version: number): number | undefined => {
-  return {
-    3: 11,
-    5: 12,
-    6: 2,
-  }[version];
+const farmWithdrawInstruction = {
+  3: 11,
+  5: 12,
+  6: 2,
+};
+export const farmWithdrawVersionToInstruction = (version: number): number => {
+  const ver = farmWithdrawInstruction[version];
+  if (!ver) logger.logWithError("invalid withdraw farm version");
+  return ver;
 };
 
 export const validateFarmRewards = (params: {

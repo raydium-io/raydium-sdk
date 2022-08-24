@@ -1,67 +1,41 @@
 import { ASSOCIATED_TOKEN_PROGRAM_ID, Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import {
-  AccountMeta,
-  Keypair,
-  PublicKey,
-  SystemProgram,
-  SYSVAR_CLOCK_PUBKEY,
-  TransactionInstruction,
+  AccountMeta, Keypair, PublicKey, SystemProgram, SYSVAR_CLOCK_PUBKEY, TransactionInstruction,
 } from "@solana/web3.js";
 import BN from "bn.js";
 
 import {
-  accountMeta,
-  AddInstructionParam,
-  commonSystemAccountMeta,
-  jsonInfo2PoolKeys,
-  parseBigNumberish,
-  TxBuilder,
+  accountMeta, AddInstructionParam, BigNumberish, commonSystemAccountMeta, jsonInfo2PoolKeys, parseBigNumberish,
+  parseNumberInfo, toBN, TxBuilder,
 } from "../../common";
 import { PublicKeyish, SOLMint, validateAndParsePublicKey } from "../../common/pubKey";
+import { Fraction } from "../../module/fraction";
+import { Token as RToken } from "../../module/token";
 import { createWSolAccountInstructions } from "../account/instruction";
 import ModuleBase from "../moduleBase";
 import { TOKEN_WSOL } from "../token/constant";
 import { MakeTransaction } from "../type";
 
 import {
-  FARM_LOCK_MINT,
-  FARM_LOCK_VAULT,
-  farmDespotVersionToInstruction,
-  farmWithdrawVersionToInstruction,
-  isValidFarmVersion,
+  FARM_LOCK_MINT, FARM_LOCK_VAULT, farmDespotVersionToInstruction, farmWithdrawVersionToInstruction, isValidFarmVersion,
   validateFarmRewards,
 } from "./config";
 import { createAssociatedLedgerAccountInstruction } from "./instruction";
 import {
-  dwLayout,
-  farmAddRewardLayout,
-  farmRewardLayout,
-  farmRewardRestartLayout,
-  farmStateV6Layout,
-  withdrawRewardLayout,
+  dwLayout, farmAddRewardLayout, farmRewardLayout, farmRewardRestartLayout, farmStateV6Layout, withdrawRewardLayout,
 } from "./layout";
 import {
-  FarmDWParam,
-  FarmPoolJsonInfo,
-  FarmRewardInfo,
-  FarmRewardInfoConfig,
-  RewardInfoKey,
-  RewardSetParam,
-  SdkParsedFarmInfo,
+  FarmDWParam, FarmPoolJsonInfo, FarmRewardInfo, FarmRewardInfoConfig, RewardInfoKey, RewardSetParam, SdkParsedFarmInfo,
 } from "./type";
 import {
-  calFarmRewardAmount,
-  farmRewardInfoToConfig,
-  getAssociatedAuthority,
-  getAssociatedLedgerAccount,
-  getAssociatedLedgerPoolAccount,
-  getFarmProgramId,
-  mergeSdkFarmInfo,
+  calFarmRewardAmount, farmRewardInfoToConfig, getAssociatedAuthority, getAssociatedLedgerAccount,
+  getAssociatedLedgerPoolAccount, getFarmProgramId, mergeSdkFarmInfo,
 } from "./util";
 
 export default class Farm extends ModuleBase {
   private _farmPools: FarmPoolJsonInfo[] = [];
   private _sdkParsedFarmPools: SdkParsedFarmInfo[] = [];
+  private _lpTokenInfoMap: Map<string, RToken> = new Map();
 
   public async load(): Promise<void> {
     await this.scope.liquidity.load();
@@ -70,7 +44,26 @@ export default class Farm extends ModuleBase {
     const data = this.scope.apiData.farmPools?.data || {};
 
     this._farmPools = Object.keys(data || {}).reduce(
-      (acc, cur) => acc.concat(data[cur].map?.((data) => ({ ...data, category: cur })) || []),
+      (acc, cur) =>
+        acc.concat(
+          data[cur].map?.((data: FarmPoolJsonInfo) => {
+            const baseToken = this.scope.token.allTokenMap.get(data.baseMint);
+            const quoteToken = this.scope.token.allTokenMap.get(data.quoteMint);
+            if (baseToken && quoteToken) {
+              this._lpTokenInfoMap.set(
+                data.lpMint,
+                new RToken({
+                  mint: data.lpMint,
+                  decimals: baseToken.decimals,
+                  symbol: `${baseToken.symbol} - ${quoteToken.name}`,
+                  name: `${baseToken.symbol} - ${quoteToken.name} LP`,
+                }),
+              );
+            }
+
+            return { ...data, category: cur };
+          }) || [],
+        ),
       [],
     );
 
@@ -103,6 +96,19 @@ export default class Farm extends ModuleBase {
     const farmInfo = this.allParsedFarms.find((farm) => _farmId.equals(farm.id));
     if (!farmInfo) this.logAndCreateError("invalid farm id");
     return farmInfo!;
+  }
+  public getLpTokenInfo(lpMint: PublicKeyish): RToken {
+    const pubKey = validateAndParsePublicKey(lpMint);
+    const lpToken = this._lpTokenInfoMap.get(pubKey.toBase58());
+    if (!lpToken) this.logAndCreateError("LP Token not found", pubKey.toBase58());
+    return lpToken!;
+  }
+  public lpDecimalAmount({ mint, amount }: { mint: PublicKeyish; amount: BigNumberish }): BN {
+    const numberDetails = parseNumberInfo(amount);
+    const token = this.getLpTokenInfo(mint);
+    return toBN(
+      new Fraction(numberDetails.numerator, numberDetails.denominator).mul(new BN(10).pow(new BN(token.decimals))),
+    );
   }
 
   // token account needed
@@ -391,10 +397,10 @@ export default class Farm extends ModuleBase {
     lowVersionKeys: AccountMeta[];
   }> {
     const txBuilder = this.createTxBuilder();
-    const { mint, farmInfo } = params;
+    const { farmInfo } = params;
 
     const { pubKey: lpTokenAccount, newInstructions } = await this.scope.account.checkOrCreateAta({
-      mint,
+      mint: farmInfo.lpMint,
     });
     txBuilder.addInstruction(newInstructions);
 
@@ -432,7 +438,7 @@ export default class Farm extends ModuleBase {
       accountMeta({ pubkey: ledgerAddress }),
       accountMeta({ pubkey: this.scope.ownerPubKey, isWritable: false, isSigner: true }),
       accountMeta({ pubkey: lpTokenAccount }),
-      accountMeta({ pubkey: farmInfo.lpVault.mint }),
+      accountMeta({ pubkey: new PublicKey(farmInfo.jsonInfo.lpVault) }),
       accountMeta({ pubkey: rewardTokenAccountsPublicKeys[0] }),
       accountMeta({ pubkey: farmInfo.rewardInfos[0].rewardVault }),
       accountMeta({ pubkey: SYSVAR_CLOCK_PUBKEY, isWritable: false }),
@@ -463,7 +469,7 @@ export default class Farm extends ModuleBase {
     const data = Buffer.alloc(dwLayout.span);
     dwLayout.encode(
       {
-        instruction: farmDespotVersionToInstruction[version],
+        instruction: farmDespotVersionToInstruction(version),
         amount: parseBigNumberish(amount),
       },
       data,
@@ -490,9 +496,11 @@ export default class Farm extends ModuleBase {
       }
     }
 
+    const newInstruction = new TransactionInstruction({ programId: farmInfo.programId, keys, data });
+
     return await txBuilder
       .addInstruction({
-        instructions: [new TransactionInstruction({ programId: farmInfo.programId, keys, data })],
+        instructions: [newInstruction],
       })
       .build();
   }
@@ -510,7 +518,7 @@ export default class Farm extends ModuleBase {
     const data = Buffer.alloc(dwLayout.span);
     dwLayout.encode(
       {
-        instruction: farmWithdrawVersionToInstruction[version],
+        instruction: farmWithdrawVersionToInstruction(version),
         amount: parseBigNumberish(amount),
       },
       data,
@@ -535,10 +543,10 @@ export default class Farm extends ModuleBase {
         keys.push(accountMeta({ pubkey: rewardInfos[index].rewardVault }));
       }
     }
-
+    const newInstruction = new TransactionInstruction({ programId: farmInfo.programId, keys, data });
     return await txBuilder
       .addInstruction({
-        instructions: [new TransactionInstruction({ programId: farmInfo.programId, keys, data })],
+        instructions: [newInstruction],
       })
       .build();
   }

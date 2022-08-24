@@ -12,6 +12,7 @@ import { useAppStore } from '../store/appStore'
 
 export default function Swap() {
   const raydium = useAppStore((state) => state.raydium)
+  const connected = useAppStore((state) => state.connected)
   const [inAmount, setInAmount] = useState<string>('')
   const [outAmount, setOutAmount] = useState<TokenAmount>()
   const [minOutAmount, setMinOutAmount] = useState<TokenAmount>()
@@ -69,12 +70,12 @@ export default function Swap() {
       calculateAmount()
     }, 500)
 
-    if (raydium && inToken && outToken) {
+    if (connected && inToken && outToken) {
       debounceCalculate()
     }
 
     return () => debounceCalculate.cancel()
-  }, [raydium, inToken, outToken, inAmount])
+  }, [connected, inToken, outToken, inAmount])
 
   const handleClick = async () => {
     const { transaction, signers, execute } = await raydium!.trade.swap({

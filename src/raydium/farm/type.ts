@@ -2,7 +2,6 @@ import { PublicKey } from "@solana/web3.js";
 import BN from "bn.js";
 
 import { BigNumberish } from "../../common/bignumber";
-import { PublicKeyish } from "../../common/pubKey";
 import { SplAccount } from "../account/types";
 import { UnionCover } from "../type";
 

@@ -82,47 +82,29 @@ export default function Liquidity() {
 
   useEffect(() => {
     async function calculateLiquidityAmount() {
-      const poolBaseMint = '4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R'
-      const poolQuoteMint = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
-      const marketId = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
-      // const { transaction } = await raydium!.liquidity.createPool({
-      //   version: 4,
-      //   baseMint: poolBaseMint,
-      //   quoteMint: poolQuoteMint,
-      //   marketId,
-      // })
+      // RAY - SOL pool
+      const poolId = 'AVs9TA4nWDzfPJE9gGVNJMVhcQy3V9PGazuz33BfG2RA'
+      const poolInfo = raydium?.liquidity.allPoolMap.get(poolId)
 
-      // const { transaction, execute } = await raydium!.liquidity.initPool({
-      //   version: 4,
-      //   baseMint: poolBaseMint,
-      //   quoteMint: poolQuoteMint,
-      //   baseAmount: raydium!.mintToTokenAmount({ mint: poolBaseMint, amount: 1 }),
-      //   quoteAmount: raydium!.mintToTokenAmount({ mint: poolQuoteMint, amount: 1 }),
-      //   marketId,
-      // })
-      // const txId = await execute()
+      // use USDC as fixed input
+      const baseTokenAmount = raydium!.mintToTokenAmount({ mint: poolInfo!.baseMint, amount: 0.5 })
 
-      // RAY - USDC pool
-      // const poolId = '6UmmUiYoBjSrhakAobJw8BvkmJtDVxaeBtbt7rxWo1mg'
-      // const poolInfo = raydium?.liquidity.allPoolMap.get(poolId)
-      // const { maxAnotherAmount, anotherAmount } = await raydium!.liquidity.computePairAmount({
-      //   poolId, // deUITokenAmount(coin2TokenAmount)
-      //   amount: raydium!.mintToTokenAmount({ mint: poolInfo!.baseMint, amount: 0.356289 }),
-      //   anotherCurrency: raydium!.mintToToken(poolInfo!.quoteMint),
-      //   slippage: new Percent(1, 100),
-      // })
-
-      /* 
+      const res = await raydium!.liquidity.computePairAmount({
+        poolId, // deUITokenAmount(coin2TokenAmount)
+        amount: baseTokenAmount,
+        anotherCurrency: raydium!.mintToToken(poolInfo!.quoteMint),
+        slippage: new Percent(1, 100),
+      })
+      /*
        * add
+       */
       const { execute, transaction } = await raydium!.liquidity.addLiquidity({
-        poolId: poolId,
-        amountInA: raydium!.mintToTokenAmount({ mint: poolInfo!.baseMint, amount: 0.356175 }),
+        poolId,
+        amountInA: baseTokenAmount,
         amountInB: res.maxAnotherAmount,
         fixedSide: 'a', // a means base mint is input by user, b is calculated by sdk
       })
-      const txId = await execute()
-      */
-
+      // const txId = await execute()
       /*
        * remove
       const lpTokenAmount = raydium!.liquidity.lpMintToTokenAmount({ poolId, amount: lpAmount })
@@ -134,6 +116,31 @@ export default function Liquidity() {
       */
     }
     connected && calculateLiquidityAmount()
+  }, [raydium, connected])
+
+  useEffect(() => {
+    async function createPool() {
+      const poolBaseMint = '4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R'
+      const poolQuoteMint = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
+      const marketId = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
+      const { transaction } = await raydium!.liquidity.createPool({
+        version: 4,
+        baseMint: poolBaseMint,
+        quoteMint: poolQuoteMint,
+        marketId,
+      })
+
+      // const { transaction, execute } = await raydium!.liquidity.initPool({
+      //   version: 4,
+      //   baseMint: poolBaseMint,
+      //   quoteMint: poolQuoteMint,
+      //   baseAmount: raydium!.mintToTokenAmount({ mint: poolBaseMint, amount: 1 }),
+      //   quoteAmount: raydium!.mintToTokenAmount({ mint: poolQuoteMint, amount: 1 }),
+      //   marketId,
+      // })
+      // const txId = await execute()
+    }
+    connected && createPool()
   }, [raydium, connected])
 
   if (!raydium) return <CircularProgress />

@@ -84,6 +84,9 @@ function ButtonAppBar() {
             <Link style={LinkStyle} to={ROUTE_PATH.LIQUIDITY}>
               Liquidity
             </Link>
+            <Link style={LinkStyle} to={ROUTE_PATH.Farm}>
+              Farm
+            </Link>
           </Grid>
           <WalletMultiButton style={{ minWidth: '200px' }} />
         </Toolbar>
