@@ -11,7 +11,7 @@ export default function Farm() {
       if (!raydium) return
       await raydium.farm.load()
       // ray - sol farm
-      const farmId = 'HUDr9BDaAGqi37xbQHzxCyXvfMCKPTPNF8g9c9bPu1Fu'
+      const farmId = 'GUzaohfNuFbBqQTnPgPSNciv3aUvriXYjQduRE3ZkqFw'
 
       const targetFarm = raydium.farm.getParsedFarm(farmId)
 

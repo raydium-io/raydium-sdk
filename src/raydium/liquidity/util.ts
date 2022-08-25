@@ -171,9 +171,9 @@ export async function getAssociatedPoolKeys({
 }): Promise<LiquidityAssociatedPoolKeys> {
   const programId = getLiquidityProgramId(version);
   const [marketId, baseMint, quoteMint] = [
-    validateAndParsePublicKey(_marketId),
-    validateAndParsePublicKey(_baseMint),
-    validateAndParsePublicKey(_quoteMint),
+    validateAndParsePublicKey({ publicKey: _marketId }),
+    validateAndParsePublicKey({ publicKey: _baseMint, transformSol: true }),
+    validateAndParsePublicKey({ publicKey: _quoteMint, transformSol: true }),
   ];
 
   const id = await getLiquidityAssociatedId({ name: "amm_associated_seed", programId, marketId });

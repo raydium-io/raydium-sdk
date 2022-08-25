@@ -10,7 +10,7 @@ import {
 } from "@solana/web3.js";
 import BN from "bn.js";
 
-import { BigNumberish, parseBigNumberish, validateAndParsePublicKey } from "../../common";
+import { BigNumberish, parseBigNumberish } from "../../common";
 import { AddInstructionParam } from "../../common/txTool";
 import { u64 } from "../../marshmallow";
 import { TOKEN_WSOL } from "../token/constant";
@@ -65,7 +65,7 @@ export async function createWSolAccountInstructions(params: CreateWSolTokenAccou
         programId: TOKEN_PROGRAM_ID,
       }),
       initTokenAccountInstruction({
-        mint: validateAndParsePublicKey(TOKEN_WSOL.mint),
+        mint: new PublicKey(TOKEN_WSOL.mint),
         tokenAccount: newAccount.publicKey,
         owner,
       }),

@@ -1,6 +1,7 @@
 import { PublicKey } from "@solana/web3.js";
 import BN from "bn.js";
 
+import { PublicKeyish } from "../../common";
 import { BigNumberish } from "../../common/bignumber";
 import { SplAccount } from "../account/types";
 import { UnionCover } from "../type";
@@ -82,14 +83,17 @@ export interface FarmPoolInfoV6 {
   };
 }
 
-export interface RewardSetParam {
-  poolId?: PublicKey;
-  farmId?: PublicKey;
+export interface CreateFarm {
+  poolId: PublicKeyish;
   rewardInfos: FarmRewardInfo[];
-  newRewardInfo?: FarmRewardInfo[];
   payer?: PublicKey;
 }
 
+export interface UpdateFarmReward {
+  farmId: PublicKeyish;
+  newRewardInfo: FarmRewardInfo;
+  payer?: PublicKey;
+}
 export interface FarmDWParam {
   farmId: PublicKey;
   amount: BigNumberish;

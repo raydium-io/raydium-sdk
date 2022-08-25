@@ -23,12 +23,19 @@ export const commonSystemAccountMeta = [
 
 export type PublicKeyish = PublicKey | string;
 
-export function validateAndParsePublicKey(publicKey: PublicKeyish): PublicKey {
+export function validateAndParsePublicKey({
+  publicKey,
+  transformSol,
+}: {
+  publicKey: PublicKeyish;
+  transformSol?: boolean;
+}): PublicKey {
   if (publicKey instanceof PublicKey) {
+    if (transformSol && publicKey.equals(SOLMint)) return WSOLMint;
     return publicKey;
   }
 
-  if (publicKey === "sol") return WSOLMint;
+  if (transformSol && publicKey === SOLMint.toBase58()) return WSOLMint;
 
   if (typeof publicKey === "string") {
     try {

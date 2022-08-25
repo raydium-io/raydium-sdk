@@ -1,12 +1,24 @@
 import { ASSOCIATED_TOKEN_PROGRAM_ID, Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import {
-  AccountMeta, Keypair, PublicKey, SystemProgram, SYSVAR_CLOCK_PUBKEY, TransactionInstruction,
+  AccountMeta,
+  Keypair,
+  PublicKey,
+  SystemProgram,
+  SYSVAR_CLOCK_PUBKEY,
+  TransactionInstruction,
 } from "@solana/web3.js";
 import BN from "bn.js";
 
 import {
-  accountMeta, AddInstructionParam, BigNumberish, commonSystemAccountMeta, jsonInfo2PoolKeys, parseBigNumberish,
-  parseNumberInfo, toBN, TxBuilder,
+  accountMeta,
+  AddInstructionParam,
+  BigNumberish,
+  commonSystemAccountMeta,
+  jsonInfo2PoolKeys,
+  parseBigNumberish,
+  parseNumberInfo,
+  toBN,
+  TxBuilder,
 } from "../../common";
 import { PublicKeyish, SOLMint, validateAndParsePublicKey } from "../../common/pubKey";
 import { Fraction } from "../../module/fraction";
@@ -17,19 +29,40 @@ import { TOKEN_WSOL } from "../token/constant";
 import { MakeTransaction } from "../type";
 
 import {
-  FARM_LOCK_MINT, FARM_LOCK_VAULT, farmDespotVersionToInstruction, farmWithdrawVersionToInstruction, isValidFarmVersion,
+  FARM_LOCK_MINT,
+  FARM_LOCK_VAULT,
+  farmDespotVersionToInstruction,
+  farmWithdrawVersionToInstruction,
+  isValidFarmVersion,
   validateFarmRewards,
 } from "./config";
 import { createAssociatedLedgerAccountInstruction } from "./instruction";
 import {
-  dwLayout, farmAddRewardLayout, farmRewardLayout, farmRewardRestartLayout, farmStateV6Layout, withdrawRewardLayout,
+  dwLayout,
+  farmAddRewardLayout,
+  farmRewardLayout,
+  farmRewardRestartLayout,
+  farmStateV6Layout,
+  withdrawRewardLayout,
 } from "./layout";
 import {
-  FarmDWParam, FarmPoolJsonInfo, FarmRewardInfo, FarmRewardInfoConfig, RewardInfoKey, RewardSetParam, SdkParsedFarmInfo,
+  CreateFarm,
+  FarmDWParam,
+  FarmPoolJsonInfo,
+  FarmRewardInfo,
+  FarmRewardInfoConfig,
+  RewardInfoKey,
+  SdkParsedFarmInfo,
+  UpdateFarmReward,
 } from "./type";
 import {
-  calFarmRewardAmount, farmRewardInfoToConfig, getAssociatedAuthority, getAssociatedLedgerAccount,
-  getAssociatedLedgerPoolAccount, getFarmProgramId, mergeSdkFarmInfo,
+  calFarmRewardAmount,
+  farmRewardInfoToConfig,
+  getAssociatedAuthority,
+  getAssociatedLedgerAccount,
+  getAssociatedLedgerPoolAccount,
+  getFarmProgramId,
+  mergeSdkFarmInfo,
 } from "./util";
 
 export default class Farm extends ModuleBase {
@@ -86,19 +119,19 @@ export default class Farm extends ModuleBase {
   }
 
   public getFarm(farmId: PublicKeyish): FarmPoolJsonInfo {
-    const _farmId = validateAndParsePublicKey(farmId);
+    const _farmId = validateAndParsePublicKey({ publicKey: farmId });
     const farmInfo = this.allFarms.find((farm) => farm.id === _farmId.toBase58());
     if (!farmInfo) this.logAndCreateError("invalid farm id");
     return farmInfo!;
   }
   public getParsedFarm(farmId: PublicKeyish): SdkParsedFarmInfo {
-    const _farmId = validateAndParsePublicKey(farmId);
+    const _farmId = validateAndParsePublicKey({ publicKey: farmId });
     const farmInfo = this.allParsedFarms.find((farm) => _farmId.equals(farm.id));
     if (!farmInfo) this.logAndCreateError("invalid farm id");
     return farmInfo!;
   }
   public getLpTokenInfo(lpMint: PublicKeyish): RToken {
-    const pubKey = validateAndParsePublicKey(lpMint);
+    const pubKey = validateAndParsePublicKey({ publicKey: lpMint });
     const lpToken = this._lpTokenInfoMap.get(pubKey.toBase58());
     if (!lpToken) this.logAndCreateError("LP Token not found", pubKey.toBase58());
     return lpToken!;
@@ -137,11 +170,12 @@ export default class Farm extends ModuleBase {
   }
 
   // token account needed
-  public async create({ poolId, rewardInfos, payer }: RewardSetParam): Promise<MakeTransaction> {
+  public async create({ poolId, rewardInfos, payer }: CreateFarm): Promise<MakeTransaction> {
     this.checkDisabled();
     this.scope.checkOwner();
 
-    const poolJsonInfo = this.scope.liquidity.allPools.find((j) => j.id === poolId?.toBase58());
+    const poolPubkey = validateAndParsePublicKey({ publicKey: poolId });
+    const poolJsonInfo = this.scope.liquidity.allPools.find((j) => j.id === poolPubkey.toBase58());
     if (!poolJsonInfo) this.logAndCreateError("invalid pool id");
 
     const lpMint = new PublicKey(poolJsonInfo!.lpMint);
@@ -259,15 +293,7 @@ export default class Farm extends ModuleBase {
   }
 
   // token account needed
-  public async restartReward({
-    farmId,
-    payer,
-    newRewardInfo,
-  }: {
-    farmId: PublicKey;
-    newRewardInfo: FarmRewardInfo;
-    payer?: PublicKey;
-  }): Promise<MakeTransaction> {
+  public async restartReward({ farmId, payer, newRewardInfo }: UpdateFarmReward): Promise<MakeTransaction> {
     const farmInfo = this.getFarm(farmId)!;
     if (farmInfo!.version !== 6) this.logAndCreateError("invalid farm version", farmInfo!.version);
 
@@ -330,11 +356,7 @@ export default class Farm extends ModuleBase {
   }
 
   // token account needed
-  public async addNewRewardToken(params: {
-    farmId: PublicKey;
-    payer?: PublicKey;
-    newRewardInfo: FarmRewardInfo;
-  }): Promise<MakeTransaction> {
+  public async addNewRewardToken(params: UpdateFarmReward): Promise<MakeTransaction> {
     const { farmId, newRewardInfo, payer } = params;
     const farmInfo = this.getFarm(farmId)!;
     if (farmInfo!.version !== 6) this.logAndCreateError("invalid farm version", farmInfo!.version);

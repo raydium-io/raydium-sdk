@@ -1,6 +1,6 @@
 import { PublicKey } from "@solana/web3.js";
 
-import { PublicKeyish, validateAndParsePublicKey } from "../common/pubKey";
+import { PublicKeyish, SOLMint, validateAndParsePublicKey } from "../common/pubKey";
 import { TOKEN_WSOL } from "../raydium/token/constant";
 
 /**
@@ -26,7 +26,7 @@ export class Token {
    * @param mint - pass "sol" as mint will auto generate wsol token config
    */
   public constructor({ mint, decimals, symbol = "UNKNOWN", name = "UNKNOWN" }: TokenProps) {
-    if (mint === "sol") {
+    if (mint === SOLMint.toBase58() || (mint instanceof PublicKey && SOLMint.equals(mint))) {
       this.decimals = TOKEN_WSOL.decimals;
       this.symbol = TOKEN_WSOL.symbol;
       this.name = TOKEN_WSOL.name;
@@ -37,7 +37,7 @@ export class Token {
     this.decimals = decimals;
     this.symbol = symbol;
     this.name = name;
-    this.mint = validateAndParsePublicKey(mint);
+    this.mint = validateAndParsePublicKey({ publicKey: mint });
   }
 
   public equals(other: Token): boolean {

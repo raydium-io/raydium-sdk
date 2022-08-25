@@ -1,9 +1,9 @@
-import { ComputeBudgetProgram } from "@solana/web3.js";
+import { ComputeBudgetProgram, PublicKey } from "@solana/web3.js";
 import BN from "bn.js";
 
 import { BN_ONE, BN_ZERO, divCeil, Numberish, parseNumberInfo, toBN } from "../../common/bignumber";
 import { createLogger } from "../../common/logger";
-import { PublicKeyish, validateAndParsePublicKey } from "../../common/pubKey";
+import { PublicKeyish, SOLMint, validateAndParsePublicKey, WSOLMint } from "../../common/pubKey";
 import { jsonInfo2PoolKeys } from "../../common/utility";
 import { Fraction, Percent, Price, Token, TokenAmount } from "../../module";
 import { makeTransferInstruction } from "../account/instruction";
@@ -19,8 +19,8 @@ import { getDxByDyBaseIn, getDyByDxBaseIn, getStablePrice, StableLayout } from "
 import {
   AmountSide, CreatePoolParam, InitPoolParam, LiquidityAddTransactionParams, LiquidityComputeAmountOutParams,
   LiquidityComputeAmountOutReturn, LiquidityComputeAnotherAmountParams, LiquidityFetchMultipleInfoParams,
-  LiquidityPoolInfo, LiquidityPoolJsonInfo, LiquidityRemoveTransactionParams, LiquiditySwapTransactionParams,
-  SDKParsedLiquidityInfo,
+  LiquidityPoolInfo, LiquidityPoolJsonInfo, LiquidityRemoveTransactionParams, LiquiditySide,
+  LiquiditySwapTransactionParams, SDKParsedLiquidityInfo,
 } from "./type";
 import {
   getAmountSide, getAmountsSide, getAssociatedPoolKeys, includesToken, isValidFixedSide, makeSimulationPoolInfo,
@@ -245,7 +245,7 @@ export default class Liquidity extends ModuleBase {
     anotherCurrency,
     slippage,
   }: LiquidityComputeAnotherAmountParams): Promise<{ anotherAmount: TokenAmount; maxAnotherAmount: TokenAmount }> {
-    const poolIdPubKey = validateAndParsePublicKey(poolId);
+    const poolIdPubKey = validateAndParsePublicKey({ publicKey: poolId });
     const poolInfo = this._poolInfoMap.get(poolIdPubKey.toBase58());
     if (!poolInfo) this.logAndCreateError("pool not found", poolIdPubKey.toBase58());
     const parsedInfo = (await this.sdkParseJsonLiquidityInfo([poolInfo!]))[0];
@@ -445,7 +445,7 @@ export default class Liquidity extends ModuleBase {
 
   public async addLiquidity(params: LiquidityAddTransactionParams): Promise<MakeTransaction> {
     const { poolId, amountInA, amountInB, fixedSide, config } = params;
-    const _poolId = validateAndParsePublicKey(poolId);
+    const _poolId = validateAndParsePublicKey({ publicKey: poolId });
     const poolInfo = this.allPools.find((pool) => pool.id === _poolId.toBase58());
 
     if (!poolInfo) this.logAndCreateError("pool not found", poolId);
@@ -546,7 +546,7 @@ export default class Liquidity extends ModuleBase {
 
   public async removeLiquidity(params: LiquidityRemoveTransactionParams): Promise<MakeTransaction> {
     const { poolId, amountIn, config } = params;
-    const _poolId = validateAndParsePublicKey(poolId)
+    const _poolId = validateAndParsePublicKey({ publicKey: poolId });
     const poolInfo = this.allPools.find((pool) => pool.id === _poolId.toBase58());
     if (!poolInfo) this.logAndCreateError("pool not found", poolId);
     const poolKeysList = await this.sdkParseJsonLiquidityInfo([poolInfo!]);
@@ -615,7 +615,7 @@ export default class Liquidity extends ModuleBase {
   }
 
   public lpMintToTokenAmount({ poolId, amount }: { poolId: PublicKeyish; amount: Numberish }): TokenAmount {
-    const poolKey = validateAndParsePublicKey(poolId);
+    const poolKey = validateAndParsePublicKey({ publicKey: poolId });
     if (!poolKey) this.logAndCreateError("pool not found");
     const poolInfo = this._poolInfoMap.get(poolKey.toBase58())!;
 
@@ -627,5 +627,17 @@ export default class Liquidity extends ModuleBase {
         new Fraction(numberDetails.numerator, numberDetails.denominator).mul(new BN(10).pow(new BN(token.decimals))),
       ),
     );
+  }
+
+  public getFixedSide({ poolId, inputMint }: { poolId: PublicKeyish; inputMint: PublicKeyish }): LiquiditySide {
+    const [_poolId, _inputMint] = [
+      validateAndParsePublicKey({ publicKey: poolId }),
+      validateAndParsePublicKey({ publicKey: inputMint }),
+    ];
+    const pool = this._poolInfoMap.get(_poolId.toBase58());
+    if (!pool) this.logAndCreateError("pool not found", _poolId.toBase58());
+    let isSideA = pool!.baseMint === _inputMint.toBase58();
+    if (_inputMint.equals(WSOLMint) || _inputMint.equals(SOLMint)) isSideA = !isSideA;
+    return isSideA ? "a" : "b";
   }
 }

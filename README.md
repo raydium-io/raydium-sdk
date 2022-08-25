@@ -197,7 +197,7 @@ const raydium = Raydium.load({
 
 const { transaction, signers, execute } = await raydium.trade.directSwap({
   inputMint: ${rayMint},
-  outputMint: "sol", // due to sol doesn't have mint, so raydium accept sol as mint
+  outputMint: PublicKey.default, // PublicKey as sol mint
   amountIn: "1.2345",
   slippage: new Percent(5, 100),
   fixedSide: "in"
@@ -216,8 +216,8 @@ const { availablePools, best, routedPools } = await raydium.trade.getAvailablePo
 
 const inputToken = raydium.mintToToken("4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6Rdecimals")
 // or use new Token({ mint: "4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6Rdecimals: 6, name: "Raydium", symbol: "RAY" })
-const outToken = raydium.mintToToken("sol")
-// or use new Token({ mint: "sol" }) <= sdk will generate wsol token automatically
+const outToken = raydium.mintToToken(PublicKey.default)
+// or use new Token({ mint: PublicKey.default }) <= sdk will generate wsol token automatically
 
 const { amountOut, minAmountOut, routes, routeType } =
   await raydium.swap.getBestAmountOut({

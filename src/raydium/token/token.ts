@@ -1,6 +1,6 @@
 import BN from "bn.js";
 
-import { BigNumberish, BN_TEN, parseBigNumberish, parseNumberInfo, toBN } from "../../common/bignumber";
+import { BigNumberish, parseBigNumberish, parseNumberInfo, toBN } from "../../common/bignumber";
 import { PublicKeyish, SOLMint, validateAndParsePublicKey } from "../../common/pubKey";
 import { TokenAmount } from "../../module/amount";
 import { Fraction } from "../../module/fraction";
@@ -54,7 +54,7 @@ export default class TokenModule extends ModuleBase {
       });
     });
     this._tokenMap.set(quantumSOLHydratedTokenJsonInfo.mint.toBase58(), quantumSOLHydratedTokenJsonInfo);
-    this._tokenMap.set("sol", quantumSOLHydratedTokenJsonInfo);
+    this._tokenMap.set(SOLMint.toBase58(), quantumSOLHydratedTokenJsonInfo);
   }
 
   get allTokens(): TokenJson[] {
@@ -65,7 +65,7 @@ export default class TokenModule extends ModuleBase {
   }
 
   public mintToToken(mint: PublicKeyish): Token {
-    const _mint = validateAndParsePublicKey(mint);
+    const _mint = validateAndParsePublicKey({ publicKey: mint, transformSol: true });
     const tokenInfo = this.allTokenMap.get(_mint.toBase58());
     if (!tokenInfo) this.logAndCreateError("token not found, mint:", _mint.toBase58());
     const { decimals, name, symbol } = tokenInfo!;

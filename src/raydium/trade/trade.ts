@@ -57,8 +57,8 @@ export default class Trade extends ModuleBase {
     this.checkDisabled();
     const { inputMint, outputMint } = params;
     const [mintIn, mintOut] = [
-      validateAndParsePublicKey(inputMint).toBase58(),
-      validateAndParsePublicKey(outputMint).toBase58(),
+      validateAndParsePublicKey({ publicKey: inputMint, transformSol: true }).toBase58(),
+      validateAndParsePublicKey({ publicKey: outputMint, transformSol: true }).toBase58(),
     ];
     const availablePools = this.scope.liquidity.allPools.filter(
       (info) =>

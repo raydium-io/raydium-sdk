@@ -48,7 +48,7 @@ export async function getAssociatedLedgerPoolAccount({
 }
 
 export function getFarmVersion(programId: PublicKeyish): FarmVersion {
-  const programIdPubKey = validateAndParsePublicKey(programId);
+  const programIdPubKey = validateAndParsePublicKey({ publicKey: programId });
   const programIdString = programIdPubKey.toBase58();
 
   const version = FARM_PROGRAMID_TO_VERSION[programIdString];

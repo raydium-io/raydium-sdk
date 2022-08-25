@@ -5,6 +5,7 @@ import CircularProgress from '@mui/material/CircularProgress'
 import Grid from '@mui/material/Grid'
 import OutlinedInput from '@mui/material/OutlinedInput'
 import { Percent, RouteInfo, RouteType, TokenAmount } from '@raydium-io/raydium-sdk'
+import { PublicKey } from '@solana/web3.js'
 import debounce from 'lodash/debounce'
 import { useEffect, useState } from 'react'
 
@@ -22,7 +23,8 @@ export default function Swap() {
 
   // ray mint: 4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R
   // sol => sdk will auto recognize it
-  const [inToken, outToken] = ['sol', '4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R']
+  // const [inToken, outToken] = [PublicKey.default.toBase58(), '4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R']
+  const [inToken, outToken] = ['4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R', PublicKey.default.toBase58()]
 
   useEffect(() => {
     async function calculateAmount() {
