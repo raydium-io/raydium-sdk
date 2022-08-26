@@ -9,12 +9,7 @@ import { defaultRoutes, swapRouteMiddleMints } from "../route/constant";
 import { MakeTransaction } from "../type";
 
 import {
-  AvailableSwapPools,
-  CustomSwapParams,
-  GetAmountOutReturn,
-  GetBestAmountOutParams,
-  RouteInfo,
-  RouteType,
+  AvailableSwapPools, CustomSwapParams, GetAmountOutReturn, GetBestAmountOutParams, RouteInfo, RouteType, SwapExtInfo,
   SwapParams,
 } from "./type";
 import { groupPools } from "./util";
@@ -217,7 +212,7 @@ export default class Trade extends ModuleBase {
     };
   }
 
-  public async directSwap(params: SwapParams): Promise<MakeTransaction> {
+  public async directSwap(params: SwapParams): Promise<MakeTransaction & SwapExtInfo> {
     this.checkDisabled();
     const { amountOut, amountIn, slippage, config } = params;
     const inputToken = amountIn.token;
@@ -239,7 +234,7 @@ export default class Trade extends ModuleBase {
     });
   }
 
-  public async swap(params: CustomSwapParams): Promise<MakeTransaction> {
+  public async swap(params: CustomSwapParams): Promise<MakeTransaction & SwapExtInfo> {
     this.checkDisabled();
     this.scope.checkOwner();
     const { routes, routeType, amountIn, amountOut, fixedSide, config } = params;
@@ -265,6 +260,6 @@ export default class Trade extends ModuleBase {
       routeType,
       routes,
     });
-    return await this.createTxBuilder().build();
+    throw new Error("invalid routes with routeType")
   }
 }

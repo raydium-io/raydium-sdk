@@ -80,24 +80,24 @@ export default function Swap() {
   }, [connected, inToken, outToken, inAmount])
 
   const handleClick = async () => {
-    const { transaction, signers, execute } = await raydium!.trade.swap({
-      routes,
-      routeType,
-      amountIn: raydium!.mintToTokenAmount({ mint: inToken, amount: inAmount })!,
-      amountOut: minOutAmount!,
-      fixedSide: 'in',
-    })
-    const txId = execute()
+    // const { transaction, signers, execute } = await raydium!.trade.swap({
+    //   routes,
+    //   routeType,
+    //   amountIn: raydium!.mintToTokenAmount({ mint: inToken, amount: inAmount })!,
+    //   amountOut: minOutAmount!,
+    //   fixedSide: 'in',
+    // })
+    // const txId = execute()
 
     /**
      * if you don't care about route/out amount, you can just call directSwap to execute swap
      */
-    // const { transaction, signers, execute } = await raydium!.trade.directSwap({
-    //   amountOut: raydium!.mintToTokenAmount({ mint: outToken, amount: '0' })!,
-    //   amountIn: raydium!.mintToTokenAmount({ mint: inToken, amount: inAmount })!,
-    //   fixedSide: 'in',
-    //   slippage: new Percent(1, 100),
-    // })
+    const { transaction, signers, execute, extInfo } = await raydium!.trade.directSwap({
+      amountOut: raydium!.mintToTokenAmount({ mint: outToken, amount: '0' })!,
+      amountIn: raydium!.mintToTokenAmount({ mint: inToken, amount: inAmount })!,
+      fixedSide: 'in',
+      slippage: new Percent(1, 100),
+    })
     // const txId = execute()
   }
 

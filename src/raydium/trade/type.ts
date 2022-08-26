@@ -64,3 +64,9 @@ export interface AvailableSwapPools {
   best?: LiquidityPoolJsonInfo;
   routedPools: LiquidityPoolJsonInfo[];
 }
+
+export interface SwapExtInfo {
+  extInfo: {
+    amountOut: TokenAmount;
+  };
+}

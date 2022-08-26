@@ -16,6 +16,11 @@ export interface MakeTransaction {
   signers: Signer[];
   transaction: Transaction;
   execute: () => Promise<string>;
+  extInfo: Record<string, any>;
+}
+
+export interface LoadParams {
+  forceUpdate?: boolean;
 }
 
 type Primitive = boolean | number | string | null | undefined | PublicKey;

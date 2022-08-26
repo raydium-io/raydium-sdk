@@ -6,6 +6,7 @@ import { TokenAmount } from "../../module/amount";
 import { Fraction } from "../../module/fraction";
 import { Token } from "../../module/token";
 import ModuleBase, { ModuleBaseProps } from "../moduleBase";
+import { LoadParams } from "../type";
 
 import { quantumSOLHydratedTokenJsonInfo } from "./constant";
 import { SplToken, TokenJson } from "./type";
@@ -26,9 +27,9 @@ export default class TokenModule extends ModuleBase {
     super(params);
   }
 
-  public async load(): Promise<void> {
+  public async load(params?: LoadParams): Promise<void> {
     this.checkDisabled();
-    await this.scope.fetchTokens();
+    await this.scope.fetchTokens(params?.forceUpdate);
     // unofficial: solana token list
     // official: raydium token list
     this._mintList = { official: [], unOfficial: [] };

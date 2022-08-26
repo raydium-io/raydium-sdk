@@ -26,7 +26,7 @@ import { Token as RToken } from "../../module/token";
 import { createWSolAccountInstructions } from "../account/instruction";
 import ModuleBase from "../moduleBase";
 import { TOKEN_WSOL } from "../token/constant";
-import { MakeTransaction } from "../type";
+import { LoadParams, MakeTransaction } from "../type";
 
 import {
   FARM_LOCK_MINT,
@@ -36,11 +36,10 @@ import {
   isValidFarmVersion,
   validateFarmRewards,
 } from "./config";
-import { createAssociatedLedgerAccountInstruction } from "./instruction";
+import { createAssociatedLedgerAccountInstruction, makeCreateFarmInstruction } from "./instruction";
 import {
   dwLayout,
   farmAddRewardLayout,
-  farmRewardLayout,
   farmRewardRestartLayout,
   farmStateV6Layout,
   withdrawRewardLayout,
@@ -70,9 +69,9 @@ export default class Farm extends ModuleBase {
   private _sdkParsedFarmPools: SdkParsedFarmInfo[] = [];
   private _lpTokenInfoMap: Map<string, RToken> = new Map();
 
-  public async load(): Promise<void> {
+  public async load(params?: LoadParams): Promise<void> {
     await this.scope.liquidity.load();
-    await this.scope.fetchFarms();
+    await this.scope.fetchFarms(params?.forceUpdate);
 
     const data = this.scope.apiData.farmPools?.data || {};
 
@@ -253,41 +252,24 @@ export default class Farm extends ModuleBase {
     if (!lockUserAccount)
       this.logAndCreateError("cannot found lock vault", "tokenAccounts", this.scope.account.tokenAccounts);
 
-    const data = Buffer.alloc(farmRewardLayout.span);
-    farmRewardLayout.encode(
-      {
-        instruction: 0,
-        nonce: new BN(nonce),
-        rewardTimeInfo: rewardInfoConfig,
-      },
-      data,
-    );
-
-    const keys = [
-      ...commonSystemAccountMeta,
-      accountMeta({ pubkey: farmKeyPair.publicKey }),
-      accountMeta({ pubkey: authority, isWritable: false }),
-      accountMeta({ pubkey: lpVault }),
-      accountMeta({ pubkey: poolInfo.lpMint, isWritable: false }),
-      accountMeta({ pubkey: poolInfo.lockInfo.lockVault }),
-      accountMeta({ pubkey: poolInfo.lockInfo.lockMint, isWritable: false }),
-      accountMeta({ pubkey: lockUserAccount ?? SOLMint }),
-      accountMeta({ pubkey: this.scope.ownerPubKey, isWritable: false, isSigner: true }),
-    ];
-
-    for (const item of rewardInfoKey) {
-      keys.push(
-        ...[
-          accountMeta({ pubkey: item.rewardMint, isWritable: false }),
-          accountMeta({ pubkey: item.rewardVault }),
-          accountMeta({ pubkey: item.userRewardToken }),
-        ],
-      );
-    }
+    const createInstruction = makeCreateFarmInstruction({
+      farmKeyPair,
+      owner: this.scope.ownerPubKey,
+      farmAuthority: authority,
+      lpVault,
+      lpMint: poolInfo.lpMint,
+      lockVault: poolInfo.lockInfo.lockVault,
+      lockMint: poolInfo.lockInfo.lockMint,
+      lockUserAccount,
+      programId: poolInfo.programId,
+      rewardInfo: rewardInfoKey,
+      rewardInfoConfig,
+      nonce,
+    });
 
     return await txBuilder
       .addInstruction({
-        instructions: [new TransactionInstruction({ programId: poolInfo.programId, keys, data })],
+        instructions: [createInstruction],
       })
       .build();
   }
@@ -509,7 +491,7 @@ export default class Farm extends ModuleBase {
             accountMeta({ pubkey: this.scope.ownerPubKey, isWritable: false, isSigner: true }),
             accountMeta({ pubkey: lpTokenAccount }),
           ]
-        : [...lowVersionKeys];
+        : lowVersionKeys;
 
     if (version !== 3) {
       for (let index = 1; index < rewardInfos.length; index++) {
@@ -557,7 +539,7 @@ export default class Farm extends ModuleBase {
             accountMeta({ pubkey: this.scope.ownerPubKey, isWritable: false, isSigner: true }),
             accountMeta({ pubkey: lpTokenAccount }),
           ]
-        : [...lowVersionKeys];
+        : lowVersionKeys;
 
     if (version !== 3) {
       for (let index = 1; index < rewardInfos.length; index++) {

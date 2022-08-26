@@ -68,10 +68,11 @@ export class TxBuilder {
     return this;
   }
 
-  public async build(): Promise<{
+  public async build(extInfo?: Record<string, any>): Promise<{
     transaction: Transaction;
     signers: Signer[];
     execute: () => Promise<string>;
+    extInfo: Record<string, any>;
   }> {
     const recentBlockHash = await getRecentBlockHash(this.connection);
 
@@ -95,6 +96,7 @@ export class TxBuilder {
         }
         throw new Error("please connect wallet first");
       },
+      extInfo: extInfo || {},
     };
   }
 }

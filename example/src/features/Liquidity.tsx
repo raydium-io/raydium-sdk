@@ -106,7 +106,7 @@ export default function Liquidity() {
         fixedSide: raydium!.liquidity.getFixedSide({ poolId, inputMint: poolInfo!.quoteMint }),
       })
 
-      const txId = await execute()
+      // const txId = await execute()
       /*
        * remove
        */

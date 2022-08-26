@@ -11,9 +11,9 @@ export default function Farm() {
       if (!raydium) return
       await raydium.farm.load()
       // ray - sol farm
-      const farmId = 'GUzaohfNuFbBqQTnPgPSNciv3aUvriXYjQduRE3ZkqFw'
+      // const farmId = 'GUzaohfNuFbBqQTnPgPSNciv3aUvriXYjQduRE3ZkqFw'
 
-      const targetFarm = raydium.farm.getParsedFarm(farmId)
+      // const targetFarm = raydium.farm.getParsedFarm(farmId)
 
       // const { execute, transaction } = await raydium.farm.deposit({
       //   farmId: new PublicKey(farmId),

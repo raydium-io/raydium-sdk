@@ -1,4 +1,4 @@
-import { ComputeBudgetProgram, PublicKey } from "@solana/web3.js";
+import { ComputeBudgetProgram } from "@solana/web3.js";
 import BN from "bn.js";
 
 import { BN_ONE, BN_ZERO, divCeil, Numberish, parseNumberInfo, toBN } from "../../common/bignumber";
@@ -8,7 +8,8 @@ import { jsonInfo2PoolKeys } from "../../common/utility";
 import { Fraction, Percent, Price, Token, TokenAmount } from "../../module";
 import { makeTransferInstruction } from "../account/instruction";
 import ModuleBase, { ModuleBaseProps } from "../moduleBase";
-import { MakeTransaction } from "../type";
+import { SwapExtInfo } from "../trade/type";
+import { LoadParams, MakeTransaction } from "../type";
 
 import { LIQUIDITY_FEES_DENOMINATOR, LIQUIDITY_FEES_NUMERATOR } from "./constant";
 import {
@@ -38,8 +39,8 @@ export default class Liquidity extends ModuleBase {
     this._stableLayout = new StableLayout({ connection: this.scope.connection });
   }
 
-  public async load(): Promise<void> {
-    await this.scope.fetchLiquidity();
+  public async load(params?: LoadParams): Promise<void> {
+    await this.scope.fetchLiquidity(params?.forceUpdate);
     if (!this.scope.apiData.liquidityPools) return;
     const { data } = this.scope.apiData.liquidityPools;
     const [official, unOfficial] = [data.official || [], data.unOfficial || []];
@@ -292,7 +293,7 @@ export default class Liquidity extends ModuleBase {
     };
   }
 
-  public async swapWithAMM(params: LiquiditySwapTransactionParams): Promise<MakeTransaction> {
+  public async swapWithAMM(params: LiquiditySwapTransactionParams): Promise<MakeTransaction & SwapExtInfo> {
     const { poolKeys, payer, amountIn, amountOut, fixedSide, config } = params;
     this.logDebug("amountIn:", amountIn);
     this.logDebug("amountOut:", amountOut);
@@ -349,7 +350,8 @@ export default class Liquidity extends ModuleBase {
         }),
       ],
     });
-    return await txBuilder.build();
+    const buildData = (await txBuilder.build({ amountOut })) as MakeTransaction & SwapExtInfo;
+    return buildData;
   }
 
   public async createPool(params: CreatePoolParam): Promise<MakeTransaction> {

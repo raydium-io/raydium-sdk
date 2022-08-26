@@ -18,7 +18,7 @@ export default class Account extends ModuleBase {
   private _tokenAccountRawInfos: TokenAccountRaw[] = [];
   private _ataCache: Map<string, PublicKey> = new Map();
   private _accountChangeListenerId?: number;
-  private _accountListener: (() => void)[] = [];
+  private _accountListener: ((data: TokenAccountDataProp) => void)[] = [];
   private _clientOwnedToken = false;
 
   constructor(params: TokenAccountDataProp & ModuleBaseProps) {
@@ -45,12 +45,12 @@ export default class Account extends ModuleBase {
     return this;
   }
 
-  public addAccountChangeListener(cbk: () => void): Account {
+  public addAccountChangeListener(cbk: (data: TokenAccountDataProp) => void): Account {
     this._accountListener.push(cbk);
     return this;
   }
 
-  public removeAccountChangeListener(cbk: () => void): Account {
+  public removeAccountChangeListener(cbk: (data: TokenAccountDataProp) => void): Account {
     this._accountListener = this._accountListener.filter((listener) => listener !== cbk);
     return this;
   }

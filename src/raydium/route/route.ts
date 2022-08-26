@@ -5,6 +5,7 @@ import { Price } from "../../module/price";
 import { Token } from "../../module/token";
 import { getPoolEnabledFeatures, includesToken } from "../liquidity/util";
 import ModuleBase, { ModuleBaseProps } from "../moduleBase";
+import { SwapExtInfo } from "../trade/type";
 import { MakeTransaction } from "../type";
 
 import { ROUTE_PROGRAM_ID_V1 } from "./constant";
@@ -138,7 +139,7 @@ export default class Route extends ModuleBase {
     };
   }
 
-  public async swapWithRoute(params: RouteSwapTransactionParams): Promise<MakeTransaction> {
+  public async swapWithRoute(params: RouteSwapTransactionParams): Promise<MakeTransaction & SwapExtInfo> {
     const { fromPoolKeys, toPoolKeys, amountIn, amountOut, fixedSide, config } = params;
     this.logDebug("amountIn:", amountIn, "amountOut:", amountOut);
     if (amountIn.isZero() || amountOut.isZero())
@@ -218,6 +219,7 @@ export default class Route extends ModuleBase {
         fixedSide,
       }),
     });
-    return await txBuilder.build();
+    const buildData = await txBuilder.build({ amountOut: amountOutRaw }) as MakeTransaction & SwapExtInfo
+    return buildData
   }
 }
