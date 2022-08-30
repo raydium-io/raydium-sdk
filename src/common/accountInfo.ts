@@ -37,7 +37,6 @@ export async function getMultipleAccountsInfo(
   let results: (AccountInfo<Buffer> | null)[][] = new Array(chunkedKeys.length).fill([]);
 
   if (batchRequest) {
-    console.log(123123, "batchRequest");
     const batch = chunkedKeys.map((keys) => {
       const args = connection._buildArgs([keys.map((key) => key.toBase58())], commitment, "base64");
       return {
@@ -70,7 +69,6 @@ export async function getMultipleAccountsInfo(
       });
     });
   } else {
-    console.log(123123, "sequence");
     try {
       results = (await Promise.all(
         chunkedKeys.map((keys) => connection.getMultipleAccountsInfo(keys, commitment)),

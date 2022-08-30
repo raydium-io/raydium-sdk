@@ -4,7 +4,7 @@ import Button from '@mui/material/Button'
 import CircularProgress from '@mui/material/CircularProgress'
 import Grid from '@mui/material/Grid'
 import OutlinedInput from '@mui/material/OutlinedInput'
-import { jsonInfo2PoolKeys, Percent, RouteInfo, RouteType, TokenAmount } from '@raydium-io/raydium-sdk'
+import { Percent, RouteInfo, RouteType, TokenAmount } from '@raydium-io/raydium-sdk'
 import debounce from 'lodash/debounce'
 import { useEffect, useState } from 'react'
 
@@ -109,46 +109,6 @@ export default function Swap() {
     //   slippage: new Percent(1, 100),
     // })
     // const txId = execute()
-
-    /**
-     * const inTokenAmount = raydium!.mintToTokenAmount({
-        mint: '4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R',
-        amount: 0.4,
-      })
-      const outputToken = raydium!.mintToToken('9n4nbM75f5Ui33ZbPYXn59EwSgE8CGsHtAeTH5YFeJ9E')
-
-      // ray-btc GaqgfieVmnmY4ZsZHHA6L5RSVzCGL3sKx4UgHBaYNy8m
-      // btc-usdt af8HJg2ffWoKJ6vKvkWJUJ9iWbRR83WgXs8HPs26WGr
-      const fromPoolKeys = jsonInfo2PoolKeys(
-        raydium!.liquidity.allPoolMap.get('6gpZ9JkLoYvpA5cwdyPZFsDw6tkbPyyXM5FqRqHxMCny')!
-      )
-      const toPoolKeys = jsonInfo2PoolKeys(
-        raydium!.liquidity.allPoolMap.get('ynV2H2b7FcRBho2TvE25Zc4gDeuu2N45rUw9DuJYjJ9')!
-      )
-      const [fromPoolInfo, toPoolInfo] = await raydium!.liquidity.fetchMultipleInfo({
-        pools: [fromPoolKeys, toPoolKeys],
-      })
-
-      const { amountOut, minAmountOut: min } = await raydium!.route.computeRouteAmountOut({
-        fromPoolKeys,
-        toPoolKeys,
-        fromPoolInfo,
-        toPoolInfo,
-        amountIn: inTokenAmount,
-        outputToken,
-        slippage: new Percent(1, 100),
-      })
-
-      const { transactions, signers, execute, extInfo } = await raydium!.route.swapWithRoute({
-        fromPoolKeys,
-        toPoolKeys,
-        amountOut: min,
-        amountIn: inTokenAmount,
-        fixedSide: 'in',
-      })
-
-      execute()
-     */
   }
 
   const [inTokenInfo, outTokenInfo] = [

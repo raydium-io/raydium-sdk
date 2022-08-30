@@ -1,5 +1,10 @@
-import { ApiTokenInfo } from "../../api/type";
+import { Connection } from "@solana/web3.js";
 
+import { ApiTokenInfo } from "../../api/type";
+import { PublicKeyish, validateAndParsePublicKey } from "../../common/pubKey";
+import { GetStructureSchema } from "../../marshmallow";
+
+import { SPL_MINT_LAYOUT } from "./layout";
 import { TokenJson } from "./type";
 
 export function sortTokens(tokens: TokenJson[], mintList: { official: string[]; unOfficial: string[] }): TokenJson[] {
@@ -22,4 +27,19 @@ export function sortTokens(tokens: TokenJson[], mintList: { official: string[]; 
       return priorityOrderDiff;
     }
   });
+}
+
+export async function getSPLTokenInfo(
+  connection: Connection,
+  mintish: PublicKeyish,
+): Promise<GetStructureSchema<typeof SPL_MINT_LAYOUT> | undefined> {
+  try {
+    if (!connection) return;
+    const tokenAccount = await connection.getAccountInfo(validateAndParsePublicKey({ publicKey: mintish }));
+    if (!tokenAccount) return;
+    if (tokenAccount.data.length !== SPL_MINT_LAYOUT.span) return;
+    return SPL_MINT_LAYOUT.decode(tokenAccount.data);
+  } catch {
+    return;
+  }
 }
