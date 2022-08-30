@@ -10,10 +10,7 @@ import { splAccountLayout } from "../account/layout";
 import { SplAccount } from "../account/types";
 
 import {
-  FARM_PROGRAMID_TO_VERSION,
-  FARM_VERSION_TO_LEDGER_LAYOUT,
-  FARM_VERSION_TO_PROGRAMID,
-  FARM_VERSION_TO_STATE_LAYOUT,
+  FARM_PROGRAMID_TO_VERSION, FARM_VERSION_TO_LEDGER_LAYOUT, FARM_VERSION_TO_PROGRAMID, FARM_VERSION_TO_STATE_LAYOUT,
   FarmVersion,
 } from "./config";
 import { FarmLedger, FarmLedgerLayout, FarmState, FarmStateLayout } from "./layout";
@@ -99,6 +96,7 @@ export function farmRewardInfoToConfig(data: FarmRewardInfo): FarmRewardInfoConf
     rewardPerSecond: parseBigNumberish(data.rewardPerSecond),
     rewardOpenTime: parseBigNumberish(data.rewardOpenTime),
     rewardEndTime: parseBigNumberish(data.rewardEndTime),
+    rewardType: parseBigNumberish(data.rewardType),
   };
 }
 

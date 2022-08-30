@@ -14,6 +14,9 @@ import {
   u8,
 } from "../../marshmallow";
 
+import { poolTypeV6 } from "./config";
+import { RewardType } from "./type";
+
 export const associatedLedgerAccountLayout = struct([u8("instruction")]);
 export const withdrawRewardLayout = struct([u8("instruction")]);
 
@@ -30,7 +33,8 @@ const farmStateRewardInfoV6Layout = struct([
   publicKey("rewardVault"),
   publicKey("rewardMint"),
   publicKey("rewardSender"),
-  seq(u64(), 16, "padding"),
+  u64("rewardType"),
+  seq(u64(), 15, "padding"),
 ]);
 
 export const realFarmStateV3Layout = struct([
@@ -176,6 +180,7 @@ export const farmStateV6Layout = new Proxy(
         rewardVault: PublicKey;
         rewardMint: PublicKey;
         rewardSender: PublicKey;
+        rewardType: RewardType;
       }[];
     } & GetLayoutSchemaFromStructure<typeof realFarmV6Layout>
   >,
@@ -189,6 +194,9 @@ export const farmStateV6Layout = new Proxy(
             version: 6,
             rewardInfos: originalResult.rewardInfos.map((item) => ({
               ...item,
+              rewardType: (Object.entries(poolTypeV6).find((i) => String(i[1]) === item.rewardType.toString()) ?? [
+                "Standard SPL",
+              ])[0],
             })),
           };
         };
@@ -202,6 +210,7 @@ export const farmRewardTimeInfoLayout = struct([
   u64("rewardPerSecond"),
   u64("rewardOpenTime"),
   u64("rewardEndTime"),
+  u64("rewardType"),
 ]);
 
 export const farmRewardLayout = struct([

@@ -6,8 +6,10 @@ import { BigNumberish } from "../../common/bignumber";
 import { SplAccount } from "../account/types";
 import { UnionCover } from "../type";
 
+import { poolTypeV6 } from "./config";
 import { FarmStateV3, FarmStateV5, FarmStateV6 } from "./layout";
 
+export type RewardType = keyof typeof poolTypeV6;
 export interface APIRewardInfo {
   rewardMint: string;
   rewardVault: string;
@@ -15,6 +17,7 @@ export interface APIRewardInfo {
   rewardEndTime: number;
   rewardPerSecond: string | number;
   rewardSender?: string;
+  rewardType: string;
 }
 
 export interface RewardInfoWithKey {
@@ -22,6 +25,7 @@ export interface RewardInfoWithKey {
   rewardVault: PublicKey;
   rewardOpenTime: number;
   rewardEndTime: number;
+  rewardType: RewardType;
   rewardPerSecond: string | number;
   rewardSender?: PublicKey;
 }
@@ -54,6 +58,7 @@ export interface FarmRewardInfo {
   rewardPerSecond: BigNumberish;
   rewardOpenTime: BigNumberish;
   rewardEndTime: BigNumberish;
+  rewardType: RewardType;
 }
 
 export interface FarmRewardInfoConfig {
@@ -61,6 +66,7 @@ export interface FarmRewardInfoConfig {
   rewardPerSecond: BN;
   rewardOpenTime: BN;
   rewardEndTime: BN;
+  rewardType: BN;
 }
 
 export interface RewardInfoKey {
@@ -119,6 +125,7 @@ export type FarmPoolKeys = {
         readonly rewardOpenTime: number;
         readonly rewardEndTime: number;
         readonly rewardPerSecond: number;
+        readonly rewardType: RewardType;
       }
   )[];
 };

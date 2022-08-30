@@ -121,3 +121,5 @@ export const validateFarmRewards = (params: {
 
   return validator[version]?.();
 };
+
+export const poolTypeV6 = { "Standard SPL": 0, "Option tokens": 1 };

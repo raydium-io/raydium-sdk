@@ -11,6 +11,7 @@ export default function Farm() {
     async function addFarm() {
       if (!raydium) return
       await raydium.farm.load()
+
       // ray - sol farm
       // const farmId = 'GUzaohfNuFbBqQTnPgPSNciv3aUvriXYjQduRE3ZkqFw'
 
@@ -38,6 +39,7 @@ export default function Farm() {
             rewardPerSecond: 1,
             rewardOpenTime: 1661419500,
             rewardEndTime: 1662024300,
+            rewardType: 'Standard SPL',
           },
         ],
       })
