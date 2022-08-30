@@ -18,7 +18,7 @@ import Liquidity from "./liquidity/liquidity";
 import Route from "./route/route";
 import TokenModule, { MintToTokenAmount } from "./token/token";
 import Trade from "./trade/trade";
-import { SendTransaction } from "./type";
+import { SignAllTransactions } from "./type";
 
 export interface RaydiumLoadParams extends TokenAccountDataProp {
   /* ================= solana ================= */
@@ -39,7 +39,7 @@ export interface RaydiumLoadParams extends TokenAccountDataProp {
   apiRequestInterval?: number;
   // api request timeout in ms, default is 10 secs (10 * 1000)
   apiRequestTimeout?: number;
-  sendTransaction?: SendTransaction;
+  signAllTransactions?: SignAllTransactions;
 }
 
 export interface RaydiumApiBatchRequestParams {
@@ -72,7 +72,7 @@ export class Raydium {
   private _connection: Connection;
   private _owner: Owner | undefined;
   private api: Api;
-  private _sendTransaction?: SendTransaction;
+  private _signAllTransactions?: SignAllTransactions;
   private logger: Logger;
 
   constructor(config: RaydiumConstructorParams) {
@@ -81,7 +81,7 @@ export class Raydium {
     this._connection = connection;
     this.cluster = cluster;
     this._owner = owner ? new Owner(owner) : undefined;
-    this._sendTransaction = config.sendTransaction;
+    this._signAllTransactions = config.signAllTransactions;
 
     this.api = api;
     this.logger = createLogger("Raydium");
@@ -157,11 +157,11 @@ export class Raydium {
     this._connection = connection;
     return this;
   }
-  get sendTransaction(): SendTransaction | undefined {
-    return this._sendTransaction;
+  get signAllTransactions(): SignAllTransactions | undefined {
+    return this._signAllTransactions;
   }
-  public setSendTransaction(sendTransaction?: SendTransaction): Raydium {
-    this._sendTransaction = sendTransaction;
+  public setSignAllTransactions(signAllTransactions?: SignAllTransactions): Raydium {
+    this._signAllTransactions = signAllTransactions;
     return this;
   }
 

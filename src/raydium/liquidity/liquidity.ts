@@ -9,22 +9,40 @@ import { Fraction, Percent, Price, Token, TokenAmount } from "../../module";
 import { makeTransferInstruction } from "../account/instruction";
 import ModuleBase, { ModuleBaseProps } from "../moduleBase";
 import { SwapExtInfo } from "../trade/type";
-import { LoadParams, MakeTransaction } from "../type";
+import { LoadParams, MakeMultiTransaction, MakeTransaction } from "../type";
 
 import { LIQUIDITY_FEES_DENOMINATOR, LIQUIDITY_FEES_NUMERATOR } from "./constant";
 import {
-  makeAddLiquidityInstruction, makeAMMSwapInstruction, makeCreatePoolInstruction, makeInitPoolInstruction,
+  makeAddLiquidityInstruction,
+  makeAMMSwapInstruction,
+  makeCreatePoolInstruction,
+  makeInitPoolInstruction,
   makeRemoveLiquidityInstruction,
 } from "./instruction";
 import { getDxByDyBaseIn, getDyByDxBaseIn, getStablePrice, StableLayout } from "./stable";
 import {
-  AmountSide, CreatePoolParam, InitPoolParam, LiquidityAddTransactionParams, LiquidityComputeAmountOutParams,
-  LiquidityComputeAmountOutReturn, LiquidityComputeAnotherAmountParams, LiquidityFetchMultipleInfoParams,
-  LiquidityPoolInfo, LiquidityPoolJsonInfo, LiquidityRemoveTransactionParams, LiquiditySide,
-  LiquiditySwapTransactionParams, SDKParsedLiquidityInfo,
+  AmountSide,
+  CreatePoolParam,
+  InitPoolParam,
+  LiquidityAddTransactionParams,
+  LiquidityComputeAmountOutParams,
+  LiquidityComputeAmountOutReturn,
+  LiquidityComputeAnotherAmountParams,
+  LiquidityFetchMultipleInfoParams,
+  LiquidityPoolInfo,
+  LiquidityPoolJsonInfo,
+  LiquidityRemoveTransactionParams,
+  LiquiditySide,
+  LiquiditySwapTransactionParams,
+  SDKParsedLiquidityInfo,
 } from "./type";
 import {
-  getAmountSide, getAmountsSide, getAssociatedPoolKeys, includesToken, isValidFixedSide, makeSimulationPoolInfo,
+  getAmountSide,
+  getAmountsSide,
+  getAssociatedPoolKeys,
+  includesToken,
+  isValidFixedSide,
+  makeSimulationPoolInfo,
 } from "./util";
 
 export default class Liquidity extends ModuleBase {
@@ -293,7 +311,7 @@ export default class Liquidity extends ModuleBase {
     };
   }
 
-  public async swapWithAMM(params: LiquiditySwapTransactionParams): Promise<MakeTransaction & SwapExtInfo> {
+  public async swapWithAMM(params: LiquiditySwapTransactionParams): Promise<MakeMultiTransaction & SwapExtInfo> {
     const { poolKeys, payer, amountIn, amountOut, fixedSide, config } = params;
     this.logDebug("amountIn:", amountIn);
     this.logDebug("amountOut:", amountOut);
@@ -350,8 +368,7 @@ export default class Liquidity extends ModuleBase {
         }),
       ],
     });
-    const buildData = (await txBuilder.build({ amountOut })) as MakeTransaction & SwapExtInfo;
-    return buildData;
+    return txBuilder.buildMultiTx({ extInfo: { amountOut } }) as MakeMultiTransaction & SwapExtInfo;
   }
 
   public async createPool(params: CreatePoolParam): Promise<MakeTransaction> {

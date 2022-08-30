@@ -6,7 +6,7 @@ import { Token } from "../../module/token";
 import { getPoolEnabledFeatures, includesToken } from "../liquidity/util";
 import ModuleBase, { ModuleBaseProps } from "../moduleBase";
 import { SwapExtInfo } from "../trade/type";
-import { MakeTransaction } from "../type";
+import { MakeMultiTransaction, MakeTransaction } from "../type";
 
 import { ROUTE_PROGRAM_ID_V1 } from "./constant";
 import { makeRouteSwapInstruction } from "./instruction";
@@ -139,7 +139,7 @@ export default class Route extends ModuleBase {
     };
   }
 
-  public async swapWithRoute(params: RouteSwapTransactionParams): Promise<MakeTransaction & SwapExtInfo> {
+  public async swapWithRoute(params: RouteSwapTransactionParams): Promise<MakeMultiTransaction & SwapExtInfo> {
     const { fromPoolKeys, toPoolKeys, amountIn, amountOut, fixedSide, config } = params;
     this.logDebug("amountIn:", amountIn, "amountOut:", amountOut);
     if (amountIn.isZero() || amountOut.isZero())
@@ -170,6 +170,7 @@ export default class Route extends ModuleBase {
 
     const [amountInRaw, amountOutRaw] = [amountIn.raw, amountOut.raw];
 
+    const preTxBuilder = this.createTxBuilder();
     const txBuilder = this.createTxBuilder();
     const { tokenAccount: _tokenAccountIn, ...accountInInstruction } = await account.handleTokenAccount({
       side: "in",
@@ -179,7 +180,7 @@ export default class Route extends ModuleBase {
       bypassAssociatedCheck,
       skipCloseAccount: true,
     });
-    txBuilder.addInstruction(accountInInstruction);
+    preTxBuilder.addInstruction(accountInInstruction);
     const { tokenAccount: _tokenAccountOut, ...accountOutInstruction } = await account.handleTokenAccount({
       side: "out",
       amount: 0,
@@ -188,7 +189,7 @@ export default class Route extends ModuleBase {
       bypassAssociatedCheck,
       skipCloseAccount: true,
     });
-    txBuilder.addInstruction(accountOutInstruction);
+    preTxBuilder.addInstruction(accountOutInstruction);
     const { tokenAccount: _tokenAccountMiddle, ...accountMiddleInstruction } = await account.handleTokenAccount({
       side: "in",
       amount: 0,
@@ -197,7 +198,7 @@ export default class Route extends ModuleBase {
       bypassAssociatedCheck,
       skipCloseAccount: true,
     });
-    txBuilder.addInstruction(accountMiddleInstruction);
+    preTxBuilder.addInstruction(accountMiddleInstruction);
     txBuilder.addInstruction({
       instructions: makeRouteSwapInstruction({
         fromPoolKeys,
@@ -219,7 +220,11 @@ export default class Route extends ModuleBase {
         fixedSide,
       }),
     });
-    const buildData = await txBuilder.build({ amountOut: amountOutRaw }) as MakeTransaction & SwapExtInfo
+    const preBuildData = preTxBuilder.build()
+    const buildData = await txBuilder.buildMultiTx({
+      extraPreBuildData: [preBuildData],
+      extInfo: { amountOut: amountOutRaw }
+    }) as MakeMultiTransaction & SwapExtInfo
     return buildData
   }
 }

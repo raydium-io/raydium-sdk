@@ -6,7 +6,7 @@ import { Percent, Price, TokenAmount } from "../../module";
 import { LiquidityPoolJsonInfo } from "../liquidity/type";
 import ModuleBase from "../moduleBase";
 import { defaultRoutes, swapRouteMiddleMints } from "../route/constant";
-import { MakeTransaction } from "../type";
+import { MakeMultiTransaction, MakeTransaction } from "../type";
 
 import {
   AvailableSwapPools, CustomSwapParams, GetAmountOutReturn, GetBestAmountOutParams, RouteInfo, RouteType, SwapExtInfo,
@@ -212,7 +212,7 @@ export default class Trade extends ModuleBase {
     };
   }
 
-  public async directSwap(params: SwapParams): Promise<MakeTransaction & SwapExtInfo> {
+  public async directSwap(params: SwapParams): Promise<MakeMultiTransaction & SwapExtInfo> {
     this.checkDisabled();
     const { amountOut, amountIn, slippage, config } = params;
     const inputToken = amountIn.token;
@@ -234,7 +234,7 @@ export default class Trade extends ModuleBase {
     });
   }
 
-  public async swap(params: CustomSwapParams): Promise<MakeTransaction & SwapExtInfo> {
+  public async swap(params: CustomSwapParams): Promise<MakeMultiTransaction & SwapExtInfo> {
     this.checkDisabled();
     this.scope.checkOwner();
     const { routes, routeType, amountIn, amountOut, fixedSide, config } = params;

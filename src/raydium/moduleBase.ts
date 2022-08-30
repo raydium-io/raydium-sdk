@@ -37,7 +37,7 @@ export default class ModuleBase {
       connection: this.scope.connection,
       feePayer: feePayer || this.scope.ownerPubKey,
       owner: this.scope.owner,
-      sendTransaction: this.scope.sendTransaction,
+      signAllTransactions: this.scope.signAllTransactions,
     });
   }
 

@@ -1,3 +1,4 @@
+import { PublicKey } from '@solana/web3.js'
 import { useEffect } from 'react'
 
 import { useAppStore } from '../store/appStore'
@@ -29,17 +30,18 @@ export default function Farm() {
       // })
 
       // usdt-usdc pool: 2EXiumdi14E9b8Fy62QcA5Uh6WdHS2b38wtSxp72Mibj
-      // const { execute, transaction } = await raydium.farm.create({
-      //   poolId: new PublicKey('2EXiumdi14E9b8Fy62QcA5Uh6WdHS2b38wtSxp72Mibj'),
-      //   rewardInfos: [
-      //     {
-      //       rewardMint: new PublicKey('So11111111111111111111111111111111111111112'),
-      //       rewardPerSecond: 1,
-      //       rewardOpenTime: 1661419500,
-      //       rewardEndTime: 1662024300,
-      //     },
-      //   ],
-      // })
+      const { execute, transaction, signers } = await raydium.farm.create({
+        poolId: new PublicKey('2EXiumdi14E9b8Fy62QcA5Uh6WdHS2b38wtSxp72Mibj'),
+        rewardInfos: [
+          {
+            rewardMint: new PublicKey('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'),
+            rewardPerSecond: 1,
+            rewardOpenTime: 1661419500,
+            rewardEndTime: 1662024300,
+          },
+        ],
+      })
+
       // execute()
     }
     connected && addFarm()

@@ -88,7 +88,7 @@ export default function Liquidity() {
       const poolInfo = raydium?.liquidity.allPoolMap.get(poolId)
 
       // use USDC as fixed input
-      const fixedTokenAmount = raydium!.mintToTokenAmount({ mint: poolInfo!.quoteMint, amount: 0.358089 })
+      const fixedTokenAmount = raydium!.mintToTokenAmount({ mint: poolInfo!.quoteMint, amount: 0.3 })
 
       const res = await raydium!.liquidity.computePairAmount({
         poolId, // deUITokenAmount(coin2TokenAmount)
@@ -99,22 +99,22 @@ export default function Liquidity() {
       /*
        * add
        */
-      const { execute, transaction } = await raydium!.liquidity.addLiquidity({
-        poolId,
-        amountInA: res.maxAnotherAmount,
-        amountInB: fixedTokenAmount,
-        fixedSide: raydium!.liquidity.getFixedSide({ poolId, inputMint: poolInfo!.quoteMint }),
-      })
+      // const { execute, transaction } = await raydium!.liquidity.addLiquidity({
+      //   poolId,
+      //   amountInA: res.maxAnotherAmount,
+      //   amountInB: fixedTokenAmount,
+      //   fixedSide: raydium!.liquidity.getFixedSide({ poolId, inputMint: poolInfo!.quoteMint }),
+      // })
 
       // const txId = await execute()
       /*
        * remove
        */
-      // const lpTokenAmount = raydium!.liquidity.lpMintToTokenAmount({ poolId, amount: '0.347324' })
-      // const { execute, transaction } = await raydium!.liquidity.removeLiquidity({
-      //   poolId: poolId,
-      //   amountIn: lpTokenAmount,
-      // })
+      const lpTokenAmount = raydium!.liquidity.lpMintToTokenAmount({ poolId, amount: '0.00636202' })
+      const { execute, transaction } = await raydium!.liquidity.removeLiquidity({
+        poolId: poolId,
+        amountIn: lpTokenAmount,
+      })
       // const txId = await execute()
     }
     connected && calculateLiquidityAmount()

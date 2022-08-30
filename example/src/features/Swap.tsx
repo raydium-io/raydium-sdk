@@ -4,8 +4,7 @@ import Button from '@mui/material/Button'
 import CircularProgress from '@mui/material/CircularProgress'
 import Grid from '@mui/material/Grid'
 import OutlinedInput from '@mui/material/OutlinedInput'
-import { Percent, RouteInfo, RouteType, TokenAmount } from '@raydium-io/raydium-sdk'
-import { PublicKey } from '@solana/web3.js'
+import { jsonInfo2PoolKeys, Percent, RouteInfo, RouteType, TokenAmount } from '@raydium-io/raydium-sdk'
 import debounce from 'lodash/debounce'
 import { useEffect, useState } from 'react'
 
@@ -22,9 +21,14 @@ export default function Swap() {
   const [loading, setLoading] = useState<boolean>(false)
 
   // ray mint: 4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R
-  // sol => sdk will auto recognize it
-  // const [inToken, outToken] = [PublicKey.default.toBase58(), '4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R']
-  const [inToken, outToken] = ['4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R', PublicKey.default.toBase58()]
+  // PublicKey.default => sdk will auto recognize it as sol token
+  const [inToken, outToken] = [
+    '4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R',
+    '9n4nbM75f5Ui33ZbPYXn59EwSgE8CGsHtAeTH5YFeJ9E',
+  ]
+  // const [inToken, outToken] = ['4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R', PublicKey.default.toBase58()]
+  // const [inToken, outToken] = [PublicKey.default.toBase58(), '9gP2kCy3wA1ctvYWQk75guqXuHfrEomqydHLtcTCqiLa']
+  // const [inToken, outToken] = ['9gP2kCy3wA1ctvYWQk75guqXuHfrEomqydHLtcTCqiLa', PublicKey.default.toBase58()]
 
   useEffect(() => {
     async function calculateAmount() {
@@ -39,7 +43,7 @@ export default function Swap() {
        *
        * return pool options: { availablePools, best, routedPools }, default will choose routedPools
        */
-      const { routedPools } = await raydium!.trade.getAvailablePools({
+      const { availablePools, best, routedPools } = await raydium!.trade.getAvailablePools({
         inputMint: inToken,
         outputMint: outToken,
       })!
@@ -61,6 +65,11 @@ export default function Swap() {
         outputToken: raydium!.mintToToken(outToken),
         slippage: new Percent(1, 100),
       })!
+
+      routes.forEach((route) => {
+        console.log(123123, 'routes', route.keys.id.toBase58())
+      })
+
       setOutAmount(_amountOut)
       setMinOutAmount(minAmountOut)
       setRouteType(routeType)
@@ -80,25 +89,66 @@ export default function Swap() {
   }, [connected, inToken, outToken, inAmount])
 
   const handleClick = async () => {
-    // const { transaction, signers, execute } = await raydium!.trade.swap({
-    //   routes,
-    //   routeType,
-    //   amountIn: raydium!.mintToTokenAmount({ mint: inToken, amount: inAmount })!,
-    //   amountOut: minOutAmount!,
-    //   fixedSide: 'in',
-    // })
-    // const txId = execute()
+    const { signers, execute, extInfo } = await raydium!.trade.swap({
+      routes,
+      routeType,
+      amountIn: raydium!.mintToTokenAmount({ mint: inToken, amount: inAmount })!,
+      amountOut: minOutAmount!,
+      fixedSide: 'in',
+    })
+
+    // await execute()
 
     /**
      * if you don't care about route/out amount, you can just call directSwap to execute swap
      */
-    const { transaction, signers, execute, extInfo } = await raydium!.trade.directSwap({
-      amountOut: raydium!.mintToTokenAmount({ mint: outToken, amount: '0' })!,
-      amountIn: raydium!.mintToTokenAmount({ mint: inToken, amount: inAmount })!,
-      fixedSide: 'in',
-      slippage: new Percent(1, 100),
-    })
+    // const { transaction, signers, execute, extInfo } = await raydium!.trade.directSwap({
+    //   amountOut: raydium!.mintToTokenAmount({ mint: outToken, amount: '0' })!,
+    //   amountIn: raydium!.mintToTokenAmount({ mint: inToken, amount: inAmount })!,
+    //   fixedSide: 'in',
+    //   slippage: new Percent(1, 100),
+    // })
     // const txId = execute()
+
+    /**
+     * const inTokenAmount = raydium!.mintToTokenAmount({
+        mint: '4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R',
+        amount: 0.4,
+      })
+      const outputToken = raydium!.mintToToken('9n4nbM75f5Ui33ZbPYXn59EwSgE8CGsHtAeTH5YFeJ9E')
+
+      // ray-btc GaqgfieVmnmY4ZsZHHA6L5RSVzCGL3sKx4UgHBaYNy8m
+      // btc-usdt af8HJg2ffWoKJ6vKvkWJUJ9iWbRR83WgXs8HPs26WGr
+      const fromPoolKeys = jsonInfo2PoolKeys(
+        raydium!.liquidity.allPoolMap.get('6gpZ9JkLoYvpA5cwdyPZFsDw6tkbPyyXM5FqRqHxMCny')!
+      )
+      const toPoolKeys = jsonInfo2PoolKeys(
+        raydium!.liquidity.allPoolMap.get('ynV2H2b7FcRBho2TvE25Zc4gDeuu2N45rUw9DuJYjJ9')!
+      )
+      const [fromPoolInfo, toPoolInfo] = await raydium!.liquidity.fetchMultipleInfo({
+        pools: [fromPoolKeys, toPoolKeys],
+      })
+
+      const { amountOut, minAmountOut: min } = await raydium!.route.computeRouteAmountOut({
+        fromPoolKeys,
+        toPoolKeys,
+        fromPoolInfo,
+        toPoolInfo,
+        amountIn: inTokenAmount,
+        outputToken,
+        slippage: new Percent(1, 100),
+      })
+
+      const { transactions, signers, execute, extInfo } = await raydium!.route.swapWithRoute({
+        fromPoolKeys,
+        toPoolKeys,
+        amountOut: min,
+        amountIn: inTokenAmount,
+        fixedSide: 'in',
+      })
+
+      execute()
+     */
   }
 
   const [inTokenInfo, outTokenInfo] = [

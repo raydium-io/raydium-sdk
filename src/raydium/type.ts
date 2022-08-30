@@ -6,16 +6,19 @@ export interface RaydiumTokenInfo extends ApiTokenInfo {
   category: ApiTokenCategory;
 }
 
-export type SendTransaction = (
-  transaction: Transaction,
-  connection: Connection,
-  options?: SendOptions & { signers: Signer[] },
-) => Promise<string>;
+export type SignAllTransactions = ((transaction: Transaction[]) => Promise<Transaction[]>) | undefined;
 
 export interface MakeTransaction {
   signers: Signer[];
   transaction: Transaction;
   execute: () => Promise<string>;
+  extInfo: Record<string, any>;
+}
+
+export interface MakeMultiTransaction {
+  signers: Signer[][];
+  transactions: Transaction[];
+  execute: () => Promise<string[]>;
   extInfo: Record<string, any>;
 }
 
