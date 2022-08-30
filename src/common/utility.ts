@@ -1,7 +1,7 @@
 import { PublicKey } from "@solana/web3.js";
 import BN from "bn.js";
 
-import { Currency, CurrencyAmount, Fraction, Percent, Price, Token, TokenAmount } from "../module";
+import { Fraction, Percent, Price, Token, TokenAmount } from "../module";
 import { ReplaceType } from "../raydium/type";
 
 import { tryParsePublicKey } from "./pubKey";
@@ -14,7 +14,7 @@ export function getTimestamp(): number {
   return new Date().getTime();
 }
 
-const baseInnerObjects = [Token, TokenAmount, CurrencyAmount, PublicKey, Fraction, BN, Currency, Price, Percent];
+const baseInnerObjects = [Token, TokenAmount, PublicKey, Fraction, BN, Price, Percent];
 
 function notInnerObject(v: unknown): v is Record<string, any> {
   return typeof v === "object" && v !== null && !baseInnerObjects.some((o) => typeof o === "object" && v instanceof o);

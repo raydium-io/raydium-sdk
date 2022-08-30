@@ -5,33 +5,26 @@ import { LiquidityVersion } from "../../api/type";
 import { createLogger } from "../../common/logger";
 import { PublicKeyish, validateAndParsePublicKey } from "../../common/pubKey";
 import {
-  findProgramAddress,
-  parseSimulateLogToJson,
-  parseSimulateValue,
-  simulateMultipleInstruction,
+  findProgramAddress, parseSimulateLogToJson, parseSimulateValue, simulateMultipleInstruction,
 } from "../../common/txTool";
-import { CurrencyAmount, Token, TokenAmount } from "../../module";
+import { Token, TokenAmount } from "../../module";
 
 import { LIQUIDITY_VERSION_TO_PROGRAM_ID, LiquidityPoolStatus } from "./constant";
 import { makeSimulatePoolInfoInstruction } from "./instruction";
 import { LIQUIDITY_VERSION_TO_STATE_LAYOUT, LiquidityStateLayout } from "./layout";
 import { getSerumAssociatedAuthority, getSerumProgramId, getSerumVersion } from "./serum";
 import {
-  AmountSide,
-  LiquidityAssociatedPoolKeys,
-  LiquidityFetchMultipleInfoParams,
-  LiquidityPoolInfo,
-  LiquidityPoolKeys,
+  AmountSide, LiquidityAssociatedPoolKeys, LiquidityFetchMultipleInfoParams, LiquidityPoolInfo, LiquidityPoolKeys,
 } from "./type";
 
 const logger = createLogger("Raydium_liquidity_util");
 /**
- * Get currency amount side of liquidity pool
- * @param amount - the currency amount provided
+ * Get token amount side of liquidity pool
+ * @param amount - the token amount provided
  * @param poolKeys - the pool keys
- * @returns currency amount side is `base` or `quote`
+ * @returns token amount side is `base` or `quote`
  */
-export function getAmountSide(amount: CurrencyAmount | TokenAmount, poolKeys: LiquidityPoolKeys): AmountSide {
+export function getAmountSide(amount: TokenAmount, poolKeys: LiquidityPoolKeys): AmountSide {
   const token = amount instanceof TokenAmount ? amount.token : Token.WSOL;
   const { baseMint, quoteMint } = poolKeys;
 
@@ -258,8 +251,8 @@ export async function makeSimulationPoolInfo({
 
 /**
  * Get currencies amount side of liquidity pool
- * @param amountA - the currency amount provided
- * @param amountB - the currency amount provided
+ * @param amountA - the token amount provided
+ * @param amountB - the token amount provided
  * @param poolKeys - the pool keys
  * @returns currencies amount side array
  */

@@ -232,6 +232,6 @@ export type LiquidityRemoveInstructionParams = LiquidityRemoveInstructionParamsV
 export interface LiquidityComputeAnotherAmountParams {
   poolId: PublicKeyish;
   amount: TokenAmount;
-  anotherCurrency: Token;
+  anotherToken: Token;
   slippage: Percent;
 }

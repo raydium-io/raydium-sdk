@@ -6,7 +6,7 @@ import { Token } from "../../module/token";
 import { getPoolEnabledFeatures, includesToken } from "../liquidity/util";
 import ModuleBase, { ModuleBaseProps } from "../moduleBase";
 import { SwapExtInfo } from "../trade/type";
-import { MakeMultiTransaction, MakeTransaction } from "../type";
+import { MakeMultiTransaction } from "../type";
 
 import { ROUTE_PROGRAM_ID_V1 } from "./constant";
 import { makeRouteSwapInstruction } from "./instruction";
@@ -115,18 +115,17 @@ export default class Route extends ModuleBase {
 
     let executionPrice: Price | null = null;
     const [amountInRaw, amountOutRaw] = [amountIn.raw, amountOut.raw];
-    const currencyIn = amountIn.token;
     if (!amountInRaw.isZero() && !amountOutRaw.isZero()) {
       executionPrice = new Price({
-        baseCurrency: currencyIn,
+        baseToken: tokenIn,
         denominator: amountInRaw,
-        quoteCurrency: outputToken,
+        quoteToken: outputToken,
         numerator: amountOutRaw,
       });
-      this.logDebug("executionPrice:", `1 ${currencyIn.symbol} ≈ ${executionPrice.toFixed()} ${outputToken.symbol}`);
+      this.logDebug("executionPrice:", `1 ${tokenIn.symbol} ≈ ${executionPrice.toFixed()} ${outputToken.symbol}`);
       this.logDebug(
         "executionPrice invert:",
-        `1 ${outputToken.symbol} ≈ ${executionPrice.invert().toFixed()} ${currencyIn.symbol}`,
+        `1 ${outputToken.symbol} ≈ ${executionPrice.invert().toFixed()} ${tokenIn.symbol}`,
       );
     }
 
@@ -143,7 +142,7 @@ export default class Route extends ModuleBase {
     const { fromPoolKeys, toPoolKeys, amountIn, amountOut, fixedSide, config } = params;
     this.logDebug("amountIn:", amountIn, "amountOut:", amountOut);
     if (amountIn.isZero() || amountOut.isZero())
-      this.logAndCreateError("amounts must greater than zero", "currencyAmounts", {
+      this.logAndCreateError("amounts must greater than zero", "amounts", {
         amountIn: amountIn.toFixed(),
         amountOut: amountOut.toFixed(),
       });
@@ -220,11 +219,11 @@ export default class Route extends ModuleBase {
         fixedSide,
       }),
     });
-    const preBuildData = preTxBuilder.build()
-    const buildData = await txBuilder.buildMultiTx({
+    const preBuildData = preTxBuilder.build();
+    const buildData = (await txBuilder.buildMultiTx({
       extraPreBuildData: [preBuildData],
-      extInfo: { amountOut: amountOutRaw }
-    }) as MakeMultiTransaction & SwapExtInfo
-    return buildData
+      extInfo: { amountOut: amountOutRaw },
+    })) as MakeMultiTransaction & SwapExtInfo;
+    return buildData;
   }
 }

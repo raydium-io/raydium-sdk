@@ -13,36 +13,18 @@ import { LoadParams, MakeMultiTransaction, MakeTransaction } from "../type";
 
 import { LIQUIDITY_FEES_DENOMINATOR, LIQUIDITY_FEES_NUMERATOR } from "./constant";
 import {
-  makeAddLiquidityInstruction,
-  makeAMMSwapInstruction,
-  makeCreatePoolInstruction,
-  makeInitPoolInstruction,
+  makeAddLiquidityInstruction, makeAMMSwapInstruction, makeCreatePoolInstruction, makeInitPoolInstruction,
   makeRemoveLiquidityInstruction,
 } from "./instruction";
 import { getDxByDyBaseIn, getDyByDxBaseIn, getStablePrice, StableLayout } from "./stable";
 import {
-  AmountSide,
-  CreatePoolParam,
-  InitPoolParam,
-  LiquidityAddTransactionParams,
-  LiquidityComputeAmountOutParams,
-  LiquidityComputeAmountOutReturn,
-  LiquidityComputeAnotherAmountParams,
-  LiquidityFetchMultipleInfoParams,
-  LiquidityPoolInfo,
-  LiquidityPoolJsonInfo,
-  LiquidityRemoveTransactionParams,
-  LiquiditySide,
-  LiquiditySwapTransactionParams,
-  SDKParsedLiquidityInfo,
+  AmountSide, CreatePoolParam, InitPoolParam, LiquidityAddTransactionParams, LiquidityComputeAmountOutParams,
+  LiquidityComputeAmountOutReturn, LiquidityComputeAnotherAmountParams, LiquidityFetchMultipleInfoParams,
+  LiquidityPoolInfo, LiquidityPoolJsonInfo, LiquidityRemoveTransactionParams, LiquiditySide,
+  LiquiditySwapTransactionParams, SDKParsedLiquidityInfo,
 } from "./type";
 import {
-  getAmountSide,
-  getAmountsSide,
-  getAssociatedPoolKeys,
-  includesToken,
-  isValidFixedSide,
-  makeSimulationPoolInfo,
+  getAmountSide, getAmountsSide, getAssociatedPoolKeys, includesToken, isValidFixedSide, makeSimulationPoolInfo,
 } from "./util";
 
 export default class Liquidity extends ModuleBase {
@@ -149,9 +131,9 @@ export default class Liquidity extends ModuleBase {
     let currentPrice;
     if (poolKeys.version === 4) {
       currentPrice = new Price({
-        baseCurrency: inputToken,
+        baseToken: inputToken,
         denominator: reserveIn,
-        quoteCurrency: outputToken,
+        quoteToken: outputToken,
         numerator: reserveOut,
       });
     } else {
@@ -162,9 +144,9 @@ export default class Liquidity extends ModuleBase {
         false,
       );
       currentPrice = new Price({
-        baseCurrency: inputToken,
+        baseToken: inputToken,
         denominator: input === "quote" ? new BN(p * 1e6) : new BN(1e6),
-        quoteCurrency: outputToken,
+        quoteToken: outputToken,
         numerator: input === "quote" ? new BN(1e6) : new BN(p * 1e6),
       });
     }
@@ -204,16 +186,16 @@ export default class Liquidity extends ModuleBase {
     this.logDebug("amountOut:", amountOut.toFixed(), "minAmountOut:", minAmountOut.toFixed());
 
     let executionPrice = new Price({
-      baseCurrency: inputToken,
+      baseToken: inputToken,
       denominator: amountInRaw.sub(feeRaw),
-      quoteCurrency: outputToken,
+      quoteToken: outputToken,
       numerator: amountOutRaw,
     });
     if (!amountInRaw.isZero() && !amountOutRaw.isZero()) {
       executionPrice = new Price({
-        baseCurrency: inputToken,
+        baseToken: inputToken,
         denominator: amountInRaw.sub(feeRaw),
-        quoteCurrency: outputToken,
+        quoteToken: outputToken,
         numerator: amountOutRaw,
       });
 
@@ -246,9 +228,9 @@ export default class Liquidity extends ModuleBase {
    * @param params - {@link LiquidityComputeAnotherAmountParams}
    *
    * @returns
-   * anotherCurrencyAmount - currency amount without slippage
+   * anotherAmount - token amount without slippage
    * @returns
-   * maxAnotherCurrencyAmount - currency amount with slippage
+   * maxAnotherAmount - token amount with slippage
    *
    * @example
    * ```
@@ -261,7 +243,7 @@ export default class Liquidity extends ModuleBase {
   public async computePairAmount({
     poolId,
     amount,
-    anotherCurrency,
+    anotherToken,
     slippage,
   }: LiquidityComputeAnotherAmountParams): Promise<{ anotherAmount: TokenAmount; maxAnotherAmount: TokenAmount }> {
     const poolIdPubKey = validateAndParsePublicKey({ publicKey: poolId });
@@ -273,14 +255,14 @@ export default class Liquidity extends ModuleBase {
     const { baseReserve, quoteReserve } = parsedInfo;
     this.logDebug("baseReserve:", baseReserve.toString(), "quoteReserve:", quoteReserve.toString());
 
-    const currencyIn = amount.token;
+    const tokenIn = amount.token;
     this.logDebug(
-      "currencyIn:",
-      currencyIn,
+      "tokenIn:",
+      tokenIn,
       "amount:",
       amount.toFixed(),
-      "anotherCurrency:",
-      anotherCurrency,
+      "anotherToken:",
+      anotherToken,
       "slippage:",
       `${slippage.toSignificant()}%`,
     );
@@ -301,8 +283,8 @@ export default class Liquidity extends ModuleBase {
     const _slippage = new Percent(BN_ONE).add(slippage);
     const slippageAdjustedAmount = _slippage.mul(amountRaw).quotient;
 
-    const _anotherAmount = new TokenAmount(anotherCurrency, amountRaw);
-    const _maxAnotherAmount = new TokenAmount(anotherCurrency, slippageAdjustedAmount);
+    const _anotherAmount = new TokenAmount(anotherToken, amountRaw);
+    const _maxAnotherAmount = new TokenAmount(anotherToken, slippageAdjustedAmount);
     this.logDebug("anotherAmount:", _anotherAmount.toFixed(), "maxAnotherAmount:", _maxAnotherAmount.toFixed());
 
     return {
@@ -316,7 +298,7 @@ export default class Liquidity extends ModuleBase {
     this.logDebug("amountIn:", amountIn);
     this.logDebug("amountOut:", amountOut);
     if (amountIn.isZero() || amountOut.isZero())
-      this.logAndCreateError("amounts must greater than zero", "currencyAmounts", {
+      this.logAndCreateError("amounts must greater than zero", "amounts", {
         amountIn: amountIn.toFixed(),
         amountOut: amountOut.toFixed(),
       });

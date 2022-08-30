@@ -91,9 +91,9 @@ export default function Liquidity() {
       const fixedTokenAmount = raydium!.mintToTokenAmount({ mint: poolInfo!.quoteMint, amount: 0.3 })
 
       const res = await raydium!.liquidity.computePairAmount({
-        poolId, // deUITokenAmount(coin2TokenAmount)
+        poolId,
         amount: fixedTokenAmount,
-        anotherCurrency: raydium!.mintToToken(poolInfo!.baseMint),
+        anotherToken: raydium!.mintToToken(poolInfo!.baseMint),
         slippage: new Percent(1, 100),
       })
       /*

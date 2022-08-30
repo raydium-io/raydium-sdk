@@ -1,7 +1,6 @@
 import { PublicKey } from "@solana/web3.js";
 
 import { BigNumberish } from "../../common/bignumber";
-import { PublicKeyish } from "../../common/pubKey";
 import { Currency, Percent, Price, Token, TokenAmount } from "../../module";
 import { LiquidityPoolJsonInfo, LiquidityPoolKeys, SerumSource, SwapSide } from "../liquidity/type";
 
