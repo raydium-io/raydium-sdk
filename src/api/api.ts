@@ -3,7 +3,7 @@ import axios, { AxiosInstance } from "axios";
 import { createLogger, sleep } from "../common";
 import { Cluster } from "../solana";
 
-import { ApiFarmPools, ApiLiquidityPools, ApiTokens } from "./type";
+import { ApiFarmPools, ApiJsonPairInfo, ApiLiquidityPools, ApiTokens } from "./type";
 
 const logger = createLogger("Raydium_Api");
 
@@ -84,6 +84,10 @@ export class Api {
 
   async getLiquidityPools(): Promise<ApiLiquidityPools> {
     return this.api.get(`/sdk/liquidity/${this.cluster}.json`);
+  }
+
+  async getPairsInfo(): Promise<ApiJsonPairInfo[]> {
+    return this.api.get("https://api.raydium.io/v2/main/pairs");
   }
 
   async getFarmPools(): Promise<ApiFarmPools> {

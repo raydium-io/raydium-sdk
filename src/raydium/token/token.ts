@@ -64,6 +64,9 @@ export default class TokenModule extends ModuleBase {
   get allTokenMap(): Map<string, SplToken> {
     return this._tokenMap;
   }
+  get tokenMints(): { official: string[]; unOfficial: string[] } {
+    return this._mintList;
+  }
 
   public mintToToken(mint: PublicKeyish): Token {
     const _mint = validateAndParsePublicKey({ publicKey: mint, transformSol: true });

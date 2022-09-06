@@ -3,7 +3,7 @@ import BN from "bn.js";
 import { merge } from "lodash";
 import { Logger } from "pino";
 
-import { Api, ApiFarmPools, ApiLiquidityPools, ApiTokens } from "../api";
+import { Api, ApiFarmPools, ApiJsonPairInfo, ApiLiquidityPools, ApiTokens } from "../api";
 import { EMPTY_CONNECTION, EMPTY_OWNER } from "../common/error";
 import { createLogger } from "../common/logger";
 import { Owner } from "../common/owner";
@@ -20,7 +20,7 @@ import TokenModule, { MintToTokenAmount } from "./token/token";
 import Trade from "./trade/trade";
 import { SignAllTransactions } from "./type";
 
-export interface RaydiumLoadParams extends TokenAccountDataProp {
+export interface RaydiumLoadParams extends TokenAccountDataProp, Omit<RaydiumApiBatchRequestParams, "api"> {
   /* ================= solana ================= */
   // solana web3 connection
   connection: Connection;
@@ -47,6 +47,7 @@ export interface RaydiumApiBatchRequestParams {
   defaultApiTokens?: ApiTokens;
   defaultApiLiquidityPools?: ApiLiquidityPools;
   defaultApiFarmPools?: ApiFarmPools;
+  defaultApiPairsInfo?: ApiJsonPairInfo[];
 }
 
 export type RaydiumConstructorParams = Required<RaydiumLoadParams> & RaydiumApiBatchRequestParams;
@@ -54,6 +55,7 @@ export type RaydiumConstructorParams = Required<RaydiumLoadParams> & RaydiumApiB
 interface ApiData {
   tokens?: { fetched: number; data: ApiTokens };
   liquidityPools?: { fetched: number; data: ApiLiquidityPools };
+  liquidityPairsInfo?: { fetched: number; data: ApiJsonPairInfo[] };
   farmPools?: { fetched: number; data: ApiFarmPools };
 }
 
@@ -76,7 +78,16 @@ export class Raydium {
   private logger: Logger;
 
   constructor(config: RaydiumConstructorParams) {
-    const { connection, cluster, owner, api, defaultApiTokens, defaultApiLiquidityPools, defaultApiFarmPools } = config;
+    const {
+      connection,
+      cluster,
+      owner,
+      api,
+      defaultApiTokens,
+      defaultApiLiquidityPools,
+      defaultApiFarmPools,
+      defaultApiPairsInfo,
+    } = config;
 
     this._connection = connection;
     this.cluster = cluster;
@@ -99,16 +110,18 @@ export class Raydium {
 
     const now = new Date().getTime();
 
-    const [apiTokensCache, apiLiquidityPoolsCache, apiFarmPoolsCache] = [
+    const [apiTokensCache, apiLiquidityPoolsCache, apiFarmPoolsCache, apiLiquidityPairsInfoCache] = [
       defaultApiTokens ? { fetched: now, data: defaultApiTokens } : apiCacheData.tokens,
       defaultApiLiquidityPools ? { fetched: now, data: defaultApiLiquidityPools } : apiCacheData.liquidityPools,
       defaultApiFarmPools ? { fetched: now, data: defaultApiFarmPools } : apiCacheData.farmPools,
+      defaultApiPairsInfo ? { fetched: now, data: defaultApiPairsInfo } : apiCacheData.liquidityPairsInfo,
     ];
 
     this.apiData = {
       ...(apiTokensCache ? { tokens: apiTokensCache } : {}),
       ...(apiLiquidityPoolsCache ? { liquidityPools: apiLiquidityPoolsCache } : {}),
       ...(apiFarmPoolsCache ? { farmPools: apiFarmPoolsCache } : {}),
+      ...(apiLiquidityPairsInfoCache ? { liquidityPoolsInfo: apiLiquidityPairsInfoCache } : {}),
     };
   }
 
@@ -192,6 +205,17 @@ export class Raydium {
     };
     this.apiData.liquidityPools = dataObject;
     apiCacheData.liquidityPools = dataObject;
+    return dataObject.data;
+  }
+
+  public async fetchPairs(forceUpdate?: boolean): Promise<ApiJsonPairInfo[]> {
+    if (this.apiData.liquidityPairsInfo && !forceUpdate) return this.apiData.liquidityPairsInfo?.data || [];
+    const dataObject = {
+      fetched: Date.now(),
+      data: await this.api.getPairsInfo(),
+    };
+    this.apiData.liquidityPairsInfo = dataObject;
+    apiCacheData.liquidityPairsInfo = dataObject;
     return dataObject.data;
   }
 

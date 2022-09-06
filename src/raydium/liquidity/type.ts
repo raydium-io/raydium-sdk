@@ -1,7 +1,7 @@
 import { PublicKey } from "@solana/web3.js";
 import BN from "bn.js";
 
-import { ApiLiquidityPoolInfo, LiquidityVersion } from "../../api/type";
+import { ApiJsonPairInfo, ApiLiquidityPoolInfo, LiquidityVersion } from "../../api/type";
 import { GetMultipleAccountsInfoConfig } from "../../common/accountInfo";
 import { BigNumberish } from "../../common/bignumber";
 import { PublicKeyish } from "../../common/pubKey";
@@ -9,6 +9,7 @@ import { Percent, Price, Token, TokenAmount } from "../../module";
 import { ReplaceType } from "../type";
 
 export type LiquidityPoolJsonInfo = ApiLiquidityPoolInfo;
+export type PairJsonInfo = ApiJsonPairInfo;
 /* ================= pool keys ================= */
 export type LiquidityPoolKeysV4 = {
   [T in keyof LiquidityPoolJsonInfo]: string extends LiquidityPoolJsonInfo[T] ? PublicKey : LiquidityPoolJsonInfo[T];

@@ -1,3 +1,4 @@
+import { OpenOrders } from "@project-serum/serum";
 import { Connection, PublicKey } from "@solana/web3.js";
 import BN from "bn.js";
 
@@ -11,7 +12,7 @@ import { Token, TokenAmount } from "../../module";
 
 import { LIQUIDITY_VERSION_TO_PROGRAM_ID, LiquidityPoolStatus } from "./constant";
 import { makeSimulatePoolInfoInstruction } from "./instruction";
-import { LIQUIDITY_VERSION_TO_STATE_LAYOUT, LiquidityStateLayout } from "./layout";
+import { LIQUIDITY_VERSION_TO_STATE_LAYOUT, LiquidityStateLayout, liquidityStateV4Layout } from "./layout";
 import { getSerumAssociatedAuthority, getSerumProgramId, getSerumVersion } from "./serum";
 import {
   AmountSide, LiquidityAssociatedPoolKeys, LiquidityFetchMultipleInfoParams, LiquidityPoolInfo, LiquidityPoolKeys,
@@ -291,3 +292,62 @@ export function getTokenSide(token: Token, poolKeys: LiquidityPoolKeys): AmountS
 }
 
 export const isValidFixedSide = (val: string): boolean => val === "a" || val === "b";
+
+export async function getLiquidityInfo(
+  connection: Connection,
+  poolId: PublicKey,
+  dexProgramId: PublicKey,
+): Promise<{
+  baseAmount: number;
+  quoteAmount: number;
+  lpSupply: number;
+  baseVaultKey: PublicKey;
+  quoteVaultKey: PublicKey;
+  baseVaultBalance: number | null;
+  quoteVaultBalance: number | null;
+  openOrdersKey: PublicKey;
+  openOrdersTotalBase: number;
+  openOrdersTotalQuote: number;
+  basePnl: number;
+  quotePnl: number;
+  priceInQuote: number;
+} | null> {
+  const info = await connection.getAccountInfo(poolId);
+  if (info === null) return null;
+  const state = liquidityStateV4Layout.decode(info.data);
+
+  const baseTokenAmount = await connection.getTokenAccountBalance(state.baseVault);
+  const quoteTokenAmount = await connection.getTokenAccountBalance(state.quoteVault);
+  const openOrders = await OpenOrders.load(connection, state.openOrders, dexProgramId);
+
+  const baseDecimal = 10 ** state.baseDecimal.toNumber();
+  const quoteDecimal = 10 ** state.quoteDecimal.toNumber();
+
+  const openOrdersTotalBase = openOrders.baseTokenTotal.toNumber() / baseDecimal;
+  const openOrdersTotalQuote = openOrders.quoteTokenTotal.toNumber() / quoteDecimal;
+
+  const basePnl = state.baseNeedTakePnl.toNumber() / baseDecimal;
+  const quotePnl = state.quoteNeedTakePnl.toNumber() / quoteDecimal;
+
+  const baseAmount = baseTokenAmount.value.uiAmount! + openOrdersTotalBase - basePnl;
+  const quoteAmount = quoteTokenAmount.value.uiAmount! + openOrdersTotalQuote - quotePnl;
+
+  const lpSupply = parseFloat(state.lpReserve.toString());
+  const priceInQuote = baseAmount / quoteAmount;
+
+  return {
+    baseAmount,
+    quoteAmount,
+    lpSupply,
+    baseVaultKey: state.baseVault,
+    quoteVaultKey: state.quoteVault,
+    baseVaultBalance: baseTokenAmount.value.uiAmount,
+    quoteVaultBalance: quoteTokenAmount.value.uiAmount,
+    openOrdersKey: state.openOrders,
+    openOrdersTotalBase,
+    openOrdersTotalQuote,
+    basePnl,
+    quotePnl,
+    priceInQuote,
+  };
+}

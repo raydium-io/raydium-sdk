@@ -13,23 +13,44 @@ import { LoadParams, MakeMultiTransaction, MakeTransaction } from "../type";
 
 import { LIQUIDITY_FEES_DENOMINATOR, LIQUIDITY_FEES_NUMERATOR } from "./constant";
 import {
-  makeAddLiquidityInstruction, makeAMMSwapInstruction, makeCreatePoolInstruction, makeInitPoolInstruction,
+  makeAddLiquidityInstruction,
+  makeAMMSwapInstruction,
+  makeCreatePoolInstruction,
+  makeInitPoolInstruction,
   makeRemoveLiquidityInstruction,
 } from "./instruction";
 import { getDxByDyBaseIn, getDyByDxBaseIn, getStablePrice, StableLayout } from "./stable";
 import {
-  AmountSide, CreatePoolParam, InitPoolParam, LiquidityAddTransactionParams, LiquidityComputeAmountOutParams,
-  LiquidityComputeAmountOutReturn, LiquidityComputeAnotherAmountParams, LiquidityFetchMultipleInfoParams,
-  LiquidityPoolInfo, LiquidityPoolJsonInfo, LiquidityRemoveTransactionParams, LiquiditySide,
-  LiquiditySwapTransactionParams, SDKParsedLiquidityInfo,
+  AmountSide,
+  CreatePoolParam,
+  InitPoolParam,
+  LiquidityAddTransactionParams,
+  LiquidityComputeAmountOutParams,
+  LiquidityComputeAmountOutReturn,
+  LiquidityComputeAnotherAmountParams,
+  LiquidityFetchMultipleInfoParams,
+  LiquidityPoolInfo,
+  LiquidityPoolJsonInfo,
+  LiquidityRemoveTransactionParams,
+  LiquiditySide,
+  LiquiditySwapTransactionParams,
+  PairJsonInfo,
+  SDKParsedLiquidityInfo,
 } from "./type";
 import {
-  getAmountSide, getAmountsSide, getAssociatedPoolKeys, includesToken, isValidFixedSide, makeSimulationPoolInfo,
+  getAmountSide,
+  getAmountsSide,
+  getAssociatedPoolKeys,
+  includesToken,
+  isValidFixedSide,
+  makeSimulationPoolInfo,
 } from "./util";
 
 export default class Liquidity extends ModuleBase {
   private _poolInfos: LiquidityPoolJsonInfo[] = [];
   private _poolInfoMap: Map<string, LiquidityPoolJsonInfo> = new Map();
+  private _pairsInfo: PairJsonInfo[] = [];
+  private _pairsInfoMap: Map<string, PairJsonInfo> = new Map();
   private _officialIds: Set<string> = new Set();
   private _unOfficialIds: Set<string> = new Set();
   private _sdkParseInfoCache: Map<string, SDKParsedLiquidityInfo[]> = new Map();
@@ -59,6 +80,13 @@ export default class Liquidity extends ModuleBase {
     );
   }
 
+  public async loadPairs(params?: LoadParams): Promise<any> {
+    await this.scope.fetchPairs(params?.forceUpdate);
+    if (!this.scope.apiData.liquidityPairsInfo) return;
+    this._pairsInfo = this.scope.apiData.liquidityPairsInfo.data;
+    this._pairsInfoMap = new Map(this.scope.apiData.liquidityPairsInfo.data.map((pair) => [pair.ammId, pair]));
+  }
+
   get allPools(): LiquidityPoolJsonInfo[] {
     return this._poolInfos;
   }
@@ -70,6 +98,12 @@ export default class Liquidity extends ModuleBase {
   }
   get allPoolMap(): Map<string, LiquidityPoolJsonInfo> {
     return this._poolInfoMap;
+  }
+  get allPairs(): PairJsonInfo[] {
+    return this._pairsInfo;
+  }
+  get allPairsMap(): Map<string, PairJsonInfo> {
+    return this._pairsInfoMap;
   }
 
   public async fetchMultipleInfo(params: LiquidityFetchMultipleInfoParams): Promise<LiquidityPoolInfo[]> {
@@ -615,19 +649,25 @@ export default class Liquidity extends ModuleBase {
     return await txBuilder.build();
   }
 
-  public lpMintToTokenAmount({ poolId, amount }: { poolId: PublicKeyish; amount: Numberish }): TokenAmount {
+  public lpMintToTokenAmount({
+    poolId,
+    amount,
+    decimalDone,
+  }: {
+    poolId: PublicKeyish;
+    amount: Numberish;
+    decimalDone?: boolean;
+  }): TokenAmount {
     const poolKey = validateAndParsePublicKey({ publicKey: poolId });
     if (!poolKey) this.logAndCreateError("pool not found");
     const poolInfo = this._poolInfoMap.get(poolKey.toBase58())!;
 
     const numberDetails = parseNumberInfo(amount);
     const token = new Token({ mint: poolInfo.lpMint, decimals: poolInfo.lpDecimals });
-    return new TokenAmount(
-      token,
-      toBN(
-        new Fraction(numberDetails.numerator, numberDetails.denominator).mul(new BN(10).pow(new BN(token.decimals))),
-      ),
-    );
+    const amountFraction = decimalDone
+      ? new Fraction(numberDetails.numerator, numberDetails.denominator)
+      : new Fraction(numberDetails.numerator, numberDetails.denominator).mul(new BN(10).pow(new BN(token.decimals)));
+    return new TokenAmount(token, toBN(amountFraction));
   }
 
   public getFixedSide({ poolId, inputMint }: { poolId: PublicKeyish; inputMint: PublicKeyish }): LiquiditySide {
