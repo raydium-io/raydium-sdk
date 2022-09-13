@@ -7,6 +7,7 @@ import OutlinedInput from '@mui/material/OutlinedInput'
 import { Percent, RouteInfo, RouteType, TokenAmount } from '@raydium-io/raydium-sdk'
 import debounce from 'lodash/debounce'
 import { useEffect, useState } from 'react'
+import { PublicKey } from '@solana/web3.js'
 
 import { useAppStore } from '../store/appStore'
 
@@ -22,13 +23,13 @@ export default function Swap() {
 
   // ray mint: 4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R
   // PublicKey.default => sdk will auto recognize it as sol token
-  const [inToken, outToken] = [
-    '4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R',
-    '9n4nbM75f5Ui33ZbPYXn59EwSgE8CGsHtAeTH5YFeJ9E',
-  ]
+  // const [inToken, outToken] = [
+  //   '4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R',
+  //   '9n4nbM75f5Ui33ZbPYXn59EwSgE8CGsHtAeTH5YFeJ9E',
+  // ]
   // const [inToken, outToken] = ['4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R', PublicKey.default.toBase58()]
   // const [inToken, outToken] = [PublicKey.default.toBase58(), '9gP2kCy3wA1ctvYWQk75guqXuHfrEomqydHLtcTCqiLa']
-  // const [inToken, outToken] = ['9gP2kCy3wA1ctvYWQk75guqXuHfrEomqydHLtcTCqiLa', PublicKey.default.toBase58()]
+  const [inToken, outToken] = ['9gP2kCy3wA1ctvYWQk75guqXuHfrEomqydHLtcTCqiLa', PublicKey.default.toBase58()]
 
   useEffect(() => {
     async function calculateAmount() {
@@ -66,10 +67,6 @@ export default function Swap() {
         slippage: new Percent(1, 100),
       })!
 
-      routes.forEach((route) => {
-        console.log(123123, 'routes', route.keys.id.toBase58())
-      })
-
       setOutAmount(_amountOut)
       setMinOutAmount(minAmountOut)
       setRouteType(routeType)
@@ -97,7 +94,7 @@ export default function Swap() {
       fixedSide: 'in',
     })
 
-    // await execute()
+    await execute()
 
     /**
      * if you don't care about route/out amount, you can just call directSwap to execute swap

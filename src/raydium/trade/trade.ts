@@ -1,6 +1,6 @@
-import { BN_ZERO } from "../../common/bignumber";
+import { BN_ZERO, BigNumberish, parseBigNumberish } from "../../common/bignumber";
 import { div, gte } from "../../common/fractionUtil";
-import { PublicKeyish, validateAndParsePublicKey } from "../../common/pubKey";
+import { PublicKeyish, validateAndParsePublicKey, WSOLMint } from "../../common/pubKey";
 import { jsonInfo2PoolKeys } from "../../common/utility";
 import { Percent, Price, TokenAmount } from "../../module";
 import { LiquidityPoolJsonInfo } from "../liquidity/type";
@@ -9,10 +9,22 @@ import { defaultRoutes, swapRouteMiddleMints } from "../route/constant";
 import { MakeMultiTransaction, MakeTransaction } from "../type";
 
 import {
-  AvailableSwapPools, CustomSwapParams, GetAmountOutReturn, GetBestAmountOutParams, RouteInfo, RouteType, SwapExtInfo,
+  AvailableSwapPools,
+  CustomSwapParams,
+  GetAmountOutReturn,
+  GetBestAmountOutParams,
+  RouteInfo,
+  RouteType,
+  SwapExtInfo,
   SwapParams,
 } from "./type";
 import { groupPools } from "./util";
+import {
+  createWSolAccountInstructions,
+  closeAccountInstruction,
+  makeTransferInstruction,
+} from "../account/instruction";
+import { TokenAccount } from "../account/types";
 
 export default class Trade extends ModuleBase {
   public async load(): Promise<void> {
@@ -260,6 +272,101 @@ export default class Trade extends ModuleBase {
       routeType,
       routes,
     });
-    throw new Error("invalid routes with routeType")
+    throw new Error("invalid routes with routeType");
+  }
+
+  private async getWSolAccounts(): Promise<TokenAccount[]> {
+    this.scope.checkOwner();
+    await this.scope.account.fetchWalletTokenAccounts();
+    const tokenAccounts = this.scope.account.tokenAccounts.filter((acc) => acc.mint.equals(WSOLMint));
+    tokenAccounts.sort((a, b) => {
+      if (a.isAssociated) return 1;
+      if (b.isAssociated) return -1;
+      return a.amount.lt(b.amount) ? -1 : 1;
+    });
+    return tokenAccounts;
+  }
+
+  public async unWrapWSol(amount: BigNumberish): Promise<MakeTransaction> {
+    const tokenAccounts = await this.getWSolAccounts();
+    const txBuilder = this.createTxBuilder();
+    const ins = await createWSolAccountInstructions({
+      connection: this.scope.connection,
+      owner: this.scope.ownerPubKey,
+      payer: this.scope.ownerPubKey,
+      amount: 0,
+    });
+    txBuilder.addInstruction(ins);
+
+    const amountBN = parseBigNumberish(amount);
+    for (let i = 0; i < tokenAccounts.length; i++) {
+      if (amountBN.gte(tokenAccounts[i].amount)) {
+        txBuilder.addInstruction({
+          instructions: [
+            closeAccountInstruction({
+              tokenAccount: tokenAccounts[i].publicKey!,
+              payer: this.scope.ownerPubKey,
+              owner: this.scope.ownerPubKey,
+            }),
+          ],
+        });
+        amountBN.sub(tokenAccounts[i].amount);
+      } else {
+        txBuilder.addInstruction({
+          instructions: [
+            closeAccountInstruction({
+              tokenAccount: tokenAccounts[i].publicKey!,
+              payer: this.scope.ownerPubKey,
+              owner: this.scope.ownerPubKey,
+            }),
+          ],
+        });
+        makeTransferInstruction({
+          destination: ins.signers![0].publicKey,
+          source: tokenAccounts[i].publicKey!,
+          amount: amountBN,
+          owner: this.scope.ownerPubKey,
+        });
+      }
+    }
+
+    return txBuilder.build();
+  }
+
+  public async wrapWSol(amount: BigNumberish): Promise<MakeTransaction> {
+    const tokenAccounts = await this.getWSolAccounts();
+
+    const txBuilder = this.createTxBuilder();
+    const ins = await createWSolAccountInstructions({
+      connection: this.scope.connection,
+      owner: this.scope.ownerPubKey,
+      payer: this.scope.ownerPubKey,
+      amount,
+      skipCloseAccount: true,
+    });
+    txBuilder.addInstruction(ins);
+
+    if (tokenAccounts.length) {
+      // already have wsol account
+      txBuilder.addInstruction({
+        instructions: [
+          makeTransferInstruction({
+            // destination: ins.signers![0].publicKey,
+            destination: tokenAccounts[0].publicKey!,
+            source: ins.signers![0].publicKey,
+            amount,
+            owner: this.scope.ownerPubKey,
+          }),
+        ],
+        endInstructions: [
+          closeAccountInstruction({
+            tokenAccount: ins.signers![0].publicKey,
+            payer: this.scope.ownerPubKey,
+            owner: this.scope.ownerPubKey,
+          }),
+        ],
+      });
+    }
+    return txBuilder.build();
   }
 }

@@ -1,6 +1,7 @@
 import axios, { AxiosInstance } from "axios";
 
 import { createLogger, sleep } from "../common";
+import { Raydium } from "../raydium";
 import { Cluster } from "../solana";
 
 import { ApiFarmPools, ApiJsonPairInfo, ApiLiquidityPools, ApiTokens } from "./type";
@@ -92,5 +93,31 @@ export class Api {
 
   async getFarmPools(): Promise<ApiFarmPools> {
     return this.api.get(`/sdk/farm-v2/${this.cluster}.json`);
+  }
+
+  async getCoingeckoPrice(coingeckoIds: string[]): Promise<Record<string, { usd?: number }>> {
+    return this.api.get(
+      `https://api.coingecko.com/api/v3/simple/price?ids=${coingeckoIds.join(",")}&vs_currencies=usd`,
+    );
+  }
+
+  async getRaydiumTokenPrice(): Promise<Record<string, number>> {
+    return this.api.get("https://api.raydium.io/v2/main/price");
+  }
+
+  async getBlockSlotCountForSecond(endpointUrl?: string): Promise<number> {
+    if (!endpointUrl) return 2;
+    const res: {
+      id: string;
+      jsonrpc: string;
+      result: { numSlots: number; numTransactions: number; samplePeriodSecs: number; slot: number }[];
+    } = await this.api.post(endpointUrl, {
+      id: "getRecentPerformanceSamples",
+      jsonrpc: "2.0",
+      method: "getRecentPerformanceSamples",
+      params: [4],
+    });
+    const slotList = res.result.map((data) => data.numSlots);
+    return slotList.reduce((a, b) => a + b, 0) / slotList.length / 60;
   }
 }

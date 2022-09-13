@@ -1,4 +1,9 @@
-import { Token, TOKEN_PROGRAM_ID, u64 as _u64 } from "@solana/spl-token";
+import {
+  createInitializeAccountInstruction,
+  createCloseAccountInstruction,
+  createTransferInstruction,
+  TOKEN_PROGRAM_ID,
+} from "@solana/spl-token";
 import {
   Commitment,
   Connection,
@@ -23,7 +28,7 @@ export function initTokenAccountInstruction(params: {
   owner: PublicKey;
 }): TransactionInstruction {
   const { mint, tokenAccount, owner } = params;
-  return Token.createInitAccountInstruction(TOKEN_PROGRAM_ID, mint, tokenAccount, owner);
+  return createInitializeAccountInstruction(tokenAccount, mint, owner);
 }
 
 export function closeAccountInstruction(params: {
@@ -33,7 +38,7 @@ export function closeAccountInstruction(params: {
   owner: PublicKey;
 }): TransactionInstruction {
   const { tokenAccount, payer, multiSigners = [], owner } = params;
-  return Token.createCloseAccountInstruction(TOKEN_PROGRAM_ID, tokenAccount, payer, owner, multiSigners);
+  return createCloseAccountInstruction(tokenAccount, payer, owner, multiSigners);
 }
 
 interface CreateWSolTokenAccount {
@@ -95,16 +100,5 @@ export function makeTransferInstruction({
   amount: BigNumberish;
   multiSigners?: Signer[];
 }): TransactionInstruction {
-  const layout = u64("amount");
-  const data = Buffer.alloc(layout.span);
-  layout.encode(parseBigNumberish(amount), data);
-
-  return Token.createTransferInstruction(
-    TOKEN_PROGRAM_ID,
-    source,
-    destination,
-    owner,
-    multiSigners,
-    _u64.fromBuffer(data),
-  );
+  return createTransferInstruction(source, destination, owner, parseBigNumberish(amount).toNumber(), multiSigners);
 }

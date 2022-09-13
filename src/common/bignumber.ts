@@ -1,7 +1,7 @@
 import BN from "bn.js";
 
-import { Fraction, Percent, Price, TokenAmount } from "../module";
-
+import { Fraction, Percent, Price, TokenAmount, Token } from "../module";
+import { SplToken, TokenJson } from "../raydium/token/type";
 import { createLogger } from "./logger";
 
 const logger = createLogger("Raydium_bignumber");
@@ -135,4 +135,54 @@ export function toFraction(value: Numberish): Fraction {
   const n = String(value);
   const details = parseNumberInfo(n);
   return new Fraction(details.numerator, details.denominator);
+}
+
+/**
+ * @example
+ * toPercent(3.14) // => Percent { 314.00% }
+ * toPercent(3.14, { alreadyDecimaled: true }) // => Percent {3.14%}
+ */
+export function toPercent(
+  n: Numberish,
+  options?: { /* usually used for backend data */ alreadyDecimaled?: boolean },
+): Percent {
+  const { numerator, denominator } = parseNumberInfo(n);
+  return new Percent(new BN(numerator), new BN(denominator).mul(options?.alreadyDecimaled ? new BN(100) : new BN(1)));
+}
+
+export function toTokenPrice(params: {
+  token: TokenJson | Token | SplToken;
+  numberPrice: Numberish;
+  decimalDone?: boolean;
+}): Price {
+  const { token, numberPrice, decimalDone } = params;
+  const usdCurrency = new Token({ mint: "", decimals: 6, symbol: "usd", name: "usd", skipMint: true });
+  const { numerator, denominator } = parseNumberInfo(numberPrice);
+  const parsedNumerator = decimalDone ? new BN(numerator).mul(BN_TEN.pow(new BN(token.decimals))) : numerator;
+  const parsedDenominator = new BN(denominator).mul(BN_TEN.pow(new BN(usdCurrency.decimals)));
+
+  return new Price({
+    baseToken: usdCurrency,
+    denominator: parsedDenominator.toString(),
+    quoteToken: new Token({ ...token, skipMint: true, mint: "" }),
+    numerator: parsedNumerator.toString(),
+  });
+}
+
+export function mul(a: Numberish | undefined, b: Numberish | undefined): Fraction | undefined {
+  if (a == null || b == null) return undefined;
+  const fa = toFraction(a);
+  const fb = toFraction(b);
+  return fa.mul(fb);
+}
+
+export function toUsdCurrency(amount: Numberish): TokenAmount {
+  const usdCurrency = new Token({ mint: "", decimals: 6, symbol: "usd", name: "usd", skipMint: true });
+  const amountBigNumber = toBN(mul(amount, 10 ** usdCurrency.decimals)!);
+  return new TokenAmount(usdCurrency, amountBigNumber);
+}
+
+export function toTotalPrice(amount: Numberish | undefined, price: Price | undefined): TokenAmount {
+  if (!price || !amount) return toUsdCurrency(0);
+  return toUsdCurrency(mul(amount, price)!);
 }

@@ -29,16 +29,11 @@ export interface RaydiumLoadParams extends TokenAccountDataProp, Omit<RaydiumApi
   // user public key
   owner?: PublicKey | Keypair;
   /* ================= api ================= */
-  // if provide tokens, the api request will be skipped on call Raydium.load
-  // defaultApiTokens?: Tokens;
-  // if provide liquidity pools, the api request will be skipped on call Raydium.load
-  // defaultApiLiquidityPools?: LiquidityPools;
-  // if provide farm pools, the api request will be skipped on call Raydium.load
-  // defaultApiFarmPools?: FarmPools;
   // api request interval in ms, -1 means never request again, 0 means always use fresh data, default is 5 mins (5 * 60 * 1000)
   apiRequestInterval?: number;
   // api request timeout in ms, default is 10 secs (10 * 1000)
   apiRequestTimeout?: number;
+  apiCacheTime?: number;
   signAllTransactions?: SignAllTransactions;
 }
 
@@ -73,7 +68,8 @@ export class Raydium {
 
   private _connection: Connection;
   private _owner: Owner | undefined;
-  private api: Api;
+  public api: Api;
+  private _apiCacheTime: number;
   private _signAllTransactions?: SignAllTransactions;
   private logger: Logger;
 
@@ -87,6 +83,7 @@ export class Raydium {
       defaultApiLiquidityPools,
       defaultApiFarmPools,
       defaultApiPairsInfo,
+      apiCacheTime,
     } = config;
 
     this._connection = connection;
@@ -95,13 +92,14 @@ export class Raydium {
     this._signAllTransactions = config.signAllTransactions;
 
     this.api = api;
+    this._apiCacheTime = apiCacheTime || 5 * 60 * 1000;
     this.logger = createLogger("Raydium");
     this.farm = new Farm({ scope: this, moduleName: "Raydium_Farm" });
     this.account = new Account({
       scope: this,
       moduleName: "Raydium_Account",
       tokenAccounts: config.tokenAccounts,
-      tokenAccountRowInfos: config.tokenAccountRowInfos,
+      tokenAccountRawInfos: config.tokenAccountRawInfos,
     });
     this.liquidity = new Liquidity({ scope: this, moduleName: "Raydium_Liquidity" });
     this.token = new TokenModule({ scope: this, moduleName: "Raydium_token" });
@@ -150,8 +148,7 @@ export class Raydium {
     return raydium;
   }
 
-  get owner(): Owner {
-    if (!this._owner) throw new Error(EMPTY_OWNER);
+  get owner(): Owner | undefined {
     return this._owner;
   }
   get ownerPubKey(): PublicKey {
@@ -185,8 +182,13 @@ export class Raydium {
     }
   }
 
+  private isCacheInvalidate(time: number): boolean {
+    return new Date().getTime() - time > this._apiCacheTime;
+  }
+
   public async fetchTokens(forceUpdate?: boolean): Promise<ApiTokens> {
-    if (this.apiData.tokens && !forceUpdate) return this.apiData.tokens.data;
+    if (this.apiData.tokens && !this.isCacheInvalidate(this.apiData.tokens.fetched) && !forceUpdate)
+      return this.apiData.tokens.data;
     const dataObject = {
       fetched: Date.now(),
       data: await this.api.getTokens(),
@@ -198,7 +200,8 @@ export class Raydium {
   }
 
   public async fetchLiquidity(forceUpdate?: boolean): Promise<ApiLiquidityPools> {
-    if (this.apiData.liquidityPools && !forceUpdate) return this.apiData.liquidityPools.data;
+    if (this.apiData.liquidityPools && !this.isCacheInvalidate(this.apiData.liquidityPools.fetched) && !forceUpdate)
+      return this.apiData.liquidityPools.data;
     const dataObject = {
       fetched: Date.now(),
       data: await this.api.getLiquidityPools(),
@@ -209,7 +212,12 @@ export class Raydium {
   }
 
   public async fetchPairs(forceUpdate?: boolean): Promise<ApiJsonPairInfo[]> {
-    if (this.apiData.liquidityPairsInfo && !forceUpdate) return this.apiData.liquidityPairsInfo?.data || [];
+    if (
+      this.apiData.liquidityPairsInfo &&
+      !this.isCacheInvalidate(this.apiData.liquidityPairsInfo.fetched) &&
+      !forceUpdate
+    )
+      return this.apiData.liquidityPairsInfo?.data || [];
     const dataObject = {
       fetched: Date.now(),
       data: await this.api.getPairsInfo(),
@@ -220,7 +228,8 @@ export class Raydium {
   }
 
   public async fetchFarms(forceUpdate?: boolean): Promise<ApiFarmPools> {
-    if (this.apiData.farmPools && !forceUpdate) return this.apiData.farmPools.data;
+    if (this.apiData.farmPools && !this.isCacheInvalidate(this.apiData.farmPools.fetched) && !forceUpdate)
+      return this.apiData.farmPools.data;
 
     const dataObject = {
       fetched: Date.now(),
@@ -232,6 +241,14 @@ export class Raydium {
     return dataObject.data;
   }
 
+  public async chainTimeOffset(): Promise<number> {
+    const chainTime = await this.connection.getBlockTime(await this.connection.getSlot());
+    if (!chainTime) return 0;
+    chainTime * 1000;
+    const offset = Number((chainTime * 1000 - Date.now()).toFixed(0));
+    return offset;
+  }
+
   public mintToToken(mint: PublicKeyish): Token {
     return this.token.mintToToken(mint);
   }
@@ -240,5 +257,8 @@ export class Raydium {
   }
   public decimalAmount(params: MintToTokenAmount): BN {
     return this.token.decimalAmount(params);
+  }
+  public uiAmount(params: MintToTokenAmount): string {
+    return this.token.uiAmount(params);
   }
 }

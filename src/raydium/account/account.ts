@@ -1,4 +1,8 @@
-import { ASSOCIATED_TOKEN_PROGRAM_ID, Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import {
+  getAssociatedTokenAddress,
+  createAssociatedTokenAccountInstruction,
+  TOKEN_PROGRAM_ID,
+} from "@solana/spl-token";
 import { Commitment, PublicKey } from "@solana/web3.js";
 
 import { AddInstructionParam } from "../../common/txTool";
@@ -11,7 +15,7 @@ import { parseTokenAccountResp } from "./util";
 
 export interface TokenAccountDataProp {
   tokenAccounts?: TokenAccount[];
-  tokenAccountRowInfos?: TokenAccountRaw[];
+  tokenAccountRawInfos?: TokenAccountRaw[];
 }
 export default class Account extends ModuleBase {
   private _tokenAccounts: TokenAccount[] = [];
@@ -23,10 +27,10 @@ export default class Account extends ModuleBase {
 
   constructor(params: TokenAccountDataProp & ModuleBaseProps) {
     super(params);
-    const { tokenAccounts, tokenAccountRowInfos } = params;
+    const { tokenAccounts, tokenAccountRawInfos } = params;
     this._tokenAccounts = tokenAccounts || [];
-    this._tokenAccountRawInfos = tokenAccountRowInfos || [];
-    this._clientOwnedToken = !!(tokenAccounts || tokenAccountRowInfos);
+    this._tokenAccountRawInfos = tokenAccountRawInfos || [];
+    this._clientOwnedToken = !!(tokenAccounts || tokenAccountRawInfos);
   }
 
   get tokenAccounts(): TokenAccount[] {
@@ -36,9 +40,9 @@ export default class Account extends ModuleBase {
     return this._tokenAccountRawInfos;
   }
 
-  public updateTokenAccount({ tokenAccounts, tokenAccountRowInfos }: TokenAccountDataProp): Account {
+  public updateTokenAccount({ tokenAccounts, tokenAccountRawInfos }: TokenAccountDataProp): Account {
     if (tokenAccounts) this._tokenAccounts = tokenAccounts;
-    if (tokenAccountRowInfos) this._tokenAccountRawInfos = tokenAccountRowInfos;
+    if (tokenAccountRawInfos) this._tokenAccountRawInfos = tokenAccountRawInfos;
     this._accountChangeListenerId && this.scope.connection.removeAccountChangeListener(this._accountChangeListenerId);
     this._accountChangeListenerId = undefined;
     this._clientOwnedToken = true;
@@ -57,16 +61,10 @@ export default class Account extends ModuleBase {
 
   public async getAssociatedTokenAccount(mint: PublicKey): Promise<PublicKey> {
     this.scope.checkOwner();
-    const userPubStr = this.scope.ownerPubKey.toBase58();
-    if (this._ataCache.has(userPubStr)) this._ataCache.get(userPubStr) as PublicKey;
-    const ataPubKey = await Token.getAssociatedTokenAddress(
-      ASSOCIATED_TOKEN_PROGRAM_ID,
-      TOKEN_PROGRAM_ID,
-      mint,
-      this.scope.ownerPubKey,
-      true,
-    );
-    this._ataCache.set(this.scope.owner.toString(), ataPubKey);
+    const cacheKey = `${this.scope.ownerPubKey.toBase58()}_${mint.toBase58()}`;
+    if (this._ataCache.has(cacheKey)) return this._ataCache.get(cacheKey) as PublicKey;
+    const ataPubKey = await getAssociatedTokenAddress(mint, this.scope.ownerPubKey, true);
+    this._ataCache.set(cacheKey, ataPubKey);
     return ataPubKey;
   }
 
@@ -151,14 +149,7 @@ export default class Account extends ModuleBase {
 
     if (!tokenAccountAddress) {
       const ataAddress = await this.getAssociatedTokenAccount(mint);
-      const instruction = await Token.createAssociatedTokenAccountInstruction(
-        ASSOCIATED_TOKEN_PROGRAM_ID,
-        TOKEN_PROGRAM_ID,
-        mint,
-        ataAddress,
-        owner,
-        owner,
-      );
+      const instruction = await createAssociatedTokenAccountInstruction(owner, ataAddress, owner, mint);
       newTxInstructions.instructions = [instruction];
       tokenAccountAddress = ataAddress;
     }
@@ -189,13 +180,7 @@ export default class Account extends ModuleBase {
 
     const txBuilder = this.createTxBuilder();
 
-    const ata = await Token.getAssociatedTokenAddress(
-      ASSOCIATED_TOKEN_PROGRAM_ID,
-      TOKEN_PROGRAM_ID,
-      mint,
-      this.scope.ownerPubKey,
-      true,
-    );
+    const ata = await getAssociatedTokenAddress(mint, this.scope.ownerPubKey, true);
 
     if (new PublicKey(TOKEN_WSOL.mint).equals(mint)) {
       const txInstruction = await createWSolAccountInstructions({
@@ -211,14 +196,7 @@ export default class Account extends ModuleBase {
       return {
         tokenAccount: ata,
         instructions: [
-          Token.createAssociatedTokenAccountInstruction(
-            ASSOCIATED_TOKEN_PROGRAM_ID,
-            TOKEN_PROGRAM_ID,
-            mint,
-            ata,
-            this.scope.ownerPubKey,
-            this.scope.ownerPubKey,
-          ),
+          createAssociatedTokenAccountInstruction(this.scope.ownerPubKey, ata, this.scope.ownerPubKey, mint),
         ],
       };
     }

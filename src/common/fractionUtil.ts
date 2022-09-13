@@ -89,3 +89,19 @@ export function div(a: Numberish | undefined, b: Numberish | undefined): Fractio
     return fa;
   }
 }
+
+export function sub(a: Numberish | undefined, b: Numberish | undefined): Fraction | undefined {
+  if (a == null || b == null) return undefined;
+  const fa = toFraction(a);
+  const fb = toFraction(b);
+  return fa.sub(fb);
+}
+
+export function isMeaningfulNumber(n: Numberish | undefined): n is Numberish {
+  if (n == null) return false;
+  return !eq(n, 0);
+}
+
+export function getMax(a: Numberish, b: Numberish): Numberish {
+  return gt(b, a) ? b : a;
+}

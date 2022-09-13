@@ -15,7 +15,7 @@ export interface TokenAccountRaw {
 
 export interface TokenAccount {
   publicKey?: PublicKey;
-  mint?: PublicKey;
+  mint: PublicKey;
   isAssociated?: boolean;
   amount: BN;
   isNative: boolean;

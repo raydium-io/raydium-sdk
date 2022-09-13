@@ -45,6 +45,7 @@ export function parseTokenAccountResp({ solAccountResp, tokenAccountResp }: Pars
 
   if (solAccountResp) {
     tokenAccounts.push({
+      mint: PublicKey.default,
       amount: new BN(solAccountResp.lamports),
       isNative: true,
     });

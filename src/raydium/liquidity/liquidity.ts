@@ -1,7 +1,8 @@
 import { ComputeBudgetProgram } from "@solana/web3.js";
 import BN from "bn.js";
+import { ApiJsonPairInfo } from "../../api";
 
-import { BN_ONE, BN_ZERO, divCeil, Numberish, parseNumberInfo, toBN } from "../../common/bignumber";
+import { BN_ONE, BN_ZERO, divCeil, Numberish, parseNumberInfo, toBN, toTokenPrice } from "../../common/bignumber";
 import { createLogger } from "../../common/logger";
 import { PublicKeyish, SOLMint, validateAndParsePublicKey, WSOLMint } from "../../common/pubKey";
 import { jsonInfo2PoolKeys } from "../../common/utility";
@@ -51,6 +52,8 @@ export default class Liquidity extends ModuleBase {
   private _poolInfoMap: Map<string, LiquidityPoolJsonInfo> = new Map();
   private _pairsInfo: PairJsonInfo[] = [];
   private _pairsInfoMap: Map<string, PairJsonInfo> = new Map();
+  private _lpTokenMap: Map<string, Token> = new Map();
+  private _lpPriceMap: Map<string, Price> = new Map();
   private _officialIds: Set<string> = new Set();
   private _unOfficialIds: Set<string> = new Set();
   private _sdkParseInfoCache: Map<string, SDKParsedLiquidityInfo[]> = new Map();
@@ -68,7 +71,13 @@ export default class Liquidity extends ModuleBase {
     this._poolInfos = [...official, ...unOfficial];
     this._officialIds = new Set(
       official.map((info) => {
-        this._poolInfoMap.set(info.id, info);
+        const symbol = `${this.scope.token.allTokenMap.get(info.baseMint)?.symbol} - ${
+          this.scope.token.allTokenMap.get(info.quoteMint)?.symbol
+        }`;
+        this._lpTokenMap.set(
+          info.lpMint,
+          new Token({ mint: info.lpMint, decimals: info.lpDecimals, symbol, name: `${symbol} LP` }),
+        );
         return info.id;
       }),
     );
@@ -80,11 +89,19 @@ export default class Liquidity extends ModuleBase {
     );
   }
 
-  public async loadPairs(params?: LoadParams): Promise<any> {
+  public async loadPairs(params?: LoadParams): Promise<ApiJsonPairInfo[]> {
     await this.scope.fetchPairs(params?.forceUpdate);
-    if (!this.scope.apiData.liquidityPairsInfo) return;
-    this._pairsInfo = this.scope.apiData.liquidityPairsInfo.data;
-    this._pairsInfoMap = new Map(this.scope.apiData.liquidityPairsInfo.data.map((pair) => [pair.ammId, pair]));
+    this._pairsInfo = this.scope.apiData.liquidityPairsInfo?.data || [];
+    this._pairsInfoMap = new Map(
+      this._pairsInfo.map((pair) => {
+        const token = this._lpTokenMap.get(pair.lpMint);
+        const price =
+          token && pair.lpPrice ? toTokenPrice({ token, numberPrice: pair.lpPrice, decimalDone: true }) : null;
+        price && this._lpPriceMap.set(pair.lpMint, price);
+        return [pair.ammId, pair];
+      }),
+    );
+    return this._pairsInfo;
   }
 
   get allPools(): LiquidityPoolJsonInfo[] {
@@ -104,6 +121,12 @@ export default class Liquidity extends ModuleBase {
   }
   get allPairsMap(): Map<string, PairJsonInfo> {
     return this._pairsInfoMap;
+  }
+  get lpTokenMap(): Map<string, Token> {
+    return this._lpTokenMap;
+  }
+  get lpPriceMap(): Map<string, Price> {
+    return this._lpPriceMap;
   }
 
   public async fetchMultipleInfo(params: LiquidityFetchMultipleInfoParams): Promise<LiquidityPoolInfo[]> {

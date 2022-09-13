@@ -2,19 +2,25 @@ import { Connection, PublicKey } from "@solana/web3.js";
 import BN from "bn.js";
 
 import { GetMultipleAccountsInfoConfig, getMultipleAccountsInfoWithCustomFlags } from "../../common/accountInfo";
-import { parseBigNumberish } from "../../common/bignumber";
+import { parseBigNumberish, BN_ONE, BN_TEN, toTotalPrice, toFraction } from "../../common/bignumber";
 import { createLogger } from "../../common/logger";
-import { PublicKeyish, validateAndParsePublicKey } from "../../common/pubKey";
+import { PublicKeyish, validateAndParsePublicKey, RAYMint } from "../../common/pubKey";
 import { findProgramAddress, ProgramAddress } from "../../common/txTool";
+import { DateParam, isDateAfter, isDateBefore } from "../../common/date";
 import { splAccountLayout } from "../account/layout";
 import { SplAccount } from "../account/types";
 
 import {
-  FARM_PROGRAMID_TO_VERSION, FARM_VERSION_TO_LEDGER_LAYOUT, FARM_VERSION_TO_PROGRAMID, FARM_VERSION_TO_STATE_LAYOUT,
+  FARM_PROGRAMID_TO_VERSION,
+  FARM_VERSION_TO_LEDGER_LAYOUT,
+  FARM_VERSION_TO_PROGRAMID,
+  FARM_VERSION_TO_STATE_LAYOUT,
   FarmVersion,
 } from "./config";
+import { TokenAmount, Fraction, Price, Token } from "../../module";
 import { FarmLedger, FarmLedgerLayout, FarmState, FarmStateLayout } from "./layout";
 import { FarmPoolJsonInfo, FarmPoolKeys, FarmRewardInfo, FarmRewardInfoConfig, SdkParsedFarmInfo } from "./type";
+import { jsonInfo2PoolKeys } from "../../common";
 
 const logger = createLogger("Raydium.farm.util");
 interface AssociatedLedgerPoolAccount {
@@ -176,14 +182,14 @@ interface FarmPoolsInfo {
 
 export interface FarmFetchMultipleInfoParams {
   connection: Connection;
-  pools: FarmPoolKeys[];
+  farmPools: FarmPoolJsonInfo[];
   owner?: PublicKey;
   config?: GetMultipleAccountsInfoConfig;
 }
 
 export async function fetchMultipleFarmInfoAndUpdate({
   connection,
-  pools,
+  farmPools,
   owner,
   config,
 }: FarmFetchMultipleInfoParams): Promise<FarmPoolsInfo> {
@@ -198,7 +204,8 @@ export async function fetchMultipleFarmInfoAndUpdate({
     poolId: PublicKey;
   }[] = [];
 
-  for (const pool of pools) {
+  for (const poolInfo of farmPools) {
+    const pool = jsonInfo2PoolKeys(poolInfo);
     if (pool.version === 6) hasV6Pool = true;
     else hasNotV6Pool = true;
 
@@ -228,41 +235,25 @@ export async function fetchMultipleFarmInfoAndUpdate({
   }
 
   const poolsInfo: FarmPoolsInfo = {};
-
   const accountsInfo = await getMultipleAccountsInfoWithCustomFlags(connection, publicKeys, config);
   for (const { pubkey, version, key, poolId, accountInfo } of accountsInfo) {
     const _poolId = poolId.toBase58();
-
+    poolsInfo[_poolId] = { ...poolsInfo[_poolId] };
     if (key === "state") {
       const stateLayout = getFarmStateLayout(version);
-      if (!accountInfo || !accountInfo.data || accountInfo.data.length !== stateLayout!.span) {
+      if (!accountInfo || !accountInfo.data || accountInfo.data.length !== stateLayout!.span)
         logger.logWithError(`invalid farm state account info, pools.id, ${pubkey}`);
-      }
-
-      poolsInfo[_poolId] = {
-        ...poolsInfo[_poolId],
-        ...{ state: stateLayout!.decode(accountInfo!.data) },
-      };
+      poolsInfo[_poolId].state = stateLayout!.decode(accountInfo!.data);
     } else if (key === "lpVault") {
-      if (!accountInfo || !accountInfo.data || accountInfo.data.length !== splAccountLayout.span) {
+      if (!accountInfo || !accountInfo.data || accountInfo.data.length !== splAccountLayout.span)
         logger.logWithError(`invalid farm lp vault account info, pools.lpVault, ${pubkey}`);
-      }
-
-      poolsInfo[_poolId] = {
-        ...poolsInfo[_poolId],
-        ...{ lpVault: splAccountLayout.decode(accountInfo!.data) },
-      };
+      poolsInfo[_poolId].lpVault = splAccountLayout.decode(accountInfo!.data);
     } else if (key === "ledger") {
       const legerLayout = getFarmLedgerLayout(version)!;
       if (accountInfo && accountInfo.data) {
-        if (accountInfo.data.length !== legerLayout.span) {
+        if (accountInfo.data.length !== legerLayout.span)
           logger.logWithError(`invalid farm ledger account info, ledger, ${pubkey}`);
-        }
-
-        poolsInfo[_poolId] = {
-          ...poolsInfo[_poolId],
-          ...{ ledger: legerLayout.decode(accountInfo.data) },
-        };
+        poolsInfo[_poolId].ledger = legerLayout.decode(accountInfo.data);
       }
     }
   }
@@ -304,21 +295,105 @@ export async function fetchMultipleFarmInfoAndUpdate({
 }
 
 /** and state info  */
-export async function mergeSdkFarmInfo(
-  options: FarmFetchMultipleInfoParams,
-  payload: {
-    jsonInfos: FarmPoolJsonInfo[];
-  },
-): Promise<SdkParsedFarmInfo[]> {
+export async function mergeSdkFarmInfo(options: FarmFetchMultipleInfoParams): Promise<SdkParsedFarmInfo[]> {
+  const { farmPools } = options;
   const rawInfos = await fetchMultipleFarmInfoAndUpdate(options);
-  const result = options.pools.map(
+  const result = farmPools.map(
     (pool, idx) =>
       ({
-        ...payload.jsonInfos[idx],
-        ...pool,
-        ...rawInfos[String(pool.id)],
-        jsonInfo: payload.jsonInfos[idx],
+        ...farmPools[idx],
+        ...jsonInfo2PoolKeys(pool),
+        ...rawInfos[pool.id],
+        jsonInfo: farmPools[idx],
       } as unknown as SdkParsedFarmInfo),
   );
   return result;
+}
+
+export function judgeFarmType(
+  info: SdkParsedFarmInfo,
+  currentTime: DateParam = Date.now(),
+): "closed pool" | "normal fusion pool" | "dual fusion pool" | undefined | "upcoming pool" {
+  if (info.version === 6) {
+    const rewardInfos = info.state.rewardInfos;
+    if (rewardInfos.every(({ rewardOpenTime }) => isDateBefore(currentTime, rewardOpenTime.toNumber(), { unit: "s" })))
+      return "upcoming pool";
+    if (rewardInfos.every(({ rewardEndTime }) => isDateAfter(currentTime, rewardEndTime.toNumber(), { unit: "s" })))
+      return "closed pool";
+  } else {
+    const perSlotRewards = info.state.rewardInfos.map(({ perSlotReward }) => perSlotReward);
+    if (perSlotRewards.length === 2) {
+      // v5
+      if (String(perSlotRewards[0]) === "0" && String(perSlotRewards[1]) !== "0") {
+        return "normal fusion pool"; // reward xxx token
+      }
+      if (String(perSlotRewards[0]) !== "0" && String(perSlotRewards[1]) !== "0") {
+        return "dual fusion pool"; // reward ray and xxx token
+      }
+      if (String(perSlotRewards[0]) === "0" && String(perSlotRewards[1]) === "0") {
+        return "closed pool";
+      }
+    } else if (perSlotRewards.length === 1) {
+      // v3
+      if (String(perSlotRewards[0]) === "0") {
+        return "closed pool";
+      }
+    }
+  }
+}
+
+export function whetherIsStakeFarmPool(info: SdkParsedFarmInfo): boolean {
+  return info.state.rewardInfos.length === 1 && String(info.lpMint) === RAYMint.toBase58();
+}
+
+export function calculateFarmPoolAprList(
+  info: SdkParsedFarmInfo,
+  payload: {
+    currentBlockChainDate: Date;
+    blockSlotCountForSecond: number;
+    tvl: TokenAmount | undefined;
+    rewardTokens: (Token | undefined)[];
+    rewardTokenPrices: (Price | undefined)[];
+  },
+): (Fraction | undefined)[] {
+  if (info.version === 6) {
+    return info.state.rewardInfos.map(({ rewardPerSecond, rewardOpenTime, rewardEndTime }, idx) => {
+      // don't calculate upcoming reward || inactive reward
+      const isRewardBeforeStart = isDateBefore(payload.currentBlockChainDate, rewardOpenTime.toNumber(), { unit: "s" });
+      const isRewardAfterEnd = isDateAfter(payload.currentBlockChainDate, rewardEndTime.toNumber(), { unit: "s" });
+      if (isRewardBeforeStart || isRewardAfterEnd) return undefined;
+      const rewardToken = payload.rewardTokens[idx];
+      if (!rewardToken) return undefined;
+      const rewardTokenPrice = payload.rewardTokenPrices[idx];
+      if (!rewardTokenPrice) return undefined;
+      const rewardtotalPricePerYear = toTotalPrice(
+        new Fraction(rewardPerSecond, BN_ONE)
+          .div(BN_TEN.pow(new BN(rewardToken.decimals || 1)))
+          .mul(new BN(60 * 60 * 24 * 365)),
+        rewardTokenPrice,
+      );
+      if (!payload.tvl) return undefined;
+      // if tvl is zero, apr should be zero
+      const apr = payload.tvl.isZero() ? toFraction(0) : rewardtotalPricePerYear.div(payload.tvl ?? BN_ONE);
+      return apr;
+    });
+  } else {
+    const calcAprList = info.state.rewardInfos.map(({ perSlotReward }, idx) => {
+      const rewardToken = payload.rewardTokens[idx];
+      if (!rewardToken) return undefined;
+      const rewardTokenPrice = payload.rewardTokenPrices[idx];
+      if (!rewardTokenPrice) return undefined;
+      const rewardtotalPricePerYear = toTotalPrice(
+        new Fraction(perSlotReward, BN_ONE)
+          .div(BN_TEN.pow(new BN(rewardToken.decimals || 1)))
+          .mul(new BN(payload.blockSlotCountForSecond * 60 * 60 * 24 * 365)),
+        rewardTokenPrice,
+      );
+      if (!payload.tvl) return undefined;
+      // if tvl is zero, apr should be zero
+      const apr = payload.tvl.isZero() ? toFraction(0) : rewardtotalPricePerYear.div(payload.tvl ?? BN_ONE);
+      return apr;
+    });
+    return calcAprList;
+  }
 }

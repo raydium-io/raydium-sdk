@@ -6,3 +6,5 @@ export * from "./txTool";
 export * from "./owner";
 export * from "./lodash";
 export * from "./accountInfo";
+export * from "./fractionUtil";
+export * from "./date";

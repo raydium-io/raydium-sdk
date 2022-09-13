@@ -19,6 +19,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     set(() => ({ initialing: true }))
     const raydium = await Raydium.load(payload)
+    raydium.token.fetchTokenPrices()
+    ;(window as any).raydium = raydium
     set(() => ({ raydium, initialing: false, farmLoaded: false }))
   },
   loadFarm: async () => {

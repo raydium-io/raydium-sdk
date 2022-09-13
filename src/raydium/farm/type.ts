@@ -3,6 +3,8 @@ import BN from "bn.js";
 
 import { PublicKeyish } from "../../common";
 import { BigNumberish } from "../../common/bignumber";
+import { SplToken } from "../token/type";
+import { Token, Price, Percent, TokenAmount } from "../../module";
 import { SplAccount } from "../account/types";
 import { UnionCover } from "../type";
 
@@ -37,6 +39,7 @@ export interface FarmPoolJsonInfo {
   baseMint: string;
   quoteMint: string;
   name: string;
+  symbol: string;
 
   version: number;
   programId: string;
@@ -157,3 +160,71 @@ export type SdkParsedFarmInfo = UnionCover<
   SdkParsedFarmInfoBase &
     ({ version: 6; state: FarmStateV6 } | { version: 3; state: FarmStateV3 } | { version: 5; state: FarmStateV5 })
 >;
+
+/** computed by other info  */
+
+export type HydratedRewardInfo = {
+  userHavedReward: boolean;
+  apr: Percent | undefined; // farm's rewards apr
+  token: SplToken | Token | undefined;
+  /** only when user have deposited and connected wallet */
+  userPendingReward: TokenAmount | undefined;
+  version: 3 | 5 | 6;
+  rewardVault: PublicKey;
+  openTime?: Date; // v6
+  endTime?: Date; // v6
+
+  isOptionToken?: boolean; // v6
+  isRewarding?: boolean; // v6
+  isRewardBeforeStart?: boolean; // v6
+  isRewardEnded?: boolean; // v6
+  isRwardingBeforeEnd72h?: boolean; // v6
+
+  rewardPeriodMin?: number; // v6 '7-90 days's     7 * 24 * 60 * 60 seconds
+  rewardPeriodMax?: number; // v6 '7-90 days's     90 * 24 * 60 * 60 seconds
+  rewardPeriodExtend?: number; // v6 'end before 72h's    72 * 60 * 60 seconds
+
+  claimableRewards?: TokenAmount; // v6
+  owner?: string; // v6
+  perSecond?: string | number; // v6
+};
+
+export type HydratedFarmInfo = SdkParsedFarmInfo & {
+  lp: SplToken | Token | /* staking pool */ undefined;
+  lpPrice: Price | undefined;
+
+  base: SplToken | Token | undefined;
+  quote: SplToken | Token | undefined;
+  name: string;
+
+  ammId: string | undefined;
+
+  /** only for v3/v5 */
+  isDualFusionPool: boolean;
+  isNormalFusionPool: boolean;
+  isClosedPool: boolean;
+  isStakePool: boolean;
+  isUpcomingPool: boolean;
+  isStablePool: boolean;
+  /** new pool shoud sort in highest  */
+  isNewPool: boolean;
+
+  /** 7d */
+  totalApr7d: Percent | undefined;
+  /** 7d; undefined means couldn't find this token by known tokenList */
+  raydiumFeeApr7d: Percent | undefined; // raydium fee for each transaction
+
+  totalApr30d: Percent | undefined;
+  /** undefined means couldn't find this token by known tokenList */
+  raydiumFeeApr30d: Percent | undefined; // raydium fee for each transaction
+
+  totalApr24h: Percent | undefined;
+  /** undefined means couldn't find this token by known tokenList */
+  raydiumFeeApr24h: Percent | undefined; // raydium fee for each transaction
+
+  tvl: TokenAmount | undefined;
+  userHasStaked: boolean;
+  rewards: HydratedRewardInfo[];
+  userStakedLpAmount: TokenAmount | undefined;
+  stakedLpAmount: TokenAmount | undefined;
+};
