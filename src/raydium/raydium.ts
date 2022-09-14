@@ -119,7 +119,7 @@ export class Raydium {
       ...(apiTokensCache ? { tokens: apiTokensCache } : {}),
       ...(apiLiquidityPoolsCache ? { liquidityPools: apiLiquidityPoolsCache } : {}),
       ...(apiFarmPoolsCache ? { farmPools: apiFarmPoolsCache } : {}),
-      ...(apiLiquidityPairsInfoCache ? { liquidityPoolsInfo: apiLiquidityPairsInfoCache } : {}),
+      ...(apiLiquidityPairsInfoCache ? { liquidityPairsInfo: apiLiquidityPairsInfoCache } : {}),
     };
   }
 

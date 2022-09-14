@@ -108,4 +108,8 @@ export class Fraction {
     Big.RM = toFixedRounding[rounding] || 1;
     return new Big(this.numerator.toString()).div(this.denominator.toString()).toFormat(decimalPlaces, format);
   }
+
+  public isZero(): boolean {
+    return this.numerator.isZero();
+  }
 }

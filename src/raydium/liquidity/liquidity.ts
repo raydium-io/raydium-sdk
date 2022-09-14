@@ -74,6 +74,7 @@ export default class Liquidity extends ModuleBase {
         const symbol = `${this.scope.token.allTokenMap.get(info.baseMint)?.symbol} - ${
           this.scope.token.allTokenMap.get(info.quoteMint)?.symbol
         }`;
+        this._poolInfoMap.set(info.id, info);
         this._lpTokenMap.set(
           info.lpMint,
           new Token({ mint: info.lpMint, decimals: info.lpDecimals, symbol, name: `${symbol} LP` }),
@@ -83,7 +84,14 @@ export default class Liquidity extends ModuleBase {
     );
     this._unOfficialIds = new Set(
       unOfficial.map((info) => {
+        const symbol = `${this.scope.token.allTokenMap.get(info.baseMint)?.symbol} - ${
+          this.scope.token.allTokenMap.get(info.quoteMint)?.symbol
+        }`;
         this._poolInfoMap.set(info.id, info);
+        this._lpTokenMap.set(
+          info.lpMint,
+          new Token({ mint: info.lpMint, decimals: info.lpDecimals, symbol, name: `${symbol} LP` }),
+        );
         return info.id;
       }),
     );

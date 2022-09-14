@@ -83,7 +83,7 @@ export default class TokenModule extends ModuleBase {
     return this._tokenPrice;
   }
 
-  public async fetchTokenPrices(): Promise<Map<string, Price>> {
+  public async fetchTokenPrices(preloadRaydiumPrice?: Record<string, number>): Promise<Map<string, Price>> {
     const coingeckoTokens = this.allTokens.filter(
       (token) => !!token.extensions?.coingeckoId && token.mint !== PublicKey.default.toBase58(),
     );
@@ -105,7 +105,7 @@ export default class TokenModule extends ModuleBase {
       {},
     );
 
-    const raydiumPriceRes = await this.scope.api.getRaydiumTokenPrice();
+    const raydiumPriceRes = preloadRaydiumPrice || (await this.scope.api.getRaydiumTokenPrice());
     const raydiumPrices: { [key: string]: Price } = Object.keys(raydiumPriceRes).reduce(
       (acc, key) =>
         this._tokenMap.get(key)

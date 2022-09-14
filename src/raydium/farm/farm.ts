@@ -9,7 +9,7 @@ import {
 } from "@solana/web3.js";
 import BN from "bn.js";
 
-import { accountMeta, AddInstructionParam, commonSystemAccountMeta, jsonInfo2PoolKeys, TxBuilder } from "../../common";
+import { accountMeta, AddInstructionParam, commonSystemAccountMeta, TxBuilder } from "../../common";
 import { isDateAfter, isDateBefore, offsetDateTime } from "../../common/date";
 import { getMax, sub, isMeaningfulNumber } from "../../common/fractionUtil";
 import {
@@ -106,7 +106,10 @@ export default class Farm extends ModuleBase {
         ),
       [],
     );
+    await this.fetchSdkFarmInfo();
+  }
 
+  public async fetchSdkFarmInfo(): Promise<void> {
     this._sdkParsedFarmPools = await mergeSdkFarmInfo({
       connection: this.scope.connection,
       farmPools: this._farmPools,
@@ -115,10 +118,11 @@ export default class Farm extends ModuleBase {
     });
   }
 
-  public async loadHydratedFarmInfo(params?: LoadParams): Promise<HydratedFarmInfo[]> {
-    if (this._hydratedFarmPools.length && !params?.forceUpdate) return this._hydratedFarmPools;
+  public async loadHydratedFarmInfo(params?: LoadParams & { skipPrice?: boolean }): Promise<HydratedFarmInfo[]> {
+    const { forceUpdate, skipPrice } = params || {};
+    if (this._hydratedFarmPools.length && !forceUpdate) return this._hydratedFarmPools;
     await this.scope.farm.load();
-    await this.scope.token.fetchTokenPrices();
+    !skipPrice && (await this.scope.token.fetchTokenPrices());
     await this.scope.liquidity.loadPairs();
     const chainTimeOffset = await this.scope.chainTimeOffset();
     const currentBlockChainDate = offsetDateTime(Date.now() + chainTimeOffset, { minutes: 0 /* force */ });
@@ -148,10 +152,10 @@ export default class Farm extends ModuleBase {
   get allParsedFarms(): SdkParsedFarmInfo[] {
     return this._sdkParsedFarmPools;
   }
-  get allHydratedFarms(): SdkParsedFarmInfo[] {
+  get allHydratedFarms(): HydratedFarmInfo[] {
     return this._hydratedFarmPools;
   }
-  get allHydratedFarmMap(): Map<string, SdkParsedFarmInfo> {
+  get allHydratedFarmMap(): Map<string, HydratedFarmInfo> {
     return this._hydratedFarmMap;
   }
 
@@ -239,17 +243,7 @@ export default class Farm extends ModuleBase {
     const totalApr7d = aprs.reduce((acc, cur) => (acc ? (cur ? acc.add(cur) : acc) : cur), raydiumFeeApr7d);
     const totalApr30d = aprs.reduce((acc, cur) => (acc ? (cur ? acc.add(cur) : acc) : cur), raydiumFeeApr30d);
     const totalApr24h = aprs.reduce((acc, cur) => (acc ? (cur ? acc.add(cur) : acc) : cur), raydiumFeeApr24h);
-    if (farmInfo.category === "raydium") {
-      console.log(
-        123123222,
-        name,
-        "ammId",
-        ammId,
-        "raydiumFeeApr7d",
-        raydiumFeeApr7d?.toFixed(2),
-        totalApr7d?.toFixed(2),
-      );
-    }
+
     const rewards =
       farmInfo.version === 6
         ? (farmInfo.state.rewardInfos
