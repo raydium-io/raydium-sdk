@@ -7,7 +7,7 @@ import 'bn.js';
 import '../token/type.js';
 import '../../common/pubKey.js';
 import '../../common/logger.js';
-import '../../type-9c271374.js';
+import '../../type-bcca4bc0.js';
 import '../../marshmallow/index.js';
 import '../../marshmallow/buffer-layout.js';
 import '../account/types.js';

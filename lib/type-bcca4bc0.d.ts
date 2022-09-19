@@ -543,37 +543,37 @@ declare type FarmStateV6 = GetStructureSchema<FarmStateLayoutV6>;
 declare type FarmState = FarmStateV3 | FarmStateV5 | FarmStateV6;
 declare type FarmStateLayout = FarmStateLayoutV3 | FarmStateLayoutV5 | FarmStateLayoutV6;
 declare const farmLedgerLayoutV3_1: Structure<PublicKey | BN__default | BN__default[], "", {
-    id: PublicKey;
     owner: PublicKey;
     state: BN__default;
+    id: PublicKey;
     deposited: BN__default;
     rewardDebts: BN__default[];
 }>;
 declare const farmLedgerLayoutV3_2: Structure<PublicKey | BN__default | BN__default[], "", {
-    id: PublicKey;
     owner: PublicKey;
     state: BN__default;
+    id: PublicKey;
     deposited: BN__default;
     rewardDebts: BN__default[];
 }>;
 declare const farmLedgerLayoutV5_1: Structure<PublicKey | BN__default | BN__default[], "", {
-    id: PublicKey;
     owner: PublicKey;
     state: BN__default;
+    id: PublicKey;
     deposited: BN__default;
     rewardDebts: BN__default[];
 }>;
 declare const farmLedgerLayoutV5_2: Structure<PublicKey | BN__default | BN__default[], "", {
-    id: PublicKey;
     owner: PublicKey;
     state: BN__default;
+    id: PublicKey;
     deposited: BN__default;
     rewardDebts: BN__default[];
 }>;
 declare const farmLedgerLayoutV6_1: Structure<PublicKey | BN__default | BN__default[], "", {
-    id: PublicKey;
     owner: PublicKey;
     state: BN__default;
+    id: PublicKey;
     deposited: BN__default;
     rewardDebts: BN__default[];
 }>;

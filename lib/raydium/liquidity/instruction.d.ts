@@ -1,7 +1,7 @@
 import { TransactionInstruction, PublicKey } from '@solana/web3.js';
 import { LiquiditySwapInstructionParams, LiquidityPoolKeys, LiquiditySwapFixedInInstructionParamsV4, LiquiditySwapFixedOutInstructionParamsV4, LiquidityAssociatedPoolKeys, LiquidityInitPoolInstructionParams, LiquidityAddInstructionParams, LiquidityRemoveInstructionParams } from './type.js';
 import 'bn.js';
-import '../../type-9c271374.js';
+import '../../type-bcca4bc0.js';
 import '../../marshmallow/index.js';
 import '../../marshmallow/buffer-layout.js';
 import '../../bignumber-2daa5944.js';

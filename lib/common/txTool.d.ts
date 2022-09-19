@@ -1,5 +1,5 @@
 import { TransactionInstruction, Signer, Transaction, Connection, PublicKey } from '@solana/web3.js';
-import { au as SignAllTransactions } from '../type-9c271374.js';
+import { au as SignAllTransactions } from '../type-bcca4bc0.js';
 import { Owner } from './owner.js';
 import 'bn.js';
 import '../marshmallow/index.js';

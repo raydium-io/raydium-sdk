@@ -23,7 +23,6 @@ declare const initPoolLayout: Structure<number | BN, "", {
     startTime: BN;
 }>;
 declare const liquidityStateV4Layout: Structure<_solana_web3_js.PublicKey | BN | BN[], "", {
-    status: BN;
     nonce: BN;
     owner: _solana_web3_js.PublicKey;
     state: BN;
@@ -39,6 +38,7 @@ declare const liquidityStateV4Layout: Structure<_solana_web3_js.PublicKey | BN |
     withdrawQueue: _solana_web3_js.PublicKey;
     marketProgramId: _solana_web3_js.PublicKey;
     marketId: _solana_web3_js.PublicKey;
+    status: BN;
     maxOrder: BN;
     depth: BN;
     baseDecimal: BN;
@@ -77,7 +77,6 @@ declare const liquidityStateV4Layout: Structure<_solana_web3_js.PublicKey | BN |
 declare type LiquidityStateLayoutV4 = typeof liquidityStateV4Layout;
 declare type LiquidityStateV4 = GetStructureSchema<LiquidityStateLayoutV4>;
 declare const liquidityStateV5Layout: Structure<_solana_web3_js.PublicKey | BN | BN[], "", {
-    status: BN;
     nonce: BN;
     owner: _solana_web3_js.PublicKey;
     state: BN;
@@ -91,6 +90,7 @@ declare const liquidityStateV5Layout: Structure<_solana_web3_js.PublicKey | BN |
     quoteVault: _solana_web3_js.PublicKey;
     marketProgramId: _solana_web3_js.PublicKey;
     marketId: _solana_web3_js.PublicKey;
+    status: BN;
     maxOrder: BN;
     depth: BN;
     baseDecimal: BN;

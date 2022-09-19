@@ -7,7 +7,7 @@ export { LIQUIDITY_VERSION_TO_STATE_LAYOUT, LiquidityState, LiquidityStateLayout
 export { SERUM_PROGRAMID_TO_VERSION, SERUM_PROGRAM_ID_V3, SERUM_VERSION_TO_PROGRAM_ID, _SERUM_PROGRAM_ID_V3, getSerumAssociatedAuthority, getSerumProgramId, getSerumVersion } from './serum.js';
 import '@solana/web3.js';
 import 'bn.js';
-import '../../type-9c271374.js';
+import '../../type-bcca4bc0.js';
 import '../../marshmallow/index.js';
 import '../../marshmallow/buffer-layout.js';
 import '../../bignumber-2daa5944.js';

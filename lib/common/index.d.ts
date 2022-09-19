@@ -9,7 +9,7 @@ export { GetMultipleAccountsInfoConfig, getMultipleAccountsInfo, getMultipleAcco
 export { div, eq, getMax, gt, gte, isMeaningfulNumber, lt, lte, sub, toFractionWithDecimals } from './fractionUtil.js';
 export { DateParam, TimeStamp, getDate, getTime, isDateAfter, isDateBefore, isNumber, offsetDateTime } from './date.js';
 import '@solana/web3.js';
-import '../type-9c271374.js';
+import '../type-bcca4bc0.js';
 import 'bn.js';
 import '../marshmallow/index.js';
 import '../marshmallow/buffer-layout.js';

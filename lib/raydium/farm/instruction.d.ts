@@ -1,5 +1,5 @@
 import { PublicKey, TransactionInstruction, Keypair } from '@solana/web3.js';
-import { a2 as RewardInfoKey, a1 as FarmRewardInfoConfig } from '../../type-9c271374.js';
+import { a2 as RewardInfoKey, a1 as FarmRewardInfoConfig } from '../../type-bcca4bc0.js';
 import 'bn.js';
 import '../../marshmallow/index.js';
 import '../../marshmallow/buffer-layout.js';

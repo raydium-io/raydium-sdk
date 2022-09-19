@@ -1,6 +1,6 @@
 import { AxiosInstance } from 'axios';
 import { Cluster } from '../solana/type.js';
-import { b as ApiTokens, d as ApiLiquidityPools, e as ApiJsonPairInfo, h as ApiFarmPools } from '../type-9c271374.js';
+import { b as ApiTokens, d as ApiLiquidityPools, e as ApiJsonPairInfo, h as ApiFarmPools } from '../type-bcca4bc0.js';
 import '@solana/web3.js';
 import 'bn.js';
 import '../marshmallow/index.js';

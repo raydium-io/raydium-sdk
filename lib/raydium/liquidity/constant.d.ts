@@ -1,6 +1,6 @@
 import { PublicKey } from '@solana/web3.js';
 import BN__default from 'bn.js';
-import { L as LiquidityVersion, S as SerumVersion } from '../../type-9c271374.js';
+import { L as LiquidityVersion, S as SerumVersion } from '../../type-bcca4bc0.js';
 import '../../marshmallow/index.js';
 import '../../marshmallow/buffer-layout.js';
 import '../../bignumber-2daa5944.js';

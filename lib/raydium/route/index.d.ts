@@ -13,7 +13,7 @@ import '../../common/pubKey.js';
 import '../token/type.js';
 import '../../common/logger.js';
 import '../liquidity/type.js';
-import '../../type-9c271374.js';
+import '../../type-bcca4bc0.js';
 import '../account/types.js';
 import '../account/layout.js';
 import '../../common/accountInfo.js';

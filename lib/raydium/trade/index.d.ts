@@ -9,7 +9,7 @@ import '../token/type.js';
 import '../../common/logger.js';
 import '../../module/currency.js';
 import '../liquidity/type.js';
-import '../../type-9c271374.js';
+import '../../type-bcca4bc0.js';
 import '../../marshmallow/index.js';
 import '../../marshmallow/buffer-layout.js';
 import '../account/types.js';

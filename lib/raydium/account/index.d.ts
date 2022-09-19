@@ -12,5 +12,5 @@ import '../../common/pubKey.js';
 import '../token/type.js';
 import '../../common/logger.js';
 import '../../common/txTool.js';
-import '../../type-9c271374.js';
+import '../../type-bcca4bc0.js';
 import '../../common/owner.js';

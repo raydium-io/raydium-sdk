@@ -1,5 +1,5 @@
 import { PublicKey } from '@solana/web3.js';
-import { S as SerumVersion } from '../../type-9c271374.js';
+import { S as SerumVersion } from '../../type-bcca4bc0.js';
 import 'bn.js';
 import '../../marshmallow/index.js';
 import '../../marshmallow/buffer-layout.js';
