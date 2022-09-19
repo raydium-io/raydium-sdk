@@ -48,9 +48,9 @@
     "buffer": "^6.0.3",
     "decimal.js-light": "^2.5.1",
     "fecha": "^4.2.3",
-    "pino": "^8.1.0",
+    "pino": "^8.5.0",
     "pino-caller": "^3.2.0",
-    "pino-pretty": "^8.1.0",
+    "pino-pretty": "^9.1.0",
     "toformat": "^2.0.0"
   },
   "devDependencies": {
