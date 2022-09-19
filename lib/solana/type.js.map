@@ -1,1 +1,0 @@
-{"version":3,"sources":["../../src/solana/type.ts"],"sourcesContent":["export type Cluster = \"mainnet\" | \"devnet\";\n"],"mappings":"kWAAA","names":[]}
