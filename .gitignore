@@ -119,7 +119,6 @@ dist
 
 # misc
 .DS_Store
-lib/
 .coverage/
 docs/
 
