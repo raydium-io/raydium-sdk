@@ -2,7 +2,7 @@ import { Transaction, Signer, PublicKey } from '@solana/web3.js';
 import BN__default from 'bn.js';
 import { Structure, GetStructureFromLayoutSchema } from './marshmallow/index.js';
 import { GetStructureSchema } from './marshmallow/buffer-layout.js';
-import { i as BigNumberish, P as Percent, T as TokenAmount, w as Price } from './bignumber-cbebe552.js';
+import { i as BigNumberish, P as Percent, T as TokenAmount, w as Price } from './bignumber-2daa5944.js';
 import { PublicKeyish } from './common/pubKey.js';
 import { Token } from './module/token.js';
 import { SplToken } from './raydium/token/type.js';
@@ -543,37 +543,37 @@ declare type FarmStateV6 = GetStructureSchema<FarmStateLayoutV6>;
 declare type FarmState = FarmStateV3 | FarmStateV5 | FarmStateV6;
 declare type FarmStateLayout = FarmStateLayoutV3 | FarmStateLayoutV5 | FarmStateLayoutV6;
 declare const farmLedgerLayoutV3_1: Structure<PublicKey | BN__default | BN__default[], "", {
+    id: PublicKey;
     owner: PublicKey;
     state: BN__default;
-    id: PublicKey;
     deposited: BN__default;
     rewardDebts: BN__default[];
 }>;
 declare const farmLedgerLayoutV3_2: Structure<PublicKey | BN__default | BN__default[], "", {
+    id: PublicKey;
     owner: PublicKey;
     state: BN__default;
-    id: PublicKey;
     deposited: BN__default;
     rewardDebts: BN__default[];
 }>;
 declare const farmLedgerLayoutV5_1: Structure<PublicKey | BN__default | BN__default[], "", {
+    id: PublicKey;
     owner: PublicKey;
     state: BN__default;
-    id: PublicKey;
     deposited: BN__default;
     rewardDebts: BN__default[];
 }>;
 declare const farmLedgerLayoutV5_2: Structure<PublicKey | BN__default | BN__default[], "", {
+    id: PublicKey;
     owner: PublicKey;
     state: BN__default;
-    id: PublicKey;
     deposited: BN__default;
     rewardDebts: BN__default[];
 }>;
 declare const farmLedgerLayoutV6_1: Structure<PublicKey | BN__default | BN__default[], "", {
+    id: PublicKey;
     owner: PublicKey;
     state: BN__default;
-    id: PublicKey;
     deposited: BN__default;
     rewardDebts: BN__default[];
 }>;

@@ -17,10 +17,21 @@ import { BrowserRouter, Link } from 'react-router-dom'
 
 import AppRoute, { ROUTE_PATH } from './AppRoute'
 import useInitSdk from './hook/useInitSdk'
+import dayjs from 'dayjs'
+import utc from 'dayjs/plugin/utc'
+dayjs.extend(utc)
 
 require('@solana/wallet-adapter-react-ui/styles.css')
 
+enum LogLevel {
+  Error,
+  Warning,
+  Info,
+  Debug,
+}
+
 const App: FC = () => {
+  console.log(123123, LogLevel['Error'])
   return (
     <BrowserRouter>
       <Context>

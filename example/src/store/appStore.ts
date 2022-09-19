@@ -1,4 +1,4 @@
-import { Raydium, RaydiumLoadParams } from '@raydium-io/raydium-sdk'
+import { Raydium, RaydiumLoadParams, setLoggerLevel, LogLevel } from '@raydium-io/raydium-sdk'
 import create from 'zustand'
 
 interface AppState {
@@ -18,9 +18,10 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (get().initialing) return
 
     set(() => ({ initialing: true }))
+    setLoggerLevel('Raydium_Liquidity', LogLevel.Error)
+    setLoggerLevel('Raydium_route', LogLevel.Error)
     const raydium = await Raydium.load(payload)
     raydium.token.fetchTokenPrices()
-    ;(window as any).raydium = raydium
     set(() => ({ raydium, initialing: false, farmLoaded: false }))
   },
   loadFarm: async () => {

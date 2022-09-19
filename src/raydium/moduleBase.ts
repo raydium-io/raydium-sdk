@@ -1,7 +1,6 @@
 import { PublicKey } from "@solana/web3.js";
-import { Logger } from "pino";
 
-import { createLogger } from "../common/logger";
+import { createLogger, Logger } from "../common/logger";
 import { TxBuilder } from "../common/txTool";
 
 import { Raydium } from "./";

@@ -1,45 +1,86 @@
 import { get, set } from "lodash";
-import pino, { LevelWithSilent, Logger } from "pino";
-import pretty from "pino-pretty";
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+dayjs.extend(utc);
 
 export type ModuleName = "Common.Api";
 
-const moduleLoggers: { [key in ModuleName]?: Logger } = {};
-
-const moduleLevels: { [key in ModuleName]?: LevelWithSilent } = {};
-
-const stream = pretty({
-  colorize: true,
-  levelFirst: true,
-  translateTime: "SYS:yyyymmdd HH:MM:ss.l",
-});
-const globalLogger = pino({ base: null, level: "silent" }, stream);
-
-export interface LoggerInstance extends Logger {
-  logWithError: (...args: any) => void;
+export enum LogLevel {
+  Error,
+  Warning,
+  Info,
+  Debug,
 }
-
-export function createLogger(moduleName: string): LoggerInstance {
-  let logger = get(moduleLoggers, moduleName);
-
-  if (!logger) {
-    // default level is silent
-    const level = get(moduleLevels, moduleName);
-
-    logger = globalLogger.child({ name: moduleName }, { level });
-    set(moduleLoggers, moduleName, logger);
+export class Logger {
+  private logLevel: LogLevel;
+  private name: string;
+  constructor(params: { name: string; logLevel?: LogLevel }) {
+    this.logLevel = params.logLevel !== undefined ? params.logLevel : LogLevel.Error;
+    this.name = params.name;
   }
 
-  logger.logWithError = (...args): void => {
-    const msg = args.map((arg) => (typeof arg === "object" ? JSON.stringify(arg) : arg)).join(", ");
-    // logger.error(msg);
+  set level(logLevel: LogLevel) {
+    this.logLevel = logLevel;
+  }
+  get time(): string {
+    return dayjs().utc().format("YYYY/MM/DD HH:mm:ss UTC");
+  }
+  get moduleName(): string {
+    return this.name;
+  }
+
+  private isLogLevel(level: LogLevel): boolean {
+    return level <= this.logLevel;
+  }
+
+  public error(...props): Logger {
+    if (!this.isLogLevel(LogLevel.Error)) return this;
+    console.error(this.time, this.name, "sdk logger error", ...props);
+    return this;
+  }
+
+  public logWithError(...props): Logger {
+    // this.error(...props)
+    const msg = props.map((arg) => (typeof arg === "object" ? JSON.stringify(arg) : arg)).join(", ");
     throw new Error(msg);
-  };
+  }
+
+  public warning(...props): Logger {
+    if (!this.isLogLevel(LogLevel.Warning)) return this;
+    console.warn(this.time, this.name, "sdk logger warning", ...props);
+    return this;
+  }
+
+  public info(...props): Logger {
+    if (!this.isLogLevel(LogLevel.Info)) return this;
+    console.info(this.time, this.name, "sdk logger info", ...props);
+    return this;
+  }
+
+  public debug(...props): Logger {
+    if (!this.isLogLevel(LogLevel.Debug)) return this;
+    console.debug(this.time, this.name, "sdk logger debug", ...props);
+    return this;
+  }
+}
+
+const moduleLoggers: { [key in ModuleName]?: Logger } = {};
+const moduleLevels: { [key in ModuleName]?: LogLevel } = {};
+
+export function createLogger(moduleName: string): Logger {
+  let logger = get(moduleLoggers, moduleName);
+  if (!logger) {
+    // default level is error
+    const logLevel = get(moduleLevels, moduleName);
+
+    logger = new Logger({ name: moduleName, logLevel });
+    set(moduleLoggers, moduleName, logger);
+  }
 
   return logger;
 }
 
-export function setLoggerLevel(moduleName: ModuleName, level: LevelWithSilent): void {
+export function setLoggerLevel(moduleName: string, level: LogLevel): void {
   set(moduleLevels, moduleName, level);
 
   const logger = get(moduleLoggers, moduleName);

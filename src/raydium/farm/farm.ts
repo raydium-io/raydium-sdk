@@ -122,6 +122,11 @@ export default class Farm extends ModuleBase {
     const { forceUpdate, skipPrice } = params || {};
     if (this._hydratedFarmPools.length && !forceUpdate) return this._hydratedFarmPools;
     await this.scope.farm.load();
+    try {
+      await this.scope.account.fetchWalletTokenAccounts();
+    } catch {
+      //
+    }
     !skipPrice && (await this.scope.token.fetchTokenPrices());
     await this.scope.liquidity.loadPairs();
     const chainTimeOffset = await this.scope.chainTimeOffset();

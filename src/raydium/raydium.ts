@@ -1,11 +1,10 @@
 import { Connection, Keypair, PublicKey } from "@solana/web3.js";
 import BN from "bn.js";
 import { merge } from "lodash";
-import { Logger } from "pino";
 
 import { Api, ApiFarmPools, ApiJsonPairInfo, ApiLiquidityPools, ApiTokens } from "../api";
 import { EMPTY_CONNECTION, EMPTY_OWNER } from "../common/error";
-import { createLogger } from "../common/logger";
+import { createLogger, Logger } from "../common/logger";
 import { Owner } from "../common/owner";
 import { PublicKeyish } from "../common/pubKey";
 import { TokenAmount } from "../module/amount";

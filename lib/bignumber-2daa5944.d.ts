@@ -1,7 +1,7 @@
 import BN__default from 'bn.js';
 import { Token } from './module/token.js';
 import { TokenJson, SplToken } from './raydium/token/type.js';
-import { LoggerInstance } from './common/logger.js';
+import { Logger } from './common/logger.js';
 
 declare class Fraction {
     readonly numerator: BN__default;
@@ -21,7 +21,7 @@ declare class Fraction {
 declare function splitNumber(num: string, decimals: number): [string, string];
 declare class TokenAmount extends Fraction {
     readonly token: Token;
-    protected logger: LoggerInstance;
+    protected logger: Logger;
     constructor(token: Token, amount: BigNumberish, isRaw?: boolean, name?: string);
     get raw(): BN__default;
     isZero(): boolean;

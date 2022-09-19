@@ -2,7 +2,7 @@ import _Big from "big.js";
 import BN from "bn.js";
 
 import { BigNumberish, BN_TEN, parseBigNumberish, Rounding } from "../common/bignumber";
-import { createLogger, LoggerInstance } from "../common/logger";
+import { createLogger, Logger } from "../common/logger";
 
 import toFormat, { WrappedBig } from "./formatter";
 import { Fraction } from "./fraction";
@@ -35,7 +35,7 @@ export function splitNumber(num: string, decimals: number): [string, string] {
 
 export class TokenAmount extends Fraction {
   public readonly token: Token;
-  protected logger: LoggerInstance;
+  protected logger: Logger;
 
   public constructor(token: Token, amount: BigNumberish, isRaw = true, name?: string) {
     let parsedAmount = new BN(0);
