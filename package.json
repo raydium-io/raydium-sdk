@@ -1,6 +1,6 @@
 {
   "name": "test-raydium-sdk-v2",
-  "version": "2.0.0-beta.1",
+  "version": "2.0.0-beta.2",
   "description": "An SDK for building applications on top of Raydium.",
   "license": "GPL-3.0",
   "main": "./lib/index.js",
@@ -28,7 +28,6 @@
     "build-dist": "rm -rf dist && mkdir dist && yarn build-docs",
     "build-lib": "rm -rf lib && tsup src --format cjs,esm --dts --sourcemap --no-splitting --minify -d lib --silent",
     "build-all": "yarn build-dist && yarn build-lib",
-    "postinstall": "node ./misc/install-peers.js",
     "build": "yarn build-lib",
     "push": "yarn build && yarn publish",
     "prepare": "husky install"
