@@ -565,6 +565,7 @@ export class Liquidity extends Base {
         AccountMeta(userKeys.quoteTokenAccount, false),
         AccountMeta(userKeys.lpTokenAccount, false),
         AccountMetaReadonly(userKeys.owner, true),
+        AccountMetaReadonly(poolKeys.marketEventQueue, true),
       );
 
       return new TransactionInstruction({
@@ -1365,6 +1366,7 @@ export class Liquidity extends Base {
       AccountMetaReadonly(poolKeys.lpMint, false),
       // serum
       AccountMetaReadonly(poolKeys.marketId, false),
+      AccountMetaReadonly(poolKeys.marketEventQueue, true),
     ];
 
     return new TransactionInstruction({
