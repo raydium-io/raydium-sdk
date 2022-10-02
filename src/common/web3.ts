@@ -218,7 +218,7 @@ export async function simulateMultipleInstruction(
   let transaction = new Transaction({ feePayer });
 
   for (const instruction of instructions) {
-    if (forecastTransactionSize([...transaction.instructions, instruction], [feePayer]) > PACKET_DATA_SIZE) {
+    if (forecastTransactionSize([...transaction.instructions, instruction], [feePayer]) > PACKET_DATA_SIZE - 170) {
       transactions.push(transaction);
       transaction = new Transaction({ feePayer });
       transaction.add(instruction);
