@@ -4,8 +4,8 @@
 // import { TOKEN_PROGRAM_ID } from './id';
 
 import {
-  AccountInfo, Commitment, Connection, PACKET_DATA_SIZE, PublicKey, RpcResponseAndContext, SimulatedTransactionResponse,
-  Transaction, TransactionInstruction,
+  AccountInfo, Commitment, Connection, PublicKey, RpcResponseAndContext, SimulatedTransactionResponse, Transaction,
+  TransactionInstruction,
 } from "@solana/web3.js";
 
 import { chunkArray } from "./lodash";
@@ -196,11 +196,12 @@ export function forecastTransactionSize(instructions: TransactionInstruction[], 
 
   transaction.add(...instructions);
 
-  const message = transaction.compileMessage().serialize();
-  // SIGNATURE_LENGTH = 64
-  const transactionLength = signers.length + signers.length * 64 + message.length;
-
-  return transactionLength;
+  try {
+    transaction.serialize({ verifySignatures: false });
+    return true;
+  } catch (error) {
+    return false;
+  }
 }
 
 /**
@@ -218,7 +219,7 @@ export async function simulateMultipleInstruction(
   let transaction = new Transaction({ feePayer });
 
   for (const instruction of instructions) {
-    if (forecastTransactionSize([...transaction.instructions, instruction], [feePayer]) > PACKET_DATA_SIZE) {
+    if (!forecastTransactionSize([...transaction.instructions, instruction], [feePayer])) {
       transactions.push(transaction);
       transaction = new Transaction({ feePayer });
       transaction.add(instruction);
