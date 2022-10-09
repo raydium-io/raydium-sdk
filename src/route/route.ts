@@ -528,7 +528,7 @@ export class Route extends Base {
 
     // TODO slippage and amount out
     const {
-      amountOut: middleAmountOut,
+      // amountOut: middleAmountOut,
       minAmountOut: minMiddleAmountOut,
       priceImpact: firstPriceImpact,
       fee: firstFee,

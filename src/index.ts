@@ -9,3 +9,5 @@ export * from "./serum";
 export * from "./spl";
 export * from "./token";
 export * from "./trade";
+export * from './ammV3';
+export * from './tradeV2';

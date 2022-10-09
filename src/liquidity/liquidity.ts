@@ -35,7 +35,7 @@ let modelData: stableModelLayout = {
   DataElement: [],
 };
 
-async function initStableModelLayout(connection: Connection) {
+export async function initStableModelLayout(connection: Connection) {
   if (modelData.validDataCount === 0) {
     if (connection) {
       const acc = await connection.getAccountInfo(ModelDataPubkey);
@@ -470,11 +470,15 @@ export class Liquidity extends Base {
     marketId,
     baseMint,
     quoteMint,
+    baseDecimals,
+    quoteDecimals,
   }: {
     version: number;
     marketId: PublicKey;
     baseMint: PublicKey;
     quoteMint: PublicKey;
+    baseDecimals: number;
+    quoteDecimals: number;
   }): Promise<LiquidityAssociatedPoolKeys> {
     const programId = this.getProgramId(version);
 
@@ -501,6 +505,9 @@ export class Liquidity extends Base {
       baseMint,
       quoteMint,
       lpMint,
+      baseDecimals,
+      quoteDecimals,
+      lpDecimals: baseDecimals,
       // version
       version,
       programId,
@@ -1461,7 +1468,8 @@ export class Liquidity extends Base {
       );
 
       const fields = LIQUIDITY_STATE_LAYOUT.decode(data);
-      const { status, nonce, baseMint, quoteMint, lpMint, openOrders, targetOrders, baseVault, quoteVault, marketId } =
+
+      const { status, baseMint, quoteMint, baseDecimal, quoteDecimal, lpMint, openOrders, targetOrders, baseVault, quoteVault, marketId } =
         fields;
 
       let withdrawQueue, lpVault;
@@ -1480,7 +1488,9 @@ export class Liquidity extends Base {
       const associatedPoolKeys = await Liquidity.getAssociatedPoolKeys({
         version,
         baseMint,
+        baseDecimals: baseDecimal.toNumber(),
         quoteMint,
+        quoteDecimals: quoteDecimal.toNumber(),
         marketId,
       });
       // double check keys with on-chain data
@@ -1490,6 +1500,9 @@ export class Liquidity extends Base {
         id: pubkey,
         baseMint,
         quoteMint,
+        baseDecimals: associatedPoolKeys.baseDecimals,
+        quoteDecimals: associatedPoolKeys.quoteDecimals,
+        lpDecimals: associatedPoolKeys.lpDecimals,
         lpMint,
         version,
         programId,
@@ -1592,6 +1605,7 @@ export class Liquidity extends Base {
   static async fetchMultipleInfo({
     connection,
     pools,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     config,
   }: LiquidityFetchMultipleInfoParams): Promise<LiquidityPoolInfo[]> {
     await initStableModelLayout(connection);
@@ -1905,7 +1919,7 @@ export class Liquidity extends Base {
       this.includesToken(tokenIn, poolKeys) && this.includesToken(tokenOut, poolKeys),
       "token not match with pool",
       "poolKeys",
-      poolKeys,
+      {poolKeys, tokenIn, tokenOut},
     );
 
     const { baseReserve, quoteReserve } = poolInfo;
@@ -1997,8 +2011,8 @@ export class Liquidity extends Base {
     // const priceImpact = this._computePriceImpact(currentPrice, amountInRaw, amountOutRaw);
     // TODO
     const priceImpact = new Percent(
-      parseInt(String(Math.abs(parseFloat(executionPrice.toFixed()) - parseFloat(currentPrice.toFixed())) * 1e9)),
-      parseInt(String(parseFloat(currentPrice.toFixed()) * 1e9)),
+      String(Math.abs(parseFloat(executionPrice.toFixed()) - parseFloat(currentPrice.toFixed())) * 1e9).split('.')[0],
+      String(parseFloat(currentPrice.toFixed()) * 1e9).split('.')[0],
     );
     logger.debug("priceImpact:", `${priceImpact.toSignificant()}%`);
 

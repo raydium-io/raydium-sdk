@@ -10,6 +10,8 @@ export { SYSVAR_CLOCK_PUBKEY, SYSVAR_RENT_PUBKEY } from "@solana/web3.js";
 
 export const SYSTEM_PROGRAM_ID = SystemProgram.programId;
 export const MEMO_PROGRAM_ID = new PublicKey("Memo1UhkJRfHyvLMcVucJwxXeuD728EqVDDwQDxFMNo");
+export const RENT_PROGRAM_ID = new PublicKey('SysvarRent111111111111111111111111111111111')
+export const METADATA_PROGRAM_ID = new PublicKey('metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s')
 
 /* ================= validate public key ================= */
 export type PublicKeyish = PublicKey | string;

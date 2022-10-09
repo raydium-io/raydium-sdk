@@ -23,14 +23,17 @@ export interface stableModelLayout {
   DataElement: { x: number; y: number; price: number }[];
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function estimateRangeByXyReal(_xReal: number, _yReal: number) {
   return [0, ELEMENT_SIZE - 2];
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function estimateRangeByX(_x: number) {
   return [0, ELEMENT_SIZE - 2];
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function estimateRangeByY(_y: number) {
   return [0, ELEMENT_SIZE - 2];
 }

@@ -1,4 +1,5 @@
-import { Connection, PublicKey, Signer, Transaction, TransactionInstruction } from "@solana/web3.js";
+import { AccountLayout, TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import { Connection, Keypair, PublicKey, Signer, SystemProgram, Transaction, TransactionInstruction } from "@solana/web3.js";
 
 import { BigNumberish, Token } from "../entity";
 import { Spl, SplAccount } from "../spl";
@@ -27,6 +28,25 @@ export interface HandleTokenAccountParams {
   endInstructions?: TransactionInstruction[];
   signers: Signer[];
   bypassAssociatedCheck: boolean;
+}
+
+export interface SelectOrCreateTokenAccountParams {
+  mint: PublicKey,
+  tokenAccounts: TokenAccount[]
+
+  owner: PublicKey
+
+  createInfo?: {
+    connection: Connection,
+    payer: PublicKey
+    amount?: BigNumberish
+
+    frontInstructions: TransactionInstruction[];
+    endInstructions?: TransactionInstruction[];
+    signers: Signer[];
+  }
+
+  associatedOnly: boolean
 }
 
 export interface UnsignedTransactionAndSigners {
@@ -114,5 +134,95 @@ export class Base {
     }
 
     return tokenAccount;
+  }
+
+  static async _selectOrCreateTokenAccount(params: SelectOrCreateTokenAccountParams) {
+    const { mint, tokenAccounts, createInfo, associatedOnly, owner } = params
+    const ata = await Spl.getAssociatedTokenAccount({ mint, owner });
+    const accounts = tokenAccounts.filter((i) => i.accountInfo.mint.equals(mint) && (!associatedOnly || i.pubkey.equals(ata))).sort((a, b) => (a.accountInfo.amount.lt(b.accountInfo.amount) ? 1 : -1))
+    // find token or don't need create
+    if (createInfo === undefined || accounts.length > 0) {
+      return accounts.length > 0 ? accounts[0].pubkey : undefined
+    }
+
+    if (associatedOnly) {
+      createInfo.frontInstructions.push(
+        Spl.makeCreateAssociatedTokenAccountInstruction({
+          mint,
+          associatedAccount: ata,
+          owner,
+          payer: createInfo.payer,
+        }),
+      );
+
+      if (mint.equals(Token.WSOL.mint)) {
+        const newTokenAccount = await Spl.insertCreateWrappedNativeAccountInstructions({
+          connection: createInfo.connection,
+          owner,
+          payer: createInfo.payer,
+          instructions: createInfo.frontInstructions,
+          signers: createInfo.signers,
+          amount: createInfo.amount ?? 0,
+        });
+        if (createInfo.endInstructions) {
+          createInfo.endInstructions.push(Spl.makeCloseAccountInstruction({ tokenAccount: newTokenAccount, owner, payer: createInfo.payer }));
+        }
+
+        if (createInfo.amount) {
+          createInfo.frontInstructions.push(
+            Spl.makeTransferInstruction({
+              source: newTokenAccount,
+              destination: ata,
+              owner,
+              amount: createInfo.amount,
+            })
+          )
+        }
+      }
+      
+      if (createInfo.endInstructions) {
+        createInfo.endInstructions.push(Spl.makeCloseAccountInstruction({ tokenAccount: ata, owner, payer: createInfo.payer }));
+      }
+
+      return ata
+    } else {
+      if (mint.equals(Token.WSOL.mint)) {
+        const newTokenAccount = await Spl.insertCreateWrappedNativeAccountInstructions({
+          connection: createInfo.connection,
+          owner,
+          payer: createInfo.payer,
+          instructions: createInfo.frontInstructions,
+          signers: createInfo.signers,
+          amount: createInfo.amount ?? 0,
+        });
+        if (createInfo.endInstructions) {
+          createInfo.endInstructions.push(Spl.makeCloseAccountInstruction({ tokenAccount: newTokenAccount, owner, payer: createInfo.payer }));
+        }
+        return newTokenAccount
+      } else {
+        const newTokenAccount = Keypair.generate()
+        const balanceNeeded = await createInfo.connection.getMinimumBalanceForRentExemption(AccountLayout.span)
+
+        const createAccountIns = SystemProgram.createAccount({
+          fromPubkey: owner,
+          newAccountPubkey: newTokenAccount.publicKey,
+          lamports: balanceNeeded,
+          space: AccountLayout.span,
+          programId: TOKEN_PROGRAM_ID,
+        })
+
+        const initAccountIns = Spl.createInitAccountInstruction(
+          TOKEN_PROGRAM_ID,
+          mint,
+          newTokenAccount.publicKey,
+          owner,
+        )
+        createInfo.frontInstructions.push(createAccountIns, initAccountIns)
+        if (createInfo.endInstructions){
+          createInfo.endInstructions.push(Spl.makeCloseAccountInstruction({ tokenAccount: newTokenAccount.publicKey, owner, payer: createInfo.payer }))
+        }
+        return newTokenAccount.publicKey
+      }
+    }
   }
 }

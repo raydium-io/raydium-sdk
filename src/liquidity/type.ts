@@ -17,6 +17,11 @@ export interface LiquidityPoolJsonInfo {
   readonly baseMint: string;
   readonly quoteMint: string;
   readonly lpMint: string;
+
+  readonly baseDecimals: number;
+  readonly quoteDecimals: number;
+  readonly lpDecimals: number;
+  
   // version
   readonly version: number;
   readonly programId: string;

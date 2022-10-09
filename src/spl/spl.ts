@@ -4,9 +4,9 @@ import {
 } from "@solana/web3.js";
 import BN from "bn.js";
 
-import { ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID, validateAndParsePublicKey } from "../common";
+import { ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID, SYSVAR_RENT_PUBKEY, validateAndParsePublicKey } from "../common";
 import { BigNumberish, parseBigNumberish } from "../entity";
-import { u64 } from "../marshmallow";
+import { u64, u8 } from "../marshmallow";
 import { WSOL } from "../token";
 
 import { SPL_ACCOUNT_LAYOUT } from "./layout";
@@ -217,5 +217,33 @@ export class Spl {
     multiSigners?: Signer[];
   }) {
     return _Token.createCloseAccountInstruction(TOKEN_PROGRAM_ID, tokenAccount, payer, owner, multiSigners);
+  }
+
+  static createInitAccountInstruction(programId, mint, account, owner) {
+    const keys = [{
+      pubkey: account,
+      isSigner: false,
+      isWritable: true
+    }, {
+      pubkey: mint,
+      isSigner: false,
+      isWritable: false
+    }, {
+      pubkey: owner,
+      isSigner: false,
+      isWritable: false
+    }, {
+      pubkey: SYSVAR_RENT_PUBKEY,
+      isSigner: false,
+      isWritable: false
+    }];
+    const dataLayout = u8('instruction');
+    const data = Buffer.alloc(dataLayout.span);
+    dataLayout.encode(1, data);
+    return new TransactionInstruction({
+      keys,
+      programId,
+      data
+    });
   }
 }
