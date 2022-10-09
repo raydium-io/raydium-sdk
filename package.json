@@ -1,6 +1,6 @@
 {
   "name": "@raydium-io/raydium-sdk",
-  "version": "1.1.0-beta.13",
+  "version": "1.1.0-beta.14",
   "description": "An SDK for building applications on top of Raydium.",
   "license": "GPL-3.0",
   "main": "./lib/index.js",
@@ -42,6 +42,7 @@
     "@solana/buffer-layout": "^4.0.0",
     "@solana/spl-token": "^0.1.8",
     "big.js": "^6.1.1",
+    "decimal.js": "^10.4.0",
     "decimal.js-light": "^2.5.1",
     "fecha": "^4.2.3",
     "lodash": "^4.17.21",
