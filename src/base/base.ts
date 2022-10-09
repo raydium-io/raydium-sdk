@@ -218,6 +218,7 @@ export class Base {
           owner,
         )
         createInfo.frontInstructions.push(createAccountIns, initAccountIns)
+        createInfo.signers.push(newTokenAccount)
         if (createInfo.endInstructions){
           createInfo.endInstructions.push(Spl.makeCloseAccountInstruction({ tokenAccount: newTokenAccount.publicKey, owner, payer: createInfo.payer }))
         }
