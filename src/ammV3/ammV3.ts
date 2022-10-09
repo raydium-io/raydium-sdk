@@ -371,7 +371,7 @@ export class AmmV3 extends Base {
   }
 
   static async makeOpenPositionTransaction(
-    { connection, poolInfo, ownerInfo, priceLower, priceUpper, liquidity, slippage }: {
+    { connection, poolInfo, ownerInfo, tickLower, tickUpper, liquidity, slippage }: {
       connection: Connection,
       poolInfo: AmmV3PoolInfo,
 
@@ -382,8 +382,11 @@ export class AmmV3 extends Base {
         useSOLBalance?: boolean  // if has WSOL mint (default: true)
       },
 
-      priceLower: Decimal,
-      priceUpper: Decimal,
+      // priceLower: Decimal,
+      // priceUpper: Decimal,
+
+      tickLower: number,
+      tickUpper: number,
 
       liquidity: BN,
       slippage: number
@@ -393,18 +396,18 @@ export class AmmV3 extends Base {
 
     const signers: Signer[] = []
 
-    const tickLower = TickMath.getTickWithPriceAndTickspacing(
-      priceLower,
-      poolInfo.ammConfig.tickSpacing,
-      poolInfo.mintA.decimals,
-      poolInfo.mintB.decimals
-    );
-    const tickUpper = TickMath.getTickWithPriceAndTickspacing(
-      priceUpper,
-      poolInfo.ammConfig.tickSpacing,
-      poolInfo.mintA.decimals,
-      poolInfo.mintB.decimals
-    );
+    // const tickLower = TickMath.getTickWithPriceAndTickspacing(
+    //   priceLower,
+    //   poolInfo.ammConfig.tickSpacing,
+    //   poolInfo.mintA.decimals,
+    //   poolInfo.mintB.decimals
+    // );
+    // const tickUpper = TickMath.getTickWithPriceAndTickspacing(
+    //   priceUpper,
+    //   poolInfo.ammConfig.tickSpacing,
+    //   poolInfo.mintA.decimals,
+    //   poolInfo.mintB.decimals
+    // );
 
     const { amountSlippageA, amountSlippageB } =
       LiquidityMath.getAmountsFromLiquidityWithSlippage(
