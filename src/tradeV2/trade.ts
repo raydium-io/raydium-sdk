@@ -438,6 +438,8 @@ export class TradeV2 extends Base {
     let firstFee
     let firstRemainingAccounts
 
+    const _slippage = new Percent(0, 100)
+
     if (fromPool.version === 6) {
       const {
         minAmountOut: _minMiddleAmountOut,
@@ -449,7 +451,7 @@ export class TradeV2 extends Base {
         tickArrayCache: tickCache[fromPool.id.toString()],
         amountIn,
         currencyOut: middleToken,
-        slippage,
+        slippage: _slippage,
       })
       minMiddleAmountOut = _minMiddleAmountOut
       firstPriceImpact = _firstPriceImpact
@@ -465,7 +467,7 @@ export class TradeV2 extends Base {
         poolInfo: simulateCache[fromPool.id as string],
         amountIn,
         currencyOut: middleToken,
-        slippage,
+        slippage: _slippage,
       });
       minMiddleAmountOut = _minMiddleAmountOut
       firstPriceImpact = _firstPriceImpact
