@@ -80,6 +80,7 @@ export function makeSimulatePoolInfoInstruction(poolKeys: LiquidityPoolKeys): Tr
     accountMeta({ pubkey: poolKeys.lpMint, isWritable: false }),
     // serum
     accountMeta({ pubkey: poolKeys.marketId, isWritable: false }),
+    accountMeta({ pubkey: poolKeys.marketEventQueue, isWritable: false }),
   ];
 
   return new TransactionInstruction({
@@ -302,6 +303,7 @@ export function makeAddLiquidityInstruction(params: LiquidityAddInstructionParam
       accountMeta({ pubkey: userKeys.quoteTokenAccount }),
       accountMeta({ pubkey: userKeys.lpTokenAccount }),
       accountMeta({ pubkey: userKeys.owner, isWritable: false, isSigner: true }),
+      accountMeta({ pubkey: poolKeys.marketEventQueue, isWritable: false }),
     );
 
     return new TransactionInstruction({

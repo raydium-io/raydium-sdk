@@ -107,7 +107,6 @@ export interface FarmDWParam {
   farmId: PublicKey;
   amount: BigNumberish;
 }
-
 /* ================= pool keys ================= */
 export type FarmPoolKeys = {
   readonly id: PublicKey;

@@ -661,9 +661,8 @@ export default class Liquidity extends ModuleBase {
 
     txBuilder.addInstruction({
       instructions: [
-        ComputeBudgetProgram.requestUnits({
+        ComputeBudgetProgram.setComputeUnitLimit({
           units: 400000,
-          additionalFee: 0,
         }),
         makeRemoveLiquidityInstruction({
           poolKeys,

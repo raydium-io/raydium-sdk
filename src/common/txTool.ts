@@ -1,6 +1,5 @@
 import {
   Connection,
-  PACKET_DATA_SIZE,
   PublicKey,
   RpcResponseAndContext,
   sendAndConfirmTransaction,
@@ -162,7 +161,7 @@ export async function getRecentBlockHash(connection: Connection): Promise<string
 /**
  * Forecast transaction size
  */
-export function forecastTransactionSize(instructions: TransactionInstruction[], signers: PublicKey[]): number {
+export function forecastTransactionSize(instructions: TransactionInstruction[], signers: PublicKey[]): boolean {
   if (instructions.length < 1) logger.logWithError(`no instructions provided: ${instructions.toString()}`);
   if (signers.length < 1) logger.logWithError(`no signers provided:, ${signers.toString()}`);
 
@@ -171,10 +170,12 @@ export function forecastTransactionSize(instructions: TransactionInstruction[], 
   transaction.feePayer = signers[0];
   transaction.add(...instructions);
 
-  const message = transaction.compileMessage().serialize();
-  // SIGNATURE_LENGTH = 64
-  const transactionLength = signers.length + signers.length * 64 + message.length;
-  return transactionLength;
+  try {
+    transaction.serialize({ verifySignatures: false });
+    return true;
+  } catch (error) {
+    return false;
+  }
 }
 
 /**
@@ -193,7 +194,7 @@ export async function simulateMultipleInstruction(
   transaction.feePayer = feePayer;
 
   for (const instruction of instructions) {
-    if (forecastTransactionSize([...transaction.instructions, instruction], [feePayer]) > PACKET_DATA_SIZE) {
+    if (!forecastTransactionSize([...transaction.instructions, instruction], [feePayer])) {
       transactions.push(transaction);
       transaction = new Transaction();
       transaction.feePayer = feePayer;
