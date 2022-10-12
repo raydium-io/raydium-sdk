@@ -1,10 +1,16 @@
 import BN from "bn.js";
-
-import { Fraction, Percent, Price, TokenAmount, Token } from "../module";
+import Decimal from "decimal.js";
+import { PublicKey } from "@solana/web3.js";
+import { Token } from "../module/token";
+import { Price } from "../module/price";
+import { Currency } from "../module/currency";
+import { TokenAmount, CurrencyAmount } from "../module/amount";
+import { Fraction } from "../module/fraction";
+import { Percent } from "../module/percent";
 import { SplToken, TokenJson } from "../raydium/token/type";
+import { ReplaceType } from "../raydium/type";
 import { createLogger } from "./logger";
-
-const logger = createLogger("Raydium_bignumber");
+import { mul } from "./fractionUtil";
 
 export enum Rounding {
   ROUND_DOWN,
@@ -27,6 +33,7 @@ export type Numberish = number | string | bigint | Fraction | BN;
 const MAX_SAFE = 0x1fffffffffffff;
 
 export function parseBigNumberish(value: BigNumberish): BN {
+  const logger = createLogger("Raydium_parseBigNumberish");
   // BN
   if (value instanceof BN) {
     return value;
@@ -54,7 +61,7 @@ export function parseBigNumberish(value: BigNumberish): BN {
   if (typeof value === "bigint") {
     return new BN(value.toString());
   }
-  logger.logWithError(`invalid BigNumberish value: ${value}`);
+  logger.error(`invalid BigNumberish value: ${value}`);
   return new BN(0); // never reach, because logWithError will throw error
 }
 
@@ -169,20 +176,39 @@ export function toTokenPrice(params: {
   });
 }
 
-export function mul(a: Numberish | undefined, b: Numberish | undefined): Fraction | undefined {
-  if (a == null || b == null) return undefined;
-  const fa = toFraction(a);
-  const fb = toFraction(b);
-  return fa.mul(fb);
-}
-
-export function toUsdCurrency(amount: Numberish): TokenAmount {
-  const usdCurrency = new Token({ mint: "", decimals: 6, symbol: "usd", name: "usd", skipMint: true });
+export function toUsdCurrency(amount: Numberish): CurrencyAmount {
+  const usdCurrency = new Currency({ decimals: 6, symbol: "usd", name: "usd" });
   const amountBigNumber = toBN(mul(amount, 10 ** usdCurrency.decimals)!);
-  return new TokenAmount(usdCurrency, amountBigNumber);
+  return new CurrencyAmount(usdCurrency, amountBigNumber);
 }
 
-export function toTotalPrice(amount: Numberish | undefined, price: Price | undefined): TokenAmount {
+export function toTotalPrice(amount: Numberish | undefined, price: Price | undefined): CurrencyAmount {
   if (!price || !amount) return toUsdCurrency(0);
   return toUsdCurrency(mul(amount, price)!);
+}
+
+export function decimalToFraction(n: Decimal | undefined): Fraction | undefined {
+  if (n == null) return undefined;
+  const { numerator, denominator } = parseNumberInfo(n.toString());
+  return new Fraction(numerator, denominator);
+}
+
+function notInnerObject(v: unknown): boolean {
+  const baseInnerObjects = [Token, TokenAmount, PublicKey, Fraction, BN, Currency, CurrencyAmount, Price, Percent];
+  return typeof v === "object" && v !== null && !baseInnerObjects.some((o) => !!o && v instanceof o);
+}
+
+export function isDecimal(val: unknown): boolean {
+  return val instanceof Decimal;
+}
+
+export function recursivelyDecimalToFraction<T>(info: T): ReplaceType<T, Decimal, Fraction> {
+  // @ts-expect-error no need type for inner code
+  return isDecimal(info)
+    ? decimalToFraction(info as any)
+    : Array.isArray(info)
+    ? info.map((k) => recursivelyDecimalToFraction(k))
+    : notInnerObject(info)
+    ? Object.fromEntries(Object.entries(info as any).map(([k, v]) => [k, recursivelyDecimalToFraction(v)]))
+    : info;
 }

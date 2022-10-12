@@ -125,3 +125,57 @@ export interface ApiFarmPools {
   fusion: ApiFarmPoolInfo[];
   ecosystem: ApiFarmPoolInfo[];
 }
+
+export interface ApiAmmV3ConfigInfo {
+  id: string;
+  index: number;
+  protocolFeeRate: number;
+  tradeFeeRate: number;
+  tickSpacing: number;
+}
+export interface ApiAmmV3PoolInfo {
+  id: string;
+  mintA: string;
+  mintB: string;
+  ammConfig: ApiAmmV3ConfigInfo;
+  day: {
+    volume: number;
+    volumeFee: number;
+    feeA: number;
+    feeB: number;
+    feeApr: number;
+    rewardApr: {
+      A: number;
+      B: number;
+      C: number;
+    };
+    apr: number;
+  };
+  week: {
+    volume: number;
+    volumeFee: number;
+    feeA: number;
+    feeB: number;
+    feeApr: number;
+    rewardApr: {
+      A: number;
+      B: number;
+      C: number;
+    };
+    apr: number;
+  };
+  month: {
+    volume: number;
+    volumeFee: number;
+    feeA: number;
+    feeB: number;
+    feeApr: number;
+    rewardApr: {
+      A: number;
+      B: number;
+      C: number;
+    };
+    apr: number;
+  };
+  tvl: number;
+}

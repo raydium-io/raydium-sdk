@@ -105,3 +105,17 @@ export function isMeaningfulNumber(n: Numberish | undefined): n is Numberish {
 export function getMax(a: Numberish, b: Numberish): Numberish {
   return gt(b, a) ? b : a;
 }
+
+export function mul(a: Numberish | undefined, b: Numberish | undefined): Fraction | undefined {
+  if (a == null || b == null) return undefined;
+  const fa = toFraction(a);
+  const fb = toFraction(b);
+  return fa.mul(fb);
+}
+
+export function add(a: Numberish | undefined, b: Numberish | undefined): Fraction | undefined {
+  if (a == null || b == null) return undefined;
+  const fa = toFraction(a);
+  const fb = toFraction(b);
+  return fa.add(fb);
+}

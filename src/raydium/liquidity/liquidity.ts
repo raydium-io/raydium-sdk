@@ -405,8 +405,8 @@ export default class Liquidity extends ModuleBase {
         makeAMMSwapInstruction({
           poolKeys,
           userKeys: {
-            tokenAccountIn: _tokenAccountIn,
-            tokenAccountOut: _tokenAccountOut,
+            tokenAccountIn: _tokenAccountIn!,
+            tokenAccountOut: _tokenAccountOut!,
             owner: this.scope.ownerPubKey,
           },
           amountIn: amountInRaw,
@@ -487,26 +487,26 @@ export default class Liquidity extends ModuleBase {
     txBuilder.addInstruction({
       instructions: [
         makeTransferInstruction({
-          source: _baseTokenAccount,
+          source: _baseTokenAccount!,
           destination: baseVault,
           owner: this.scope.ownerPubKey,
           amount: baseAmount.raw,
         }),
         makeTransferInstruction({
-          source: _quoteTokenAccount,
+          source: _quoteTokenAccount!,
           destination: quoteVault,
           owner: this.scope.ownerPubKey,
           amount: quoteAmount.raw,
         }),
         makeInitPoolInstruction({
           poolKeys,
-          userKeys: { lpTokenAccount: _lpTokenAccount, payer: this.scope.ownerPubKey },
+          userKeys: { lpTokenAccount: _lpTokenAccount!, payer: this.scope.ownerPubKey },
           startTime,
         }),
       ],
     });
 
-    return await txBuilder.build();
+    return txBuilder.build();
   }
 
   public async addLiquidity(params: LiquidityAddTransactionParams): Promise<MakeTransaction> {
@@ -596,9 +596,9 @@ export default class Liquidity extends ModuleBase {
         makeAddLiquidityInstruction({
           poolKeys,
           userKeys: {
-            baseTokenAccount: _baseTokenAccount,
-            quoteTokenAccount: _quoteTokenAccount,
-            lpTokenAccount: _lpTokenAccount,
+            baseTokenAccount: _baseTokenAccount!,
+            quoteTokenAccount: _quoteTokenAccount!,
+            lpTokenAccount: _lpTokenAccount!,
             owner: this.scope.ownerPubKey,
           },
           baseAmountIn: baseAmountRaw,
@@ -607,7 +607,7 @@ export default class Liquidity extends ModuleBase {
         }),
       ],
     });
-    return await txBuilder.build();
+    return txBuilder.build();
   }
 
   public async removeLiquidity(params: LiquidityRemoveTransactionParams): Promise<MakeTransaction> {
@@ -668,15 +668,15 @@ export default class Liquidity extends ModuleBase {
           poolKeys,
           userKeys: {
             lpTokenAccount: lpTokenAccount!,
-            baseTokenAccount: _baseTokenAccount,
-            quoteTokenAccount: _quoteTokenAccount,
+            baseTokenAccount: _baseTokenAccount!,
+            quoteTokenAccount: _quoteTokenAccount!,
             owner: this.scope.ownerPubKey,
           },
           amountIn: amountIn.raw,
         }),
       ],
     });
-    return await txBuilder.build();
+    return txBuilder.build();
   }
 
   public lpMintToTokenAmount({

@@ -17,7 +17,6 @@ import BN from "bn.js";
 
 import { BigNumberish, parseBigNumberish } from "../../common";
 import { AddInstructionParam } from "../../common/txTool";
-import { u64 } from "../../marshmallow";
 import { TOKEN_WSOL } from "../token/constant";
 
 import { splAccountLayout } from "./layout";

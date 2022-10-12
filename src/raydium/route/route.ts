@@ -203,9 +203,9 @@ export default class Route extends ModuleBase {
         fromPoolKeys,
         toPoolKeys,
         userKeys: {
-          inTokenAccount: _tokenAccountIn,
-          outTokenAccount: _tokenAccountOut,
-          middleTokenAccount: _tokenAccountMiddle,
+          inTokenAccount: _tokenAccountIn!,
+          outTokenAccount: _tokenAccountOut!,
+          middleTokenAccount: _tokenAccountMiddle!,
           middleStatusAccount: await getAssociatedMiddleStatusAccount({
             programId: ROUTE_PROGRAM_ID_V1,
             fromPoolId: fromPoolKeys.id,
@@ -220,10 +220,10 @@ export default class Route extends ModuleBase {
       }),
     });
     const preBuildData = preTxBuilder.build();
-    const buildData = (await txBuilder.buildMultiTx({
+    const buildData = txBuilder.buildMultiTx({
       extraPreBuildData: [preBuildData],
       extInfo: { amountOut: amountOutRaw },
-    })) as MakeMultiTransaction & SwapExtInfo;
+    }) as MakeMultiTransaction & SwapExtInfo;
     return buildData;
   }
 }

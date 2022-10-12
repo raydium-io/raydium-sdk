@@ -4,7 +4,7 @@ import BN from "bn.js";
 import { PublicKeyish } from "../../common";
 import { BigNumberish } from "../../common/bignumber";
 import { SplToken } from "../token/type";
-import { Token, Price, Percent, TokenAmount } from "../../module";
+import { Token, Price, Percent, TokenAmount, CurrencyAmount } from "../../module";
 import { SplAccount } from "../account/types";
 import { UnionCover } from "../type";
 
@@ -221,7 +221,7 @@ export type HydratedFarmInfo = SdkParsedFarmInfo & {
   /** undefined means couldn't find this token by known tokenList */
   raydiumFeeApr24h: Percent | undefined; // raydium fee for each transaction
 
-  tvl: TokenAmount | undefined;
+  tvl: CurrencyAmount | undefined;
   userHasStaked: boolean;
   rewards: HydratedRewardInfo[];
   userStakedLpAmount: TokenAmount | undefined;

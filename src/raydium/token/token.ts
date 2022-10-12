@@ -1,7 +1,14 @@
 import { PublicKey } from "@solana/web3.js";
 import BN from "bn.js";
 
-import { BigNumberish, parseBigNumberish, parseNumberInfo, toBN, toTokenPrice } from "../../common/bignumber";
+import {
+  BigNumberish,
+  parseBigNumberish,
+  parseNumberInfo,
+  toBN,
+  toTokenPrice,
+  toFraction,
+} from "../../common/bignumber";
 import { PublicKeyish, SOLMint, validateAndParsePublicKey } from "../../common/pubKey";
 import { Token, TokenAmount, Fraction, Price } from "../../module";
 import ModuleBase, { ModuleBaseProps } from "../moduleBase";
@@ -92,7 +99,7 @@ export default class TokenModule extends ModuleBase {
 
     const coingeckoPrices: { [key: string]: Price } = coingeckoTokens.reduce(
       (acc, token) =>
-        coingeckoPriceRes[token.extensions.coingeckoId!].usd
+        coingeckoPriceRes[token.extensions.coingeckoId!]?.usd
           ? {
               ...acc,
               [token.mint]: toTokenPrice({
@@ -135,7 +142,13 @@ export default class TokenModule extends ModuleBase {
   public mintToTokenAmount({ mint, amount, decimalDone }: MintToTokenAmount): TokenAmount {
     const token = this.mintToToken(mint);
 
-    if (decimalDone) return new TokenAmount(token, parseBigNumberish(amount));
+    if (decimalDone) {
+      const numberDetails = parseNumberInfo(amount);
+      const amountBigNumber = toBN(
+        new Fraction(numberDetails.numerator, numberDetails.denominator).mul(new BN(10).pow(new BN(token.decimals))),
+      );
+      return new TokenAmount(token, amountBigNumber);
+    }
     return new TokenAmount(token, this.decimalAmount({ mint, amount, decimalDone }));
   }
 

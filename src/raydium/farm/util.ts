@@ -17,9 +17,9 @@ import {
   FARM_VERSION_TO_STATE_LAYOUT,
   FarmVersion,
 } from "./config";
-import { TokenAmount, Fraction, Price, Token } from "../../module";
+import { TokenAmount, CurrencyAmount, Fraction, Price, Token } from "../../module";
 import { FarmLedger, FarmLedgerLayout, FarmState, FarmStateLayout } from "./layout";
-import { FarmPoolJsonInfo, FarmPoolKeys, FarmRewardInfo, FarmRewardInfoConfig, SdkParsedFarmInfo } from "./type";
+import { FarmPoolJsonInfo, FarmRewardInfo, FarmRewardInfoConfig, SdkParsedFarmInfo } from "./type";
 import { jsonInfo2PoolKeys } from "../../common";
 
 const logger = createLogger("Raydium.farm.util");
@@ -351,7 +351,7 @@ export function calculateFarmPoolAprList(
   payload: {
     currentBlockChainDate: Date;
     blockSlotCountForSecond: number;
-    tvl: TokenAmount | undefined;
+    tvl: CurrencyAmount | undefined;
     rewardTokens: (Token | undefined)[];
     rewardTokenPrices: (Price | undefined)[];
   },

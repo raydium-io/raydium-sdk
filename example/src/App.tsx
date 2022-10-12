@@ -23,15 +23,7 @@ dayjs.extend(utc)
 
 require('@solana/wallet-adapter-react-ui/styles.css')
 
-enum LogLevel {
-  Error,
-  Warning,
-  Info,
-  Debug,
-}
-
 const App: FC = () => {
-  console.log(123123, LogLevel['Error'])
   return (
     <BrowserRouter>
       <Context>

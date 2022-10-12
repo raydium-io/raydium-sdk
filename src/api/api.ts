@@ -1,10 +1,9 @@
 import axios, { AxiosInstance } from "axios";
 
 import { createLogger, sleep } from "../common";
-import { Raydium } from "../raydium";
 import { Cluster } from "../solana";
 
-import { ApiFarmPools, ApiJsonPairInfo, ApiLiquidityPools, ApiTokens } from "./type";
+import { ApiFarmPools, ApiJsonPairInfo, ApiLiquidityPools, ApiTokens, ApiAmmV3PoolInfo } from "./type";
 
 const logger = createLogger("Raydium_Api");
 
@@ -88,11 +87,16 @@ export class Api {
   }
 
   async getPairsInfo(): Promise<ApiJsonPairInfo[]> {
-    return this.api.get("https://api.raydium.io/v2/main/pairs");
+    return this.api.get("/main/pairs");
   }
 
   async getFarmPools(): Promise<ApiFarmPools> {
     return this.api.get(`/sdk/farm-v2/${this.cluster}.json`);
+  }
+
+  async getConcentratedPools(): Promise<ApiAmmV3PoolInfo[]> {
+    const res = await this.api.get("/ammV3/ammPools");
+    return res.data;
   }
 
   async getCoingeckoPrice(coingeckoIds: string[]): Promise<Record<string, { usd?: number }>> {
@@ -102,7 +106,7 @@ export class Api {
   }
 
   async getRaydiumTokenPrice(): Promise<Record<string, number>> {
-    return this.api.get("https://api.raydium.io/v2/main/price");
+    return this.api.get("/main/price");
   }
 
   async getBlockSlotCountForSecond(endpointUrl?: string): Promise<number> {

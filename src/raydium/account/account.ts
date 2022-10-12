@@ -2,15 +2,21 @@ import {
   getAssociatedTokenAddress,
   createAssociatedTokenAccountInstruction,
   TOKEN_PROGRAM_ID,
+  AccountLayout,
 } from "@solana/spl-token";
-import { Commitment, PublicKey } from "@solana/web3.js";
+import { Commitment, PublicKey, Keypair, SystemProgram } from "@solana/web3.js";
+import { BigNumberish, WSOLMint } from "../../common";
 
 import { AddInstructionParam } from "../../common/txTool";
 import ModuleBase, { ModuleBaseProps } from "../moduleBase";
-import { TOKEN_WSOL } from "../token/constant";
 
-import { closeAccountInstruction, createWSolAccountInstructions } from "./instruction";
-import { HandleTokenAccountParams, TokenAccount, TokenAccountRaw } from "./types";
+import {
+  closeAccountInstruction,
+  createWSolAccountInstructions,
+  makeTransferInstruction,
+  initTokenAccountInstruction,
+} from "./instruction";
+import { HandleTokenAccountParams, TokenAccount, TokenAccountRaw, GetOrCreateTokenAccountParams } from "./types";
 import { parseTokenAccountResp } from "./util";
 
 export interface TokenAccountDataProp {
@@ -83,12 +89,14 @@ export default class Account extends ModuleBase {
     const defaultConfig = {};
     const customConfig = { ...defaultConfig, ...config };
 
-    const solAccountResp = await this.scope.connection.getAccountInfo(this.scope.ownerPubKey, customConfig.commitment);
-    const ownerTokenAccountResp = await this.scope.connection.getTokenAccountsByOwner(
-      this.scope.ownerPubKey,
-      { programId: TOKEN_PROGRAM_ID },
-      customConfig.commitment,
-    );
+    const [solAccountResp, ownerTokenAccountResp] = await Promise.all([
+      this.scope.connection.getAccountInfo(this.scope.ownerPubKey, customConfig.commitment),
+      this.scope.connection.getTokenAccountsByOwner(
+        this.scope.ownerPubKey,
+        { programId: TOKEN_PROGRAM_ID },
+        customConfig.commitment,
+      ),
+    ]);
 
     const { tokenAccounts, tokenAccountRawInfos } = parseTokenAccountResp({
       solAccountResp,
@@ -108,7 +116,7 @@ export default class Account extends ModuleBase {
     return { tokenAccounts, tokenAccountRawInfos };
   }
 
-  // user token account needed
+  // user token account needed, old _selectTokenAccount
   public async getCreatedTokenAccount({
     mint,
     associatedOnly = true,
@@ -128,6 +136,111 @@ export default class Account extends ModuleBase {
       if (publicKey) {
         if (associatedOnly && ata.equals(publicKey)) return publicKey;
         return publicKey;
+      }
+    }
+  }
+
+  // old _selectOrCreateTokenAccount
+  public async getOrCreateTokenAccount(params: GetOrCreateTokenAccountParams): Promise<{
+    account?: PublicKey;
+    instructionParams?: AddInstructionParam;
+  }> {
+    await this.fetchWalletTokenAccounts();
+    const { mint, createInfo, associatedOnly, owner, notUseTokenAccount = false, skipCloseAccount = false } = params;
+    const ata = await getAssociatedTokenAddress(mint, this.scope.ownerPubKey!, true);
+    const accounts = (notUseTokenAccount ? [] : this.tokenAccountRawInfos)
+      .filter((i) => i.accountInfo.mint.equals(mint) && (!associatedOnly || i.pubkey.equals(ata)))
+      .sort((a, b) => (a.accountInfo.amount.lt(b.accountInfo.amount) ? 1 : -1));
+    // find token or don't need create
+    if (createInfo === undefined || accounts.length > 0) {
+      return accounts.length > 0 ? { account: accounts[0].pubkey } : {};
+    }
+
+    const newTxInstructions: AddInstructionParam = {
+      instructions: [],
+      endInstructions: [],
+      signers: [],
+    };
+
+    if (associatedOnly) {
+      newTxInstructions.instructions!.push(createAssociatedTokenAccountInstruction(owner, ata, owner, mint));
+
+      if (mint.equals(WSOLMint)) {
+        const txInstruction = await createWSolAccountInstructions({
+          connection: this.scope.connection,
+          owner: this.scope.ownerPubKey,
+          payer: createInfo.payer || this.scope.ownerPubKey,
+          amount: createInfo.amount || 0,
+          skipCloseAccount,
+        });
+        newTxInstructions.instructions!.push(...(txInstruction.instructions || []));
+        newTxInstructions.endInstructions!.push(...(txInstruction.endInstructions || []));
+        newTxInstructions.signers!.push(...(txInstruction.signers || []));
+
+        if (createInfo.amount) {
+          newTxInstructions.instructions!.push(
+            makeTransferInstruction({
+              source: txInstruction.signers![0].publicKey,
+              destination: ata,
+              owner: this.scope.ownerPubKey,
+              amount: createInfo.amount,
+            }),
+          );
+        }
+      }
+
+      if (!skipCloseAccount) {
+        newTxInstructions.endInstructions!.push(
+          closeAccountInstruction({ owner, payer: createInfo.payer || owner, tokenAccount: ata }),
+        );
+      }
+
+      return { account: ata, instructionParams: newTxInstructions };
+    } else {
+      if (mint.equals(WSOLMint)) {
+        const txInstruction = await createWSolAccountInstructions({
+          connection: this.scope.connection,
+          owner: this.scope.ownerPubKey,
+          payer: createInfo.payer || this.scope.ownerPubKey,
+          amount: createInfo.amount || 0,
+          skipCloseAccount,
+        });
+        newTxInstructions.instructions!.push(...(txInstruction.instructions || []));
+        newTxInstructions.endInstructions!.push(...(txInstruction.endInstructions || []));
+        newTxInstructions.signers!.push(...(txInstruction.signers || []));
+
+        return { account: txInstruction.signers![0].publicKey, instructionParams: newTxInstructions };
+      } else {
+        const newTokenAccount = Keypair.generate();
+        const balanceNeeded = await this.scope.connection.getMinimumBalanceForRentExemption(AccountLayout.span);
+
+        const createAccountIns = SystemProgram.createAccount({
+          fromPubkey: owner,
+          newAccountPubkey: newTokenAccount.publicKey,
+          lamports: balanceNeeded,
+          space: AccountLayout.span,
+          programId: TOKEN_PROGRAM_ID,
+        });
+
+        newTxInstructions.instructions!.push(
+          createAccountIns,
+          initTokenAccountInstruction({
+            mint,
+            tokenAccount: newTokenAccount.publicKey,
+            owner: this.scope.ownerPubKey,
+          }),
+        );
+        newTxInstructions.signers!.push(newTokenAccount);
+        if (!skipCloseAccount) {
+          newTxInstructions.endInstructions!.push(
+            closeAccountInstruction({
+              owner,
+              payer: createInfo.payer || owner,
+              tokenAccount: newTokenAccount.publicKey,
+            }),
+          );
+        }
+        return { account: newTokenAccount.publicKey, instructionParams: newTxInstructions };
       }
     }
   }
@@ -153,7 +266,7 @@ export default class Account extends ModuleBase {
       newTxInstructions.instructions = [instruction];
       tokenAccountAddress = ataAddress;
     }
-    if (autoUnwrapWSOLToSOL && TOKEN_WSOL.mint === mint.toBase58()) {
+    if (autoUnwrapWSOLToSOL && WSOLMint.toBase58() === mint.toBase58()) {
       newTxInstructions.endInstructions = [
         closeAccountInstruction({ owner, payer: owner, tokenAccount: tokenAccountAddress }),
       ];
@@ -165,9 +278,10 @@ export default class Account extends ModuleBase {
     };
   }
 
+  // old _handleTokenAccount
   public async handleTokenAccount(
     params: HandleTokenAccountParams,
-  ): Promise<AddInstructionParam & { tokenAccount: PublicKey }> {
+  ): Promise<AddInstructionParam & { tokenAccount?: PublicKey }> {
     const {
       side,
       amount,
@@ -179,10 +293,9 @@ export default class Account extends ModuleBase {
     } = params;
 
     const txBuilder = this.createTxBuilder();
-
     const ata = await getAssociatedTokenAddress(mint, this.scope.ownerPubKey, true);
 
-    if (new PublicKey(TOKEN_WSOL.mint).equals(mint)) {
+    if (new PublicKey(WSOLMint).equals(mint)) {
       const txInstruction = await createWSolAccountInstructions({
         connection: this.scope.connection,
         owner: this.scope.ownerPubKey,
@@ -202,5 +315,45 @@ export default class Account extends ModuleBase {
     }
 
     return { tokenAccount };
+  }
+
+  public async processTokenAccount(props: {
+    mint: PublicKey;
+    amount?: BigNumberish;
+    useSOLBalance?: boolean;
+    handleTokenAccount?: boolean;
+  }): Promise<Promise<AddInstructionParam & { tokenAccount?: PublicKey }>> {
+    const { mint, amount, useSOLBalance, handleTokenAccount } = props;
+    let tokenAccount: PublicKey | undefined;
+    const txBuilder = this.createTxBuilder();
+
+    if (mint.equals(new PublicKey(WSOLMint)) && useSOLBalance) {
+      // mintA
+      const { tokenAccount: _tokenAccount, ...instructions } = await this.handleTokenAccount({
+        side: "in",
+        amount: amount || 0,
+        mint,
+        bypassAssociatedCheck: true,
+      });
+      tokenAccount = _tokenAccount;
+      txBuilder.addInstruction(instructions);
+    } else {
+      tokenAccount = await this.getCreatedTokenAccount({
+        mint,
+        associatedOnly: false,
+      });
+      if (!tokenAccount && handleTokenAccount) {
+        const { tokenAccount: _tokenAccount, ...instructions } = await this.scope.account.handleTokenAccount({
+          side: "in",
+          amount: 0,
+          mint,
+          bypassAssociatedCheck: true,
+        });
+        tokenAccount = _tokenAccount;
+        txBuilder.addInstruction(instructions);
+      }
+    }
+
+    return { tokenAccount, ...txBuilder.AllTxData };
   }
 }

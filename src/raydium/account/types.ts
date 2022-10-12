@@ -35,3 +35,16 @@ export interface HandleTokenAccountParams {
   bypassAssociatedCheck: boolean;
   skipCloseAccount?: boolean;
 }
+
+export interface GetOrCreateTokenAccountParams {
+  mint: PublicKey;
+  owner: PublicKey;
+  createInfo?: {
+    payer: PublicKey;
+    amount?: BigNumberish;
+  };
+
+  associatedOnly: boolean;
+  notUseTokenAccount?: boolean;
+  skipCloseAccount?: boolean;
+}

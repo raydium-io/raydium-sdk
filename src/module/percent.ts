@@ -1,8 +1,8 @@
-import { BN_100, Rounding } from "../common/bignumber";
-
+import { Rounding } from "../common/bignumber";
+import BN from "bn.js";
 import { Fraction } from "./fraction";
 
-export const _100_PERCENT = new Fraction(BN_100);
+export const _100_PERCENT = new Fraction(new BN(100));
 
 export class Percent extends Fraction {
   public toSignificant(significantDigits = 5, format?: object, rounding?: Rounding): string {

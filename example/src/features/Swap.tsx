@@ -4,7 +4,7 @@ import Button from '@mui/material/Button'
 import CircularProgress from '@mui/material/CircularProgress'
 import Grid from '@mui/material/Grid'
 import OutlinedInput from '@mui/material/OutlinedInput'
-import { Percent, RouteInfo, RouteType, TokenAmount, setLoggerLevel, LogLevel } from '@raydium-io/raydium-sdk'
+import { Percent, RouteInfo, RouteType, TokenAmount } from '@raydium-io/raydium-sdk'
 import debounce from 'lodash/debounce'
 import { useEffect, useState } from 'react'
 import { PublicKey } from '@solana/web3.js'
@@ -33,6 +33,12 @@ export default function Swap() {
 
   useEffect(() => {
     async function calculateAmount() {
+      console.log(1111, TokenAmount)
+      try {
+        await raydium?.ammV3.load()
+      } catch (e) {
+        console.log(4444, e)
+      }
       if (!inAmount) {
         setOutAmount(undefined)
         setMinOutAmount(undefined)
@@ -81,9 +87,8 @@ export default function Swap() {
     if (connected && inToken && outToken) {
       debounceCalculate()
     }
-
     return () => debounceCalculate.cancel()
-  }, [connected, inToken, outToken, inAmount])
+  }, [connected, inToken, outToken, inAmount, raydium])
 
   const handleClick = async () => {
     const { signers, execute, extInfo } = await raydium!.trade.swap({
