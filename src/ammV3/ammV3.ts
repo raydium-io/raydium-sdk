@@ -304,7 +304,7 @@ export class AmmV3 extends Base {
   }): Promise<ReturnTypeMakeCreatePoolTransaction> {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
-    const [mintA, mintB, initPrice] = mint1.mint._bn > mint2.mint._bn ? [mint2, mint1, (new Decimal(1)).div(initialPrice)] : [mint1, mint2, initialPrice];
+    const [mintA, mintB, initPrice] = mint1.mint._bn.gt(mint2.mint._bn) ? [mint2, mint1, (new Decimal(1)).div(initialPrice)] : [mint1, mint2, initialPrice];
 
     const initialPriceX64 = SqrtPriceMath.priceToSqrtPriceX64(initPrice, mintA.decimals, mintB.decimals);
 
