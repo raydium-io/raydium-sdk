@@ -62,7 +62,7 @@ export function route1Instruction(
     keys.push(...[
       { pubkey: poolKey.authority, isSigner: false, isWritable: false },
       { pubkey: poolKey.marketProgramId, isSigner: false, isWritable: false },
-      { pubkey: poolKey.marketAuthority, isSigner: false, isWritable: false },
+      { pubkey: poolKey.id, isSigner: false, isWritable: true },
       { pubkey: new PublicKey('CDSr3ssLcRB6XYPJwAfFt18MZvEZp4LjHcvzBVZ45duo'), isSigner: false, isWritable: false },
       { pubkey: poolKey.openOrders, isSigner: false, isWritable: true },
       { pubkey: poolKey.baseVault, isSigner: false, isWritable: true },
@@ -71,8 +71,8 @@ export function route1Instruction(
       { pubkey: poolKey.marketBids, isSigner: false, isWritable: true },
       { pubkey: poolKey.marketAsks, isSigner: false, isWritable: true },
       { pubkey: poolKey.marketEventQueue, isSigner: false, isWritable: true },
-      { pubkey: poolKey.marketBaseVault, isSigner: false, isWritable: true },
-      { pubkey: poolKey.marketQuoteVault, isSigner: false, isWritable: true },
+      { pubkey: poolKey.id, isSigner: false, isWritable: true },
+      { pubkey: poolKey.id, isSigner: false, isWritable: true },
     ])
   } else if (poolKeyA.version === 4) {
     const poolKey = jsonInfo2PoolKeys(poolKeyA) as LiquidityPoolKeysV4
@@ -157,7 +157,7 @@ export function route2Instruction(
     keys.push(...[
       { pubkey: poolKey.authority, isSigner: false, isWritable: false },
       { pubkey: poolKey.marketProgramId, isSigner: false, isWritable: false },
-      { pubkey: poolKey.marketAuthority, isSigner: false, isWritable: false },
+      { pubkey: poolKey.id, isSigner: false, isWritable: true },
       { pubkey: new PublicKey('CDSr3ssLcRB6XYPJwAfFt18MZvEZp4LjHcvzBVZ45duo'), isSigner: false, isWritable: false },
       { pubkey: poolKey.openOrders, isSigner: false, isWritable: true },
       { pubkey: poolKey.baseVault, isSigner: false, isWritable: true },
@@ -166,8 +166,8 @@ export function route2Instruction(
       { pubkey: poolKey.marketBids, isSigner: false, isWritable: true },
       { pubkey: poolKey.marketAsks, isSigner: false, isWritable: true },
       { pubkey: poolKey.marketEventQueue, isSigner: false, isWritable: true },
-      { pubkey: poolKey.marketBaseVault, isSigner: false, isWritable: true },
-      { pubkey: poolKey.marketQuoteVault, isSigner: false, isWritable: true },
+      { pubkey: poolKey.id, isSigner: false, isWritable: true },
+      { pubkey: poolKey.id, isSigner: false, isWritable: true },
     ])
   } else if (poolKeyB.version === 4) {
     const poolKey = jsonInfo2PoolKeys(poolKeyB) as LiquidityPoolKeysV4
