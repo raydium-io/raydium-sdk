@@ -423,12 +423,14 @@ export class AmmV3 extends Base {
         slippage
       );
 
+    const mintAUseSOLBalance = ownerInfo.useSOLBalance && poolInfo.mintA.mint.equals(Token.WSOL.mint)
+    const mintBUseSOLBalance = ownerInfo.useSOLBalance && poolInfo.mintB.mint.equals(Token.WSOL.mint)
     const ownerTokenAccountA = await this._selectOrCreateTokenAccount({
       mint: poolInfo.mintA.mint,
-      tokenAccounts: ownerInfo.useSOLBalance ? [] : ownerInfo.tokenAccounts,
+      tokenAccounts: mintAUseSOLBalance ? [] : ownerInfo.tokenAccounts,
       owner: ownerInfo.wallet,
     
-      createInfo: ownerInfo.useSOLBalance ? {
+      createInfo: mintAUseSOLBalance ? {
         connection,
         payer: ownerInfo.feePayer,
         amount: amountSlippageA,
@@ -438,15 +440,15 @@ export class AmmV3 extends Base {
         signers
       } : undefined,
     
-      associatedOnly: ownerInfo.useSOLBalance ? false : associatedOnly
+      associatedOnly: mintAUseSOLBalance ? false : associatedOnly
     })
 
     const ownerTokenAccountB = await this._selectOrCreateTokenAccount({
       mint: poolInfo.mintB.mint,
-      tokenAccounts: ownerInfo.useSOLBalance ? [] : ownerInfo.tokenAccounts,
+      tokenAccounts: mintBUseSOLBalance ? [] : ownerInfo.tokenAccounts,
       owner: ownerInfo.wallet,
     
-      createInfo: ownerInfo.useSOLBalance ? {
+      createInfo: mintBUseSOLBalance ? {
         connection,
         payer: ownerInfo.feePayer,
         amount: amountSlippageA,
@@ -456,7 +458,7 @@ export class AmmV3 extends Base {
         signers
       } : undefined,
     
-      associatedOnly: ownerInfo.useSOLBalance ? false : associatedOnly
+      associatedOnly: mintBUseSOLBalance ? false : associatedOnly
     })
    
     logger.assertArgument(
