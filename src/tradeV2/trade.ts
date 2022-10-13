@@ -653,7 +653,7 @@ export class TradeV2 extends Base {
     const sourceToken = await this._selectOrCreateTokenAccount({
       mint: inputMint,
       tokenAccounts: useSolBalance ? [] : ownerInfo.tokenAccounts,
-      createInfo: useSolBalance || 1 === 1 ? {
+      createInfo: useSolBalance ? {
         connection,
         payer: ownerInfo.wallet,
         amount: amountIn.raw,

@@ -371,7 +371,7 @@ export class AmmV3 extends Base {
   }
 
   static async makeOpenPositionTransaction(
-    { connection, poolInfo, ownerInfo, tickLower, tickUpper, liquidity, slippage }: {
+    { connection, poolInfo, ownerInfo, tickLower, tickUpper, liquidity, slippage ,associatedOnly = true}: {
       connection: Connection,
       poolInfo: AmmV3PoolInfo,
 
@@ -390,6 +390,7 @@ export class AmmV3 extends Base {
 
       liquidity: BN,
       slippage: number
+      associatedOnly?: boolean
     }): Promise<ReturnTypeMakeTransaction> {
     const frontInstructions: TransactionInstruction[] = [];
     const endInstructions: TransactionInstruction[] = [];
@@ -420,59 +421,44 @@ export class AmmV3 extends Base {
         slippage
       );
 
-    let ownerTokenAccountA: PublicKey | null
-    let ownerTokenAccountB: PublicKey | null
-    if (poolInfo.mintA.mint.equals(new PublicKey(WSOL.mint)) && ownerInfo.useSOLBalance) {
-      // mintA
-      ownerTokenAccountA = await this._handleTokenAccount({
+    const ownerTokenAccountA = await this._selectOrCreateTokenAccount({
+      mint: poolInfo.mintA.mint,
+      tokenAccounts: ownerInfo.useSOLBalance ? [] : ownerInfo.tokenAccounts,
+      owner: ownerInfo.wallet,
+    
+      createInfo: ownerInfo.useSOLBalance ? {
         connection,
-        side: "in",
+        payer: ownerInfo.feePayer,
         amount: amountSlippageA,
-        mint: poolInfo.mintA.mint,
-        tokenAccount: null,
-        owner: ownerInfo.wallet,
-        payer: ownerInfo.feePayer,
+    
         frontInstructions,
         endInstructions,
-        signers,
-        bypassAssociatedCheck: true
-      })
-    } else {
-      ownerTokenAccountA = await this._selectTokenAccount({
-        tokenAccounts: ownerInfo.tokenAccounts,
-        mint: poolInfo.mintA.mint,
-        owner: ownerInfo.wallet,
-        config: { associatedOnly: false },
-      }
-      )
-    }
-    if (poolInfo.mintB.mint.equals(new PublicKey(WSOL.mint)) && ownerInfo.useSOLBalance) {
-      // mintB
-      ownerTokenAccountB = await this._handleTokenAccount({
-        connection,
-        side: "in",
-        amount: amountSlippageB,
-        mint: poolInfo.mintB.mint,
-        tokenAccount: null,
-        owner: ownerInfo.wallet,
-        payer: ownerInfo.feePayer,
-        frontInstructions,
-        endInstructions,
-        signers,
-        bypassAssociatedCheck: true
-      })
-    } else {
-      ownerTokenAccountB = await this._selectTokenAccount({
-        tokenAccounts: ownerInfo.tokenAccounts,
-        mint: poolInfo.mintB.mint,
-        owner: ownerInfo.wallet,
-        config: { associatedOnly: false },
-      }
-      )
-    }
+        signers
+      } : undefined,
+    
+      associatedOnly: ownerInfo.useSOLBalance ? false : associatedOnly
+    })
 
+    const ownerTokenAccountB = await this._selectOrCreateTokenAccount({
+      mint: poolInfo.mintB.mint,
+      tokenAccounts: ownerInfo.useSOLBalance ? [] : ownerInfo.tokenAccounts,
+      owner: ownerInfo.wallet,
+    
+      createInfo: ownerInfo.useSOLBalance ? {
+        connection,
+        payer: ownerInfo.feePayer,
+        amount: amountSlippageA,
+    
+        frontInstructions,
+        endInstructions,
+        signers
+      } : undefined,
+    
+      associatedOnly: ownerInfo.useSOLBalance ? false : associatedOnly
+    })
+   
     logger.assertArgument(
-      !!ownerTokenAccountA || !!ownerTokenAccountB,
+      ownerTokenAccountA !== undefined && ownerTokenAccountB !== undefined,
       "cannot found target token accounts",
       "tokenAccounts",
       ownerInfo.tokenAccounts,
