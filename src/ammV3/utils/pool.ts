@@ -21,7 +21,7 @@ export class PoolUtils {
     const allNeededAccounts: PublicKey[] = [];
     const { isExist, startIndex: firstTickArrayStartIndex, nextAccountMeta } =
       await this.getFirstInitializedTickArray(poolInfo, zeroForOne);
-    if (!isExist || !firstTickArrayStartIndex || !nextAccountMeta) {
+    if (!isExist || firstTickArrayStartIndex === undefined || !nextAccountMeta) {
       throw new Error("Invalid tick array");
     }
 
