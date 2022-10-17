@@ -35,24 +35,10 @@ export class Currency {
 }
 
 export function inspectCurrency() {
-  if (typeof Symbol !== "undefined" && typeof Symbol.for === "function") {
-    try {
-      // @ts-ignore
-      Currency.prototype[Symbol.for("nodejs.util.inspect.custom")] = function () {
-        return `<Currency: decimals=${this.decimals}, name=${this.name}, symbol=${this.symbol}>`;
-      };
-    } catch (e) {
-      // @ts-ignore
-      Currency.prototype.inspect = function () {
-        return `<Currency: decimals=${this.decimals}, name=${this.name}, symbol=${this.symbol}>`;
-      };
-    }
-  } else {
-    // @ts-ignore
-    Currency.prototype.inspect = function () {
-      return `<Currency: decimals=${this.decimals}, name=${this.name}, symbol=${this.symbol}>`;
-    };
-  }
+  // @ts-ignore
+  Currency.prototype.inspect = function () {
+    return `<Currency: decimals=${this.decimals}, name=${this.name}, symbol=${this.symbol}>`;
+  };
 }
 
 /**
@@ -86,30 +72,12 @@ export class Token extends Currency {
 }
 
 export function inspectToken() {
-  if (typeof Symbol !== "undefined" && typeof Symbol.for === "function") {
-    try {
-      // @ts-ignore
-      Token.prototype[Symbol.for("nodejs.util.inspect.custom")] = function () {
-        return `<Token: mint=${this.mint.toBase58()}, decimals=${this.decimals}, name=${this.name}, symbol=${
-          this.symbol
-        }>`;
-      };
-    } catch (e) {
-      // @ts-ignore
-      Token.prototype.inspect = function () {
-        return `<Token: mint=${this.mint.toBase58()}, decimals=${this.decimals}, name=${this.name}, symbol=${
-          this.symbol
-        }>`;
-      };
-    }
-  } else {
-    // @ts-ignore
-    Token.prototype.inspect = function () {
-      return `<Token: mint=${this.mint.toBase58()}, decimals=${this.decimals}, name=${this.name}, symbol=${
-        this.symbol
-      }>`;
-    };
-  }
+  // @ts-ignore
+  Token.prototype.inspect = function () {
+    return `<Token: mint=${this.mint.toBase58()}, decimals=${this.decimals}, name=${this.name}, symbol=${
+      this.symbol
+    }>`;
+  };
 }
 
 /**

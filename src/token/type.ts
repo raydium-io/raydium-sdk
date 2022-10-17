@@ -23,8 +23,6 @@ export interface SplTokenInfo extends NativeTokenInfo {
 
 // SPL tokens
 export type SplTokens = {
-  [Symbol.iterator](): IterableIterator<SplTokenInfo>;
-} & {
   [T in string]: SplTokenInfo;
 };
 
@@ -40,8 +38,6 @@ export interface LpTokenInfo extends NativeTokenInfo {
 
 // LP tokens
 export type LpTokens = {
-  [Symbol.iterator](): IterableIterator<LpTokenInfo>;
-} & {
   [T in string]: LpTokenInfo;
 };
 
@@ -65,14 +61,10 @@ export interface LpTokenJsonInfo {
 }
 
 export type SplTokensJsonInfo = {
-  [Symbol.iterator](): IterableIterator<SplTokenJsonInfo>;
-} & {
   [T in string]: SplTokenJsonInfo;
 };
 
 export type LpTokensJsonInfo = {
-  [Symbol.iterator](): IterableIterator<LpTokenJsonInfo>;
-} & {
   [T in string]: LpTokenJsonInfo;
 };
 

@@ -2,9 +2,6 @@ import { WSOL } from "./sol";
 import { LpTokens, SplTokens } from "./type";
 
 export const MAINNET_SPL_TOKENS: SplTokens = {
-  *[Symbol.iterator]() {
-    yield* Object.values(this);
-  },
   WSOL: {
     ...WSOL,
   },
@@ -1101,9 +1098,6 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
 };
 
 export const MAINNET_LP_TOKENS: LpTokens = {
-  *[Symbol.iterator]() {
-    yield* Object.values(this);
-  },
   FIDA_RAY_V4: {
     symbol: "FIDA-RAY",
     name: "FIDA-RAY V4 LP",

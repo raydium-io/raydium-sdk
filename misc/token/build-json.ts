@@ -89,9 +89,6 @@ class RaydiumFormatTokenList {
 
   static parseLpInfo(tokenInfo: LpTokens) {
     const lps: LpTokensJsonInfo = {
-      *[Symbol.iterator]() {
-        yield* Object.values(this);
-      },
     };
 
     for (const [name, lpToken] of Object.entries(tokenInfo)) {
@@ -124,7 +121,7 @@ function buildTokensJsonFile() {
     `${tokenDir}/solana.mainnet.json`,
     SolanaFormatTokenList.generateTokenTemplate(
       "Raydium Mainnet Token List",
-      SolanaFormatTokenList.generateTokensInfo([...MAINNET_SPL_TOKENS, ...MAINNET_LP_TOKENS], 101),
+      SolanaFormatTokenList.generateTokensInfo([...Object.values(MAINNET_SPL_TOKENS), ...Object.values(MAINNET_LP_TOKENS)], 101),
     ),
   );
 
@@ -133,7 +130,7 @@ function buildTokensJsonFile() {
   //   `${tokenDir}/solana.testnet.json`,
   //   SolanaFormatTokenList.generateTokenTemplate(
   //     'Raydium Testnet Token List',
-  //     SolanaFormatTokenList.generateTokensInfo([...TESTNET_SPL_TOKENS, ...TESTNET_LP_TOKENS], 102)
+  //     SolanaFormatTokenList.generateTokensInfo([...Object.values(TESTNET_SPL_TOKENS), ...Object.values(TESTNET_LP_TOKENS)], 102)
   //   )
   // );
 
@@ -142,7 +139,7 @@ function buildTokensJsonFile() {
   //   `${tokenDir}/solana.devnet.json`,
   //   SolanaFormatTokenList.generateTokenTemplate(
   //     'Raydium Devnet Token List',
-  //     SolanaFormatTokenList.generateTokensInfo([...DEVNET_SPL_TOKENS, ...DEVNET_LP_TOKENS], 103)
+  //     SolanaFormatTokenList.generateTokensInfo([...Object.values(DEVNET_SPL_TOKENS), ...Object.values(DEVNET_LP_TOKENS)], 103)
   //   )
   // );
 
@@ -150,9 +147,9 @@ function buildTokensJsonFile() {
   // writeJsonFile(
   //   'all',
   //   SolanaFormatTokenList.generateTokenTemplate('Raydium Token List', [
-  //     ...SolanaFormatTokenList.generateTokensInfo([...MAINNET_SPL_TOKENS, ...MAINNET_LP_TOKENS], 101),
-  //     ...SolanaFormatTokenList.generateTokensInfo([...TESTNET_SPL_TOKENS, ...TESTNET_LP_TOKENS], 102),
-  //     ...SolanaFormatTokenList.generateTokensInfo([...DEVNET_SPL_TOKENS, ...DEVNET_LP_TOKENS], 103)
+  //     ...SolanaFormatTokenList.generateTokensInfo([...Object.values(MAINNET_SPL_TOKENS), ...Object.values(MAINNET_LP_TOKENS)], 101),
+  //     ...SolanaFormatTokenList.generateTokensInfo([...Object.values(TESTNET_SPL_TOKENS), ...Object.values(TESTNET_LP_TOKENS)], 102),
+  //     ...SolanaFormatTokenList.generateTokensInfo([...Object.values(DEVNET_SPL_TOKENS), ...Object.values(DEVNET_LP_TOKENS)], 103)
   //   ])
   // );
 
@@ -180,7 +177,7 @@ function buildTokensJsonFile() {
   try {
     const connection = new Connection(endpoint);
 
-    const mainnetTokens = [...MAINNET_SPL_TOKENS, ...MAINNET_LP_TOKENS];
+    const mainnetTokens = [...Object.values(MAINNET_SPL_TOKENS), ...Object.values(MAINNET_LP_TOKENS)];
 
     consola.info("Checking local tokens info...");
     checkTokenList(

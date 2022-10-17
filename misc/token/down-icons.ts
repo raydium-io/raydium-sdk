@@ -22,7 +22,7 @@ import { mkdirIfNotExists } from "../util";
   //   )
   //   .map((token) => token.address);
 
-  const mints = [...MAINNET_SPL_TOKENS].map((token) => token.mint);
+  const mints = Object.values(MAINNET_SPL_TOKENS).map((token) => token.mint);
 
   for (const mint of mints) {
     const iconFileName = `${iconsDir}/${mint}.png`;

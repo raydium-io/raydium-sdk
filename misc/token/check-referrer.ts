@@ -36,7 +36,7 @@ dotenv.config();
   const mints: PublicKey[] = [];
   const atas: PublicKey[] = [];
 
-  for (const tokenInfo of [...MAINNET_SPL_TOKENS]) {
+  for (const tokenInfo of Object.values(MAINNET_SPL_TOKENS)) {
     const mint = new PublicKey(tokenInfo.mint);
     mints.push(mint);
     atas.push(await Spl.getAssociatedTokenAddress({ mint, owner }));
