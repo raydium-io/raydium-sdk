@@ -1,7 +1,7 @@
 import { PublicKey } from "@solana/web3.js";
 import BN from "bn.js";
 
-import { AmmV3PoolInfo, AmmV3PoolRewardInfo } from "../ammV3";
+import { AmmV3PoolInfo, AmmV3PoolRewardInfo, AmmV3PoolRewardLayoutInfo } from "../ammV3";
 
 import { NEGATIVE_ONE, Q64, ZERO } from "./constants";
 import { MathUtil, SwapMath } from "./math";
@@ -29,7 +29,8 @@ export class PoolUtils {
     const {
       amountCalculated: outputAmount,
       accounts: reaminAccounts,
-      sqrtPriceX64: executionPrice
+      sqrtPriceX64: executionPrice,
+      feeAmount
     } = await SwapMath.swapCompute(
       poolInfo.programId,
       poolInfo.id,
@@ -45,7 +46,7 @@ export class PoolUtils {
       sqrtPriceLimitX64
     );
     allNeededAccounts.push(...reaminAccounts);
-    return { expectedAmountOut: outputAmount.mul(NEGATIVE_ONE), remainingAccounts: allNeededAccounts, executionPrice };
+    return { expectedAmountOut: outputAmount.mul(NEGATIVE_ONE), remainingAccounts: allNeededAccounts, executionPrice, feeAmount };
   }
 
   public static async getFirstInitializedTickArray(
@@ -118,10 +119,15 @@ export class PoolUtils {
   public static updatePoolRewardInfos({chainTime, poolLiquidity, rewardInfos}: {
     chainTime: number,
     poolLiquidity: BN,
-    rewardInfos: AmmV3PoolRewardInfo[],
+    rewardInfos: AmmV3PoolRewardLayoutInfo[],
   }) {
     const nRewardInfo: AmmV3PoolRewardInfo[] = []
-    for (const itemReward of rewardInfos) {
+    for (const _itemReward of rewardInfos) {
+      const itemReward = {
+        ..._itemReward,
+        perSecond: MathUtil.x64ToDecimal(_itemReward.emissionsPerSecondX64)
+      }
+      
       if (itemReward.tokenMint.equals(PublicKey.default)) continue
       if (chainTime <= itemReward.openTime.toNumber() || poolLiquidity.eq(ZERO)) {
         nRewardInfo.push(itemReward)

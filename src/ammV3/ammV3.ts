@@ -39,6 +39,7 @@ export interface ApiAmmV3ConfigInfo {
   protocolFeeRate: number;
   tradeFeeRate: number;
   tickSpacing: number;
+  description: string;
 }
 export interface ApiAmmV3ConfigInfos { [configId: string]: ApiAmmV3ConfigInfo }
 
@@ -48,11 +49,15 @@ export interface AmmV3ConfigInfo {
   protocolFeeRate: number;
   tradeFeeRate: number;
   tickSpacing: number;
+  description: string;
 }
 export interface ApiAmmV3PoolInfo {
   id: string
   mintA: string
   mintB: string
+  mintDecimalsA: number,
+  mintDecimalsB: number,
+
   ammConfig: ApiAmmV3ConfigInfo,
 
   day: {
@@ -67,6 +72,9 @@ export interface ApiAmmV3PoolInfo {
       C: number
     }
     apr: number
+
+    priceMin: number
+    priceMax: number
   },
   week: {
     volume: number,
@@ -80,6 +88,9 @@ export interface ApiAmmV3PoolInfo {
       C: number
     }
     apr: number
+
+    priceMin: number
+    priceMax: number
   },
   month: {
     volume: number,
@@ -93,9 +104,26 @@ export interface ApiAmmV3PoolInfo {
       C: number
     }
     apr: number
+
+    priceMin: number
+    priceMax: number
   },
 
   tvl: number
+}
+
+export interface AmmV3PoolRewardLayoutInfo {
+  rewardState: number;
+  openTime: BN;
+  endTime: BN;
+  lastUpdateTime: BN;
+  emissionsPerSecondX64: BN;
+  rewardTotalEmissioned: BN;
+  rewardClaimed: BN;
+  tokenMint: PublicKey;
+  tokenVault: PublicKey;
+  authority: PublicKey;
+  rewardGrowthGlobalX64: BN;
 }
 
 export interface AmmV3PoolRewardInfo {
@@ -110,6 +138,7 @@ export interface AmmV3PoolRewardInfo {
   tokenVault: PublicKey;
   authority: PublicKey;
   rewardGrowthGlobalX64: BN;
+  perSecond: Decimal
 }
 export interface AmmV3PoolInfo {
   id: PublicKey,
@@ -161,6 +190,9 @@ export interface AmmV3PoolInfo {
       C: number
     }
     apr: number
+
+    priceMin: number
+    priceMax: number
   },
   week: {
     volume: number,
@@ -174,6 +206,9 @@ export interface AmmV3PoolInfo {
       C: number
     }
     apr: number
+
+    priceMin: number
+    priceMax: number
   },
   month: {
     volume: number,
@@ -187,6 +222,9 @@ export interface AmmV3PoolInfo {
       C: number
     }
     apr: number
+
+    priceMin: number
+    priceMax: number
   },
   tvl: number
 }
@@ -364,16 +402,16 @@ export class AmmV3 extends Base {
 
         rewardInfos: [],
 
-        day: { volume: 0, volumeFee: 0, feeA: 0, feeB: 0, feeApr: 0, rewardApr: { A: 0, B: 0, C: 0 }, apr: 0 },
-        week: { volume: 0, volumeFee: 0, feeA: 0, feeB: 0, feeApr: 0, rewardApr: { A: 0, B: 0, C: 0 }, apr: 0 },
-        month: { volume: 0, volumeFee: 0, feeA: 0, feeB: 0, feeApr: 0, rewardApr: { A: 0, B: 0, C: 0 }, apr: 0 },
+        day: { volume: 0, volumeFee: 0, feeA: 0, feeB: 0, feeApr: 0, rewardApr: { A: 0, B: 0, C: 0 }, apr: 0, priceMax: 0, priceMin: 0},
+        week: { volume: 0, volumeFee: 0, feeA: 0, feeB: 0, feeApr: 0, rewardApr: { A: 0, B: 0, C: 0 }, apr: 0, priceMax: 0, priceMin: 0 },
+        month: { volume: 0, volumeFee: 0, feeA: 0, feeB: 0, feeApr: 0, rewardApr: { A: 0, B: 0, C: 0 }, apr: 0, priceMax: 0, priceMin: 0 },
         tvl: 0
       }
     }
   }
 
   static async makeOpenPositionTransaction(
-    { connection, poolInfo, ownerInfo, tickLower, tickUpper, liquidity, slippage ,associatedOnly = true}: {
+    { connection, poolInfo, ownerInfo, tickLower, tickUpper, liquidity, slippage, associatedOnly = true }: {
       connection: Connection,
       poolInfo: AmmV3PoolInfo,
 
@@ -429,17 +467,17 @@ export class AmmV3 extends Base {
       mint: poolInfo.mintA.mint,
       tokenAccounts: mintAUseSOLBalance ? [] : ownerInfo.tokenAccounts,
       owner: ownerInfo.wallet,
-    
+
       createInfo: mintAUseSOLBalance ? {
         connection,
         payer: ownerInfo.feePayer,
         amount: amountSlippageA,
-    
+
         frontInstructions,
         endInstructions,
         signers
       } : undefined,
-    
+
       associatedOnly: mintAUseSOLBalance ? false : associatedOnly
     })
 
@@ -447,20 +485,20 @@ export class AmmV3 extends Base {
       mint: poolInfo.mintB.mint,
       tokenAccounts: mintBUseSOLBalance ? [] : ownerInfo.tokenAccounts,
       owner: ownerInfo.wallet,
-    
+
       createInfo: mintBUseSOLBalance ? {
         connection,
         payer: ownerInfo.feePayer,
         amount: amountSlippageB,
-    
+
         frontInstructions,
         endInstructions,
         signers
       } : undefined,
-    
+
       associatedOnly: mintBUseSOLBalance ? false : associatedOnly
     })
-   
+
     logger.assertArgument(
       ownerTokenAccountA !== undefined && ownerTokenAccountB !== undefined,
       "cannot found target token accounts",
@@ -607,7 +645,7 @@ export class AmmV3 extends Base {
   }
 
   static async makeDecreaseLiquidityTransaction({
-    connection, poolInfo, ownerPosition, ownerInfo, liquidity, slippage
+    connection, poolInfo, ownerPosition, ownerInfo, liquidity, slippage, associatedOnly = true
   }: {
     connection: Connection
     poolInfo: AmmV3PoolInfo,
@@ -622,6 +660,7 @@ export class AmmV3 extends Base {
 
     liquidity: BN,
     slippage: number
+    associatedOnly?: boolean
   }): Promise<ReturnTypeMakeTransaction> {
     const frontInstructions: TransactionInstruction[] = [];
     const endInstructions: TransactionInstruction[] = [];
@@ -638,117 +677,68 @@ export class AmmV3 extends Base {
         true,
         slippage
       );
-    let ownerTokenAccountA: PublicKey | null
-    let ownerTokenAccountB: PublicKey | null
-    if (poolInfo.mintA.mint.equals(new PublicKey(WSOL.mint)) && ownerInfo.useSOLBalance) {
-      // mintA
-      ownerTokenAccountA = await this._handleTokenAccount({
+
+    const mintAUseSOLBalance = ownerInfo.useSOLBalance && poolInfo.mintA.mint.equals(Token.WSOL.mint)
+    const mintBUseSOLBalance = ownerInfo.useSOLBalance && poolInfo.mintB.mint.equals(Token.WSOL.mint)
+
+    const ownerTokenAccountA = await this._selectOrCreateTokenAccount({
+      mint: poolInfo.mintA.mint,
+      tokenAccounts: mintAUseSOLBalance ? [] : ownerInfo.tokenAccounts,
+      owner: ownerInfo.wallet,
+
+      createInfo: mintAUseSOLBalance ? {
         connection,
-        side: "in",
-        amount: 0,
-        mint: poolInfo.mintA.mint,
-        tokenAccount: null,
-        owner: ownerInfo.wallet,
         payer: ownerInfo.feePayer,
+        amount: amountSlippageA,
+
         frontInstructions,
         endInstructions,
-        signers,
-        bypassAssociatedCheck: true
-      })
-    } else {
-      ownerTokenAccountA = await this._selectTokenAccount({
-        tokenAccounts: ownerInfo.tokenAccounts,
-        mint: poolInfo.mintA.mint,
-        owner: ownerInfo.wallet,
-        config: { associatedOnly: false },
-      }) ?? await this._handleTokenAccount({
+        signers
+      } : undefined,
+
+      associatedOnly: mintAUseSOLBalance ? false : associatedOnly
+    })
+
+    const ownerTokenAccountB = await this._selectOrCreateTokenAccount({
+      mint: poolInfo.mintB.mint,
+      tokenAccounts: mintBUseSOLBalance ? [] : ownerInfo.tokenAccounts,
+      owner: ownerInfo.wallet,
+
+      createInfo: mintBUseSOLBalance ? {
         connection,
-        side: "in",
-        amount: 0,
-        mint: poolInfo.mintA.mint,
-        tokenAccount: null,
-        owner: ownerInfo.wallet,
         payer: ownerInfo.feePayer,
+        amount: amountSlippageB,
+
         frontInstructions,
         endInstructions,
-        signers,
-        bypassAssociatedCheck: true
-      })
-    }
-    if (poolInfo.mintB.mint.equals(new PublicKey(WSOL.mint)) && ownerInfo.useSOLBalance) {
-      // mintB
-      ownerTokenAccountB = await this._handleTokenAccount({
-        connection,
-        side: "in",
-        amount: 0,
-        mint: poolInfo.mintB.mint,
-        tokenAccount: null,
-        owner: ownerInfo.wallet,
-        payer: ownerInfo.feePayer,
-        frontInstructions,
-        endInstructions,
-        signers,
-        bypassAssociatedCheck: true
-      })
-    } else {
-      ownerTokenAccountB = await this._selectTokenAccount({
-        tokenAccounts: ownerInfo.tokenAccounts,
-        mint: poolInfo.mintB.mint,
-        owner: ownerInfo.wallet,
-        config: { associatedOnly: false },
-      }) ?? await this._handleTokenAccount({
-        connection,
-        side: "in",
-        amount: 0,
-        mint: poolInfo.mintB.mint,
-        tokenAccount: null,
-        owner: ownerInfo.wallet,
-        payer: ownerInfo.feePayer,
-        frontInstructions,
-        endInstructions,
-        signers,
-        bypassAssociatedCheck: true
-      })
-    }
+        signers
+      } : undefined,
+
+      associatedOnly: mintBUseSOLBalance ? false : associatedOnly
+    })
 
     const rewardAccounts: PublicKey[] = []
     for (const itemReward of poolInfo.rewardInfos) {
-      let ownerRewardAccount
-      if (itemReward.tokenMint.equals(new PublicKey(WSOL.mint)) && ownerInfo.useSOLBalance) {
-        ownerRewardAccount = await this._handleTokenAccount({
+      const rewardUseSOLBalance = ownerInfo.useSOLBalance && itemReward.tokenMint.equals(Token.WSOL.mint)
+
+      const ownerRewardAccount = await this._selectOrCreateTokenAccount({
+        mint: itemReward.tokenMint,
+        tokenAccounts: rewardUseSOLBalance ? [] : ownerInfo.tokenAccounts,
+        owner: ownerInfo.wallet,
+  
+        createInfo: rewardUseSOLBalance ? {
           connection,
-          side: "in",
-          amount: 0,
-          mint: itemReward.tokenMint,
-          tokenAccount: null,
-          owner: ownerInfo.wallet,
           payer: ownerInfo.feePayer,
+          amount: amountSlippageB,
+  
           frontInstructions,
           endInstructions,
-          signers,
-          bypassAssociatedCheck: true
-        })
-      } else {
-        ownerRewardAccount = await this._selectTokenAccount({
-          tokenAccounts: ownerInfo.tokenAccounts,
-          mint: itemReward.tokenMint,
-          owner: ownerInfo.wallet,
-          config: { associatedOnly: false },
-        }) ?? await this._handleTokenAccount({
-          connection,
-          side: "in",
-          amount: 0,
-          mint: poolInfo.mintB.mint,
-          tokenAccount: null,
-          owner: ownerInfo.wallet,
-          payer: ownerInfo.feePayer,
-          frontInstructions,
-          endInstructions,
-          signers,
-          bypassAssociatedCheck: true
-        })
-      }
-      rewardAccounts.push(ownerRewardAccount)
+          signers
+        } : undefined,
+  
+        associatedOnly: rewardUseSOLBalance ? false : associatedOnly
+      })
+      rewardAccounts.push(ownerRewardAccount!)
     }
 
     logger.assertArgument(
@@ -1223,6 +1213,21 @@ export class AmmV3 extends Base {
       address: { ...insInfo.address }
     }
   }
+
+  // static async makeHarvestAllRewardTransaction({
+  //   connection, fetchInfo, ownerInfo
+  // }: {
+  //   connection: Connection
+  //   fetchInfo: ReturnTypeFetchMultiplePoolInfos,
+  //   ownerInfo: {
+  //     feePayer: PublicKey,
+  //     wallet: PublicKey,
+  //     tokenAccounts: TokenAccount[],
+  //     useSOLBalance?: boolean  // if has WSOL mint
+  //   },
+  // }){
+    
+  // }
 
   // instrument
   static async makeCreatePoolInstructions({
@@ -1800,14 +1805,12 @@ export class AmmV3 extends Base {
         poolInfo.mintB.decimals
       );
     }
-    const _amountIn = amountIn.mul(new BN(10 ** 6 - poolInfo.ammConfig.tradeFeeRate)).div(new BN(10 ** 6))
-    const fee = amountIn.sub(_amountIn)
 
-    const { expectedAmountOut, remainingAccounts, executionPrice: _executionPriceX64 } = await PoolUtils.getOutputAmountAndRemainAccounts(
+    const { expectedAmountOut, remainingAccounts, executionPrice: _executionPriceX64, feeAmount } = await PoolUtils.getOutputAmountAndRemainAccounts(
       poolInfo,
       tickArrayCache,
       baseMint,
-      _amountIn,
+      amountIn,
       sqrtPriceLimitX64
     );
 
@@ -1828,9 +1831,150 @@ export class AmmV3 extends Base {
       currentPrice: poolInfo.currentPrice,
       executionPrice,
       priceImpact,
-      fee,
+      fee: feeAmount,
 
       remainingAccounts
+    }
+  }
+
+  // static estimateAprsForPriceRangeOrca({ poolInfo, aprType, mintPrice, positionTickLowerIndex, positionTickUpperIndex, rewardMintDecimals, chainTime }: {
+  //   poolInfo: AmmV3PoolInfo,
+  //   aprType: 'day' | 'week' | 'month',
+
+  //   mintPrice: { [mint: string]: Price }
+
+  //   positionTickLowerIndex: number,
+  //   positionTickUpperIndex: number,
+
+  //   chainTime: number
+
+  //   rewardMintDecimals: { [mint: string]: number }
+  // }) {
+  //   const aprTypeDay = aprType === 'day' ? 1 : aprType === 'week' ? 7 : aprType === 'month' ? 30 : 0
+  //   const aprInfo = poolInfo[aprType]
+  //   const mintPriceA = mintPrice[poolInfo.mintA.mint.toString()]
+  //   const mintPriceB = mintPrice[poolInfo.mintB.mint.toString()]
+
+  //   if (!aprInfo || !mintPriceA || !mintPriceB || positionTickLowerIndex >= positionTickUpperIndex) return { feeApr: 0, rewardsApr: [0, 0, 0], apr: 0 }
+
+  //   const sqrtPriceX64A = SqrtPriceMath.getSqrtPriceX64FromTick(positionTickLowerIndex)
+  //   const sqrtPriceX64B = SqrtPriceMath.getSqrtPriceX64FromTick(positionTickUpperIndex)
+
+  //   const { amountSlippageA, amountSlippageB } = LiquidityMath.getAmountsFromLiquidityWithSlippage(poolInfo.sqrtPriceX64, sqrtPriceX64A, sqrtPriceX64B, poolInfo.liquidity, false, false, 0)
+
+
+  //   const tokenValueA = new Decimal(amountSlippageA.toString()).div(new Decimal(10).pow(poolInfo.mintA.decimals)).mul(new Decimal(mintPriceA.toFixed(poolInfo.mintA.decimals)))
+  //   const tokenValueB = new Decimal(amountSlippageB.toString()).div(new Decimal(10).pow(poolInfo.mintB.decimals)).mul(new Decimal(mintPriceB.toFixed(poolInfo.mintB.decimals)))
+
+  //   const concentratedValue = tokenValueA.add(tokenValueB);
+
+  //   const feesPerYear = new Decimal(aprInfo.volumeFee).mul(365).div(aprTypeDay);
+  //   const feeApr = feesPerYear.div(concentratedValue).mul(100).toNumber();
+
+  //   const SECONDS_PER_YEAR = 3600 * 24 * 365
+
+  //   const rewardsApr = poolInfo.rewardInfos.map((i) => {
+  //     const iDecimal = rewardMintDecimals[i.tokenMint.toString()]
+  //     const iPrice = mintPrice[i.tokenMint.toString()]
+
+  //     if (chainTime < i.openTime.toNumber() || chainTime > i.endTime.toNumber() || i.perSecond.equals(0) || !iPrice || iDecimal === undefined) return 0
+
+  //     return new Decimal(iPrice.toFixed(iDecimal)).mul(i.perSecond.mul(SECONDS_PER_YEAR)).div(new Decimal(10).pow(iDecimal)).div(concentratedValue).mul(100).toNumber()
+  //   })
+
+  //   return {
+  //     feeApr,
+  //     rewardsApr,
+  //     apr: feeApr + rewardsApr.reduce((a, b) => a + b, 0)
+  //   }
+  // }
+
+  static estimateAprsForPriceRangeMultiplier({ poolInfo, aprType, positionTickLowerIndex, positionTickUpperIndex }: {
+    poolInfo: AmmV3PoolInfo,
+    aprType: 'day' | 'week' | 'month',
+
+    positionTickLowerIndex: number,
+    positionTickUpperIndex: number,
+  }) {
+    const aprInfo = poolInfo[aprType]
+
+    const priceLower = this.getTickPrice({ poolInfo, tick: positionTickLowerIndex, baseIn: true }).price.toNumber()
+    const priceUpper = this.getTickPrice({ poolInfo, tick: positionTickUpperIndex, baseIn: true }).price.toNumber()
+
+    const _minPrice = Math.max(priceLower, aprInfo.priceMin)
+    const _maxPrice = Math.min(priceUpper, aprInfo.priceMax)
+
+    const sub = _maxPrice - _minPrice
+
+    const userRange = priceUpper - priceLower
+    const tradeRange = aprInfo.priceMax - aprInfo.priceMin
+
+    let p
+
+    if (sub <= 0) p = 0
+    else if (userRange === sub) p = (tradeRange) / sub
+    else if (tradeRange === sub) p = sub / ( userRange)
+    else p = sub / (tradeRange) * (sub /(userRange))
+
+    return {
+      feeApr: aprInfo.feeApr * p,
+      rewardsApr: [aprInfo.rewardApr.A * p, aprInfo.rewardApr.B * p, aprInfo.rewardApr.C * p],
+      apr: aprInfo.apr * p
+    }
+  }
+
+  static estimateAprsForPriceRangeDelta({ poolInfo, aprType, mintPrice, rewardMintDecimals, liquidity, positionTickLowerIndex, positionTickUpperIndex, chainTime}: {
+    poolInfo: AmmV3PoolInfo,
+    aprType: 'day' | 'week' | 'month',
+
+    mintPrice: { [mint: string]: Price },
+
+    rewardMintDecimals: { [mint: string]: number },
+
+    liquidity: BN,
+    positionTickLowerIndex: number,
+    positionTickUpperIndex: number,
+
+    chainTime: number,
+  }) {
+    const aprTypeDay = aprType === 'day' ? 1 : aprType === 'week' ? 7 : aprType === 'month' ? 30 : 0
+    const aprInfo = poolInfo[aprType]
+    const mintPriceA = mintPrice[poolInfo.mintA.mint.toString()]
+    const mintPriceB = mintPrice[poolInfo.mintB.mint.toString()]
+    const mintDecimalsA = poolInfo.mintA.decimals
+    const mintDecimalsB = poolInfo.mintB.decimals
+
+    if (!aprInfo || !mintPriceA || !mintPriceB) return { feeApr: 0, rewardsApr: [0, 0, 0], apr: 0 }
+
+    const sqrtPriceX64A = SqrtPriceMath.getSqrtPriceX64FromTick(positionTickLowerIndex)
+    const sqrtPriceX64B = SqrtPriceMath.getSqrtPriceX64FromTick(positionTickUpperIndex)
+
+    const { amountSlippageA: poolLiquidityA, amountSlippageB: poolLiquidityB } = LiquidityMath.getAmountsFromLiquidityWithSlippage(poolInfo.sqrtPriceX64, sqrtPriceX64A, sqrtPriceX64B, poolInfo.liquidity, false, false, 0)
+    const { amountSlippageA: userLiquidityA, amountSlippageB: userLiquidityB } = LiquidityMath.getAmountsFromLiquidityWithSlippage(poolInfo.sqrtPriceX64, sqrtPriceX64A, sqrtPriceX64B, liquidity, false, false, 0)
+
+    const poolTvl = new Decimal(poolLiquidityA.toString()).div(new Decimal(10).pow(mintDecimalsA)).mul(mintPriceA.toFixed(mintDecimalsA)).add(new Decimal(poolLiquidityB.toString()).div(new Decimal(10).pow(mintDecimalsB)).mul(mintPriceB.toFixed(mintDecimalsB)))
+    const userTvl = new Decimal(userLiquidityA.toString()).div(new Decimal(10).pow(mintDecimalsA)).mul(mintPriceA.toFixed(mintDecimalsA)).add(new Decimal(userLiquidityB.toString()).div(new Decimal(10).pow(mintDecimalsB)).mul(mintPriceB.toFixed(mintDecimalsB)))
+
+    const p = userTvl.div(poolTvl.add(userTvl)).div(userTvl)
+
+    const feesPerYear = new Decimal(aprInfo.volumeFee).mul(365).div(aprTypeDay);
+    const feeApr = feesPerYear.mul(p).mul(100).toNumber();
+
+    const SECONDS_PER_YEAR = 3600 * 24 * 365
+
+    const rewardsApr = poolInfo.rewardInfos.map((i) => {
+      const iDecimal = rewardMintDecimals[i.tokenMint.toString()]
+      const iPrice = mintPrice[i.tokenMint.toString()]
+
+      if (chainTime < i.openTime.toNumber() || chainTime > i.endTime.toNumber() || i.perSecond.equals(0) || !iPrice || iDecimal === undefined) return 0
+
+      return new Decimal(iPrice.toFixed(iDecimal)).mul(i.perSecond.mul(SECONDS_PER_YEAR)).div(new Decimal(10).pow(iDecimal)).mul(p).mul(100).toNumber()
+    })
+
+    return {
+      feeApr,
+      rewardsApr,
+      apr: feeApr + rewardsApr.reduce((a, b) => a + b, 0)
     }
   }
 
@@ -1840,12 +1984,7 @@ export class AmmV3 extends Base {
 
     const programIds: PublicKey[] = []
 
-    const poolsInfo: {
-      [id: string]: {
-        state: AmmV3PoolInfo,
-        positionAccount?: AmmV3PoolPersonalPosition[]
-      }
-    } = {}
+    const poolsInfo: ReturnTypeFetchMultiplePoolInfos = {}
 
     for (let index = 0; index < poolKeys.length; index++) {
       const apiPoolInfo = poolKeys[index]

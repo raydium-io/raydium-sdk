@@ -630,6 +630,7 @@ export abstract class SwapMath {
       tick: currentTick,
       accounts: [] as PublicKey[],
       liquidity,
+      feeAmount: new BN(0),
     };
     let loopCount = 0;
     while (
@@ -688,6 +689,8 @@ export abstract class SwapMath {
           fee
         );
 
+      state.feeAmount = state.feeAmount.add(step.feeAmount)
+
       if (baseInput) {
         state.amountSpecifiedRemaining = state.amountSpecifiedRemaining.sub(
           step.amountIn.add(step.feeAmount)
@@ -718,6 +721,7 @@ export abstract class SwapMath {
     }
     return {
       amountCalculated: state.amountCalculated,
+      feeAmount: state.feeAmount,
       sqrtPriceX64: state.sqrtPriceX64,
       liquidity: state.liquidity,
       tickCurrent: state.tick,
