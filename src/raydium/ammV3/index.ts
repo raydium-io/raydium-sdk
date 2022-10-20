@@ -13,7 +13,7 @@ import { add, mul, div } from "../../common/fractionUtil";
 import ModuleBase, { ModuleBaseProps } from "../moduleBase";
 import { TokenAmount } from "../../module/amount";
 import { Percent } from "../../module/percent";
-import { mockCreatePoolInfo } from "./utils/constants";
+import { mockCreatePoolInfo, MAX_SQRT_PRICE_X64, MIN_SQRT_PRICE_X64, ONE } from "./utils/constants";
 import { LiquidityMath, SqrtPriceMath } from "./utils/math";
 import { PoolUtils } from "./utils/pool";
 import { PositionUtils } from "./utils/position";
@@ -25,6 +25,7 @@ import {
   HydratedConcentratedInfo,
   SDKParsedConcentratedInfo,
   IncreaseLiquidity,
+  AmmV3PoolPersonalPosition,
 } from "./type";
 import { AmmV3Instrument } from "./instrument";
 import { LoadParams, MakeTransaction } from "../type";
@@ -299,7 +300,7 @@ export class AmmV3 extends ModuleBase {
   }
 
   public async openPosition({
-    poolInfo,
+    poolId,
     ownerInfo,
     tickLower,
     tickUpper,
@@ -307,7 +308,7 @@ export class AmmV3 extends ModuleBase {
     slippage,
     associatedOnly = true,
   }: {
-    poolInfo: AmmV3PoolInfo;
+    poolId: PublicKey;
     ownerInfo: {
       useSOLBalance?: boolean; // if has WSOL mint (default: true)
     };
@@ -319,6 +320,9 @@ export class AmmV3 extends ModuleBase {
     associatedOnly?: boolean;
   }): Promise<MakeTransaction> {
     this.scope.checkOwner();
+    const pool = this._hydratedAmmV3PoolsMap.get(poolId.toBase58());
+    if (!pool) this.logAndCreateError("pool not found:", poolId.toBase58());
+    const poolInfo = pool!.state;
     const { amountSlippageA, amountSlippageB } = LiquidityMath.getAmountsFromLiquidityWithSlippage(
       poolInfo.sqrtPriceX64,
       SqrtPriceMath.getSqrtPriceX64FromTick(tickLower),
@@ -541,6 +545,113 @@ export class AmmV3 extends ModuleBase {
           })
         ).instructions,
       });
+
+    return txBuilder.build();
+  }
+
+  public async closePosition({
+    poolId,
+    ownerPosition,
+    ownerInfo,
+  }: {
+    poolId: PublicKey;
+    ownerPosition: AmmV3PoolPersonalPosition;
+
+    ownerInfo: {
+      wallet: PublicKey;
+    };
+  }): Promise<MakeTransaction> {
+    const pool = this._hydratedAmmV3PoolsMap.get(poolId.toBase58());
+    if (!pool) this.logAndCreateError("pool not found: ", poolId.toBase58());
+    const poolInfo = pool!.state;
+    const txBuilder = this.createTxBuilder();
+    const ins = await AmmV3Instrument.makeClosePositionInstructions({ poolInfo, ownerInfo, ownerPosition });
+    return txBuilder.addInstruction({ instructions: ins.instructions }).build();
+  }
+
+  public async swapBaseIn({
+    poolId,
+    ownerInfo,
+
+    inputMint,
+    amountIn,
+    amountOutMin,
+    priceLimit,
+
+    remainingAccounts,
+  }: {
+    poolId: PublicKey;
+    ownerInfo: {
+      feePayer: PublicKey;
+      useSOLBalance?: boolean;
+    };
+    inputMint: PublicKey;
+    amountIn: BN;
+    amountOutMin: BN;
+    priceLimit?: Decimal;
+    remainingAccounts: PublicKey[];
+  }): Promise<MakeTransaction> {
+    this.scope.checkOwner();
+    const pool = this._hydratedAmmV3PoolsMap.get(poolId.toBase58());
+    if (!pool) this.logAndCreateError("pool not found: ", poolId.toBase58());
+    const poolInfo = pool!.state;
+
+    let sqrtPriceLimitX64: BN;
+    if (!priceLimit || priceLimit.equals(new Decimal(0))) {
+      sqrtPriceLimitX64 = inputMint.equals(poolInfo.mintA.mint)
+        ? MIN_SQRT_PRICE_X64.add(ONE)
+        : MAX_SQRT_PRICE_X64.sub(ONE);
+    } else {
+      sqrtPriceLimitX64 = SqrtPriceMath.priceToSqrtPriceX64(
+        priceLimit,
+        poolInfo.mintA.decimals,
+        poolInfo.mintB.decimals,
+      );
+    }
+
+    const txBuilder = this.createTxBuilder();
+    txBuilder.addInstruction({ instructions: [AmmV3Instrument.addComputations()] });
+    const isInputMintA = poolInfo.mintA.mint.equals(inputMint);
+
+    let ownerTokenAccountA: PublicKey | undefined = undefined;
+    let ownerTokenAccountB: PublicKey | undefined = undefined;
+
+    const { tokenAccount: _ownerTokenAccountA, ...accountAInstructions } = await this.scope.account.processTokenAccount(
+      { mint: poolInfo.mintA.mint, amount: isInputMintA ? amountIn : 0, useSOLBalance: ownerInfo.useSOLBalance },
+    );
+    ownerTokenAccountA = _ownerTokenAccountA;
+    txBuilder.addInstruction(accountAInstructions);
+
+    const { tokenAccount: _ownerTokenAccountB, ...accountBInstructions } = await this.scope.account.processTokenAccount(
+      { mint: poolInfo.mintB.mint, amount: !isInputMintA ? amountIn : 0, useSOLBalance: ownerInfo.useSOLBalance },
+    );
+    ownerTokenAccountB = _ownerTokenAccountB;
+    txBuilder.addInstruction(accountBInstructions);
+
+    if (!ownerTokenAccountA && !ownerTokenAccountB)
+      this.logAndCreateError(
+        "cannot found target token accounts",
+        "tokenAccounts",
+        this.scope.account.tokenAccountRawInfos,
+      );
+
+    const insInfo = await AmmV3Instrument.makeSwapBaseInInstructions({
+      poolInfo,
+      ownerInfo: {
+        wallet: this.scope.ownerPubKey,
+        tokenAccountA: ownerTokenAccountA!,
+        tokenAccountB: ownerTokenAccountB!,
+      },
+
+      inputMint,
+
+      amountIn,
+      amountOutMin,
+      sqrtPriceLimitX64,
+
+      remainingAccounts,
+    });
+    txBuilder.addInstruction({ instructions: insInfo.instructions });
 
     return txBuilder.build();
   }

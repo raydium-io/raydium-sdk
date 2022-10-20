@@ -723,6 +723,61 @@ export class AmmV3Instrument {
     });
   }
 
+  static makeSwapBaseInInstructions({
+    poolInfo,
+    ownerInfo,
+    inputMint,
+    amountIn,
+    amountOutMin,
+    sqrtPriceLimitX64,
+    remainingAccounts,
+  }: {
+    poolInfo: AmmV3PoolInfo;
+
+    ownerInfo: {
+      wallet: PublicKey;
+      tokenAccountA: PublicKey;
+      tokenAccountB: PublicKey;
+    };
+
+    inputMint: PublicKey;
+
+    amountIn: BN;
+    amountOutMin: BN;
+    sqrtPriceLimitX64: BN;
+
+    remainingAccounts: PublicKey[];
+  }): ReturnTypeMakeInstructions {
+    const isInputMintA = poolInfo.mintA.mint.equals(inputMint);
+    const ins = [
+      this.swapInstruction(
+        poolInfo.programId,
+        ownerInfo.wallet,
+
+        poolInfo.id,
+        poolInfo.ammConfig.id,
+
+        isInputMintA ? ownerInfo.tokenAccountA : ownerInfo.tokenAccountB,
+        isInputMintA ? ownerInfo.tokenAccountB : ownerInfo.tokenAccountA,
+
+        isInputMintA ? poolInfo.mintA.vault : poolInfo.mintB.vault,
+        isInputMintA ? poolInfo.mintB.vault : poolInfo.mintA.vault,
+
+        remainingAccounts,
+        poolInfo.observationId,
+        amountIn,
+        amountOutMin,
+        sqrtPriceLimitX64,
+        true,
+      ),
+    ];
+    return {
+      signers: [],
+      instructions: ins,
+      address: {},
+    };
+  }
+
   static initRewardInstruction(
     programId: PublicKey,
     payer: PublicKey,
