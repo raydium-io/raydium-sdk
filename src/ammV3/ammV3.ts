@@ -686,15 +686,14 @@ export class AmmV3 extends Base {
       tokenAccounts: mintAUseSOLBalance ? [] : ownerInfo.tokenAccounts,
       owner: ownerInfo.wallet,
 
-      createInfo: mintAUseSOLBalance ? {
+      createInfo: {
         connection,
         payer: ownerInfo.feePayer,
         amount: 0,
 
         frontInstructions,
-        endInstructions,
         signers
-      } : undefined,
+      },
 
       associatedOnly: mintAUseSOLBalance ? false : associatedOnly
     })
@@ -704,15 +703,14 @@ export class AmmV3 extends Base {
       tokenAccounts: mintBUseSOLBalance ? [] : ownerInfo.tokenAccounts,
       owner: ownerInfo.wallet,
 
-      createInfo: mintBUseSOLBalance ? {
+      createInfo: {
         connection,
         payer: ownerInfo.feePayer,
         amount: 0,
 
         frontInstructions,
-        endInstructions,
         signers
-      } : undefined,
+      },
 
       associatedOnly: mintBUseSOLBalance ? false : associatedOnly
     })
@@ -726,15 +724,14 @@ export class AmmV3 extends Base {
         tokenAccounts: rewardUseSOLBalance ? [] : ownerInfo.tokenAccounts,
         owner: ownerInfo.wallet,
   
-        createInfo: rewardUseSOLBalance ? {
+        createInfo: {
           connection,
           payer: ownerInfo.feePayer,
-          amount: amountSlippageB,
+          amount: 0,
   
           frontInstructions,
-          endInstructions,
           signers
-        } : undefined,
+        },
   
         associatedOnly: rewardUseSOLBalance ? false : associatedOnly
       })
