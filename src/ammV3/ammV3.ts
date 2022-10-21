@@ -689,7 +689,7 @@ export class AmmV3 extends Base {
       createInfo: mintAUseSOLBalance ? {
         connection,
         payer: ownerInfo.feePayer,
-        amount: amountSlippageA,
+        amount: 0,
 
         frontInstructions,
         endInstructions,
@@ -707,7 +707,7 @@ export class AmmV3 extends Base {
       createInfo: mintBUseSOLBalance ? {
         connection,
         payer: ownerInfo.feePayer,
-        amount: amountSlippageB,
+        amount: 0,
 
         frontInstructions,
         endInstructions,
