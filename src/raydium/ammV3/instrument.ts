@@ -572,8 +572,8 @@ export class AmmV3Instrument {
     ownerPosition,
     ownerInfo,
     liquidity,
-    amountSlippageA,
-    amountSlippageB,
+    amountMinA,
+    amountMinB,
   }: {
     poolInfo: AmmV3PoolInfo;
     ownerPosition: AmmV3PoolPersonalPosition;
@@ -586,8 +586,8 @@ export class AmmV3Instrument {
     };
 
     liquidity: BN;
-    amountSlippageA: BN;
-    amountSlippageB: BN;
+    amountMinA: BN;
+    amountMinB: BN;
   }): Promise<ReturnTypeMakeInstructions> {
     const tickArrayLowerStartIndex = TickUtils.getTickArrayStartIndexByTick(
       ownerPosition.tickLower,
@@ -650,8 +650,8 @@ export class AmmV3Instrument {
         rewardAccounts,
 
         liquidity,
-        amountSlippageA,
-        amountSlippageB,
+        amountMinA,
+        amountMinB,
       ),
     );
 

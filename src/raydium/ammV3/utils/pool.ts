@@ -4,9 +4,11 @@ import BN from "bn.js";
 import {
   AmmV3PoolInfo,
   AmmV3PoolRewardInfo,
+  AmmV3PoolRewardLayoutInfo,
   ApiAmmV3PoolInfo,
   AmmV3PoolPersonalPosition,
   SDKParsedConcentratedInfo,
+  ReturnTypeFetchMultiplePoolInfos,
 } from "../type";
 import { TokenAccountRaw } from "../../account/types";
 import { getMultipleAccountsInfo, BN_ZERO } from "../../../common";
@@ -17,13 +19,6 @@ import { getPdaTickArrayAddress, getPdaPersonalPositionAddress } from "./pda";
 import { TickArray, TickUtils, Tick } from "./tick";
 import { PositionUtils } from "./position";
 
-export interface ReturnTypeFetchMultiplePoolInfos {
-  [id: string]: {
-    state: AmmV3PoolInfo;
-    positionAccount?: AmmV3PoolPersonalPosition[] | undefined;
-  };
-}
-
 export class PoolUtils {
   static async getOutputAmountAndRemainAccounts(
     poolInfo: AmmV3PoolInfo,
@@ -31,7 +26,7 @@ export class PoolUtils {
     inputTokenMint: PublicKey,
     inputAmount: BN,
     sqrtPriceLimitX64?: BN,
-  ): Promise<{ expectedAmountOut: BN; remainingAccounts: PublicKey[]; executionPrice: BN }> {
+  ): Promise<{ expectedAmountOut: BN; remainingAccounts: PublicKey[]; executionPrice: BN; feeAmount: BN }> {
     const zeroForOne = inputTokenMint.equals(poolInfo.mintA.mint);
 
     const allNeededAccounts: PublicKey[] = [];
@@ -49,6 +44,7 @@ export class PoolUtils {
       amountCalculated: outputAmount,
       accounts: reaminAccounts,
       sqrtPriceX64: executionPrice,
+      feeAmount,
     } = await SwapMath.swapCompute(
       poolInfo.programId,
       poolInfo.id,
@@ -64,7 +60,12 @@ export class PoolUtils {
       sqrtPriceLimitX64,
     );
     allNeededAccounts.push(...reaminAccounts);
-    return { expectedAmountOut: outputAmount.mul(NEGATIVE_ONE), remainingAccounts: allNeededAccounts, executionPrice };
+    return {
+      expectedAmountOut: outputAmount.mul(NEGATIVE_ONE),
+      remainingAccounts: allNeededAccounts,
+      executionPrice,
+      feeAmount,
+    };
   }
 
   static async getFirstInitializedTickArray(
@@ -120,10 +121,16 @@ export class PoolUtils {
   }: {
     chainTime: number;
     poolLiquidity: BN;
-    rewardInfos: AmmV3PoolRewardInfo[];
+    rewardInfos: AmmV3PoolRewardLayoutInfo[];
   }): AmmV3PoolRewardInfo[] {
     const nRewardInfo: AmmV3PoolRewardInfo[] = [];
-    for (const itemReward of rewardInfos) {
+    for (const _itemReward of rewardInfos) {
+      const itemReward = {
+        ..._itemReward,
+        perSecond: MathUtil.x64ToDecimal(_itemReward.emissionsPerSecondX64),
+        remainingRewards: undefined,
+      };
+
       if (itemReward.tokenMint.equals(PublicKey.default)) continue;
       if (chainTime <= itemReward.openTime.toNumber() || poolLiquidity.eq(ZERO)) {
         nRewardInfo.push(itemReward);
@@ -198,6 +205,7 @@ export class PoolUtils {
             id: new PublicKey(apiPoolInfo.ammConfig.id),
           },
 
+          creator: layoutAccountInfo.creator,
           programId: accountInfo.owner,
           version: 6,
 

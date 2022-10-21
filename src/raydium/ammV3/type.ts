@@ -6,20 +6,15 @@ import { Fraction } from "../../module/fraction";
 import { SplToken } from "../token/type";
 import { TokenAmount, CurrencyAmount, Percent, Price } from "../../module";
 import { TickArray } from "./utils/tick";
-export { ApiAmmV3PoolInfo } from "../../api/type";
+import { ApiAmmV3PoolInfo, ApiAmmV3ConfigInfo } from "../../api/type";
+
+export { ApiAmmV3PoolInfo, ApiAmmV3ConfigInfo };
 
 export interface ApiAmmV3Point {
   price: string;
   liquidity: string;
 }
 
-export interface ApiAmmV3ConfigInfo {
-  id: string;
-  index: number;
-  protocolFeeRate: number;
-  tradeFeeRate: number;
-  tickSpacing: number;
-}
 export interface ApiAmmV3ConfigInfos {
   [configId: string]: ApiAmmV3ConfigInfo;
 }
@@ -30,6 +25,9 @@ export interface AmmV3ConfigInfo {
   protocolFeeRate: number;
   tradeFeeRate: number;
   tickSpacing: number;
+  fundFeeRate: number;
+  fundOwner: string;
+  description: string;
 }
 
 export interface AmmV3PoolRewardInfo {
@@ -42,8 +40,10 @@ export interface AmmV3PoolRewardInfo {
   rewardClaimed: BN;
   tokenMint: PublicKey;
   tokenVault: PublicKey;
-  authority: PublicKey;
+  creator: PublicKey;
   rewardGrowthGlobalX64: BN;
+  perSecond: Decimal;
+  remainingRewards: undefined | BN;
 }
 export interface AmmV3PoolInfo {
   id: PublicKey;
@@ -61,6 +61,7 @@ export interface AmmV3PoolInfo {
   ammConfig: AmmV3ConfigInfo;
   observationId: PublicKey;
 
+  creator: PublicKey;
   programId: PublicKey;
   version: 6;
 
@@ -95,6 +96,8 @@ export interface AmmV3PoolInfo {
       C: number;
     };
     apr: number;
+    priceMin: number;
+    priceMax: number;
   };
   week: {
     volume: number;
@@ -108,6 +111,8 @@ export interface AmmV3PoolInfo {
       C: number;
     };
     apr: number;
+    priceMin: number;
+    priceMax: number;
   };
   month: {
     volume: number;
@@ -121,8 +126,18 @@ export interface AmmV3PoolInfo {
       C: number;
     };
     apr: number;
+    priceMin: number;
+    priceMax: number;
   };
   tvl: number;
+}
+
+export interface ReturnTypeMakeHarvestTransaction {
+  transactions: {
+    transaction: Transaction;
+    signer: Signer[];
+  }[];
+  address: { [key: string]: PublicKey };
 }
 
 export interface AmmV3PoolPersonalPosition {
@@ -178,7 +193,7 @@ export interface HydratedConcentratedInfo extends SDKParsedConcentratedInfo {
     rewardClaimed: TokenAmount | undefined;
     tokenMint: PublicKey;
     tokenVault: PublicKey;
-    authority: PublicKey;
+    creator: PublicKey;
     emissionsPerSecondX64: BN;
     rewardGrowthGlobalX64: BN;
   }[];
@@ -242,10 +257,6 @@ export interface ReturnTypeGetAmountsFromLiquidity {
   amountSlippageA: BN;
   amountSlippageB: BN;
 }
-export interface ReturnTypeGetPriceAndTick {
-  tick: number;
-  price: Decimal;
-}
 export interface ReturnTypeComputeAmountOutFormat {
   amountOut: TokenAmount;
   minAmountOut: TokenAmount;
@@ -276,7 +287,7 @@ export interface ReturnTypeFetchMultiplePoolTickArrays {
 
 export interface CreateConcentratedPool {
   programId: PublicKey;
-  owner: PublicKey;
+  owner?: PublicKey;
   mint1: MintInfo;
   mint2: MintInfo;
   ammConfig: AmmV3ConfigInfo;
@@ -318,6 +329,8 @@ export interface UserPositionAccount {
 export interface IncreaseLiquidity {
   poolId: PublicKey;
   ownerPosition: AmmV3PoolPersonalPosition;
+  amountMinA?: BN;
+  amountMinB?: BN;
   ownerInfo: {
     useSOLBalance?: boolean;
     closePosition?: boolean;
@@ -325,4 +338,32 @@ export interface IncreaseLiquidity {
 
   liquidity: BN;
   slippage: number;
+  associatedOnly?: boolean;
+}
+
+export interface AmmV3PoolRewardLayoutInfo {
+  rewardState: number;
+  openTime: BN;
+  endTime: BN;
+  lastUpdateTime: BN;
+  emissionsPerSecondX64: BN;
+  rewardTotalEmissioned: BN;
+  rewardClaimed: BN;
+  tokenMint: PublicKey;
+  tokenVault: PublicKey;
+  creator: PublicKey;
+  rewardGrowthGlobalX64: BN;
+}
+
+export interface OpenPosition {
+  poolId: PublicKey;
+  ownerInfo: {
+    useSOLBalance?: boolean; // if has WSOL mint (default: true)
+  };
+  tickLower: number;
+  tickUpper: number;
+
+  liquidity: BN;
+  slippage: number;
+  associatedOnly?: boolean;
 }

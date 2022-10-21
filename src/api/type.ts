@@ -132,11 +132,16 @@ export interface ApiAmmV3ConfigInfo {
   protocolFeeRate: number;
   tradeFeeRate: number;
   tickSpacing: number;
+  fundFeeRate: number;
+  fundOwner: string;
+  description: string;
 }
 export interface ApiAmmV3PoolInfo {
   id: string;
   mintA: string;
   mintB: string;
+  mintDecimalsA: number;
+  mintDecimalsB: number;
   ammConfig: ApiAmmV3ConfigInfo;
   day: {
     volume: number;
@@ -150,6 +155,8 @@ export interface ApiAmmV3PoolInfo {
       C: number;
     };
     apr: number;
+    priceMin: number;
+    priceMax: number;
   };
   week: {
     volume: number;
@@ -163,6 +170,8 @@ export interface ApiAmmV3PoolInfo {
       C: number;
     };
     apr: number;
+    priceMin: number;
+    priceMax: number;
   };
   month: {
     volume: number;
@@ -176,6 +185,8 @@ export interface ApiAmmV3PoolInfo {
       C: number;
     };
     apr: number;
+    priceMin: number;
+    priceMax: number;
   };
   tvl: number;
 }

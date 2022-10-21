@@ -37,14 +37,14 @@ export const RewardInfo = struct([
   u64("rewardClaimed"),
   publicKey("tokenMint"),
   publicKey("tokenVault"),
-  publicKey("authority"),
+  publicKey("creator"),
   u128("rewardGrowthGlobalX64"),
 ]);
 export const PoolInfoLayout = struct([
   blob(8),
   u8("bump"),
   publicKey("ammConfig"),
-  publicKey(""),
+  publicKey("creator"),
   publicKey("mintA"),
   publicKey("mintB"),
   publicKey("vaultA"),
