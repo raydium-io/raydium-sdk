@@ -10,7 +10,10 @@ export const AmmConfigLayout = struct([
   u32("protocolFeeRate"),
   u32("tradeFeeRate"),
   u16("tickSpacing"),
-  seq(u64(), 8, ""),
+  u32("fundFeeRate"),
+  seq(u32(), 1, "padding"),
+  publicKey("fundOwner"),
+  seq(u64(), 3, "padding"),
 ]);
 
 export const ObservationLayout = struct([
@@ -37,14 +40,14 @@ export const RewardInfo = struct([
   u64("rewardClaimed"),
   publicKey("tokenMint"),
   publicKey("tokenVault"),
-  publicKey("authority"),
+  publicKey("creator"),
   u128("rewardGrowthGlobalX64"),
 ]);
 export const PoolInfoLayout = struct([
   blob(8),
   u8("bump"),
   publicKey("ammConfig"),
-  publicKey(""),
+  publicKey("creator"),
   publicKey("mintA"),
   publicKey("mintB"),
   publicKey("vaultA"),
@@ -80,7 +83,10 @@ export const PoolInfoLayout = struct([
   u64("totalFeesTokenB"),
   u64("totalFeesClaimedTokenB"),
 
-  seq(u64(), 15 * 4, ""),
+  u64("fundFeesTokenA"),
+  u64("fundFeesTokenB"),
+
+  seq(u64(), 15 * 4 - 2, "padding"),
 ]);
 
 export const PositionRewardInfoLayout = struct([

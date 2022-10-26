@@ -68,15 +68,15 @@ export class TickUtils {
     if (tickIndex % tickSpacing != 0) {
       throw new Error('tickIndex % tickSpacing not equal 0')
     }
-    const start_tickIndex = TickUtils.getTickArrayStartIndexByTick(
+    const startTickIndex = TickUtils.getTickArrayStartIndexByTick(
       tickIndex,
       tickSpacing
     )
-    const offset_in_array = Math.floor((tickIndex - start_tickIndex) / tickSpacing)
-    if (offset_in_array < 0 || offset_in_array >= TICK_ARRAY_SIZE) {
+    const offsetInArray = Math.floor((tickIndex - startTickIndex) / tickSpacing)
+    if (offsetInArray < 0 || offsetInArray >= TICK_ARRAY_SIZE) {
       throw new Error('tick offset in array overflow')
     }
-    return offset_in_array
+    return offsetInArray
   }
 
   public static getTickArrayStartIndexByTick(

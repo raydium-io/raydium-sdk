@@ -10,8 +10,7 @@ import { bool, s32, struct, u128, u64, u8 } from "../marshmallow";
 const anchorDataBuf = {
   createPool: [233, 146, 209, 142, 207, 104, 64, 188],
   initReward: [95, 135, 192, 196, 242, 129, 230, 68],
-  setRewardEmissions: [13, 197, 86, 168, 109, 176, 27, 244],
-  collectProtocolFee: [136, 136, 252, 221, 194, 66, 126, 89],
+  setRewardEmissions: [112, 52, 167, 75, 32, 201, 211, 137],
   openPosition: [135, 128, 47, 77, 15, 152, 240, 49],
   closePosition: [123, 134, 81, 0, 49, 68, 98, 98],
   increaseLiquidity: [46, 156, 243, 118, 13, 205, 251, 178],
@@ -192,13 +191,13 @@ export function increaseLiquidityInstruction(
   mintVaultB: PublicKey,
 
   liquidity: BN,
-  amount0Max: BN,
-  amount1Max: BN
+  amountMaxA: BN,
+  amountMaxB: BN
 ) {
   const dataLayout = struct([
     u128("liquidity"),
-    u64("amount0Max"),
-    u64("amount1Max"),
+    u64("amountMaxA"),
+    u64("amountMaxB"),
   ]);
 
   const keys = [
@@ -221,8 +220,8 @@ export function increaseLiquidityInstruction(
   dataLayout.encode(
     {
       liquidity,
-      amount0Max,
-      amount1Max,
+      amountMaxA,
+      amountMaxB,
     },
     data
   );
@@ -256,13 +255,13 @@ export function decreaseLiquidityInstruction(
   }[],
 
   liquidity: BN,
-  amount0Max: BN,
-  amount1Max: BN
+  amountMinA: BN,
+  amountMinB: BN
 ) {
   const dataLayout = struct([
     u128("liquidity"),
-    u64("amount0Max"),
-    u64("amount1Max"),
+    u64("amountMinA"),
+    u64("amountMinB"),
   ]);
 
   const keys = [
@@ -291,8 +290,8 @@ export function decreaseLiquidityInstruction(
   dataLayout.encode(
     {
       liquidity,
-      amount0Max,
-      amount1Max,
+      amountMinA,
+      amountMinB,
     },
     data
   );
@@ -378,13 +377,11 @@ export function initRewardInstruction(
   rewardMint: PublicKey,
   rewardVault: PublicKey,
 
-  rewardIndex: number,
   openTime: number,
   endTime: number,
   emissionsPerSecondX64: BN
 ) {
   const dataLayout = struct([
-    u8("rewardIndex"),
     u64("openTime"),
     u64("endTime"),
     u128("emissionsPerSecondX64"),
@@ -408,7 +405,6 @@ export function initRewardInstruction(
   const data = Buffer.alloc(dataLayout.span);
   dataLayout.encode(
     {
-      rewardIndex,
       openTime: parseBigNumberish(openTime),
       endTime: parseBigNumberish(endTime),
       emissionsPerSecondX64,

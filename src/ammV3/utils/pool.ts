@@ -125,7 +125,8 @@ export class PoolUtils {
     for (const _itemReward of rewardInfos) {
       const itemReward = {
         ..._itemReward,
-        perSecond: MathUtil.x64ToDecimal(_itemReward.emissionsPerSecondX64)
+        perSecond: MathUtil.x64ToDecimal(_itemReward.emissionsPerSecondX64),
+        remainingRewards: undefined
       }
       
       if (itemReward.tokenMint.equals(PublicKey.default)) continue

@@ -5,8 +5,11 @@ import BN from "bn.js";
 import Decimal from "decimal.js";
 
 import { Base, TokenAccount } from "../base";
-import { getMultipleAccountsInfo, getMultipleAccountsInfoWithCustomFlags, Logger } from "../common";
+import {
+  forecastTransactionSize, getMultipleAccountsInfo, getMultipleAccountsInfoWithCustomFlags, Logger,
+} from "../common";
 import { Currency, CurrencyAmount, Percent, Price, Token, TokenAmount, ZERO } from "../entity";
+import { SPL_ACCOUNT_LAYOUT } from "../spl";
 import { WSOL } from "../token";
 
 import {
@@ -39,6 +42,8 @@ export interface ApiAmmV3ConfigInfo {
   protocolFeeRate: number;
   tradeFeeRate: number;
   tickSpacing: number;
+  fundFeeRate: number;
+  fundOwner: string;
   description: string;
 }
 export interface ApiAmmV3ConfigInfos { [configId: string]: ApiAmmV3ConfigInfo }
@@ -49,6 +54,8 @@ export interface AmmV3ConfigInfo {
   protocolFeeRate: number;
   tradeFeeRate: number;
   tickSpacing: number;
+  fundFeeRate: number;
+  fundOwner: string;
   description: string;
 }
 export interface ApiAmmV3PoolInfo {
@@ -122,7 +129,7 @@ export interface AmmV3PoolRewardLayoutInfo {
   rewardClaimed: BN;
   tokenMint: PublicKey;
   tokenVault: PublicKey;
-  authority: PublicKey;
+  creator: PublicKey;
   rewardGrowthGlobalX64: BN;
 }
 
@@ -136,9 +143,10 @@ export interface AmmV3PoolRewardInfo {
   rewardClaimed: BN;
   tokenMint: PublicKey;
   tokenVault: PublicKey;
-  authority: PublicKey;
+  creator: PublicKey;
   rewardGrowthGlobalX64: BN;
-  perSecond: Decimal
+  perSecond: Decimal;
+  remainingRewards: undefined | BN
 }
 export interface AmmV3PoolInfo {
   id: PublicKey,
@@ -156,6 +164,7 @@ export interface AmmV3PoolInfo {
   ammConfig: AmmV3ConfigInfo,
   observationId: PublicKey,
 
+  creator: PublicKey,
   programId: PublicKey,
   version: 6,
 
@@ -275,6 +284,15 @@ export interface ReturnTypeMakeInstructions {
   instructions: TransactionInstruction[],
   address: { [name: string]: PublicKey }
 }
+
+export interface ReturnTypeMakeHarvestTranscation {
+  transactions: {
+    transaction: Transaction,
+    signer: Signer[]
+  }[],
+  address: { [key: string]: PublicKey },
+}
+
 export interface ReturnTypeGetLiquidityAmountOutFromAmountIn {
   liquidity: BN,
   amountSlippageA: BN,
@@ -380,6 +398,7 @@ export class AmmV3 extends Base {
         ammConfig,
         observationId: insInfo.address.observationId,
 
+        creator: owner,
         programId,
         version: 6,
 
@@ -402,7 +421,7 @@ export class AmmV3 extends Base {
 
         rewardInfos: [],
 
-        day: { volume: 0, volumeFee: 0, feeA: 0, feeB: 0, feeApr: 0, rewardApr: { A: 0, B: 0, C: 0 }, apr: 0, priceMax: 0, priceMin: 0},
+        day: { volume: 0, volumeFee: 0, feeA: 0, feeB: 0, feeApr: 0, rewardApr: { A: 0, B: 0, C: 0 }, apr: 0, priceMax: 0, priceMin: 0 },
         week: { volume: 0, volumeFee: 0, feeA: 0, feeB: 0, feeApr: 0, rewardApr: { A: 0, B: 0, C: 0 }, apr: 0, priceMax: 0, priceMin: 0 },
         month: { volume: 0, volumeFee: 0, feeA: 0, feeB: 0, feeApr: 0, rewardApr: { A: 0, B: 0, C: 0 }, apr: 0, priceMax: 0, priceMin: 0 },
         tvl: 0
@@ -645,7 +664,7 @@ export class AmmV3 extends Base {
   }
 
   static async makeDecreaseLiquidityTransaction({
-    connection, poolInfo, ownerPosition, ownerInfo, liquidity, slippage, associatedOnly = true
+    connection, poolInfo, ownerPosition, ownerInfo, liquidity, amountMinA, amountMinB, slippage, associatedOnly = true
   }: {
     connection: Connection
     poolInfo: AmmV3PoolInfo,
@@ -659,7 +678,9 @@ export class AmmV3 extends Base {
     },
 
     liquidity: BN,
-    slippage: number
+    amountMinA?: BN,
+    amountMinB?: BN,
+    slippage?: number
     associatedOnly?: boolean
   }): Promise<ReturnTypeMakeTransaction> {
     const frontInstructions: TransactionInstruction[] = [];
@@ -667,16 +688,25 @@ export class AmmV3 extends Base {
 
     const signers: Signer[] = []
 
-    const { amountSlippageA, amountSlippageB } =
-      LiquidityMath.getAmountsFromLiquidityWithSlippage(
-        poolInfo.sqrtPriceX64,
-        SqrtPriceMath.getSqrtPriceX64FromTick(ownerPosition.tickLower),
-        SqrtPriceMath.getSqrtPriceX64FromTick(ownerPosition.tickUpper),
-        liquidity,
-        false,
-        true,
-        slippage
-      );
+    let _amountMinA: BN
+    let _amountMinB: BN
+    if (amountMinA !== undefined && amountMinB !== undefined) {
+      _amountMinA = amountMinA
+      _amountMinB = amountMinB
+    } else {
+      const { amountSlippageA, amountSlippageB } =
+        LiquidityMath.getAmountsFromLiquidityWithSlippage(
+          poolInfo.sqrtPriceX64,
+          SqrtPriceMath.getSqrtPriceX64FromTick(ownerPosition.tickLower),
+          SqrtPriceMath.getSqrtPriceX64FromTick(ownerPosition.tickUpper),
+          liquidity,
+          false,
+          true,
+          slippage ?? 0
+        );
+      _amountMinA = amountSlippageA
+      _amountMinB = amountSlippageB
+    }
 
     const mintAUseSOLBalance = ownerInfo.useSOLBalance && poolInfo.mintA.mint.equals(Token.WSOL.mint)
     const mintBUseSOLBalance = ownerInfo.useSOLBalance && poolInfo.mintB.mint.equals(Token.WSOL.mint)
@@ -723,16 +753,17 @@ export class AmmV3 extends Base {
         mint: itemReward.tokenMint,
         tokenAccounts: rewardUseSOLBalance ? [] : ownerInfo.tokenAccounts,
         owner: ownerInfo.wallet,
-  
+
         createInfo: {
           connection,
           payer: ownerInfo.feePayer,
           amount: 0,
-  
+
           frontInstructions,
+          endInstructions: rewardUseSOLBalance ? endInstructions : [],
           signers
         },
-  
+
         associatedOnly: rewardUseSOLBalance ? false : associatedOnly
       })
       rewardAccounts.push(ownerRewardAccount!)
@@ -758,8 +789,8 @@ export class AmmV3 extends Base {
         rewardAccounts
       },
       liquidity,
-      amountSlippageA,
-      amountSlippageB
+      amountMinA: _amountMinA,
+      amountMinB: _amountMinB
     })
 
     transaction.add(...frontInstructions, ...insInfo.instructions, ...endInstructions)
@@ -935,7 +966,8 @@ export class AmmV3 extends Base {
     connection,
     poolInfo,
     ownerInfo,
-    rewardInfo
+    rewardInfo,
+    associatedOnly = true
   }: {
     connection: Connection
     poolInfo: AmmV3PoolInfo,
@@ -947,13 +979,12 @@ export class AmmV3 extends Base {
     },
 
     rewardInfo: {
-      index: 1 | 2,
       mint: PublicKey,
-      decimals: number,
       openTime: number,
       endTime: number,
       perSecond: BN,
     }
+    associatedOnly?: boolean
   }): Promise<ReturnTypeMakeTransaction> {
     logger.assertArgument(
       rewardInfo.endTime > rewardInfo.openTime,
@@ -967,29 +998,24 @@ export class AmmV3 extends Base {
 
     const signers: Signer[] = []
 
-    let ownerRewardAccount: PublicKey | null
-    if (ownerInfo.useSOLBalance) {
-      ownerRewardAccount = await this._handleTokenAccount({
+    const rewardMintUseSOLBalance = ownerInfo.useSOLBalance && rewardInfo.mint.equals(Token.WSOL.mint)
+    const ownerRewardAccount = await this._selectOrCreateTokenAccount({
+      mint: rewardInfo.mint,
+      tokenAccounts: rewardMintUseSOLBalance ? [] : ownerInfo.tokenAccounts,
+      owner: ownerInfo.wallet,
+
+      createInfo: rewardMintUseSOLBalance ? {
         connection,
-        side: "in",
-        amount: rewardInfo.perSecond.sub(new BN(rewardInfo.endTime - rewardInfo.openTime)),
-        mint: rewardInfo.mint,
-        tokenAccount: null,
-        owner: ownerInfo.wallet,
         payer: ownerInfo.feePayer,
+        amount: rewardInfo.perSecond.sub(new BN(rewardInfo.endTime - rewardInfo.openTime)),
+
         frontInstructions,
         endInstructions,
-        signers,
-        bypassAssociatedCheck: true
-      })
-    } else {
-      ownerRewardAccount = await this._selectTokenAccount({
-        tokenAccounts: ownerInfo.tokenAccounts,
-        mint: poolInfo.mintA.mint,
-        owner: ownerInfo.wallet,
-        config: { associatedOnly: false },
-      })
-    }
+        signers
+      } : undefined,
+
+      associatedOnly: rewardMintUseSOLBalance ? false : associatedOnly
+    })
 
     logger.assertArgument(
       ownerRewardAccount,
@@ -1001,19 +1027,17 @@ export class AmmV3 extends Base {
     const transaction = new Transaction()
     transaction.add(addComputations())
 
-    const insInfo = this.makeInitRewardInstructions({
+    const insInfo = await this.makeInitRewardInstructions({
       poolInfo,
       ownerInfo: {
         wallet: ownerInfo.wallet,
         tokenAccount: ownerRewardAccount!
       },
       rewardInfo: {
-        index: rewardInfo.index,
         mint: rewardInfo.mint,
-        vault: (await getPdaPoolRewardVaulId(poolInfo.programId, poolInfo.id, rewardInfo.mint)).publicKey,
         openTime: rewardInfo.openTime,
         endTime: rewardInfo.endTime,
-        emissionsPerSecondX64: MathUtil.decimalToX64(new Decimal(rewardInfo.perSecond.toNumber() / 10 ** rewardInfo.decimals))
+        emissionsPerSecondX64: MathUtil.decimalToX64(new Decimal(rewardInfo.perSecond.toString()))
       }
     })
 
@@ -1026,11 +1050,100 @@ export class AmmV3 extends Base {
     }
   }
 
+  static async makeInitRewardsTransaction({
+    connection,
+    poolInfo,
+    ownerInfo,
+    rewardInfos,
+    associatedOnly = true
+  }: {
+    connection: Connection
+    poolInfo: AmmV3PoolInfo,
+    ownerInfo: {
+      feePayer: PublicKey,
+      wallet: PublicKey,
+      tokenAccounts: TokenAccount[],
+      useSOLBalance?: boolean  // if has WSOL mint
+    },
+
+    rewardInfos: {
+      mint: PublicKey,
+      openTime: number,
+      endTime: number,
+      perSecond: BN,
+    }[],
+    associatedOnly?: boolean
+  }): Promise<ReturnTypeMakeTransaction> {
+    for (const rewardInfo of rewardInfos) logger.assertArgument(rewardInfo.endTime > rewardInfo.openTime, "reward time error", "rewardInfo", rewardInfo,);
+
+    const transaction = new Transaction()
+    transaction.add(addComputations())
+
+    const frontInstructions: TransactionInstruction[] = [];
+    const endInstructions: TransactionInstruction[] = [];
+    const initInstructions: TransactionInstruction[] = [];
+
+    const signers: Signer[] = []
+
+    for (const rewardInfo of rewardInfos) {
+      const rewardMintUseSOLBalance = ownerInfo.useSOLBalance && rewardInfo.mint.equals(Token.WSOL.mint)
+      const ownerRewardAccount = await this._selectOrCreateTokenAccount({
+        mint: rewardInfo.mint,
+        tokenAccounts: rewardMintUseSOLBalance ? [] : ownerInfo.tokenAccounts,
+        owner: ownerInfo.wallet,
+
+        createInfo: rewardMintUseSOLBalance ? {
+          connection,
+          payer: ownerInfo.feePayer,
+          amount: rewardInfo.perSecond.sub(new BN(rewardInfo.endTime - rewardInfo.openTime)),
+
+          frontInstructions,
+          endInstructions,
+          signers
+        } : undefined,
+
+        associatedOnly: rewardMintUseSOLBalance ? false : associatedOnly
+      })
+
+      logger.assertArgument(
+        ownerRewardAccount,
+        "no money",
+        "ownerRewardAccount",
+        ownerInfo.tokenAccounts,
+      );
+
+
+      const insInfo = await this.makeInitRewardInstructions({
+        poolInfo,
+        ownerInfo: {
+          wallet: ownerInfo.wallet,
+          tokenAccount: ownerRewardAccount!
+        },
+        rewardInfo: {
+          mint: rewardInfo.mint,
+          openTime: rewardInfo.openTime,
+          endTime: rewardInfo.endTime,
+          emissionsPerSecondX64: MathUtil.decimalToX64(new Decimal(rewardInfo.perSecond.toString()))
+        }
+      })
+      initInstructions.push(...insInfo.instructions)
+    }
+
+    transaction.add(...frontInstructions, ...initInstructions, ...endInstructions)
+
+    return {
+      signers: [...signers],
+      transaction,
+      address: {}
+    }
+  }
+
   static async makeSetRewardTransaction({
     connection,
     poolInfo,
     ownerInfo,
-    rewardInfo
+    rewardInfo,
+    associatedOnly = true,
   }: {
     connection: Connection
     poolInfo: AmmV3PoolInfo,
@@ -1042,13 +1155,12 @@ export class AmmV3 extends Base {
     },
 
     rewardInfo: {
-      index: 1 | 2,
       mint: PublicKey,
-      decimals: number,
-      openTime: number,
-      endTime: number,
+      openTime: number, // If the reward is being distributed, please give 0
+      endTime: number, // If no modification is required, enter 0
       perSecond: BN,
-    }
+    },
+    associatedOnly?: boolean
   }): Promise<ReturnTypeMakeTransaction> {
     logger.assertArgument(
       rewardInfo.endTime > rewardInfo.openTime,
@@ -1062,29 +1174,24 @@ export class AmmV3 extends Base {
 
     const signers: Signer[] = []
 
-    let ownerRewardAccount: PublicKey | null
-    if (ownerInfo.useSOLBalance) {
-      ownerRewardAccount = await this._handleTokenAccount({
+    const rewardMintUseSOLBalance = ownerInfo.useSOLBalance && rewardInfo.mint.equals(Token.WSOL.mint)
+    const ownerRewardAccount = await this._selectOrCreateTokenAccount({
+      mint: rewardInfo.mint,
+      tokenAccounts: rewardMintUseSOLBalance ? [] : ownerInfo.tokenAccounts,
+      owner: ownerInfo.wallet,
+
+      createInfo: rewardMintUseSOLBalance ? {
         connection,
-        side: "in",
-        amount: rewardInfo.perSecond.sub(new BN(rewardInfo.endTime - rewardInfo.openTime)),
-        mint: rewardInfo.mint,
-        tokenAccount: null,
-        owner: ownerInfo.wallet,
         payer: ownerInfo.feePayer,
+        amount: rewardInfo.perSecond.sub(new BN(rewardInfo.endTime - rewardInfo.openTime)),
+
         frontInstructions,
         endInstructions,
-        signers,
-        bypassAssociatedCheck: true
-      })
-    } else {
-      ownerRewardAccount = await this._selectTokenAccount({
-        tokenAccounts: ownerInfo.tokenAccounts,
-        mint: poolInfo.mintA.mint,
-        owner: ownerInfo.wallet,
-        config: { associatedOnly: false },
-      })
-    }
+        signers
+      } : undefined,
+
+      associatedOnly: rewardMintUseSOLBalance ? false : associatedOnly
+    })
 
     logger.assertArgument(
       ownerRewardAccount,
@@ -1103,11 +1210,10 @@ export class AmmV3 extends Base {
         tokenAccount: ownerRewardAccount!
       },
       rewardInfo: {
-        index: rewardInfo.index,
-        vault: (await getPdaPoolRewardVaulId(poolInfo.programId, poolInfo.id, rewardInfo.mint)).publicKey,
+        mint: rewardInfo.mint,
         openTime: rewardInfo.openTime,
         endTime: rewardInfo.endTime,
-        emissionsPerSecondX64: MathUtil.decimalToX64(new Decimal(rewardInfo.perSecond.toNumber() / 10 ** rewardInfo.decimals))
+        emissionsPerSecondX64: MathUtil.decimalToX64(new Decimal(rewardInfo.perSecond.toString()))
       }
     })
 
@@ -1120,11 +1226,12 @@ export class AmmV3 extends Base {
     }
   }
 
-  static async makeCollectRewardTransaction({
+  static async makeSetRewardsTransaction({
     connection,
     poolInfo,
     ownerInfo,
-    rewardInfo
+    rewardInfos,
+    associatedOnly = true,
   }: {
     connection: Connection
     poolInfo: AmmV3PoolInfo,
@@ -1135,50 +1242,124 @@ export class AmmV3 extends Base {
       useSOLBalance?: boolean  // if has WSOL mint
     },
 
-    rewardInfo: {
-      index: 1 | 2,
+    rewardInfos: {
       mint: PublicKey,
-      decimals: number,
-      openTime: number,
-      endTime: number,
+      openTime: number, // If the reward is being distributed, please give 0
+      endTime: number, // If no modification is required, enter 0
       perSecond: BN,
-    }
+    }[],
+    associatedOnly?: boolean
   }): Promise<ReturnTypeMakeTransaction> {
-    logger.assertArgument(
-      rewardInfo.endTime > rewardInfo.openTime,
-      "reward time error",
-      "rewardInfo",
-      rewardInfo,
-    );
+    const frontInstructions: TransactionInstruction[] = [];
+    const endInstructions: TransactionInstruction[] = [];
+    const updateRewardInstructions: TransactionInstruction[] = [];
 
+    const signers: Signer[] = []
+
+    const transaction = new Transaction()
+    transaction.add(addComputations())
+
+    for (const rewardInfo of rewardInfos) {
+      logger.assertArgument(
+        rewardInfo.endTime > rewardInfo.openTime,
+        "reward time error",
+        "rewardInfo",
+        rewardInfo,
+      );
+
+      const rewardMintUseSOLBalance = ownerInfo.useSOLBalance && rewardInfo.mint.equals(Token.WSOL.mint)
+      const ownerRewardAccount = await this._selectOrCreateTokenAccount({
+        mint: rewardInfo.mint,
+        tokenAccounts: rewardMintUseSOLBalance ? [] : ownerInfo.tokenAccounts,
+        owner: ownerInfo.wallet,
+
+        createInfo: rewardMintUseSOLBalance ? {
+          connection,
+          payer: ownerInfo.feePayer,
+          amount: rewardInfo.perSecond.sub(new BN(rewardInfo.endTime - rewardInfo.openTime)),
+
+          frontInstructions,
+          endInstructions,
+          signers
+        } : undefined,
+
+        associatedOnly: rewardMintUseSOLBalance ? false : associatedOnly
+      })
+
+      logger.assertArgument(
+        ownerRewardAccount,
+        "no money",
+        "ownerRewardAccount",
+        ownerInfo.tokenAccounts,
+      );
+
+      const insInfo = this.makeSetRewardInstructions({
+        poolInfo,
+        ownerInfo: {
+          wallet: ownerInfo.wallet,
+          tokenAccount: ownerRewardAccount!
+        },
+        rewardInfo: {
+          mint: rewardInfo.mint,
+          openTime: rewardInfo.openTime,
+          endTime: rewardInfo.endTime,
+          emissionsPerSecondX64: MathUtil.decimalToX64(new Decimal(rewardInfo.perSecond.toString()))
+        }
+      })
+      updateRewardInstructions.push(...insInfo.instructions)
+    }
+
+    transaction.add(...frontInstructions, ...updateRewardInstructions, ...endInstructions)
+
+    return {
+      signers: [...signers],
+      transaction,
+      address: {}
+    }
+  }
+
+  static async makeCollectRewardTransaction({
+    connection,
+    poolInfo,
+    ownerInfo,
+    rewardMint,
+    associatedOnly = true
+  }: {
+    connection: Connection
+    poolInfo: AmmV3PoolInfo,
+    ownerInfo: {
+      feePayer: PublicKey,
+      wallet: PublicKey,
+      tokenAccounts: TokenAccount[],
+      useSOLBalance?: boolean  // if has WSOL mint
+    },
+
+    rewardMint: PublicKey,
+    associatedOnly: boolean
+  }): Promise<ReturnTypeMakeTransaction> {
     const frontInstructions: TransactionInstruction[] = [];
     const endInstructions: TransactionInstruction[] = [];
 
     const signers: Signer[] = []
 
-    let ownerRewardAccount: PublicKey | null
-    if (ownerInfo.useSOLBalance) {
-      ownerRewardAccount = await this._handleTokenAccount({
+    const rewardMintUseSOLBalance = ownerInfo.useSOLBalance && rewardMint.equals(Token.WSOL.mint)
+    const ownerRewardAccount = await this._selectOrCreateTokenAccount({
+      mint: rewardMint,
+      tokenAccounts: rewardMintUseSOLBalance ? [] : ownerInfo.tokenAccounts,
+      owner: ownerInfo.wallet,
+
+      createInfo: {
         connection,
-        side: "in",
-        amount: 0,
-        mint: rewardInfo.mint,
-        tokenAccount: null,
-        owner: ownerInfo.wallet,
         payer: ownerInfo.feePayer,
+        amount: 0,
+
         frontInstructions,
-        endInstructions,
-        signers,
-        bypassAssociatedCheck: true
-      })
-    } else {
-      ownerRewardAccount = await this._selectTokenAccount({
-        tokenAccounts: ownerInfo.tokenAccounts,
-        mint: poolInfo.mintA.mint,
-        owner: ownerInfo.wallet,
-        config: { associatedOnly: false },
-      })
-    }
+        endInstructions: rewardMintUseSOLBalance ? endInstructions : [],
+        signers
+      },
+
+      associatedOnly: rewardMintUseSOLBalance ? false : associatedOnly
+    })
 
     logger.assertArgument(
       ownerRewardAccount,
@@ -1196,10 +1377,8 @@ export class AmmV3 extends Base {
         wallet: ownerInfo.wallet,
         tokenAccount: ownerRewardAccount!
       },
-      rewardInfo: {
-        index: rewardInfo.index,
-        vault: (await getPdaPoolRewardVaulId(poolInfo.programId, poolInfo.id, rewardInfo.mint)).publicKey,
-      }
+
+      rewardMint
     })
 
     transaction.add(...frontInstructions, ...insInfo.instructions, ...endInstructions)
@@ -1211,20 +1390,241 @@ export class AmmV3 extends Base {
     }
   }
 
-  // static async makeHarvestAllRewardTransaction({
-  //   connection, fetchInfo, ownerInfo
-  // }: {
-  //   connection: Connection
-  //   fetchInfo: ReturnTypeFetchMultiplePoolInfos,
-  //   ownerInfo: {
-  //     feePayer: PublicKey,
-  //     wallet: PublicKey,
-  //     tokenAccounts: TokenAccount[],
-  //     useSOLBalance?: boolean  // if has WSOL mint
-  //   },
-  // }){
-    
-  // }
+  static async makeCollectRewardsTransaction({
+    connection,
+    poolInfo,
+    ownerInfo,
+    rewardMints,
+    associatedOnly = true
+  }: {
+    connection: Connection
+    poolInfo: AmmV3PoolInfo,
+    ownerInfo: {
+      feePayer: PublicKey,
+      wallet: PublicKey,
+      tokenAccounts: TokenAccount[],
+      useSOLBalance?: boolean  // if has WSOL mint
+    },
+
+    rewardMints: PublicKey[],
+    associatedOnly: boolean
+  }): Promise<ReturnTypeMakeTransaction> {
+    const frontInstructions: TransactionInstruction[] = [];
+    const endInstructions: TransactionInstruction[] = [];
+    const iInstructions: TransactionInstruction[] = [];
+
+    const transaction = new Transaction()
+    transaction.add(addComputations())
+
+    const signers: Signer[] = []
+
+    for (const rewardMint of rewardMints) {
+      const rewardMintUseSOLBalance = ownerInfo.useSOLBalance && rewardMint.equals(Token.WSOL.mint)
+      const ownerRewardAccount = await this._selectOrCreateTokenAccount({
+        mint: rewardMint,
+        tokenAccounts: rewardMintUseSOLBalance ? [] : ownerInfo.tokenAccounts,
+        owner: ownerInfo.wallet,
+
+        createInfo: {
+          connection,
+          payer: ownerInfo.feePayer,
+          amount: 0,
+
+          frontInstructions,
+          endInstructions: rewardMintUseSOLBalance ? endInstructions : [],
+          signers
+        },
+
+        associatedOnly: rewardMintUseSOLBalance ? false : associatedOnly
+      })
+
+      logger.assertArgument(
+        ownerRewardAccount,
+        "no money",
+        "ownerRewardAccount",
+        ownerInfo.tokenAccounts,
+      );
+
+
+      const insInfo = this.makeCollectRewardInstructions({
+        poolInfo,
+        ownerInfo: {
+          wallet: ownerInfo.wallet,
+          tokenAccount: ownerRewardAccount!
+        },
+
+        rewardMint
+      })
+
+      iInstructions.push(...insInfo.instructions)
+    }
+
+    transaction.add(...frontInstructions, ...iInstructions, ...endInstructions)
+
+    return {
+      signers: [...signers],
+      transaction,
+      address: {}
+    }
+  }
+
+  static async makeHarvestAllRewardTransaction({
+    connection, fetchPoolInfos, ownerInfo, associatedOnly = true
+  }: {
+    connection: Connection
+    fetchPoolInfos: ReturnTypeFetchMultiplePoolInfos,
+    ownerInfo: {
+      feePayer: PublicKey,
+      wallet: PublicKey,
+      tokenAccounts: TokenAccount[],
+      useSOLBalance?: boolean  // if has WSOL mint
+    },
+    associatedOnly?: boolean
+  }): Promise<ReturnTypeMakeHarvestTranscation> {
+    const ownerMintToAccount: { [mint: string]: PublicKey } = {}
+    for (const item of ownerInfo.tokenAccounts) {
+      if (associatedOnly) {
+        const ata = (await getATAAddress(ownerInfo.wallet, item.accountInfo.mint)).publicKey
+        if (ata.equals(item.pubkey)) ownerMintToAccount[item.accountInfo.mint.toString()] = item.pubkey
+      } else {
+        ownerMintToAccount[item.accountInfo.mint.toString()] = item.pubkey
+      }
+    }
+
+    const frontInstructions: TransactionInstruction[] = [];
+    const endInstructions: TransactionInstruction[] = [];
+    const harvestInstructions: TransactionInstruction[] = [];
+
+    const signers: Signer[] = []
+
+    for (const itemInfo of Object.values(fetchPoolInfos)) {
+      if (itemInfo.positionAccount === undefined) continue
+
+      if (!itemInfo.positionAccount.find(i => !i.tokenFeeAmountA.isZero() || !i.tokenFeeAmountB.isZero() || i.rewardInfos.find( ii => !ii.peddingReward.isZero()) )) continue
+
+      const poolInfo = itemInfo.state
+
+      const mintAUseSOLBalance = ownerInfo.useSOLBalance && poolInfo.mintA.mint.equals(Token.WSOL.mint)
+      const mintBUseSOLBalance = ownerInfo.useSOLBalance && poolInfo.mintB.mint.equals(Token.WSOL.mint)
+
+      const ownerTokenAccountA = ownerMintToAccount[poolInfo.mintA.mint.toString()] ?? await this._selectOrCreateTokenAccount({
+        mint: poolInfo.mintA.mint,
+        tokenAccounts: mintAUseSOLBalance ? [] : ownerInfo.tokenAccounts,
+        owner: ownerInfo.wallet,
+
+        createInfo: {
+          connection,
+          payer: ownerInfo.feePayer,
+          amount: 0,
+
+          frontInstructions,
+          signers
+        },
+
+        associatedOnly: mintAUseSOLBalance ? false : associatedOnly
+      })
+
+      const ownerTokenAccountB = ownerMintToAccount[poolInfo.mintB.mint.toString()] ?? await this._selectOrCreateTokenAccount({
+        mint: poolInfo.mintB.mint,
+        tokenAccounts: mintBUseSOLBalance ? [] : ownerInfo.tokenAccounts,
+        owner: ownerInfo.wallet,
+
+        createInfo: {
+          connection,
+          payer: ownerInfo.feePayer,
+          amount: 0,
+
+          frontInstructions,
+          signers
+        },
+
+        associatedOnly: mintBUseSOLBalance ? false : associatedOnly
+      })
+      ownerMintToAccount[poolInfo.mintA.mint.toString()] = ownerTokenAccountA
+      ownerMintToAccount[poolInfo.mintB.mint.toString()] = ownerTokenAccountB
+
+      const rewardAccounts: PublicKey[] = []
+      for (const itemReward of poolInfo.rewardInfos) {
+        const rewardUseSOLBalance = ownerInfo.useSOLBalance && itemReward.tokenMint.equals(Token.WSOL.mint)
+
+        const ownerRewardAccount = ownerMintToAccount[itemReward.tokenMint.toString()] ?? await this._selectOrCreateTokenAccount({
+          mint: itemReward.tokenMint,
+          tokenAccounts: rewardUseSOLBalance ? [] : ownerInfo.tokenAccounts,
+          owner: ownerInfo.wallet,
+
+          createInfo: {
+            connection,
+            payer: ownerInfo.feePayer,
+            amount: 0,
+
+            frontInstructions,
+            endInstructions: rewardUseSOLBalance ? endInstructions : [],
+            signers
+          },
+
+          associatedOnly: rewardUseSOLBalance ? false : associatedOnly
+        })
+        ownerMintToAccount[itemReward.tokenMint.toString()] = ownerRewardAccount
+        rewardAccounts.push(ownerRewardAccount!)
+      }
+
+      for (const itemPosition of itemInfo.positionAccount) {
+        harvestInstructions.push(
+          ...(await this.makeDecreaseLiquidityInstructions({
+            poolInfo,
+            ownerPosition: itemPosition,
+            ownerInfo: {
+              wallet: ownerInfo.wallet,
+              tokenAccountA: ownerTokenAccountA,
+              tokenAccountB: ownerTokenAccountB,
+              rewardAccounts
+            },
+            liquidity: ZERO,
+            amountMinA: ZERO,
+            amountMinB: ZERO
+          })).instructions
+        )
+      }
+    }
+
+    const allInstruction = [...frontInstructions, ...harvestInstructions, ...endInstructions]
+
+    const signerKey: { [key: string]: Signer } = {}
+    for (const item of signers) signerKey[item.publicKey.toString()] = item
+
+    const transactions: { transaction: Transaction, signer: (Keypair | Signer)[] }[] = []
+
+    let itemIns: TransactionInstruction[] = []
+
+    for (const item of allInstruction) {
+      const _itemIns = [...itemIns, item]
+      const _signerStrs = new Set<string>(_itemIns.map(i => i.keys.filter(ii => ii.isSigner).map(ii => ii.pubkey.toString())).flat())
+      const _signer = [..._signerStrs.values()].map(i => new PublicKey(i))
+
+      if (forecastTransactionSize(_itemIns, [ownerInfo.wallet, ..._signer])) {
+        itemIns.push(item)
+      } else {
+        transactions.push({
+          transaction: new Transaction().add(...itemIns),
+          signer: [..._signerStrs.values()].map(i => signerKey[i]).filter(i => i !== undefined)
+        })
+
+        itemIns = [item]
+      }
+    }
+
+    if (itemIns.length > 0) {
+      const _signerStrs = new Set<string>(itemIns.map(i => i.keys.filter(ii => ii.isSigner).map(ii => ii.pubkey.toString())).flat())
+      transactions.push({
+        transaction: new Transaction().add(...itemIns),
+        signer: [..._signerStrs.values()].map(i => signerKey[i]).filter(i => i !== undefined)
+      })
+    }
+
+    return {
+      transactions, address: {}
+    }
+  }
 
   // instrument
   static async makeCreatePoolInstructions({
@@ -1414,8 +1814,8 @@ export class AmmV3 extends Base {
     ownerPosition,
     ownerInfo,
     liquidity,
-    amountSlippageA,
-    amountSlippageB
+    amountMinA,
+    amountMinB
   }: {
 
     poolInfo: AmmV3PoolInfo,
@@ -1429,8 +1829,8 @@ export class AmmV3 extends Base {
     },
 
     liquidity: BN,
-    amountSlippageA: BN,
-    amountSlippageB: BN
+    amountMinA: BN,
+    amountMinB: BN
 
   }): Promise<ReturnTypeMakeInstructions> {
     const tickArrayLowerStartIndex = TickUtils.getTickArrayStartIndexByTick(ownerPosition.tickLower, poolInfo.ammConfig.tickSpacing);
@@ -1472,8 +1872,8 @@ export class AmmV3 extends Base {
         rewardAccounts,
 
         liquidity,
-        amountSlippageA,
-        amountSlippageB
+        amountMinA,
+        amountMinB
       )
     );
 
@@ -1563,7 +1963,7 @@ export class AmmV3 extends Base {
     };
   }
 
-  static makeInitRewardInstructions({
+  static async makeInitRewardInstructions({
     poolInfo, ownerInfo, rewardInfo
   }: {
     poolInfo: AmmV3PoolInfo,
@@ -1572,14 +1972,13 @@ export class AmmV3 extends Base {
       tokenAccount: PublicKey,
     },
     rewardInfo: {
-      index: number,
       mint: PublicKey,
-      vault: PublicKey,
       openTime: number,
       endTime: number,
       emissionsPerSecondX64: BN
     }
-  }): ReturnTypeMakeInstructions {
+  }): Promise<ReturnTypeMakeInstructions> {
+    const poolRewardVault = (await getPdaPoolRewardVaulId(poolInfo.programId, poolInfo.id, rewardInfo.mint)).publicKey
     const ins = [
       initRewardInstruction(
         poolInfo.programId,
@@ -1589,9 +1988,8 @@ export class AmmV3 extends Base {
 
         ownerInfo.tokenAccount,
         rewardInfo.mint,
-        rewardInfo.vault,
+        poolRewardVault,
 
-        rewardInfo.index,
         rewardInfo.openTime,
         rewardInfo.endTime,
         rewardInfo.emissionsPerSecondX64
@@ -1613,13 +2011,27 @@ export class AmmV3 extends Base {
       tokenAccount: PublicKey,
     },
     rewardInfo: {
-      index: number,
-      vault: PublicKey,
+      mint: PublicKey,
       openTime: number,
       endTime: number,
       emissionsPerSecondX64: BN
     }
   }): ReturnTypeMakeInstructions {
+    let rewardIndex
+    let rewardVault
+    for (let index = 0; index < poolInfo.rewardInfos.length; index++)
+      if (poolInfo.rewardInfos[index].tokenMint.equals(rewardInfo.mint)) {
+        rewardIndex = index
+        rewardVault = poolInfo.rewardInfos[index].tokenVault
+      }
+
+    logger.assertArgument(
+      rewardIndex !== undefined && rewardVault !== undefined,
+      "reward mint check error",
+      "no reward mint",
+      poolInfo.rewardInfos,
+    );
+
     const ins = [
       setRewardInstruction(
         poolInfo.programId,
@@ -1628,9 +2040,9 @@ export class AmmV3 extends Base {
         poolInfo.ammConfig.id,
 
         ownerInfo.tokenAccount,
-        rewardInfo.vault,
+        rewardVault,
 
-        rewardInfo.index,
+        rewardIndex,
         rewardInfo.openTime,
         rewardInfo.endTime,
         rewardInfo.emissionsPerSecondX64
@@ -1644,18 +2056,30 @@ export class AmmV3 extends Base {
   }
 
   static makeCollectRewardInstructions({
-    poolInfo, ownerInfo, rewardInfo
+    poolInfo, ownerInfo, rewardMint
   }: {
     poolInfo: AmmV3PoolInfo,
     ownerInfo: {
       wallet: PublicKey,
       tokenAccount: PublicKey,
     },
-    rewardInfo: {
-      index: number,
-      vault: PublicKey,
-    }
+    rewardMint: PublicKey
   }): ReturnTypeMakeInstructions {
+    let rewardIndex
+    let rewardVault
+    for (let index = 0; index < poolInfo.rewardInfos.length; index++)
+      if (poolInfo.rewardInfos[index].tokenMint.equals(rewardMint)) {
+        rewardIndex = index
+        rewardVault = poolInfo.rewardInfos[index].tokenVault
+      }
+
+    logger.assertArgument(
+      rewardIndex !== undefined && rewardVault !== undefined,
+      "reward mint check error",
+      "no reward mint",
+      poolInfo.rewardInfos,
+    );
+
     const ins = [
       collectRewardInstruction(
         poolInfo.programId,
@@ -1663,9 +2087,9 @@ export class AmmV3 extends Base {
         poolInfo.id,
 
         ownerInfo.tokenAccount,
-        rewardInfo.vault,
+        rewardVault,
 
-        rewardInfo.index,
+        rewardIndex,
       ),
     ];
     return {
@@ -1834,58 +2258,6 @@ export class AmmV3 extends Base {
     }
   }
 
-  // static estimateAprsForPriceRangeOrca({ poolInfo, aprType, mintPrice, positionTickLowerIndex, positionTickUpperIndex, rewardMintDecimals, chainTime }: {
-  //   poolInfo: AmmV3PoolInfo,
-  //   aprType: 'day' | 'week' | 'month',
-
-  //   mintPrice: { [mint: string]: Price }
-
-  //   positionTickLowerIndex: number,
-  //   positionTickUpperIndex: number,
-
-  //   chainTime: number
-
-  //   rewardMintDecimals: { [mint: string]: number }
-  // }) {
-  //   const aprTypeDay = aprType === 'day' ? 1 : aprType === 'week' ? 7 : aprType === 'month' ? 30 : 0
-  //   const aprInfo = poolInfo[aprType]
-  //   const mintPriceA = mintPrice[poolInfo.mintA.mint.toString()]
-  //   const mintPriceB = mintPrice[poolInfo.mintB.mint.toString()]
-
-  //   if (!aprInfo || !mintPriceA || !mintPriceB || positionTickLowerIndex >= positionTickUpperIndex) return { feeApr: 0, rewardsApr: [0, 0, 0], apr: 0 }
-
-  //   const sqrtPriceX64A = SqrtPriceMath.getSqrtPriceX64FromTick(positionTickLowerIndex)
-  //   const sqrtPriceX64B = SqrtPriceMath.getSqrtPriceX64FromTick(positionTickUpperIndex)
-
-  //   const { amountSlippageA, amountSlippageB } = LiquidityMath.getAmountsFromLiquidityWithSlippage(poolInfo.sqrtPriceX64, sqrtPriceX64A, sqrtPriceX64B, poolInfo.liquidity, false, false, 0)
-
-
-  //   const tokenValueA = new Decimal(amountSlippageA.toString()).div(new Decimal(10).pow(poolInfo.mintA.decimals)).mul(new Decimal(mintPriceA.toFixed(poolInfo.mintA.decimals)))
-  //   const tokenValueB = new Decimal(amountSlippageB.toString()).div(new Decimal(10).pow(poolInfo.mintB.decimals)).mul(new Decimal(mintPriceB.toFixed(poolInfo.mintB.decimals)))
-
-  //   const concentratedValue = tokenValueA.add(tokenValueB);
-
-  //   const feesPerYear = new Decimal(aprInfo.volumeFee).mul(365).div(aprTypeDay);
-  //   const feeApr = feesPerYear.div(concentratedValue).mul(100).toNumber();
-
-  //   const SECONDS_PER_YEAR = 3600 * 24 * 365
-
-  //   const rewardsApr = poolInfo.rewardInfos.map((i) => {
-  //     const iDecimal = rewardMintDecimals[i.tokenMint.toString()]
-  //     const iPrice = mintPrice[i.tokenMint.toString()]
-
-  //     if (chainTime < i.openTime.toNumber() || chainTime > i.endTime.toNumber() || i.perSecond.equals(0) || !iPrice || iDecimal === undefined) return 0
-
-  //     return new Decimal(iPrice.toFixed(iDecimal)).mul(i.perSecond.mul(SECONDS_PER_YEAR)).div(new Decimal(10).pow(iDecimal)).div(concentratedValue).mul(100).toNumber()
-  //   })
-
-  //   return {
-  //     feeApr,
-  //     rewardsApr,
-  //     apr: feeApr + rewardsApr.reduce((a, b) => a + b, 0)
-  //   }
-  // }
-
   static estimateAprsForPriceRangeMultiplier({ poolInfo, aprType, positionTickLowerIndex, positionTickUpperIndex }: {
     poolInfo: AmmV3PoolInfo,
     aprType: 'day' | 'week' | 'month',
@@ -1910,8 +2282,8 @@ export class AmmV3 extends Base {
 
     if (sub <= 0) p = 0
     else if (userRange === sub) p = (tradeRange) / sub
-    else if (tradeRange === sub) p = sub / ( userRange)
-    else p = sub / (tradeRange) * (sub /(userRange))
+    else if (tradeRange === sub) p = sub / (userRange)
+    else p = sub / (tradeRange) * (sub / (userRange))
 
     return {
       feeApr: aprInfo.feeApr * p,
@@ -1920,7 +2292,7 @@ export class AmmV3 extends Base {
     }
   }
 
-  static estimateAprsForPriceRangeDelta({ poolInfo, aprType, mintPrice, rewardMintDecimals, liquidity, positionTickLowerIndex, positionTickUpperIndex, chainTime}: {
+  static estimateAprsForPriceRangeDelta({ poolInfo, aprType, mintPrice, rewardMintDecimals, liquidity, positionTickLowerIndex, positionTickUpperIndex, chainTime }: {
     poolInfo: AmmV3PoolInfo,
     aprType: 'day' | 'week' | 'month',
 
@@ -1983,6 +2355,8 @@ export class AmmV3 extends Base {
 
     const poolsInfo: ReturnTypeFetchMultiplePoolInfos = {}
 
+    const updateRewardInfos: AmmV3PoolRewardInfo[] = []
+
     for (let index = 0; index < poolKeys.length; index++) {
       const apiPoolInfo = poolKeys[index]
       const accountInfo = poolAccountInfos[index]
@@ -2010,6 +2384,7 @@ export class AmmV3 extends Base {
             id: new PublicKey(apiPoolInfo.ammConfig.id)
           },
 
+          creator: layoutAccountInfo.creator,
           programId: accountInfo.owner,
           version: 6,
 
@@ -2043,6 +2418,10 @@ export class AmmV3 extends Base {
         }
       }
 
+      if (ownerInfo) {
+        updateRewardInfos.push(...poolsInfo[apiPoolInfo.id].state.rewardInfos.filter(i => i.creator.equals(ownerInfo.wallet)))
+      }
+
       if (!programIds.find(i => i.equals(accountInfo.owner))) programIds.push(accountInfo.owner)
     }
 
@@ -2060,8 +2439,6 @@ export class AmmV3 extends Base {
       const keyToTickArrayAddress: { [key: string]: PublicKey } = {}
       for (const itemAccountInfo of positionAccountInfos) {
         if (itemAccountInfo === null) continue
-        // TODO: add check
-
         const position = PositionInfoLayout.decode(itemAccountInfo.data)
         const itemPoolId = position.poolId.toString()
         const poolInfoA = poolsInfo[itemPoolId]
@@ -2157,6 +2534,23 @@ export class AmmV3 extends Base {
             itemPA.rewardInfos[i].peddingReward = rewardInfos[i].gte(ZERO) ? rewardInfos[i] : ZERO
           }
         }
+      }
+    }
+
+    if (updateRewardInfos.length > 0) {
+      const vaults = updateRewardInfos.map(i => i.tokenVault)
+      const rewardVaultInfos = await getMultipleAccountsInfo(connection, vaults, { batchRequest })
+      const rewardVaultAmount: { [mint: string]: BN } = {}
+      for (let index = 0; index < vaults.length; index++) {
+        const valutKey = vaults[index].toString()
+        const itemRewardVaultInfo = rewardVaultInfos[index]
+        if (itemRewardVaultInfo === null) continue
+        const info = SPL_ACCOUNT_LAYOUT.decode(itemRewardVaultInfo.data)
+        rewardVaultAmount[valutKey] = info.amount
+      }
+      for (const item of updateRewardInfos) {
+        const vaultAmount = rewardVaultAmount[item.tokenVault.toString()]
+        item.remainingRewards = vaultAmount !== undefined ? vaultAmount.sub(item.rewardTotalEmissioned) : ZERO
       }
     }
 
