@@ -1,5 +1,6 @@
 import { PublicKey, Connection } from "@solana/web3.js";
 import BN from "bn.js";
+import Decimal from "decimal.js";
 
 import {
   AmmV3PoolInfo,
@@ -9,14 +10,29 @@ import {
   AmmV3PoolPersonalPosition,
   SDKParsedConcentratedInfo,
   ReturnTypeFetchMultiplePoolInfos,
+  ReturnTypeComputeAmountOut,
+  ReturnTypeComputeAmountOutFormat,
+  ReturnTypeFetchMultiplePoolTickArrays,
 } from "../type";
+import { Percent } from "../../../module/percent";
+import { Price } from "../../../module/price";
+import { Token } from "../../../module/token";
+import { TokenAmount } from "../../../module/amount";
+import { TOKEN_SOL } from "../../token";
 import { TokenAccountRaw } from "../../account/types";
-import { getMultipleAccountsInfo, BN_ZERO } from "../../../common";
+import {
+  getMultipleAccountsInfo,
+  getMultipleAccountsInfoWithCustomFlags,
+  BN_ZERO,
+  WSOLMint,
+  SOLMint,
+} from "../../../common";
 import { PoolInfoLayout, PositionInfoLayout, TickArrayLayout } from "../layout";
-import { NEGATIVE_ONE, Q64, ZERO } from "./constants";
+import { NEGATIVE_ONE, Q64, ZERO, MIN_SQRT_PRICE_X64, MAX_SQRT_PRICE_X64, ONE } from "./constants";
 import { MathUtil, SwapMath, SqrtPriceMath, LiquidityMath } from "./math";
 import { getPdaTickArrayAddress, getPdaPersonalPositionAddress } from "./pda";
 import { TickArray, TickUtils, Tick } from "./tick";
+import { FETCH_TICKARRAY_COUNT } from "./tickQuery";
 import { PositionUtils } from "./position";
 
 export class PoolUtils {
@@ -247,6 +263,61 @@ export class PoolUtils {
     return poolsInfo;
   }
 
+  static async fetchMultiplePoolTickArrays({
+    connection,
+    poolKeys,
+    batchRequest,
+  }: {
+    connection: Connection;
+    poolKeys: AmmV3PoolInfo[];
+    batchRequest?: boolean;
+  }): Promise<ReturnTypeFetchMultiplePoolTickArrays> {
+    const tickArraysToPoolId = {};
+    const tickArrays: { pubkey: PublicKey }[] = [];
+    for (const itemPoolInfo of poolKeys) {
+      const tickArrayBitmap = TickUtils.mergeTickArrayBitmap(itemPoolInfo.tickArrayBitmap);
+      const currentTickArrayStartIndex = TickUtils.getTickArrayStartIndexByTick(
+        itemPoolInfo.tickCurrent,
+        itemPoolInfo.tickSpacing,
+      );
+
+      const startIndexArray = TickUtils.getInitializedTickArrayInRange(
+        tickArrayBitmap,
+        itemPoolInfo.tickSpacing,
+        currentTickArrayStartIndex,
+        Math.floor(FETCH_TICKARRAY_COUNT / 2),
+      );
+      for (const itemIndex of startIndexArray) {
+        const { publicKey: tickArrayAddress } = await getPdaTickArrayAddress(
+          itemPoolInfo.programId,
+          itemPoolInfo.id,
+          itemIndex,
+        );
+        tickArrays.push({ pubkey: tickArrayAddress });
+        tickArraysToPoolId[tickArrayAddress.toString()] = itemPoolInfo.id;
+      }
+    }
+
+    const fetchedTickArrays = await getMultipleAccountsInfoWithCustomFlags(connection, tickArrays, { batchRequest });
+
+    const tickArrayCache: ReturnTypeFetchMultiplePoolTickArrays = {};
+
+    for (const itemAccountInfo of fetchedTickArrays) {
+      if (!itemAccountInfo.accountInfo) continue;
+      const poolId = tickArraysToPoolId[itemAccountInfo.pubkey.toString()];
+      if (!poolId) continue;
+      if (tickArrayCache[poolId] === undefined) tickArrayCache[poolId] = {};
+
+      const accountLayoutData = TickArrayLayout.decode(itemAccountInfo.accountInfo.data);
+
+      tickArrayCache[poolId][accountLayoutData.startTickIndex] = {
+        ...accountLayoutData,
+        address: itemAccountInfo.pubkey,
+      };
+    }
+    return tickArrayCache;
+  }
+
   static async fetchPoolsAccountPosition({
     pools,
     connection,
@@ -394,5 +465,291 @@ export class PoolUtils {
       }
     }
     return pools;
+  }
+
+  static async computeAmountOut({
+    poolInfo,
+    tickArrayCache,
+    baseMint,
+    amountIn,
+    slippage,
+    priceLimit = new Decimal(0),
+  }: {
+    poolInfo: AmmV3PoolInfo;
+    tickArrayCache: { [key: string]: TickArray };
+    baseMint: PublicKey;
+
+    amountIn: BN;
+    slippage: number;
+    priceLimit?: Decimal;
+  }): Promise<ReturnTypeComputeAmountOut> {
+    let sqrtPriceLimitX64: BN;
+    if (priceLimit.equals(new Decimal(0))) {
+      sqrtPriceLimitX64 = baseMint.equals(poolInfo.mintA.mint)
+        ? MIN_SQRT_PRICE_X64.add(ONE)
+        : MAX_SQRT_PRICE_X64.sub(ONE);
+    } else {
+      sqrtPriceLimitX64 = SqrtPriceMath.priceToSqrtPriceX64(
+        priceLimit,
+        poolInfo.mintA.decimals,
+        poolInfo.mintB.decimals,
+      );
+    }
+
+    const {
+      expectedAmountOut,
+      remainingAccounts,
+      executionPrice: _executionPriceX64,
+      feeAmount,
+    } = await PoolUtils.getOutputAmountAndRemainAccounts(
+      poolInfo,
+      tickArrayCache,
+      baseMint,
+      amountIn,
+      sqrtPriceLimitX64,
+    );
+
+    const _executionPrice = SqrtPriceMath.sqrtPriceX64ToPrice(
+      _executionPriceX64,
+      poolInfo.mintA.decimals,
+      poolInfo.mintB.decimals,
+    );
+    const executionPrice = baseMint.equals(poolInfo.mintA.mint) ? _executionPrice : new Decimal(1).div(_executionPrice);
+
+    const minAmountOut = expectedAmountOut
+      .mul(new BN(Math.floor((1 - slippage) * 10000000000)))
+      .div(new BN(10000000000));
+
+    const poolPrice = poolInfo.mintA.mint.equals(baseMint)
+      ? poolInfo.currentPrice
+      : new Decimal(1).div(poolInfo.currentPrice);
+    const priceImpact = new Percent(
+      parseInt(String(Math.abs(parseFloat(executionPrice.toFixed()) - parseFloat(poolPrice.toFixed())) * 1e9)),
+      parseInt(String(parseFloat(poolPrice.toFixed()) * 1e9)),
+    );
+
+    return {
+      amountOut: expectedAmountOut,
+      minAmountOut,
+      currentPrice: poolInfo.currentPrice,
+      executionPrice,
+      priceImpact,
+      fee: feeAmount,
+
+      remainingAccounts,
+    };
+  }
+
+  static async computeAmountOutFormat({
+    poolInfo,
+    tickArrayCache,
+    amountIn,
+    tokenOut: _tokenOut,
+    slippage,
+  }: {
+    poolInfo: AmmV3PoolInfo;
+    tickArrayCache: { [key: string]: TickArray };
+
+    amountIn: TokenAmount;
+    tokenOut: Token;
+    slippage: Percent;
+  }): Promise<ReturnTypeComputeAmountOutFormat> {
+    const inputMint = amountIn.token.equals(Token.WSOL) ? WSOLMint : amountIn.token.mint;
+    const _slippage = slippage.numerator.toNumber() / slippage.denominator.toNumber();
+    const tokenOut = _tokenOut.mint.equals(SOLMint)
+      ? new Token({ mint: "sol", decimals: TOKEN_SOL.decimals })
+      : _tokenOut;
+
+    const { amountOut, minAmountOut, currentPrice, executionPrice, priceImpact, fee, remainingAccounts } =
+      await this.computeAmountOut({
+        poolInfo,
+        tickArrayCache,
+        baseMint: inputMint,
+        amountIn: amountIn.raw,
+        slippage: _slippage,
+      });
+
+    return {
+      amountOut: new TokenAmount(tokenOut, amountOut),
+      minAmountOut: new TokenAmount(tokenOut, minAmountOut),
+      currentPrice: new Price({
+        baseToken: amountIn.token,
+        denominator: new BN(10).pow(new BN(20 + amountIn.token.decimals)),
+        quoteToken: tokenOut,
+        numerator: currentPrice.mul(new Decimal(10 ** (20 + tokenOut.decimals))).toFixed(0),
+      }),
+      executionPrice: new Price({
+        baseToken: amountIn.token,
+        denominator: new BN(10).pow(new BN(20 + amountIn.token.decimals)),
+        quoteToken: tokenOut,
+        numerator: executionPrice.mul(new Decimal(10 ** (20 + tokenOut.decimals))).toFixed(0),
+      }),
+      priceImpact,
+      fee: new TokenAmount(amountIn.token, fee),
+      remainingAccounts,
+    };
+  }
+
+  static estimateAprsForPriceRangeMultiplier({
+    poolInfo,
+    aprType,
+    positionTickLowerIndex,
+    positionTickUpperIndex,
+  }: {
+    poolInfo: AmmV3PoolInfo;
+    aprType: "day" | "week" | "month";
+
+    positionTickLowerIndex: number;
+    positionTickUpperIndex: number;
+  }): {
+    feeApr: number;
+    rewardsApr: number[];
+    apr: number;
+  } {
+    const aprInfo = poolInfo[aprType];
+
+    const priceLower = TickUtils.getTickPrice({
+      poolInfo,
+      tick: positionTickLowerIndex,
+      baseIn: true,
+    }).price.toNumber();
+    const priceUpper = TickUtils.getTickPrice({
+      poolInfo,
+      tick: positionTickUpperIndex,
+      baseIn: true,
+    }).price.toNumber();
+
+    const _minPrice = Math.max(priceLower, aprInfo.priceMin);
+    const _maxPrice = Math.min(priceUpper, aprInfo.priceMax);
+
+    const sub = _maxPrice - _minPrice;
+
+    const userRange = priceUpper - priceLower;
+    const tradeRange = aprInfo.priceMax - aprInfo.priceMin;
+
+    let p;
+
+    if (sub <= 0) p = 0;
+    else if (userRange === sub) p = tradeRange / sub;
+    else if (tradeRange === sub) p = sub / userRange;
+    else p = (sub / tradeRange) * (sub / userRange);
+
+    return {
+      feeApr: aprInfo.feeApr * p,
+      rewardsApr: [aprInfo.rewardApr.A * p, aprInfo.rewardApr.B * p, aprInfo.rewardApr.C * p],
+      apr: aprInfo.apr * p,
+    };
+  }
+
+  static estimateAprsForPriceRangeDelta({
+    poolInfo,
+    aprType,
+    mintPrice,
+    rewardMintDecimals,
+    liquidity,
+    positionTickLowerIndex,
+    positionTickUpperIndex,
+    chainTime,
+  }: {
+    poolInfo: AmmV3PoolInfo;
+    aprType: "day" | "week" | "month";
+
+    mintPrice: { [mint: string]: Price };
+
+    rewardMintDecimals: { [mint: string]: number };
+
+    liquidity: BN;
+    positionTickLowerIndex: number;
+    positionTickUpperIndex: number;
+
+    chainTime: number;
+  }): {
+    feeApr: number;
+    rewardsApr: number[];
+    apr: number;
+  } {
+    const aprTypeDay = aprType === "day" ? 1 : aprType === "week" ? 7 : aprType === "month" ? 30 : 0;
+    const aprInfo = poolInfo[aprType];
+    const mintPriceA = mintPrice[poolInfo.mintA.mint.toString()];
+    const mintPriceB = mintPrice[poolInfo.mintB.mint.toString()];
+    const mintDecimalsA = poolInfo.mintA.decimals;
+    const mintDecimalsB = poolInfo.mintB.decimals;
+
+    if (!aprInfo || !mintPriceA || !mintPriceB) return { feeApr: 0, rewardsApr: [0, 0, 0], apr: 0 };
+
+    const sqrtPriceX64A = SqrtPriceMath.getSqrtPriceX64FromTick(positionTickLowerIndex);
+    const sqrtPriceX64B = SqrtPriceMath.getSqrtPriceX64FromTick(positionTickUpperIndex);
+
+    const { amountSlippageA: poolLiquidityA, amountSlippageB: poolLiquidityB } =
+      LiquidityMath.getAmountsFromLiquidityWithSlippage(
+        poolInfo.sqrtPriceX64,
+        sqrtPriceX64A,
+        sqrtPriceX64B,
+        poolInfo.liquidity,
+        false,
+        false,
+        0,
+      );
+    const { amountSlippageA: userLiquidityA, amountSlippageB: userLiquidityB } =
+      LiquidityMath.getAmountsFromLiquidityWithSlippage(
+        poolInfo.sqrtPriceX64,
+        sqrtPriceX64A,
+        sqrtPriceX64B,
+        liquidity,
+        false,
+        false,
+        0,
+      );
+
+    const poolTvl = new Decimal(poolLiquidityA.toString())
+      .div(new Decimal(10).pow(mintDecimalsA))
+      .mul(mintPriceA.toFixed(mintDecimalsA))
+      .add(
+        new Decimal(poolLiquidityB.toString())
+          .div(new Decimal(10).pow(mintDecimalsB))
+          .mul(mintPriceB.toFixed(mintDecimalsB)),
+      );
+    const userTvl = new Decimal(userLiquidityA.toString())
+      .div(new Decimal(10).pow(mintDecimalsA))
+      .mul(mintPriceA.toFixed(mintDecimalsA))
+      .add(
+        new Decimal(userLiquidityB.toString())
+          .div(new Decimal(10).pow(mintDecimalsB))
+          .mul(mintPriceB.toFixed(mintDecimalsB)),
+      );
+
+    const p = userTvl.div(poolTvl.add(userTvl)).div(userTvl);
+
+    const feesPerYear = new Decimal(aprInfo.volumeFee).mul(365).div(aprTypeDay);
+    const feeApr = feesPerYear.mul(p).mul(100).toNumber();
+
+    const SECONDS_PER_YEAR = 3600 * 24 * 365;
+
+    const rewardsApr = poolInfo.rewardInfos.map((i) => {
+      const iDecimal = rewardMintDecimals[i.tokenMint.toString()];
+      const iPrice = mintPrice[i.tokenMint.toString()];
+
+      if (
+        chainTime < i.openTime.toNumber() ||
+        chainTime > i.endTime.toNumber() ||
+        i.perSecond.equals(0) ||
+        !iPrice ||
+        iDecimal === undefined
+      )
+        return 0;
+
+      return new Decimal(iPrice.toFixed(iDecimal))
+        .mul(i.perSecond.mul(SECONDS_PER_YEAR))
+        .div(new Decimal(10).pow(iDecimal))
+        .mul(p)
+        .mul(100)
+        .toNumber();
+    });
+
+    return {
+      feeApr,
+      rewardsApr,
+      apr: feeApr + rewardsApr.reduce((a, b) => a + b, 0),
+    };
   }
 }
