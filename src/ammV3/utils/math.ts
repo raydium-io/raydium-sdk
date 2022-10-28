@@ -6,6 +6,7 @@ import {
   BIT_PRECISION, Fee, FEE_RATE_DENOMINATOR, LOG_B_2_X32, LOG_B_P_ERR_MARGIN_LOWER_X64, LOG_B_P_ERR_MARGIN_UPPER_X64,
   MAX_SQRT_PRICE_X64, MAX_TICK, MaxU64, MaxUint128, MIN_SQRT_PRICE_X64, MIN_TICK, NEGATIVE_ONE, ONE, Q64, U64Resolution,
   ZERO,
+  Q128,
 } from "./constants";
 import { TickArray } from "./tick";
 import { TickQuery } from "./tickQuery";
@@ -43,6 +44,10 @@ export class MathUtil {
 
   public static decimalToX64(num: Decimal): BN {
     return new BN(num.mul(Decimal.pow(2, 64)).floor().toFixed());
+  }
+
+  public static wrappingSubU128(n0: BN, n1: BN): BN {
+    return n0.add(Q128).sub(n1).mod(Q128);
   }
 }
 
