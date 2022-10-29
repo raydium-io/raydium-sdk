@@ -255,7 +255,7 @@ export interface AmmV3PoolPersonalPosition {
   rewardInfos: {
     growthInsideLastX64: BN;
     rewardAmountOwed: BN;
-    peddingReward: BN
+    pendingReward: BN
   }[]
 
   leverage: number
@@ -1500,7 +1500,7 @@ export class AmmV3 extends Base {
     for (const itemInfo of Object.values(fetchPoolInfos)) {
       if (itemInfo.positionAccount === undefined) continue
 
-      if (!itemInfo.positionAccount.find(i => !i.tokenFeeAmountA.isZero() || !i.tokenFeeAmountB.isZero() || i.rewardInfos.find( ii => !ii.peddingReward.isZero()) )) continue
+      if (!itemInfo.positionAccount.find(i => !i.tokenFeeAmountA.isZero() || !i.tokenFeeAmountB.isZero() || i.rewardInfos.find( ii => !ii.pendingReward.isZero()) )) continue
 
       const poolInfo = itemInfo.state
 
@@ -2477,7 +2477,7 @@ export class AmmV3 extends Base {
           tokenFeesOwedB: position.tokenFeesOwedB,
           rewardInfos: position.rewardInfos.map(i => ({
             ...i,
-            peddingReward: new BN(0)
+            pendingReward: new BN(0)
           })),
 
           leverage,
@@ -2531,7 +2531,7 @@ export class AmmV3 extends Base {
           itemPA.tokenFeeAmountA = tokenFeeAmountA.gte(ZERO) ? tokenFeeAmountA : ZERO
           itemPA.tokenFeeAmountB = tokenFeeAmountB.gte(ZERO) ? tokenFeeAmountB : ZERO
           for (let i = 0; i < rewardInfos.length; i++) {
-            itemPA.rewardInfos[i].peddingReward = rewardInfos[i].gte(ZERO) ? rewardInfos[i] : ZERO
+            itemPA.rewardInfos[i].pendingReward = rewardInfos[i].gte(ZERO) ? rewardInfos[i] : ZERO
           }
         }
       }
