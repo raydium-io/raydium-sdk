@@ -2011,8 +2011,8 @@ export class Liquidity extends Base {
     // const priceImpact = this._computePriceImpact(currentPrice, amountInRaw, amountOutRaw);
     // TODO
     const priceImpact = new Percent(
-      String(Math.abs(parseFloat(executionPrice.toFixed()) - parseFloat(currentPrice.toFixed())) * 1e9).split('.')[0],
-      String(parseFloat(currentPrice.toFixed()) * 1e9).split('.')[0],
+      String(Math.abs(parseFloat(executionPrice.toFixed(15)) - parseFloat(currentPrice.toFixed(15))) * 1e15).split('.')[0],
+      String(parseFloat(currentPrice.toFixed(15)) * 1e15).split('.')[0],
     );
     logger.debug("priceImpact:", `${priceImpact.toSignificant()}%`);
 
