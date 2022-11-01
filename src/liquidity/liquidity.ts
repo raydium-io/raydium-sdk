@@ -2008,12 +2008,10 @@ export class Liquidity extends Base {
       );
     }
 
-    // const priceImpact = this._computePriceImpact(currentPrice, amountInRaw, amountOutRaw);
-    // TODO
-    const priceImpact = new Percent(
-      String(Math.abs(parseFloat(executionPrice.toFixed(15)) - parseFloat(currentPrice.toFixed(15))) * 1e15).split('.')[0],
-      String(parseFloat(currentPrice.toFixed(15)) * 1e15).split('.')[0],
-    );
+    const priceImpactDenominator = executionPrice.denominator.mul(currentPrice.numerator)
+    const priceImpactNumerator = executionPrice.numerator.mul(currentPrice.denominator).sub(priceImpactDenominator).abs()
+    const priceImpact = new Percent(priceImpactNumerator, priceImpactDenominator)
+
     logger.debug("priceImpact:", `${priceImpact.toSignificant()}%`);
 
     const fee =
