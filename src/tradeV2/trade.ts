@@ -370,10 +370,10 @@ export class TradeV2 extends Base {
     }
     for (const [routeMint, info] of Object.entries(routePathDict)) {
       for (const iFromPool of info.in) {
-        if (!simulateCache[iFromPool.id as string]) continue
+        if (!simulateCache[iFromPool.id as string] && !tickCache[iFromPool.id.toString()]) continue
         if (iFromPool.version !== 6 && ![1,6,7].includes(simulateCache[iFromPool.id as string].status.toNumber())) continue
         for (const iOutPool of info.out) {
-          if (!simulateCache[iOutPool.id as string]) continue
+          if (!simulateCache[iOutPool.id as string] && !tickCache[iOutPool.id.toString()]) continue
           if (iOutPool.version !== 6 && ![1,6,7].includes(simulateCache[iOutPool.id as string].status.toNumber())) continue
           try {
             const { amountOut, minAmountOut, executionPrice, priceImpact, fee, remainingAccounts } = await TradeV2.computeAmountOut({
