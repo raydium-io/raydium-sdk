@@ -2,7 +2,7 @@ import { Connection, Keypair, PublicKey } from "@solana/web3.js";
 import BN from "bn.js";
 import { merge } from "lodash";
 
-import { Api, ApiFarmPools, ApiJsonPairInfo, ApiLiquidityPools, ApiTokens, ApiAmmV3PoolInfo } from "../api";
+import { Api, UrlConfigs, ApiFarmPools, ApiJsonPairInfo, ApiLiquidityPools, ApiTokens, ApiAmmV3PoolInfo } from "../api";
 import { EMPTY_CONNECTION, EMPTY_OWNER } from "../common/error";
 import { createLogger, Logger } from "../common/logger";
 import { Owner } from "../common/owner";
@@ -35,6 +35,7 @@ export interface RaydiumLoadParams extends TokenAccountDataProp, Omit<RaydiumApi
   apiRequestTimeout?: number;
   apiCacheTime?: number;
   signAllTransactions?: SignAllTransactions;
+  urlConfigs?: UrlConfigs;
 }
 
 export interface RaydiumApiBatchRequestParams {
@@ -143,9 +144,9 @@ export class Raydium {
       },
       config,
     );
-    const { cluster, apiRequestTimeout } = custom;
+    const { cluster, apiRequestTimeout, urlConfigs } = custom;
 
-    const api = new Api({ cluster, timeout: apiRequestTimeout });
+    const api = new Api({ cluster, timeout: apiRequestTimeout, urlConfigs });
     const raydium = new Raydium({
       ...custom,
       api,

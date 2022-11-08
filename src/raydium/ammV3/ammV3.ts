@@ -1,5 +1,6 @@
 import { PublicKey } from "@solana/web3.js";
 import Decimal from "decimal.js";
+import { toSplToken } from "../token/util";
 import {
   toPercent,
   toFraction,
@@ -89,8 +90,8 @@ export class AmmV3 extends ModuleBase {
     this._hydratedAmmV3Pools = this._ammV3SdkParsedPools.map((pool) => {
       const rewardLength = pool.state.rewardInfos.length;
       const [base, quote] = [
-        this.scope.token.allTokenMap.get(pool.state.mintA.mint.toBase58()),
-        this.scope.token.allTokenMap.get(pool.state.mintB.mint.toBase58()),
+        this.scope.token.allTokenMap.get(pool.state.mintA.mint.toBase58()) || toSplToken(pool.state.mintA),
+        this.scope.token.allTokenMap.get(pool.state.mintB.mint.toBase58()) || toSplToken(pool.state.mintB),
       ];
       const currentPrice = decimalToFraction(pool.state.currentPrice)!;
       const toMintATokenAmount = (amount: BigNumberish, decimalDone = true): TokenAmount | undefined =>
@@ -230,6 +231,20 @@ export class AmmV3 extends ModuleBase {
             rewardTotalEmissioned: rewardToken
               ? this.scope.mintToTokenAmount({ mint: r.tokenMint, amount: r.rewardTotalEmissioned })
               : undefined,
+            rewardPerWeek:
+              rewardToken &&
+              this.scope.mintToTokenAmount({
+                mint: r.tokenMint,
+                amount: r.perSecond.mul(60 * 60 * 24 * 7).toString(),
+                decimalDone: true,
+              }),
+            rewardPerDay:
+              rewardToken &&
+              this.scope.mintToTokenAmount({
+                mint: r.tokenMint,
+                amount: r.perSecond.mul(60 * 60 * 24).toString(),
+                decimalDone: true,
+              }),
           };
         }),
       };
@@ -239,7 +254,15 @@ export class AmmV3 extends ModuleBase {
   }
 
   public async fetchPoolAccountPosition(): Promise<HydratedConcentratedInfo[]> {
-    this.scope.checkOwner();
+    if (!this.scope.owner) {
+      this._ammV3SdkParsedPools = this._ammV3SdkParsedPools.map((pool) => {
+        delete pool.positionAccount;
+        this._ammV3SdkParsedPoolMap.set(pool.state.id.toBase58(), pool);
+        return pool;
+      });
+      this.hydratePoolsInfo();
+      return this._hydratedAmmV3Pools;
+    }
     await this.scope.account.fetchWalletTokenAccounts();
     this._ammV3SdkParsedPools = await PoolUtils.fetchPoolsAccountPosition({
       pools: this._ammV3SdkParsedPools,

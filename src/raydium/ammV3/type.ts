@@ -194,8 +194,10 @@ export interface HydratedConcentratedInfo extends SDKParsedConcentratedInfo {
     tokenMint: PublicKey;
     tokenVault: PublicKey;
     creator: PublicKey;
-    emissionsPerSecondX64: BN;
-    rewardGrowthGlobalX64: BN;
+    rewardPerWeek: TokenAmount | undefined;
+    rewardPerDay: TokenAmount | undefined;
+    perSecond: Decimal;
+    remainingRewards?: BN;
   }[];
   tvl: CurrencyAmount;
   feeApr24h: Percent;

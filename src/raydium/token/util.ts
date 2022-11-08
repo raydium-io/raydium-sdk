@@ -1,11 +1,11 @@
-import { Connection } from "@solana/web3.js";
+import { Connection, PublicKey } from "@solana/web3.js";
 
 import { ApiTokenInfo } from "../../api/type";
 import { PublicKeyish, validateAndParsePublicKey } from "../../common/pubKey";
 import { GetStructureSchema } from "../../marshmallow";
 
 import { SPL_MINT_LAYOUT } from "./layout";
-import { TokenJson } from "./type";
+import { TokenJson, SplToken } from "./type";
 
 export function sortTokens(tokens: TokenJson[], mintList: { official: string[]; unOfficial: string[] }): TokenJson[] {
   return tokens.sort((tokenA, tokenB) => {
@@ -43,3 +43,15 @@ export async function getSPLTokenInfo(
     return;
   }
 }
+
+export const toSplToken = ({ mint, decimals }: { mint: PublicKey; decimals: number }): SplToken => {
+  const pubStr = mint.toBase58().substring(0, 6);
+  return {
+    mint,
+    decimals,
+    id: pubStr,
+    symbol: pubStr,
+    icon: "",
+    extensions: {},
+  };
+};

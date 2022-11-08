@@ -23,9 +23,19 @@ export async function endlessRetry<T>(name: string, call: () => Promise<T>, inte
   return result;
 }
 
+export interface UrlConfigs {
+  tokens?: string;
+  liquidityPools?: string;
+  pairs?: string;
+  farms?: string;
+  ammV3Pools?: string;
+  price?: string;
+}
+
 export interface ApiProps {
   cluster: Cluster;
   timeout: number;
+  urlConfigs?: UrlConfigs;
 }
 
 export class Api {
@@ -33,8 +43,11 @@ export class Api {
 
   public api: AxiosInstance;
 
-  constructor({ cluster, timeout }: ApiProps) {
+  public urlConfigs: UrlConfigs;
+
+  constructor({ cluster, timeout, urlConfigs }: ApiProps) {
     this.cluster = cluster;
+    this.urlConfigs = urlConfigs || {};
 
     this.api = axios.create({ baseURL: "https://api.raydium.io/v2", timeout });
 
@@ -79,23 +92,23 @@ export class Api {
   }
 
   async getTokens(): Promise<ApiTokens> {
-    return this.api.get(`/sdk/token/raydium.mainnet.json`);
+    return this.api.get(this.urlConfigs.tokens || "/sdk/token/raydium.mainnet.json");
   }
 
   async getLiquidityPools(): Promise<ApiLiquidityPools> {
-    return this.api.get(`/sdk/liquidity/${this.cluster}.json`);
+    return this.api.get(this.urlConfigs.liquidityPools || `/sdk/liquidity/${this.cluster}.json`);
   }
 
   async getPairsInfo(): Promise<ApiJsonPairInfo[]> {
-    return this.api.get("/main/pairs");
+    return this.api.get(this.urlConfigs.pairs || "/main/pairs");
   }
 
   async getFarmPools(): Promise<ApiFarmPools> {
-    return this.api.get(`/sdk/farm-v2/${this.cluster}.json`);
+    return this.api.get(this.urlConfigs.farms || `/sdk/farm-v2/${this.cluster}.json`);
   }
 
   async getConcentratedPools(): Promise<ApiAmmV3PoolInfo[]> {
-    const res = await this.api.get("/ammV3/ammPools");
+    const res = await this.api.get(this.urlConfigs.ammV3Pools || "/ammV3/ammPools");
     return res.data;
   }
 
@@ -106,7 +119,7 @@ export class Api {
   }
 
   async getRaydiumTokenPrice(): Promise<Record<string, number>> {
-    return this.api.get("/main/price");
+    return this.api.get(this.urlConfigs.price || "/main/price");
   }
 
   async getBlockSlotCountForSecond(endpointUrl?: string): Promise<number> {
