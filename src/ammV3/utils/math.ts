@@ -4,9 +4,8 @@ import Decimal from "decimal.js";
 
 import {
   BIT_PRECISION, Fee, FEE_RATE_DENOMINATOR, LOG_B_2_X32, LOG_B_P_ERR_MARGIN_LOWER_X64, LOG_B_P_ERR_MARGIN_UPPER_X64,
-  MAX_SQRT_PRICE_X64, MAX_TICK, MaxU64, MaxUint128, MIN_SQRT_PRICE_X64, MIN_TICK, NEGATIVE_ONE, ONE, Q64, U64Resolution,
-  ZERO,
-  Q128,
+  MAX_SQRT_PRICE_X64, MAX_TICK, MaxU64, MaxUint128, MIN_SQRT_PRICE_X64, MIN_TICK, NEGATIVE_ONE, ONE, Q128, Q64,
+  U64Resolution, ZERO,
 } from "./constants";
 import { TickArray } from "./tick";
 import { TickQuery } from "./tickQuery";
@@ -587,7 +586,7 @@ export interface StepComputations {
 }
 
 export abstract class SwapMath {
-  public static async swapCompute(
+  public static swapCompute(
     programId: PublicKey,
     poolId: PublicKey,
     tickArrayCache: { [key: string]: TickArray },
@@ -650,7 +649,7 @@ export abstract class SwapMath {
       const step: Partial<StepComputations> = {};
       step.sqrtPriceStartX64 = state.sqrtPriceX64;
       const { nextTick: nextInitTick, tickArrayAddress, tickArrayStartTickIndex: tickAarrayStartIndex } =
-        await TickQuery.nextInitializedTick(
+        TickQuery.nextInitializedTick(
           programId,
           poolId,
           tickArrayCache,

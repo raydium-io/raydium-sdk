@@ -1,5 +1,7 @@
 import { AccountLayout, TOKEN_PROGRAM_ID } from "@solana/spl-token";
-import { Connection, Keypair, PublicKey, Signer, SystemProgram, Transaction, TransactionInstruction } from "@solana/web3.js";
+import {
+  Connection, Keypair, PublicKey, Signer, SystemProgram, Transaction, TransactionInstruction,
+} from "@solana/web3.js";
 
 import { BigNumberish, Token } from "../entity";
 import { Spl, SplAccount } from "../spl";
@@ -55,7 +57,7 @@ export interface UnsignedTransactionAndSigners {
 }
 
 export class Base {
-  static async _selectTokenAccount(params: SelectTokenAccountParams) {
+  static _selectTokenAccount(params: SelectTokenAccountParams) {
     const { tokenAccounts, mint, owner, config } = params;
 
     const { associatedOnly } = {
@@ -71,7 +73,7 @@ export class Base {
       // sort by balance
       .sort((a, b) => (a.accountInfo.amount.lt(b.accountInfo.amount) ? 1 : -1));
 
-    const ata = await Spl.getAssociatedTokenAccount({ mint, owner });
+    const ata = Spl.getAssociatedTokenAccount({ mint, owner });
 
     for (const tokenAccount of _tokenAccounts) {
       const { pubkey } = tokenAccount;
@@ -103,7 +105,7 @@ export class Base {
       bypassAssociatedCheck,
     } = params;
 
-    const ata = await Spl.getAssociatedTokenAccount({ mint, owner });
+    const ata = Spl.getAssociatedTokenAccount({ mint, owner });
 
     if (Token.WSOL.mint.equals(mint)) {
       const newTokenAccount = await Spl.insertCreateWrappedNativeAccountInstructions({
@@ -138,7 +140,7 @@ export class Base {
 
   static async _selectOrCreateTokenAccount(params: SelectOrCreateTokenAccountParams) {
     const { mint, tokenAccounts, createInfo, associatedOnly, owner } = params
-    const ata = await Spl.getAssociatedTokenAccount({ mint, owner });
+    const ata = Spl.getAssociatedTokenAccount({ mint, owner });
     const accounts = tokenAccounts.filter((i) => i.accountInfo.mint.equals(mint) && (!associatedOnly || i.pubkey.equals(ata))).sort((a, b) => (a.accountInfo.amount.lt(b.accountInfo.amount) ? 1 : -1))
     // find token or don't need create
     if (createInfo === undefined || accounts.length > 0) {
@@ -179,7 +181,7 @@ export class Base {
           )
         }
       }
-      
+
       if (createInfo.endInstructions) {
         createInfo.endInstructions.push(Spl.makeCloseAccountInstruction({ tokenAccount: ata, owner, payer: createInfo.payer }));
       }
@@ -219,7 +221,7 @@ export class Base {
         )
         createInfo.frontInstructions.push(createAccountIns, initAccountIns)
         createInfo.signers.push(newTokenAccount)
-        if (createInfo.endInstructions){
+        if (createInfo.endInstructions) {
           createInfo.endInstructions.push(Spl.makeCloseAccountInstruction({ tokenAccount: newTokenAccount.publicKey, owner, payer: createInfo.payer }))
         }
         return newTokenAccount.publicKey

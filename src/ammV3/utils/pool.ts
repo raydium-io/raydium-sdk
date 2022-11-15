@@ -9,7 +9,7 @@ import { getPdaTickArrayAddress } from "./pda";
 import { TickArray, TickUtils } from "./tick";
 
 export class PoolUtils {
-  public static async getOutputAmountAndRemainAccounts(
+  public static getOutputAmountAndRemainAccounts(
     poolInfo: AmmV3PoolInfo,
     tickArrayCache: { [key: string]: TickArray },
     inputTokenMint: PublicKey,
@@ -19,11 +19,8 @@ export class PoolUtils {
     const zeroForOne = inputTokenMint.equals(poolInfo.mintA.mint);
 
     const allNeededAccounts: PublicKey[] = [];
-    const { isExist, startIndex: firstTickArrayStartIndex, nextAccountMeta } =
-      await this.getFirstInitializedTickArray(poolInfo, zeroForOne);
-    if (!isExist || firstTickArrayStartIndex === undefined || !nextAccountMeta) {
-      throw new Error("Invalid tick array");
-    }
+    const { isExist, startIndex: firstTickArrayStartIndex, nextAccountMeta } = this.getFirstInitializedTickArray(poolInfo, zeroForOne);
+    if (!isExist || firstTickArrayStartIndex === undefined || !nextAccountMeta) throw new Error("Invalid tick array");
 
     allNeededAccounts.push(nextAccountMeta);
     const {
@@ -31,7 +28,7 @@ export class PoolUtils {
       accounts: reaminAccounts,
       sqrtPriceX64: executionPrice,
       feeAmount
-    } = await SwapMath.swapCompute(
+    } = SwapMath.swapCompute(
       poolInfo.programId,
       poolInfo.id,
       tickArrayCache,
@@ -49,20 +46,20 @@ export class PoolUtils {
     return { expectedAmountOut: outputAmount.mul(NEGATIVE_ONE), remainingAccounts: allNeededAccounts, executionPrice, feeAmount };
   }
 
-  public static async getFirstInitializedTickArray(
+  public static getFirstInitializedTickArray(
     poolInfo: AmmV3PoolInfo,
     zeroForOne: boolean
-    ): Promise<{ isExist: true, startIndex: number, nextAccountMeta: PublicKey } | { isExist: false, startIndex: undefined, nextAccountMeta: undefined }> {
+  ): { isExist: true, startIndex: number, nextAccountMeta: PublicKey } | { isExist: false, startIndex: undefined, nextAccountMeta: undefined } {
     const tickArrayBitmap = TickUtils.mergeTickArrayBitmap(
       poolInfo.tickArrayBitmap
     );
-    const {isInitialized, startIndex} = TickUtils.checkTickArrayIsInitialized(
+    const { isInitialized, startIndex } = TickUtils.checkTickArrayIsInitialized(
       tickArrayBitmap,
       poolInfo.tickCurrent,
       poolInfo.tickSpacing
     );
     if (isInitialized) {
-      const { publicKey: address } = await getPdaTickArrayAddress(
+      const { publicKey: address } = getPdaTickArrayAddress(
         poolInfo.programId,
         poolInfo.id,
         startIndex
@@ -75,7 +72,7 @@ export class PoolUtils {
     }
     const { isExist, nextStartIndex } = this.nextInitializedTickArrayStartIndex(poolInfo, zeroForOne);
     if (isExist) {
-      const { publicKey: address } = await getPdaTickArrayAddress(
+      const { publicKey: address } = getPdaTickArrayAddress(
         poolInfo.programId,
         poolInfo.id,
         nextStartIndex
@@ -116,7 +113,7 @@ export class PoolUtils {
     return result.length > 0 ? { isExist: true, nextStartIndex: result[0] } : { isExist: false, nextStartIndex: 0 }
   }
 
-  public static updatePoolRewardInfos({chainTime, poolLiquidity, rewardInfos}: {
+  public static updatePoolRewardInfos({ chainTime, poolLiquidity, rewardInfos }: {
     chainTime: number,
     poolLiquidity: BN,
     rewardInfos: AmmV3PoolRewardLayoutInfo[],
@@ -128,7 +125,7 @@ export class PoolUtils {
         perSecond: MathUtil.x64ToDecimal(_itemReward.emissionsPerSecondX64),
         remainingRewards: undefined
       }
-      
+
       if (itemReward.tokenMint.equals(PublicKey.default)) continue
       if (chainTime <= itemReward.openTime.toNumber() || poolLiquidity.eq(ZERO)) {
         nRewardInfo.push(itemReward)

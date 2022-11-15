@@ -65,8 +65,8 @@ export type LiquidityPoolKeys = LiquidityPoolKeysV4;
 
 export interface LiquidityAssociatedPoolKeysV4
   extends Omit<
-    LiquidityPoolKeysV4,
-    "marketBaseVault" | "marketQuoteVault" | "marketBids" | "marketAsks" | "marketEventQueue"
+  LiquidityPoolKeysV4,
+  "marketBaseVault" | "marketQuoteVault" | "marketBids" | "marketAsks" | "marketEventQueue"
   > {
   nonce: number;
 }
@@ -393,15 +393,15 @@ export class Liquidity extends Base {
   }
 
   /* ================= get key ================= */
-  static async getAssociatedId({ programId, marketId }: { programId: PublicKey; marketId: PublicKey }) {
-    const { publicKey } = await findProgramAddress(
+  static getAssociatedId({ programId, marketId }: { programId: PublicKey; marketId: PublicKey }) {
+    const { publicKey } = findProgramAddress(
       [programId.toBuffer(), marketId.toBuffer(), Buffer.from("amm_associated_seed", "utf-8")],
       programId,
     );
     return publicKey;
   }
 
-  static async getAssociatedAuthority({ programId }: { programId: PublicKey }) {
+  static getAssociatedAuthority({ programId }: { programId: PublicKey }) {
     return findProgramAddress(
       // new Uint8Array(Buffer.from('amm authority'.replace('\u00A0', ' '), 'utf-8'))
       [Buffer.from([97, 109, 109, 32, 97, 117, 116, 104, 111, 114, 105, 116, 121])],
@@ -409,63 +409,63 @@ export class Liquidity extends Base {
     );
   }
 
-  static async getAssociatedBaseVault({ programId, marketId }: { programId: PublicKey; marketId: PublicKey }) {
-    const { publicKey } = await findProgramAddress(
+  static getAssociatedBaseVault({ programId, marketId }: { programId: PublicKey; marketId: PublicKey }) {
+    const { publicKey } = findProgramAddress(
       [programId.toBuffer(), marketId.toBuffer(), Buffer.from("coin_vault_associated_seed", "utf-8")],
       programId,
     );
     return publicKey;
   }
 
-  static async getAssociatedQuoteVault({ programId, marketId }: { programId: PublicKey; marketId: PublicKey }) {
-    const { publicKey } = await findProgramAddress(
+  static getAssociatedQuoteVault({ programId, marketId }: { programId: PublicKey; marketId: PublicKey }) {
+    const { publicKey } = findProgramAddress(
       [programId.toBuffer(), marketId.toBuffer(), Buffer.from("pc_vault_associated_seed", "utf-8")],
       programId,
     );
     return publicKey;
   }
 
-  static async getAssociatedLpMint({ programId, marketId }: { programId: PublicKey; marketId: PublicKey }) {
-    const { publicKey } = await findProgramAddress(
+  static getAssociatedLpMint({ programId, marketId }: { programId: PublicKey; marketId: PublicKey }) {
+    const { publicKey } = findProgramAddress(
       [programId.toBuffer(), marketId.toBuffer(), Buffer.from("lp_mint_associated_seed", "utf-8")],
       programId,
     );
     return publicKey;
   }
 
-  static async getAssociatedLpVault({ programId, marketId }: { programId: PublicKey; marketId: PublicKey }) {
-    const { publicKey } = await findProgramAddress(
+  static getAssociatedLpVault({ programId, marketId }: { programId: PublicKey; marketId: PublicKey }) {
+    const { publicKey } = findProgramAddress(
       [programId.toBuffer(), marketId.toBuffer(), Buffer.from("temp_lp_token_associated_seed", "utf-8")],
       programId,
     );
     return publicKey;
   }
 
-  static async getAssociatedTargetOrders({ programId, marketId }: { programId: PublicKey; marketId: PublicKey }) {
-    const { publicKey } = await findProgramAddress(
+  static getAssociatedTargetOrders({ programId, marketId }: { programId: PublicKey; marketId: PublicKey }) {
+    const { publicKey } = findProgramAddress(
       [programId.toBuffer(), marketId.toBuffer(), Buffer.from("target_associated_seed", "utf-8")],
       programId,
     );
     return publicKey;
   }
 
-  static async getAssociatedWithdrawQueue({ programId, marketId }: { programId: PublicKey; marketId: PublicKey }) {
-    const { publicKey } = await findProgramAddress(
+  static getAssociatedWithdrawQueue({ programId, marketId }: { programId: PublicKey; marketId: PublicKey }) {
+    const { publicKey } = findProgramAddress(
       [programId.toBuffer(), marketId.toBuffer(), Buffer.from("withdraw_associated_seed", "utf-8")],
       programId,
     );
     return publicKey;
   }
 
-  static async getAssociatedOpenOrders({ programId, marketId }: { programId: PublicKey; marketId: PublicKey }) {
-    const { publicKey } = await findProgramAddress(
+  static getAssociatedOpenOrders({ programId, marketId }: { programId: PublicKey; marketId: PublicKey }) {
+    const { publicKey } = findProgramAddress(
       [programId.toBuffer(), marketId.toBuffer(), Buffer.from("open_order_associated_seed", "utf-8")],
       programId,
     );
     return publicKey;
   }
 
-  static async getAssociatedPoolKeys({
+  static getAssociatedPoolKeys({
     version,
     marketId,
     baseMint,
@@ -479,22 +479,22 @@ export class Liquidity extends Base {
     quoteMint: PublicKey;
     baseDecimals: number;
     quoteDecimals: number;
-  }): Promise<LiquidityAssociatedPoolKeys> {
+  }): LiquidityAssociatedPoolKeys {
     const programId = this.getProgramId(version);
 
-    const id = await this.getAssociatedId({ programId, marketId });
-    const lpMint = await this.getAssociatedLpMint({ programId, marketId });
-    const { publicKey: authority, nonce } = await this.getAssociatedAuthority({ programId });
-    const baseVault = await this.getAssociatedBaseVault({ programId, marketId });
-    const quoteVault = await this.getAssociatedQuoteVault({ programId, marketId });
-    const lpVault = await this.getAssociatedLpVault({ programId, marketId });
-    const openOrders = await this.getAssociatedOpenOrders({ programId, marketId });
-    const targetOrders = await this.getAssociatedTargetOrders({ programId, marketId });
-    const withdrawQueue = await this.getAssociatedWithdrawQueue({ programId, marketId });
+    const id = this.getAssociatedId({ programId, marketId });
+    const lpMint = this.getAssociatedLpMint({ programId, marketId });
+    const { publicKey: authority, nonce } = this.getAssociatedAuthority({ programId });
+    const baseVault = this.getAssociatedBaseVault({ programId, marketId });
+    const quoteVault = this.getAssociatedQuoteVault({ programId, marketId });
+    const lpVault = this.getAssociatedLpVault({ programId, marketId });
+    const openOrders = this.getAssociatedOpenOrders({ programId, marketId });
+    const targetOrders = this.getAssociatedTargetOrders({ programId, marketId });
+    const withdrawQueue = this.getAssociatedWithdrawQueue({ programId, marketId });
 
     const serumVersion = this.getSerumVersion(version);
     const serumProgramId = Market.getProgramId(serumVersion);
-    const { publicKey: marketAuthority } = await Market.getAssociatedAuthority({
+    const { publicKey: marketAuthority } = Market.getAssociatedAuthority({
       programId: serumProgramId,
       marketId,
     });
@@ -613,13 +613,13 @@ export class Liquidity extends Base {
     const tokenA = amountInA instanceof TokenAmount ? amountInA.token : Token.WSOL;
     const tokenB = amountInB instanceof TokenAmount ? amountInB.token : Token.WSOL;
 
-    const tokenAccountA = await this._selectTokenAccount({
+    const tokenAccountA = this._selectTokenAccount({
       tokenAccounts,
       mint: tokenA.mint,
       owner,
       config: { associatedOnly: false },
     });
-    const tokenAccountB = await this._selectTokenAccount({
+    const tokenAccountB = this._selectTokenAccount({
       tokenAccounts,
       mint: tokenB.mint,
       owner,
@@ -631,7 +631,7 @@ export class Liquidity extends Base {
       "tokenAccounts",
       tokenAccounts,
     );
-    const lpTokenAccount = await this._selectTokenAccount({
+    const lpTokenAccount = this._selectTokenAccount({
       tokenAccounts,
       mint: lpMint,
       owner,
@@ -804,7 +804,7 @@ export class Liquidity extends Base {
       "amountIn",
       amountIn,
     );
-    const lpTokenAccount = await this._selectTokenAccount({
+    const lpTokenAccount = this._selectTokenAccount({
       tokenAccounts,
       mint: lpMint,
       owner,
@@ -813,12 +813,12 @@ export class Liquidity extends Base {
     if (!lpTokenAccount)
       return logger.throwArgumentError("cannot found lpTokenAccount", "tokenAccounts", tokenAccounts);
 
-    const baseTokenAccount = await this._selectTokenAccount({
+    const baseTokenAccount = this._selectTokenAccount({
       tokenAccounts,
       mint: baseMint,
       owner,
     });
-    const quoteTokenAccount = await this._selectTokenAccount({
+    const quoteTokenAccount = this._selectTokenAccount({
       tokenAccounts,
       mint: quoteMint,
       owner,
@@ -1060,13 +1060,13 @@ export class Liquidity extends Base {
     const tokenIn = amountIn instanceof TokenAmount ? amountIn.token : Token.WSOL;
     const tokenOut = amountOut instanceof TokenAmount ? amountOut.token : Token.WSOL;
 
-    const tokenAccountIn = await this._selectTokenAccount({
+    const tokenAccountIn = this._selectTokenAccount({
       tokenAccounts,
       mint: tokenIn.mint,
       owner,
       config: { associatedOnly: false },
     });
-    const tokenAccountOut = await this._selectTokenAccount({
+    const tokenAccountOut = this._selectTokenAccount({
       tokenAccounts,
       mint: tokenOut.mint,
       owner,
@@ -1251,13 +1251,13 @@ export class Liquidity extends Base {
       ...config,
     };
 
-    const baseTokenAccount = await this._selectTokenAccount({
+    const baseTokenAccount = this._selectTokenAccount({
       tokenAccounts,
       mint: baseMint,
       owner,
       config: { associatedOnly: false },
     });
-    const quoteTokenAccount = await this._selectTokenAccount({
+    const quoteTokenAccount = this._selectTokenAccount({
       tokenAccounts,
       mint: quoteMint,
       owner,
@@ -1269,7 +1269,7 @@ export class Liquidity extends Base {
       "tokenAccounts",
       tokenAccounts,
     );
-    const lpTokenAccount = await this._selectTokenAccount({
+    const lpTokenAccount = this._selectTokenAccount({
       tokenAccounts,
       mint: lpMint,
       owner,
@@ -1485,7 +1485,7 @@ export class Liquidity extends Base {
         continue;
       }
 
-      const associatedPoolKeys = await Liquidity.getAssociatedPoolKeys({
+      const associatedPoolKeys = Liquidity.getAssociatedPoolKeys({
         version,
         baseMint,
         baseDecimals: baseDecimal.toNumber(),
@@ -1898,28 +1898,28 @@ export class Liquidity extends Base {
     slippage,
   }: LiquidityComputeAmountOutParams):
     | {
-        amountOut: CurrencyAmount;
-        minAmountOut: CurrencyAmount;
-        currentPrice: Price;
-        executionPrice: Price | null;
-        priceImpact: Percent;
-        fee: CurrencyAmount;
-      }
+      amountOut: CurrencyAmount;
+      minAmountOut: CurrencyAmount;
+      currentPrice: Price;
+      executionPrice: Price | null;
+      priceImpact: Percent;
+      fee: CurrencyAmount;
+    }
     | {
-        amountOut: TokenAmount;
-        minAmountOut: TokenAmount;
-        currentPrice: Price;
-        executionPrice: Price | null;
-        priceImpact: Percent;
-        fee: CurrencyAmount;
-      } => {
+      amountOut: TokenAmount;
+      minAmountOut: TokenAmount;
+      currentPrice: Price;
+      executionPrice: Price | null;
+      priceImpact: Percent;
+      fee: CurrencyAmount;
+    } => {
     const tokenIn = amountIn instanceof TokenAmount ? amountIn.token : Token.WSOL;
     const tokenOut = currencyOut instanceof Token ? currencyOut : Token.WSOL;
     logger.assertArgument(
       this.includesToken(tokenIn, poolKeys) && this.includesToken(tokenOut, poolKeys),
       "token not match with pool",
       "poolKeys",
-      {poolKeys, tokenIn, tokenOut},
+      { poolKeys, tokenIn, tokenOut },
     );
 
     const { baseReserve, quoteReserve } = poolInfo;
@@ -2039,19 +2039,19 @@ export class Liquidity extends Base {
    */
   static computeAmountIn({ poolKeys, poolInfo, amountOut, currencyIn, slippage }: LiquidityComputeAmountInParams):
     | {
-        amountIn: CurrencyAmount;
-        maxAmountIn: CurrencyAmount;
-        currentPrice: Price;
-        executionPrice: Price | null;
-        priceImpact: Percent;
-      }
+      amountIn: CurrencyAmount;
+      maxAmountIn: CurrencyAmount;
+      currentPrice: Price;
+      executionPrice: Price | null;
+      priceImpact: Percent;
+    }
     | {
-        amountIn: TokenAmount;
-        maxAmountIn: TokenAmount;
-        currentPrice: Price;
-        executionPrice: Price | null;
-        priceImpact: Percent;
-      } {
+      amountIn: TokenAmount;
+      maxAmountIn: TokenAmount;
+      currentPrice: Price;
+      executionPrice: Price | null;
+      priceImpact: Percent;
+    } {
     const { baseReserve, quoteReserve } = poolInfo;
     logger.debug("baseReserve:", baseReserve.toString());
     logger.debug("quoteReserve:", quoteReserve.toString());

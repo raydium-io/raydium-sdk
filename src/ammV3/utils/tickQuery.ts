@@ -32,7 +32,7 @@ export class TickQuery {
 
     const startIndexArray = TickUtils.getInitializedTickArrayInRange(tickArrayBitmap, tickSpacing, currentTickArrayStartIndex, Math.floor(FETCH_TICKARRAY_COUNT / 2));
     for (let i = 0; i < startIndexArray.length; i++) {
-      const { publicKey: tickArrayAddress } = await getPdaTickArrayAddress(
+      const { publicKey: tickArrayAddress } = getPdaTickArrayAddress(
         programId,
         poolId,
         startIndexArray[i]
@@ -55,7 +55,7 @@ export class TickQuery {
     return tickArrayCache;
   }
 
-  public static async nextInitializedTick(
+  public static nextInitializedTick(
     programId: PublicKey,
     poolId: PublicKey,
     tickArrayCache: { [key: string]: TickArray },
@@ -67,7 +67,7 @@ export class TickQuery {
       initializedTick: nextTick,
       tickArrayAddress,
       tickArrayStartTickIndex,
-    } = await this.nextInitializedTickInOneArray(
+    } = this.nextInitializedTickInOneArray(
       programId,
       poolId,
       tickArrayCache,
@@ -91,7 +91,7 @@ export class TickQuery {
 
       if (cachedTickArray === undefined) continue
 
-      const { nextTick: _nextTick, tickArrayAddress: _tickArrayAddress, tickArrayStartTickIndex: _tickArrayStartTickIndex } = await this.firstInitializedTickInOneArray(
+      const { nextTick: _nextTick, tickArrayAddress: _tickArrayAddress, tickArrayStartTickIndex: _tickArrayStartTickIndex } = this.firstInitializedTickInOneArray(
         programId,
         poolId,
         cachedTickArray,
@@ -105,7 +105,7 @@ export class TickQuery {
     return { nextTick, tickArrayAddress, tickArrayStartTickIndex };
   }
 
-  public static async firstInitializedTickInOneArray(
+  public static firstInitializedTickInOneArray(
     programId: PublicKey,
     poolId: PublicKey,
     tickArray: TickArray,
@@ -133,7 +133,7 @@ export class TickQuery {
         i = i + 1;
       }
     }
-    const { publicKey: tickArrayAddress } = await getPdaTickArrayAddress(
+    const { publicKey: tickArrayAddress } = getPdaTickArrayAddress(
       programId,
       poolId,
       tickArray.startTickIndex
@@ -141,18 +141,18 @@ export class TickQuery {
     return { nextTick: nextInitializedTick, tickArrayAddress, tickArrayStartTickIndex: tickArray.startTickIndex };
   }
 
-  public static async nextInitializedTickInOneArray(
+  public static nextInitializedTickInOneArray(
     programId: PublicKey,
     poolId: PublicKey,
     tickArrayCache: { [key: string]: TickArray },
     tickIndex: number,
     tickSpacing: number,
     zeroForOne: boolean
-  ): Promise<{
+  ): {
     initializedTick: Tick | undefined;
     tickArrayAddress: PublicKey | undefined;
     tickArrayStartTickIndex: number;
-  }> {
+  } {
     const startIndex = TickUtils.getTickArrayStartIndexByTick(
       tickIndex,
       tickSpacing
@@ -189,7 +189,7 @@ export class TickQuery {
         tickPositionInArray = tickPositionInArray + 1;
       }
     }
-    const { publicKey: tickArrayAddress } = await getPdaTickArrayAddress(
+    const { publicKey: tickArrayAddress } = getPdaTickArrayAddress(
       programId,
       poolId,
       startIndex

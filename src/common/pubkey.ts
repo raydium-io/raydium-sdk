@@ -33,8 +33,8 @@ export function validateAndParsePublicKey(publicKey: PublicKeyish) {
   return logger.throwArgumentError("invalid public key", "publicKey", publicKey);
 }
 
-export async function findProgramAddress(seeds: Array<Buffer | Uint8Array>, programId: PublicKey) {
-  const [publicKey, nonce] = await PublicKey.findProgramAddress(seeds, programId);
+export function findProgramAddress(seeds: Array<Buffer | Uint8Array>, programId: PublicKey) {
+  const [publicKey, nonce] = PublicKey.findProgramAddressSync(seeds, programId);
   return { publicKey, nonce };
 }
 

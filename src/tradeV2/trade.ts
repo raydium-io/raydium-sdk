@@ -4,7 +4,9 @@ import BN from "bn.js";
 import { AmmV3, AmmV3PoolInfo, ReturnTypeFetchMultiplePoolTickArrays } from "../ammV3";
 import { MAX_SQRT_PRICE_X64, MIN_SQRT_PRICE_X64, ONE } from "../ammV3/utils/constants";
 import { Base, TokenAccount } from "../base";
-import { forecastTransactionSize, jsonInfo2PoolKeys, parseSimulateLogToJson, parseSimulateValue, simulateMultipleInstruction } from "../common";
+import {
+  forecastTransactionSize, jsonInfo2PoolKeys, parseSimulateLogToJson, parseSimulateValue, simulateMultipleInstruction,
+} from "../common";
 import { Currency, CurrencyAmount, Percent, Price, Token, TokenAmount, ZERO } from "../entity";
 import {
   initStableModelLayout, Liquidity, LiquidityPoolJsonInfo, LiquidityPoolKeys, LiquidityPoolsJsonFile,
@@ -323,7 +325,7 @@ export class TradeV2 extends Base {
     }
   }
 
-  static async getAllRouteComputeAmountOut({ inputTokenAmount, outputToken, directPath, routePathDict, simulateCache, tickCache, slippage, chainTime }: {
+  static getAllRouteComputeAmountOut({ inputTokenAmount, outputToken, directPath, routePathDict, simulateCache, tickCache, slippage, chainTime }: {
     directPath: PoolType[],
     routePathDict: RoutePathType,
     simulateCache: ReturnTypeFetchMultipleInfo,
@@ -333,14 +335,14 @@ export class TradeV2 extends Base {
     outputToken: Token | Currency,
     slippage: Percent,
     chainTime: number
-  }): Promise<ReturnTypeGetAllRouteComputeAmountOut> {
+  }): ReturnTypeGetAllRouteComputeAmountOut {
     const amountIn = inputTokenAmount
     const outRoute: ComputeAmountOutLayout[] = []
 
     for (const itemPool of directPath) {
       if (itemPool.version === 6) {
         try {
-          const { amountOut, minAmountOut, currentPrice, executionPrice, priceImpact, fee, remainingAccounts } = await AmmV3.computeAmountOutFormat({
+          const { amountOut, minAmountOut, currentPrice, executionPrice, priceImpact, fee, remainingAccounts } = AmmV3.computeAmountOutFormat({
             poolInfo: itemPool as AmmV3PoolInfo,
             tickArrayCache: tickCache[itemPool.id.toString()],
             amountIn,
@@ -376,7 +378,7 @@ export class TradeV2 extends Base {
           if (!simulateCache[iOutPool.id as string] && !tickCache[iOutPool.id.toString()]) continue
           if (iOutPool.version !== 6 && ![1,6,7].includes(simulateCache[iOutPool.id as string].status.toNumber())) continue
           try {
-            const { amountOut, minAmountOut, executionPrice, priceImpact, fee, remainingAccounts } = await TradeV2.computeAmountOut({
+            const { amountOut, minAmountOut, executionPrice, priceImpact, fee, remainingAccounts } = TradeV2.computeAmountOut({
               middleMintInfo: {
                 mint: new PublicKey(routeMint),
                 decimals: info.mDecimals
@@ -410,7 +412,7 @@ export class TradeV2 extends Base {
     return outRoute
   }
 
-  private static async computeAmountOut({
+  private static computeAmountOut({
     middleMintInfo,
     amountIn,
     currencyOut,
@@ -446,7 +448,7 @@ export class TradeV2 extends Base {
         priceImpact: _firstPriceImpact,
         fee: _firstFee,
         remainingAccounts: _firstRemainingAccounts
-      } = await AmmV3.computeAmountOutFormat({
+      } = AmmV3.computeAmountOutFormat({
         poolInfo: fromPool as AmmV3PoolInfo,
         tickArrayCache: tickCache[fromPool.id.toString()],
         amountIn,
@@ -486,7 +488,7 @@ export class TradeV2 extends Base {
         priceImpact: _secondPriceImpact,
         fee: _secondFee,
         remainingAccounts: _secondRemainingAccounts
-      } = await AmmV3.computeAmountOutFormat({
+      } = AmmV3.computeAmountOutFormat({
         poolInfo: toPool as AmmV3PoolInfo,
         tickArrayCache: tickCache[toPool.id.toString()],
         amountIn: minMiddleAmountOut,
@@ -537,7 +539,7 @@ export class TradeV2 extends Base {
     };
   }
 
-  static async makeSwapInstruction({ routeProgram, ownerInfo, inputMint, swapInfo }: makeSwapInstructionParam): Promise<ReturnTypeMakeSwapInstruction> {
+  static makeSwapInstruction({ routeProgram, ownerInfo, inputMint, swapInfo }: makeSwapInstructionParam): ReturnTypeMakeSwapInstruction {
     if (swapInfo.routeType === 'amm') {
       if (swapInfo.poolKey[0].version === 6) {
         const _poolKey = swapInfo.poolKey[0] as AmmV3PoolInfo
@@ -545,7 +547,7 @@ export class TradeV2 extends Base {
           ? MIN_SQRT_PRICE_X64.add(ONE)
           : MAX_SQRT_PRICE_X64.sub(ONE);
 
-        return await AmmV3.makeSwapBaseInInstructions({
+        return AmmV3.makeSwapBaseInInstructions({
           poolInfo: _poolKey,
           ownerInfo: {
             wallet: ownerInfo.wallet,
@@ -705,7 +707,7 @@ export class TradeV2 extends Base {
       })
     }
 
-    const ins = await this.makeSwapInstruction({
+    const ins = this.makeSwapInstruction({
       routeProgram,
       inputMint,
       swapInfo,
@@ -714,7 +716,7 @@ export class TradeV2 extends Base {
         sourceToken,
         routeToken,
         destinationToken: destinationToken!,
-        userPdaAccount: swapInfo.poolKey.length === 2 ? await Route.getAssociatedMiddleStatusAccount({
+        userPdaAccount: swapInfo.poolKey.length === 2 ? Route.getAssociatedMiddleStatusAccount({
           programId: routeProgram, fromPoolId: new PublicKey(String(swapInfo.poolKey[0].id)), owner: ownerInfo.wallet, middleMint: swapInfo.middleMint!
         }) : undefined
       }

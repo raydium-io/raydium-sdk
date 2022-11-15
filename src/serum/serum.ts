@@ -38,7 +38,7 @@ export class Market {
   }
 
   /* ================= get key ================= */
-  static async getAssociatedAuthority({ programId, marketId }: { programId: PublicKey; marketId: PublicKey }) {
+  static getAssociatedAuthority({ programId, marketId }: { programId: PublicKey; marketId: PublicKey }) {
     const seeds = [marketId.toBuffer()];
 
     let nonce = 0;
@@ -48,7 +48,7 @@ export class Market {
       try {
         // Buffer.alloc(7) nonce u64
         const seedsWithNonce = seeds.concat(Buffer.from([nonce]), Buffer.alloc(7));
-        publicKey = await PublicKey.createProgramAddress(seedsWithNonce, programId);
+        publicKey = PublicKey.createProgramAddressSync(seedsWithNonce, programId);
       } catch (err) {
         if (err instanceof TypeError) {
           throw err;

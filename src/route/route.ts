@@ -107,7 +107,7 @@ export class Route extends Base {
   }
 
   /* ================= get key ================= */
-  static async getAssociatedMiddleStatusAccount({
+  static getAssociatedMiddleStatusAccount({
     programId,
     fromPoolId,
     middleMint,
@@ -118,7 +118,7 @@ export class Route extends Base {
     middleMint: PublicKey;
     owner: PublicKey;
   }) {
-    const { publicKey } = await findProgramAddress(
+    const { publicKey } = findProgramAddress(
       [fromPoolId.toBuffer(), middleMint.toBuffer(), owner.toBuffer()],
       programId,
     );
@@ -341,13 +341,13 @@ export class Route extends Base {
     const tokenIn = amountIn instanceof TokenAmount ? amountIn.token : Token.WSOL;
     const tokenOut = amountOut instanceof TokenAmount ? amountOut.token : Token.WSOL;
 
-    const tokenAccountIn = await this._selectTokenAccount({
+    const tokenAccountIn = this._selectTokenAccount({
       tokenAccounts,
       mint: tokenIn.mint,
       owner,
       config: { associatedOnly: false },
     });
-    const tokenAccountOut = await this._selectTokenAccount({
+    const tokenAccountOut = this._selectTokenAccount({
       tokenAccounts,
       mint: tokenOut.mint,
       owner,
@@ -358,7 +358,7 @@ export class Route extends Base {
     const intersectionMints = intersection(fromPoolMints, toPoolMints);
     const _middleMint = intersectionMints[0];
     const middleMint = new PublicKey(_middleMint);
-    const tokenAccountMiddle = await this._selectTokenAccount({
+    const tokenAccountMiddle = this._selectTokenAccount({
       tokenAccounts,
       mint: middleMint,
       owner,
@@ -412,7 +412,7 @@ export class Route extends Base {
           inTokenAccount: _tokenAccountIn,
           outTokenAccount: _tokenAccountOut,
           middleTokenAccount: _tokenAccountMiddle,
-          middleStatusAccount: await this.getAssociatedMiddleStatusAccount({
+          middleStatusAccount: this.getAssociatedMiddleStatusAccount({
             programId: ROUTE_PROGRAM_ID_V1,
             fromPoolId: fromPoolKeys.id,
             middleMint,

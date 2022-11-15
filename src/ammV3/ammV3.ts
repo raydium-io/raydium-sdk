@@ -5,9 +5,7 @@ import BN from "bn.js";
 import Decimal from "decimal.js";
 
 import { Base, TokenAccount } from "../base";
-import {
-  forecastTransactionSize, getMultipleAccountsInfo, getMultipleAccountsInfoWithCustomFlags, Logger,
-} from "../common";
+import { getMultipleAccountsInfo, getMultipleAccountsInfoWithCustomFlags, Logger, splitTxAndSigners } from "../common";
 import { Currency, CurrencyAmount, Percent, Price, Token, TokenAmount, ZERO } from "../entity";
 import { SPL_ACCOUNT_LAYOUT } from "../spl";
 import { WSOL } from "../token";
@@ -17,12 +15,12 @@ import {
   decreaseLiquidityInstruction, increaseLiquidityInstruction, initRewardInstruction, openPositionInstruction,
   setRewardInstruction, swapInstruction,
 } from "./instrument";
-import { ObservationInfoLayout, PoolInfoLayout, PositionInfoLayout, TickArrayLayout } from "./layout";
+import { ObservationInfoLayout, OperationLayout, PoolInfoLayout, PositionInfoLayout, TickArrayLayout } from "./layout";
 import { MAX_SQRT_PRICE_X64, MIN_SQRT_PRICE_X64, ONE } from "./utils/constants";
 import { LiquidityMath, MathUtil, SqrtPriceMath, TickMath } from "./utils/math";
 import {
-  getATAAddress, getPdaMetadataKey, getPdaPersonalPositionAddress, getPdaPoolId, getPdaPoolRewardVaulId,
-  getPdaPoolVaultId, getPdaProtocolPositionAddress, getPdaTickArrayAddress,
+  getATAAddress, getPdaMetadataKey, getPdaOperationAccount, getPdaPersonalPositionAddress, getPdaPoolId,
+  getPdaPoolRewardVaulId, getPdaPoolVaultId, getPdaProtocolPositionAddress, getPdaTickArrayAddress,
 } from "./utils/pda";
 import { PoolUtils } from "./utils/pool";
 import { PositionUtils } from "./utils/position";
@@ -528,7 +526,7 @@ export class AmmV3 extends Base {
     const transaction = new Transaction()
     transaction.add(addComputations())
 
-    const insInfo = await this.makeOpenPositionInstructions({
+    const insInfo = this.makeOpenPositionInstructions({
       poolInfo,
       ownerInfo: {
         ...ownerInfo,
@@ -600,7 +598,7 @@ export class AmmV3 extends Base {
         bypassAssociatedCheck: true
       })
     } else {
-      ownerTokenAccountA = await this._selectTokenAccount({
+      ownerTokenAccountA = this._selectTokenAccount({
         tokenAccounts: ownerInfo.tokenAccounts,
         mint: poolInfo.mintA.mint,
         owner: ownerInfo.wallet,
@@ -623,7 +621,7 @@ export class AmmV3 extends Base {
         bypassAssociatedCheck: true
       })
     } else {
-      ownerTokenAccountB = await this._selectTokenAccount({
+      ownerTokenAccountB = this._selectTokenAccount({
         tokenAccounts: ownerInfo.tokenAccounts,
         mint: poolInfo.mintB.mint,
         owner: ownerInfo.wallet,
@@ -641,7 +639,7 @@ export class AmmV3 extends Base {
     const transaction = new Transaction()
     transaction.add(addComputations())
 
-    const insInfo = await this.makeIncreaseLiquidityInstructions({
+    const insInfo = this.makeIncreaseLiquidityInstructions({
       poolInfo,
       ownerPosition,
       ownerInfo: {
@@ -779,7 +777,7 @@ export class AmmV3 extends Base {
     const transaction = new Transaction()
     transaction.add(addComputations())
 
-    const insInfo = await this.makeDecreaseLiquidityInstructions({
+    const insInfo = this.makeDecreaseLiquidityInstructions({
       poolInfo,
       ownerPosition,
       ownerInfo: {
@@ -796,7 +794,7 @@ export class AmmV3 extends Base {
     transaction.add(...frontInstructions, ...insInfo.instructions, ...endInstructions)
 
     if (ownerInfo.closePosition) {
-      transaction.add(...(await this.makeClosePositionInstructions({
+      transaction.add(...(this.makeClosePositionInstructions({
         poolInfo, ownerInfo, ownerPosition
       })).instructions)
     }
@@ -874,7 +872,7 @@ export class AmmV3 extends Base {
         bypassAssociatedCheck: true
       })
     } else {
-      ownerTokenAccountA = await this._selectTokenAccount({
+      ownerTokenAccountA = this._selectTokenAccount({
         tokenAccounts: ownerInfo.tokenAccounts,
         mint: poolInfo.mintA.mint,
         owner: ownerInfo.wallet,
@@ -897,7 +895,7 @@ export class AmmV3 extends Base {
         bypassAssociatedCheck: true
       })
     } else {
-      ownerTokenAccountB = await this._selectTokenAccount({
+      ownerTokenAccountB = this._selectTokenAccount({
         tokenAccounts: ownerInfo.tokenAccounts,
         mint: poolInfo.mintB.mint,
         owner: ownerInfo.wallet,
@@ -915,7 +913,7 @@ export class AmmV3 extends Base {
     const transaction = new Transaction()
     transaction.add(addComputations())
 
-    const insInfo = await this.makeSwapBaseInInstructions({
+    const insInfo = this.makeSwapBaseInInstructions({
       poolInfo,
       ownerInfo: {
         wallet: ownerInfo.wallet,
@@ -941,7 +939,7 @@ export class AmmV3 extends Base {
     }
   }
 
-  static async makeCLosePositionTransaction({
+  static makeCLosePositionTransaction({
     poolInfo, ownerPosition, ownerInfo
   }: {
     poolInfo: AmmV3PoolInfo,
@@ -950,8 +948,8 @@ export class AmmV3 extends Base {
     ownerInfo: {
       wallet: PublicKey,
     },
-  }): Promise<ReturnTypeMakeTransaction> {
-    const ins = await this.makeClosePositionInstructions({ poolInfo, ownerInfo, ownerPosition })
+  }): ReturnTypeMakeTransaction {
+    const ins = this.makeClosePositionInstructions({ poolInfo, ownerInfo, ownerPosition })
     const transaction = new Transaction()
     transaction.add(...ins.instructions)
 
@@ -982,7 +980,7 @@ export class AmmV3 extends Base {
       mint: PublicKey,
       openTime: number,
       endTime: number,
-      perSecond: BN,
+      perSecond: Decimal,
     }
     associatedOnly?: boolean
   }): Promise<ReturnTypeMakeTransaction> {
@@ -1007,7 +1005,7 @@ export class AmmV3 extends Base {
       createInfo: rewardMintUseSOLBalance ? {
         connection,
         payer: ownerInfo.feePayer,
-        amount: rewardInfo.perSecond.sub(new BN(rewardInfo.endTime - rewardInfo.openTime)),
+        amount: new BN(new Decimal(rewardInfo.perSecond.sub(rewardInfo.endTime - rewardInfo.openTime).toFixed(0)).gte(rewardInfo.perSecond.sub(rewardInfo.endTime - rewardInfo.openTime)) ? rewardInfo.perSecond.sub(rewardInfo.endTime - rewardInfo.openTime).toFixed(0) : rewardInfo.perSecond.sub(rewardInfo.endTime - rewardInfo.openTime).add(1).toFixed(0)),
 
         frontInstructions,
         endInstructions,
@@ -1027,7 +1025,7 @@ export class AmmV3 extends Base {
     const transaction = new Transaction()
     transaction.add(addComputations())
 
-    const insInfo = await this.makeInitRewardInstructions({
+    const insInfo = this.makeInitRewardInstructions({
       poolInfo,
       ownerInfo: {
         wallet: ownerInfo.wallet,
@@ -1037,7 +1035,7 @@ export class AmmV3 extends Base {
         mint: rewardInfo.mint,
         openTime: rewardInfo.openTime,
         endTime: rewardInfo.endTime,
-        emissionsPerSecondX64: MathUtil.decimalToX64(new Decimal(rewardInfo.perSecond.toString()))
+        emissionsPerSecondX64: MathUtil.decimalToX64(rewardInfo.perSecond)
       }
     })
 
@@ -1070,7 +1068,7 @@ export class AmmV3 extends Base {
       mint: PublicKey,
       openTime: number,
       endTime: number,
-      perSecond: BN,
+      perSecond: Decimal,
     }[],
     associatedOnly?: boolean
   }): Promise<ReturnTypeMakeTransaction> {
@@ -1091,11 +1089,10 @@ export class AmmV3 extends Base {
         mint: rewardInfo.mint,
         tokenAccounts: rewardMintUseSOLBalance ? [] : ownerInfo.tokenAccounts,
         owner: ownerInfo.wallet,
-
         createInfo: rewardMintUseSOLBalance ? {
           connection,
           payer: ownerInfo.feePayer,
-          amount: rewardInfo.perSecond.sub(new BN(rewardInfo.endTime - rewardInfo.openTime)),
+          amount: new BN(new Decimal(rewardInfo.perSecond.sub(rewardInfo.endTime - rewardInfo.openTime).toFixed(0)).gte(rewardInfo.perSecond.sub(rewardInfo.endTime - rewardInfo.openTime)) ? rewardInfo.perSecond.sub(rewardInfo.endTime - rewardInfo.openTime).toFixed(0) : rewardInfo.perSecond.sub(rewardInfo.endTime - rewardInfo.openTime).add(1).toFixed(0)),
 
           frontInstructions,
           endInstructions,
@@ -1113,7 +1110,7 @@ export class AmmV3 extends Base {
       );
 
 
-      const insInfo = await this.makeInitRewardInstructions({
+      const insInfo = this.makeInitRewardInstructions({
         poolInfo,
         ownerInfo: {
           wallet: ownerInfo.wallet,
@@ -1123,7 +1120,7 @@ export class AmmV3 extends Base {
           mint: rewardInfo.mint,
           openTime: rewardInfo.openTime,
           endTime: rewardInfo.endTime,
-          emissionsPerSecondX64: MathUtil.decimalToX64(new Decimal(rewardInfo.perSecond.toString()))
+          emissionsPerSecondX64: MathUtil.decimalToX64(rewardInfo.perSecond)
         }
       })
       initInstructions.push(...insInfo.instructions)
@@ -1158,7 +1155,7 @@ export class AmmV3 extends Base {
       mint: PublicKey,
       openTime: number, // If the reward is being distributed, please give 0
       endTime: number, // If no modification is required, enter 0
-      perSecond: BN,
+      perSecond: Decimal,
     },
     associatedOnly?: boolean
   }): Promise<ReturnTypeMakeTransaction> {
@@ -1183,7 +1180,7 @@ export class AmmV3 extends Base {
       createInfo: rewardMintUseSOLBalance ? {
         connection,
         payer: ownerInfo.feePayer,
-        amount: rewardInfo.perSecond.sub(new BN(rewardInfo.endTime - rewardInfo.openTime)),
+        amount: new BN(new Decimal(rewardInfo.perSecond.sub(rewardInfo.endTime - rewardInfo.openTime).toFixed(0)).gte(rewardInfo.perSecond.sub(rewardInfo.endTime - rewardInfo.openTime)) ? rewardInfo.perSecond.sub(rewardInfo.endTime - rewardInfo.openTime).toFixed(0) : rewardInfo.perSecond.sub(rewardInfo.endTime - rewardInfo.openTime).add(1).toFixed(0)),
 
         frontInstructions,
         endInstructions,
@@ -1213,7 +1210,7 @@ export class AmmV3 extends Base {
         mint: rewardInfo.mint,
         openTime: rewardInfo.openTime,
         endTime: rewardInfo.endTime,
-        emissionsPerSecondX64: MathUtil.decimalToX64(new Decimal(rewardInfo.perSecond.toString()))
+        emissionsPerSecondX64: MathUtil.decimalToX64(rewardInfo.perSecond)
       }
     })
 
@@ -1246,7 +1243,7 @@ export class AmmV3 extends Base {
       mint: PublicKey,
       openTime: number, // If the reward is being distributed, please give 0
       endTime: number, // If no modification is required, enter 0
-      perSecond: BN,
+      perSecond: Decimal,
     }[],
     associatedOnly?: boolean
   }): Promise<ReturnTypeMakeTransaction> {
@@ -1276,7 +1273,7 @@ export class AmmV3 extends Base {
         createInfo: rewardMintUseSOLBalance ? {
           connection,
           payer: ownerInfo.feePayer,
-          amount: rewardInfo.perSecond.sub(new BN(rewardInfo.endTime - rewardInfo.openTime)),
+          amount: new BN(new Decimal(rewardInfo.perSecond.sub(rewardInfo.endTime - rewardInfo.openTime).toFixed(0)).gte(rewardInfo.perSecond.sub(rewardInfo.endTime - rewardInfo.openTime)) ? rewardInfo.perSecond.sub(rewardInfo.endTime - rewardInfo.openTime).toFixed(0) : rewardInfo.perSecond.sub(rewardInfo.endTime - rewardInfo.openTime).add(1).toFixed(0)),
 
           frontInstructions,
           endInstructions,
@@ -1303,7 +1300,7 @@ export class AmmV3 extends Base {
           mint: rewardInfo.mint,
           openTime: rewardInfo.openTime,
           endTime: rewardInfo.endTime,
-          emissionsPerSecondX64: MathUtil.decimalToX64(new Decimal(rewardInfo.perSecond.toString()))
+          emissionsPerSecondX64: MathUtil.decimalToX64(rewardInfo.perSecond)
         }
       })
       updateRewardInstructions.push(...insInfo.instructions)
@@ -1484,7 +1481,7 @@ export class AmmV3 extends Base {
     const ownerMintToAccount: { [mint: string]: PublicKey } = {}
     for (const item of ownerInfo.tokenAccounts) {
       if (associatedOnly) {
-        const ata = (await getATAAddress(ownerInfo.wallet, item.accountInfo.mint)).publicKey
+        const ata = getATAAddress(ownerInfo.wallet, item.accountInfo.mint).publicKey
         if (ata.equals(item.pubkey)) ownerMintToAccount[item.accountInfo.mint.toString()] = item.pubkey
       } else {
         ownerMintToAccount[item.accountInfo.mint.toString()] = item.pubkey
@@ -1500,7 +1497,7 @@ export class AmmV3 extends Base {
     for (const itemInfo of Object.values(fetchPoolInfos)) {
       if (itemInfo.positionAccount === undefined) continue
 
-      if (!itemInfo.positionAccount.find(i => !i.tokenFeeAmountA.isZero() || !i.tokenFeeAmountB.isZero() || i.rewardInfos.find( ii => !ii.pendingReward.isZero()) )) continue
+      if (!itemInfo.positionAccount.find(i => !i.tokenFeeAmountA.isZero() || !i.tokenFeeAmountB.isZero() || i.rewardInfos.find(ii => !ii.pendingReward.isZero()))) continue
 
       const poolInfo = itemInfo.state
 
@@ -1570,7 +1567,7 @@ export class AmmV3 extends Base {
 
       for (const itemPosition of itemInfo.positionAccount) {
         harvestInstructions.push(
-          ...(await this.makeDecreaseLiquidityInstructions({
+          ...this.makeDecreaseLiquidityInstructions({
             poolInfo,
             ownerPosition: itemPosition,
             ownerInfo: {
@@ -1582,44 +1579,14 @@ export class AmmV3 extends Base {
             liquidity: ZERO,
             amountMinA: ZERO,
             amountMinB: ZERO
-          })).instructions
+          }).instructions
         )
       }
     }
 
     const allInstruction = [...frontInstructions, ...harvestInstructions, ...endInstructions]
 
-    const signerKey: { [key: string]: Signer } = {}
-    for (const item of signers) signerKey[item.publicKey.toString()] = item
-
-    const transactions: { transaction: Transaction, signer: (Keypair | Signer)[] }[] = []
-
-    let itemIns: TransactionInstruction[] = []
-
-    for (const item of allInstruction) {
-      const _itemIns = [...itemIns, item]
-      const _signerStrs = new Set<string>(_itemIns.map(i => i.keys.filter(ii => ii.isSigner).map(ii => ii.pubkey.toString())).flat())
-      const _signer = [..._signerStrs.values()].map(i => new PublicKey(i))
-
-      if (forecastTransactionSize(_itemIns, [ownerInfo.wallet, ..._signer])) {
-        itemIns.push(item)
-      } else {
-        transactions.push({
-          transaction: new Transaction().add(...itemIns),
-          signer: [..._signerStrs.values()].map(i => signerKey[i]).filter(i => i !== undefined)
-        })
-
-        itemIns = [item]
-      }
-    }
-
-    if (itemIns.length > 0) {
-      const _signerStrs = new Set<string>(itemIns.map(i => i.keys.filter(ii => ii.isSigner).map(ii => ii.pubkey.toString())).flat())
-      transactions.push({
-        transaction: new Transaction().add(...itemIns),
-        signer: [..._signerStrs.values()].map(i => signerKey[i]).filter(i => i !== undefined)
-      })
-    }
+    const transactions = splitTxAndSigners({ instructions: allInstruction, signers, payer: ownerInfo.wallet })
 
     return {
       transactions, address: {}
@@ -1655,9 +1622,9 @@ export class AmmV3 extends Base {
       }),
     ];
 
-    const poolId = await (await getPdaPoolId(programId, ammConfigId, mintA.mint, mintB.mint)).publicKey;
-    const mintAVault = await (await getPdaPoolVaultId(programId, poolId, mintA.mint)).publicKey;
-    const mintBVault = await (await getPdaPoolVaultId(programId, poolId, mintB.mint)).publicKey;
+    const poolId = getPdaPoolId(programId, ammConfigId, mintA.mint, mintB.mint).publicKey;
+    const mintAVault = getPdaPoolVaultId(programId, poolId, mintA.mint).publicKey;
+    const mintBVault = getPdaPoolVaultId(programId, poolId, mintB.mint).publicKey;
 
     ins.push(
       createPoolInstruction(
@@ -1681,7 +1648,7 @@ export class AmmV3 extends Base {
     };
   }
 
-  static async makeOpenPositionInstructions(
+  static makeOpenPositionInstructions(
     { poolInfo, ownerInfo, tickLower, tickUpper, liquidity, amountSlippageA, amountSlippageB }: {
       poolInfo: AmmV3PoolInfo,
 
@@ -1698,7 +1665,7 @@ export class AmmV3 extends Base {
       amountSlippageA: BN,
       amountSlippageB: BN,
     }
-  ): Promise<ReturnTypeMakeInstructions> {
+  ): ReturnTypeMakeInstructions {
     const signers: Signer[] = []
 
     const nftMintAKeypair = new Keypair();
@@ -1707,13 +1674,13 @@ export class AmmV3 extends Base {
     const tickArrayLowerStartIndex = TickUtils.getTickArrayStartIndexByTick(tickLower, poolInfo.ammConfig.tickSpacing);
     const tickArrayUpperStartIndex = TickUtils.getTickArrayStartIndexByTick(tickUpper, poolInfo.ammConfig.tickSpacing);
 
-    const { publicKey: tickArrayLower } = await getPdaTickArrayAddress(poolInfo.programId, poolInfo.id, tickArrayLowerStartIndex);
-    const { publicKey: tickArrayUpper } = await getPdaTickArrayAddress(poolInfo.programId, poolInfo.id, tickArrayUpperStartIndex);
+    const { publicKey: tickArrayLower } = getPdaTickArrayAddress(poolInfo.programId, poolInfo.id, tickArrayLowerStartIndex);
+    const { publicKey: tickArrayUpper } = getPdaTickArrayAddress(poolInfo.programId, poolInfo.id, tickArrayUpperStartIndex);
 
-    const { publicKey: positionNftAccount } = await getATAAddress(ownerInfo.wallet, nftMintAKeypair.publicKey);
-    const { publicKey: metadataAccount } = await getPdaMetadataKey(nftMintAKeypair.publicKey);
-    const { publicKey: personalPosition } = await getPdaPersonalPositionAddress(poolInfo.programId, nftMintAKeypair.publicKey)
-    const { publicKey: protocolPosition } = await getPdaProtocolPositionAddress(poolInfo.programId, poolInfo.id, tickLower, tickUpper)
+    const { publicKey: positionNftAccount } = getATAAddress(ownerInfo.wallet, nftMintAKeypair.publicKey);
+    const { publicKey: metadataAccount } = getPdaMetadataKey(nftMintAKeypair.publicKey);
+    const { publicKey: personalPosition } = getPdaPersonalPositionAddress(poolInfo.programId, nftMintAKeypair.publicKey)
+    const { publicKey: protocolPosition } = getPdaProtocolPositionAddress(poolInfo.programId, poolInfo.id, tickLower, tickUpper)
 
     const ins = openPositionInstruction(
       poolInfo.programId,
@@ -1748,7 +1715,7 @@ export class AmmV3 extends Base {
     };
   }
 
-  static async makeIncreaseLiquidityInstructions({
+  static makeIncreaseLiquidityInstructions({
     poolInfo,
     ownerPosition,
     ownerInfo,
@@ -1768,17 +1735,17 @@ export class AmmV3 extends Base {
     liquidity: BN,
     amountSlippageA: BN,
     amountSlippageB: BN
-  }): Promise<ReturnTypeMakeInstructions> {
+  }): ReturnTypeMakeInstructions {
     const tickArrayLowerStartIndex = TickUtils.getTickArrayStartIndexByTick(ownerPosition.tickLower, poolInfo.ammConfig.tickSpacing);
     const tickArrayUpperStartIndex = TickUtils.getTickArrayStartIndexByTick(ownerPosition.tickUpper, poolInfo.ammConfig.tickSpacing);
 
-    const { publicKey: tickArrayLower } = await getPdaTickArrayAddress(poolInfo.programId, poolInfo.id, tickArrayLowerStartIndex);
-    const { publicKey: tickArrayUpper } = await getPdaTickArrayAddress(poolInfo.programId, poolInfo.id, tickArrayUpperStartIndex);
+    const { publicKey: tickArrayLower } = getPdaTickArrayAddress(poolInfo.programId, poolInfo.id, tickArrayLowerStartIndex);
+    const { publicKey: tickArrayUpper } = getPdaTickArrayAddress(poolInfo.programId, poolInfo.id, tickArrayUpperStartIndex);
 
-    const { publicKey: positionNftAccount } = await getATAAddress(ownerInfo.wallet, ownerPosition.nftMint);
+    const { publicKey: positionNftAccount } = getATAAddress(ownerInfo.wallet, ownerPosition.nftMint);
 
-    const { publicKey: personalPosition } = await getPdaPersonalPositionAddress(poolInfo.programId, ownerPosition.nftMint);
-    const { publicKey: protocolPosition } = await getPdaProtocolPositionAddress(poolInfo.programId, poolInfo.id, ownerPosition.tickLower, ownerPosition.tickUpper);
+    const { publicKey: personalPosition } = getPdaPersonalPositionAddress(poolInfo.programId, ownerPosition.nftMint);
+    const { publicKey: protocolPosition } = getPdaProtocolPositionAddress(poolInfo.programId, poolInfo.id, ownerPosition.tickLower, ownerPosition.tickUpper);
 
     const ins: TransactionInstruction[] = [];
     ins.push(
@@ -1809,7 +1776,7 @@ export class AmmV3 extends Base {
     };
   }
 
-  static async makeDecreaseLiquidityInstructions({
+  static makeDecreaseLiquidityInstructions({
     poolInfo,
     ownerPosition,
     ownerInfo,
@@ -1832,16 +1799,16 @@ export class AmmV3 extends Base {
     amountMinA: BN,
     amountMinB: BN
 
-  }): Promise<ReturnTypeMakeInstructions> {
+  }): ReturnTypeMakeInstructions {
     const tickArrayLowerStartIndex = TickUtils.getTickArrayStartIndexByTick(ownerPosition.tickLower, poolInfo.ammConfig.tickSpacing);
     const tickArrayUpperStartIndex = TickUtils.getTickArrayStartIndexByTick(ownerPosition.tickUpper, poolInfo.ammConfig.tickSpacing);
 
-    const { publicKey: tickArrayLower } = await getPdaTickArrayAddress(poolInfo.programId, poolInfo.id, tickArrayLowerStartIndex);
-    const { publicKey: tickArrayUpper } = await getPdaTickArrayAddress(poolInfo.programId, poolInfo.id, tickArrayUpperStartIndex);
-    const { publicKey: positionNftAccount } = await getATAAddress(ownerInfo.wallet, ownerPosition.nftMint);
+    const { publicKey: tickArrayLower } = getPdaTickArrayAddress(poolInfo.programId, poolInfo.id, tickArrayLowerStartIndex);
+    const { publicKey: tickArrayUpper } = getPdaTickArrayAddress(poolInfo.programId, poolInfo.id, tickArrayUpperStartIndex);
+    const { publicKey: positionNftAccount } = getATAAddress(ownerInfo.wallet, ownerPosition.nftMint);
 
-    const { publicKey: personalPosition } = await getPdaPersonalPositionAddress(poolInfo.programId, ownerPosition.nftMint);
-    const { publicKey: protocolPosition } = await getPdaProtocolPositionAddress(poolInfo.programId, poolInfo.id, ownerPosition.tickLower, ownerPosition.tickUpper);
+    const { publicKey: personalPosition } = getPdaPersonalPositionAddress(poolInfo.programId, ownerPosition.nftMint);
+    const { publicKey: protocolPosition } = getPdaProtocolPositionAddress(poolInfo.programId, poolInfo.id, ownerPosition.tickLower, ownerPosition.tickUpper);
 
     const rewardAccounts: {
       poolRewardVault: PublicKey,
@@ -1849,8 +1816,8 @@ export class AmmV3 extends Base {
     }[] = []
     for (let i = 0; i < poolInfo.rewardInfos.length; i++) {
       rewardAccounts.push({
-        poolRewardVault: poolInfo.rewardInfos[0].tokenVault,
-        ownerRewardVault: ownerInfo.rewardAccounts[0]
+        poolRewardVault: poolInfo.rewardInfos[i].tokenVault,
+        ownerRewardVault: ownerInfo.rewardAccounts[i]
       })
     }
 
@@ -1884,7 +1851,7 @@ export class AmmV3 extends Base {
     };
   }
 
-  static async makeClosePositionInstructions({
+  static makeClosePositionInstructions({
     poolInfo, ownerInfo, ownerPosition
   }: {
     poolInfo: AmmV3PoolInfo,
@@ -1893,9 +1860,9 @@ export class AmmV3 extends Base {
     ownerInfo: {
       wallet: PublicKey,
     },
-  }): Promise<ReturnTypeMakeInstructions> {
-    const { publicKey: positionNftAccount } = await getATAAddress(ownerInfo.wallet, ownerPosition.nftMint);
-    const { publicKey: personalPosition } = await getPdaPersonalPositionAddress(poolInfo.programId, ownerPosition.nftMint)
+  }): ReturnTypeMakeInstructions {
+    const { publicKey: positionNftAccount } = getATAAddress(ownerInfo.wallet, ownerPosition.nftMint);
+    const { publicKey: personalPosition } = getPdaPersonalPositionAddress(poolInfo.programId, ownerPosition.nftMint)
 
     const ins: TransactionInstruction[] = [];
     ins.push(
@@ -1963,7 +1930,7 @@ export class AmmV3 extends Base {
     };
   }
 
-  static async makeInitRewardInstructions({
+  static makeInitRewardInstructions({
     poolInfo, ownerInfo, rewardInfo
   }: {
     poolInfo: AmmV3PoolInfo,
@@ -1977,13 +1944,15 @@ export class AmmV3 extends Base {
       endTime: number,
       emissionsPerSecondX64: BN
     }
-  }): Promise<ReturnTypeMakeInstructions> {
-    const poolRewardVault = (await getPdaPoolRewardVaulId(poolInfo.programId, poolInfo.id, rewardInfo.mint)).publicKey
+  }): ReturnTypeMakeInstructions {
+    const poolRewardVault = getPdaPoolRewardVaulId(poolInfo.programId, poolInfo.id, rewardInfo.mint).publicKey
+    const operationId = getPdaOperationAccount(poolInfo.programId).publicKey
     const ins = [
       initRewardInstruction(
         poolInfo.programId,
         ownerInfo.wallet,
         poolInfo.id,
+        operationId,
         poolInfo.ammConfig.id,
 
         ownerInfo.tokenAccount,
@@ -2032,11 +2001,14 @@ export class AmmV3 extends Base {
       poolInfo.rewardInfos,
     );
 
+    const operationId = getPdaOperationAccount(poolInfo.programId).publicKey
+
     const ins = [
       setRewardInstruction(
         poolInfo.programId,
         ownerInfo.wallet,
         poolInfo.id,
+        operationId,
         poolInfo.ammConfig.id,
 
         ownerInfo.tokenAccount,
@@ -2155,20 +2127,20 @@ export class AmmV3 extends Base {
     return baseIn ? { tick, price: tickPrice, tickSqrtPriceX64 } : { tick, price: new Decimal(1).div(tickPrice), tickSqrtPriceX64 }
   }
 
-  static async computeAmountOutFormat({ poolInfo, tickArrayCache, amountIn, currencyOut, slippage }: {
+  static computeAmountOutFormat({ poolInfo, tickArrayCache, amountIn, currencyOut, slippage }: {
     poolInfo: AmmV3PoolInfo,
     tickArrayCache: { [key: string]: TickArray; },
 
     amountIn: CurrencyAmount | TokenAmount,
     currencyOut: Token | Currency,
     slippage: Percent
-  }): Promise<ReturnTypeComputeAmountOutFormat> {
+  }): ReturnTypeComputeAmountOutFormat {
     const amountInIsTokenAmount = amountIn instanceof TokenAmount
     const inputMint = (amountInIsTokenAmount ? amountIn.token : Token.WSOL).mint;
     const _amountIn = amountIn.raw
     const _slippage = slippage.numerator.toNumber() / slippage.denominator.toNumber()
 
-    const { amountOut, minAmountOut, currentPrice, executionPrice, priceImpact, fee, remainingAccounts } = await AmmV3.computeAmountOut({
+    const { amountOut, minAmountOut, currentPrice, executionPrice, priceImpact, fee, remainingAccounts } = AmmV3.computeAmountOut({
       poolInfo,
       tickArrayCache,
       baseMint: inputMint,
@@ -2203,7 +2175,7 @@ export class AmmV3 extends Base {
     }
   }
 
-  static async computeAmountOut(
+  static computeAmountOut(
     { poolInfo, tickArrayCache, baseMint, amountIn, slippage, priceLimit = new Decimal(0) }: {
       poolInfo: AmmV3PoolInfo,
       tickArrayCache: { [key: string]: TickArray; },
@@ -2213,7 +2185,7 @@ export class AmmV3 extends Base {
       slippage: number,
       priceLimit?: Decimal
     }
-  ): Promise<ReturnTypeComputeAmountOut> {
+  ): ReturnTypeComputeAmountOut {
     let sqrtPriceLimitX64: BN;
     if (priceLimit.equals(new Decimal(0))) {
       sqrtPriceLimitX64 = baseMint.equals(poolInfo.mintA.mint)
@@ -2227,7 +2199,7 @@ export class AmmV3 extends Base {
       );
     }
 
-    const { expectedAmountOut, remainingAccounts, executionPrice: _executionPriceX64, feeAmount } = await PoolUtils.getOutputAmountAndRemainAccounts(
+    const { expectedAmountOut, remainingAccounts, executionPrice: _executionPriceX64, feeAmount } = PoolUtils.getOutputAmountAndRemainAccounts(
       poolInfo,
       tickArrayCache,
       baseMint,
@@ -2430,7 +2402,7 @@ export class AmmV3 extends Base {
       const allPositionKey: PublicKey[] = []
       for (const itemMint of allMint) {
         for (const itemProgramId of programIds) {
-          allPositionKey.push(await (await getPdaPersonalPositionAddress(itemProgramId, itemMint)).publicKey)
+          allPositionKey.push(getPdaPersonalPositionAddress(itemProgramId, itemMint).publicKey)
         }
       }
 
@@ -2485,13 +2457,13 @@ export class AmmV3 extends Base {
           tokenFeeAmountB: new BN(0),
         }]
 
-        const tickArrayLowerAddress = await TickUtils.getTickArrayAddressByTick(
+        const tickArrayLowerAddress = TickUtils.getTickArrayAddressByTick(
           poolsInfo[itemPoolId].state.programId,
           position.poolId,
           position.tickLower,
           poolsInfo[itemPoolId].state.tickSpacing
         );
-        const tickArrayUpperAddress = await TickUtils.getTickArrayAddressByTick(
+        const tickArrayUpperAddress = TickUtils.getTickArrayAddressByTick(
           poolsInfo[itemPoolId].state.programId,
           position.poolId,
           position.tickUpper,
@@ -2526,8 +2498,8 @@ export class AmmV3 extends Base {
             itemPA.tickUpper,
             state.tickSpacing
           )]
-          const { tokenFeeAmountA, tokenFeeAmountB } = await PositionUtils.GetPositionFees(state, itemPA, tickLowerState, tickUpperState)
-          const rewardInfos = await PositionUtils.GetPositionRewards(state, itemPA, tickLowerState, tickUpperState)
+          const { tokenFeeAmountA, tokenFeeAmountB } = PositionUtils.GetPositionFees(state, itemPA, tickLowerState, tickUpperState)
+          const rewardInfos = PositionUtils.GetPositionRewards(state, itemPA, tickLowerState, tickUpperState)
           itemPA.tokenFeeAmountA = tokenFeeAmountA.gte(ZERO) ? tokenFeeAmountA : ZERO
           itemPA.tokenFeeAmountB = tokenFeeAmountB.gte(ZERO) ? tokenFeeAmountB : ZERO
           for (let i = 0; i < rewardInfos.length; i++) {
@@ -2566,7 +2538,7 @@ export class AmmV3 extends Base {
 
       const startIndexArray = TickUtils.getInitializedTickArrayInRange(tickArrayBitmap, itemPoolInfo.tickSpacing, currentTickArrayStartIndex, Math.floor(FETCH_TICKARRAY_COUNT / 2));
       for (const itemIndex of startIndexArray) {
-        const { publicKey: tickArrayAddress } = await getPdaTickArrayAddress(
+        const { publicKey: tickArrayAddress } = getPdaTickArrayAddress(
           itemPoolInfo.programId,
           itemPoolInfo.id,
           itemIndex
@@ -2594,5 +2566,12 @@ export class AmmV3 extends Base {
       }
     }
     return tickArrayCache;
+  }
+
+  static async getWhiteListMint({ connection, programId }: { connection: Connection, programId: PublicKey }) {
+    const accountInfo = await connection.getAccountInfo(getPdaOperationAccount(programId).publicKey)
+    if (!accountInfo) return []
+    const whitelistMintsInfo = OperationLayout.decode(accountInfo.data)
+    return whitelistMintsInfo.whitelistMints.filter(i => !i.equals(PublicKey.default))
   }
 }

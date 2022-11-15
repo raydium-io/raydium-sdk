@@ -52,7 +52,7 @@ export class PositionUtils {
     return { feeGrowthInsideX64A, feeGrowthInsideBX64 };
   }
 
-  static async GetPositionFees(
+  static GetPositionFees(
     ammPool: AmmV3PoolInfo,
     positionState: AmmV3PoolPersonalPosition,
     tickLowerState: Tick,
@@ -87,12 +87,12 @@ export class PositionUtils {
     return { tokenFeeAmountA, tokenFeeAmountB };
   }
 
-  static async GetPositionRewards(
+  static GetPositionRewards(
     ammPool: AmmV3PoolInfo,
     positionState: AmmV3PoolPersonalPosition,
     tickLowerState: Tick,
     tickUpperState: Tick
-  ): Promise<BN[]> {
+  ): BN[] {
     const rewards: BN[] = [];
 
     const rewardGrowthsInside = this.getRewardGrowthInside(

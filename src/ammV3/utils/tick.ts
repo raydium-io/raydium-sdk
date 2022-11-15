@@ -43,7 +43,7 @@ export type TickArrayState = {
 }
 
 export class TickUtils {
-  public static async getTickArrayAddressByTick(
+  public static getTickArrayAddressByTick(
     programId: PublicKey,
     poolId: PublicKey,
     tickIndex: number,
@@ -53,7 +53,7 @@ export class TickUtils {
       tickIndex,
       tickSpacing
     )
-    const { publicKey: tickArrayAddress } = await getPdaTickArrayAddress(
+    const { publicKey: tickArrayAddress } = getPdaTickArrayAddress(
       programId,
       poolId,
       startIndex
@@ -187,7 +187,7 @@ export class TickUtils {
     )
   }
 
-  public static async getAllInitializedTickArrayInfo(
+  public static getAllInitializedTickArrayInfo(
     programId: PublicKey,
     poolId: PublicKey,
     tickArrayBitmap: BN,
@@ -203,7 +203,7 @@ export class TickUtils {
         tickSpacing
       )
     for (const startIndex of allInitializedTickArrayIndex) {
-      const { publicKey: address } = await getPdaTickArrayAddress(
+      const { publicKey: address } = getPdaTickArrayAddress(
         programId,
         poolId,
         startIndex

@@ -148,3 +148,8 @@ export const TickArrayLayout = struct([
 
   seq(u8(), 115, ""),
 ]);
+
+export const OperationLayout = struct([
+  blob(329),
+  seq(publicKey(), 100, "whitelistMints"),
+]);

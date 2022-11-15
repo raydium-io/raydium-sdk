@@ -1,13 +1,14 @@
 import { Connection, Keypair, PublicKey, Signer, SystemProgram, TransactionInstruction } from "@solana/web3.js";
 import BN from "bn.js";
 
+import { getATAAddress } from "../ammV3/utils/pda";
 import { Base, TokenAccount } from "../base";
 import {
   AccountMeta, AccountMetaReadonly, findProgramAddress, GetMultipleAccountsInfoConfig,
-  getMultipleAccountsInfoWithCustomFlags, Logger, PublicKeyish, SYSTEM_PROGRAM_ID, SYSVAR_CLOCK_PUBKEY,
-  SYSVAR_RENT_PUBKEY, TOKEN_PROGRAM_ID, validateAndParsePublicKey,
+  getMultipleAccountsInfoWithCustomFlags, Logger, PublicKeyish, splitTxAndSigners, SYSTEM_PROGRAM_ID,
+  SYSVAR_CLOCK_PUBKEY, SYSVAR_RENT_PUBKEY, TOKEN_PROGRAM_ID, validateAndParsePublicKey,
 } from "../common";
-import { BigNumberish, parseBigNumberish, TEN, Token } from "../entity";
+import { BigNumberish, parseBigNumberish, TEN, Token, ZERO } from "../entity";
 import { seq, struct, u64, u8 } from "../marshmallow";
 import { Spl, SPL_ACCOUNT_LAYOUT, SplAccount } from "../spl";
 
@@ -18,7 +19,7 @@ import {
 
 const logger = Logger.from("Farm");
 
-export const poolTypeV6 = {'Standard SPL': 0, 'Option tokens': 1} as const
+export const poolTypeV6 = { 'Standard SPL': 0, 'Option tokens': 1 } as const
 
 /* ================= pool keys ================= */
 export type FarmPoolKeys = {
@@ -31,17 +32,17 @@ export type FarmPoolKeys = {
   readonly upcoming: boolean;
   readonly rewardInfos: (
     | {
-        readonly rewardMint: PublicKey;
-        readonly rewardVault: PublicKey;
-      }
+      readonly rewardMint: PublicKey;
+      readonly rewardVault: PublicKey;
+    }
     | {
-        readonly rewardMint: PublicKey;
-        readonly rewardVault: PublicKey;
-        readonly rewardOpenTime: number;
-        readonly rewardEndTime: number;
-        readonly rewardPerSecond: number;
-        readonly rewardType: keyof typeof poolTypeV6;
-      }
+      readonly rewardMint: PublicKey;
+      readonly rewardVault: PublicKey;
+      readonly rewardOpenTime: number;
+      readonly rewardEndTime: number;
+      readonly rewardPerSecond: number;
+      readonly rewardType: keyof typeof poolTypeV6;
+    }
   )[];
 };
 
@@ -163,6 +164,16 @@ export interface FarmFetchMultipleInfoParams {
   owner?: PublicKey;
   config?: GetMultipleAccountsInfoConfig;
 }
+export interface FarmFetchMultipleInfoReturn {
+  [id: string]: {
+    apiPoolInfo: FarmPoolKeys;
+    state: FarmState;
+    lpVault: SplAccount;
+    ledger?: FarmLedger;
+    // wrapped data
+    wrapped?: { pendingRewards: BN[] };
+  };
+}
 
 export class Farm extends Base {
   /* ================= get version and program id ================= */
@@ -207,7 +218,7 @@ export class Farm extends Base {
     return findProgramAddress([poolId.toBuffer()], programId);
   }
 
-  static async getAssociatedLedgerAccount({
+  static getAssociatedLedgerAccount({
     programId,
     poolId,
     owner,
@@ -216,7 +227,7 @@ export class Farm extends Base {
     poolId: PublicKey;
     owner: PublicKey;
   }) {
-    const { publicKey } = await findProgramAddress(
+    const { publicKey } = findProgramAddress(
       [
         poolId.toBuffer(),
         owner.toBuffer(),
@@ -230,7 +241,7 @@ export class Farm extends Base {
     return publicKey;
   }
 
-  static async getAssociatedLedgerPoolAccount({
+  static getAssociatedLedgerPoolAccount({
     programId,
     poolId,
     mint,
@@ -241,7 +252,7 @@ export class Farm extends Base {
     mint: PublicKey;
     type: "lpVault" | "rewardVault";
   }) {
-    const { publicKey } = await findProgramAddress(
+    const { publicKey } = findProgramAddress(
       [
         poolId.toBuffer(),
         mint.toBuffer(),
@@ -249,8 +260,8 @@ export class Farm extends Base {
           type === "lpVault"
             ? "lp_vault_associated_seed"
             : type === "rewardVault"
-            ? "reward_vault_associated_seed"
-            : "",
+              ? "reward_vault_associated_seed"
+              : "",
           "utf-8",
         ),
       ],
@@ -689,12 +700,12 @@ export class Farm extends Base {
       }),
     );
 
-    const { publicKey: authority, nonce } = await Farm.getAssociatedAuthority({
+    const { publicKey: authority, nonce } = Farm.getAssociatedAuthority({
       programId: poolInfo.programId,
       poolId: farmId.publicKey,
     });
 
-    const lpVault = await Farm.getAssociatedLedgerPoolAccount({
+    const lpVault = Farm.getAssociatedLedgerPoolAccount({
       programId: poolInfo.programId,
       poolId: farmId.publicKey,
       mint: poolInfo.lpMint,
@@ -763,7 +774,7 @@ export class Farm extends Base {
           }),
         );
       } else {
-        userRewardToken = await this._selectTokenAccount({
+        userRewardToken = this._selectTokenAccount({
           tokenAccounts: userKeys.tokenAccounts,
           mint: rewardInfo.rewardMint,
           owner: userKeys.owner,
@@ -781,7 +792,7 @@ export class Farm extends Base {
       const rewardMint = rewardInfo.rewardMint.equals(PublicKey.default) ? Token.WSOL.mint : rewardInfo.rewardMint;
       rewardInfoKey.push({
         rewardMint,
-        rewardVault: await Farm.getAssociatedLedgerPoolAccount({
+        rewardVault: Farm.getAssociatedLedgerPoolAccount({
           programId: poolInfo.programId,
           poolId: farmId.publicKey,
           mint: rewardMint,
@@ -791,7 +802,7 @@ export class Farm extends Base {
       });
     }
 
-    const lockUserAccount = await this._selectTokenAccount({
+    const lockUserAccount = this._selectTokenAccount({
       tokenAccounts: userKeys.tokenAccounts,
       mint: poolInfo.lockInfo.lockMint,
       owner: userKeys.owner,
@@ -904,7 +915,7 @@ export class Farm extends Base {
         }),
       );
     } else {
-      userRewardToken = await this._selectTokenAccount({
+      userRewardToken = this._selectTokenAccount({
         tokenAccounts: userKeys.tokenAccounts,
         mint: newRewardInfo.rewardMint,
         owner: userKeys.owner,
@@ -1005,13 +1016,13 @@ export class Farm extends Base {
         }),
       );
     } else {
-      const selectUserRewardToken = await this._selectTokenAccount({
+      const selectUserRewardToken = this._selectTokenAccount({
         tokenAccounts: userKeys.tokenAccounts,
         mint: withdrawMint,
         owner: userKeys.owner,
       });
       if (selectUserRewardToken === null) {
-        userRewardToken = await Spl.getAssociatedTokenAccount({ mint: withdrawMint, owner: userKeys.owner });
+        userRewardToken = getATAAddress(userKeys.owner, withdrawMint).publicKey;
         frontInstructions.push(
           Spl.makeCreateAssociatedTokenAccountInstruction({
             mint: withdrawMint,
@@ -1068,7 +1079,7 @@ export class Farm extends Base {
     userKeys,
     newRewardInfo,
   }: FarmCreatorAddRewardTokenInstructionParamsV6) {
-    const rewardVault = await Farm.getAssociatedLedgerPoolAccount({
+    const rewardVault = Farm.getAssociatedLedgerPoolAccount({
       programId: poolKeys.programId,
       poolId: poolKeys.id,
       mint: newRewardInfo.rewardMint,
@@ -1100,7 +1111,7 @@ export class Farm extends Base {
         }),
       );
     } else {
-      userRewardToken = await this._selectTokenAccount({
+      userRewardToken = this._selectTokenAccount({
         tokenAccounts: userKeys.tokenAccounts,
         mint: newRewardInfo.rewardMint,
         owner: userKeys.owner,
@@ -1163,7 +1174,7 @@ export class Farm extends Base {
   }
 
   /* ================= fetch data ================= */
-  static async fetchMultipleInfo({ connection, pools, owner, config }: FarmFetchMultipleInfoParams) {
+  static async fetchMultipleInfo({ connection, pools, owner, config }: FarmFetchMultipleInfoParams): Promise<FarmFetchMultipleInfoReturn> {
     const publicKeys: {
       pubkey: PublicKey;
       version: number;
@@ -1171,7 +1182,9 @@ export class Farm extends Base {
       poolId: PublicKey;
     }[] = [];
 
+    const apiPoolInfo: { [key: string]: FarmPoolKeys } = {}
     for (const pool of pools) {
+      apiPoolInfo[pool.id.toString()] = pool
       publicKeys.push({
         pubkey: pool.id,
         version: pool.version,
@@ -1188,7 +1201,7 @@ export class Farm extends Base {
 
       if (owner) {
         publicKeys.push({
-          pubkey: await this.getAssociatedLedgerAccount({ programId: pool.programId, poolId: pool.id, owner }),
+          pubkey: this.getAssociatedLedgerAccount({ programId: pool.programId, poolId: pool.id, owner }),
           version: pool.version,
           key: "ledger",
           poolId: pool.id,
@@ -1196,15 +1209,7 @@ export class Farm extends Base {
       }
     }
 
-    const poolsInfo: {
-      [id: string]: {
-        state: FarmState;
-        lpVault: SplAccount;
-        ledger?: FarmLedger;
-        // wrapped data
-        wrapped?: { pendingRewards: BN[] };
-      };
-    } = {};
+    const poolsInfo: FarmFetchMultipleInfoReturn = {};
 
     const accountsInfo = await getMultipleAccountsInfoWithCustomFlags(connection, publicKeys, config);
     for (const { pubkey, version, key, poolId, accountInfo } of accountsInfo) {
@@ -1218,6 +1223,7 @@ export class Farm extends Base {
 
         poolsInfo[_poolId] = {
           ...poolsInfo[_poolId],
+          ...{ apiPoolInfo: apiPoolInfo[_poolId] },
           ...{ state: STATE_LAYOUT.decode(accountInfo.data) },
         };
       } else if (key === "lpVault") {
@@ -1277,7 +1283,7 @@ export class Farm extends Base {
     return poolsInfo;
   }
 
-  static async fetchMultipleInfoAndUpdate({ connection, pools, owner, config }: FarmFetchMultipleInfoParams) {
+  static async fetchMultipleInfoAndUpdate({ connection, pools, owner, config }: FarmFetchMultipleInfoParams): Promise<FarmFetchMultipleInfoReturn> {
     let hasNotV6Pool = false;
     let hasV6Pool = false;
 
@@ -1288,7 +1294,10 @@ export class Farm extends Base {
       poolId: PublicKey;
     }[] = [];
 
+    const apiPoolInfo: { [key: string]: FarmPoolKeys } = {}
     for (const pool of pools) {
+      apiPoolInfo[pool.id.toString()] = pool
+
       if (pool.version === 6) hasV6Pool = true;
       else hasNotV6Pool = true;
 
@@ -1308,7 +1317,7 @@ export class Farm extends Base {
 
       if (owner) {
         publicKeys.push({
-          pubkey: await this.getAssociatedLedgerAccount({ programId: pool.programId, poolId: pool.id, owner }),
+          pubkey: this.getAssociatedLedgerAccount({ programId: pool.programId, poolId: pool.id, owner }),
           version: pool.version,
           key: "ledger",
           poolId: pool.id,
@@ -1316,15 +1325,7 @@ export class Farm extends Base {
       }
     }
 
-    const poolsInfo: {
-      [id: string]: {
-        state: FarmState;
-        lpVault: SplAccount;
-        ledger?: FarmLedger;
-        // wrapped data
-        wrapped?: { pendingRewards: BN[] };
-      };
-    } = {};
+    const poolsInfo: FarmFetchMultipleInfoReturn = {};
 
     const accountsInfo = await getMultipleAccountsInfoWithCustomFlags(connection, publicKeys, config);
     for (const { pubkey, version, key, poolId, accountInfo } of accountsInfo) {
@@ -1338,6 +1339,7 @@ export class Farm extends Base {
 
         poolsInfo[_poolId] = {
           ...poolsInfo[_poolId],
+          ...{ apiPoolInfo: apiPoolInfo[_poolId] },
           ...{ state: STATE_LAYOUT.decode(accountInfo.data) },
         };
       } else if (key === "lpVault") {
@@ -1449,5 +1451,105 @@ export class Farm extends Base {
       }
     }
     return poolInfo;
+  }
+
+  static async makeHarvestAllRewardTransaction({
+    connection, fetchPoolInfos, ownerInfo, associatedOnly = true
+  }: {
+    connection: Connection
+    fetchPoolInfos: FarmFetchMultipleInfoReturn,
+    ownerInfo: {
+      feePayer: PublicKey,
+      wallet: PublicKey,
+      tokenAccounts: TokenAccount[],
+      useSOLBalance?: boolean  // if has WSOL mint
+    },
+    associatedOnly?: boolean
+  }) {
+    const ownerMintToAccount: { [mint: string]: PublicKey } = {}
+    for (const item of ownerInfo.tokenAccounts) {
+      if (associatedOnly) {
+        const ata = getATAAddress(ownerInfo.wallet, item.accountInfo.mint).publicKey
+        if (ata.equals(item.pubkey)) ownerMintToAccount[item.accountInfo.mint.toString()] = item.pubkey
+      } else {
+        ownerMintToAccount[item.accountInfo.mint.toString()] = item.pubkey
+      }
+    }
+
+    const frontInstructions: TransactionInstruction[] = [];
+    const endInstructions: TransactionInstruction[] = [];
+    const harvestInstructions: TransactionInstruction[] = [];
+
+    const signers: Signer[] = []
+
+    for (const { lpVault, wrapped, apiPoolInfo } of Object.values(fetchPoolInfos)) {
+      if (wrapped === undefined || wrapped.pendingRewards.find(i => i.gt(ZERO)) === undefined) continue
+
+      const lpMint = lpVault.mint
+      const lpMintUseSOLBalance = ownerInfo.useSOLBalance && lpMint.equals(Token.WSOL.mint)
+      const ownerLpTokenAccount = ownerMintToAccount[lpMint.toString()] ?? await this._selectOrCreateTokenAccount({
+        mint: lpMint,
+        tokenAccounts: lpMintUseSOLBalance ? [] : ownerInfo.tokenAccounts,
+        owner: ownerInfo.wallet,
+
+        createInfo: {
+          connection,
+          payer: ownerInfo.feePayer,
+          amount: 0,
+
+          frontInstructions,
+          signers
+        },
+
+        associatedOnly: lpMintUseSOLBalance ? false : associatedOnly
+      })
+      ownerMintToAccount[lpMint.toString()] = ownerLpTokenAccount
+
+      const rewardAccounts: PublicKey[] = []
+      for (const itemReward of apiPoolInfo.rewardInfos) {
+        const rewardUseSOLBalance = ownerInfo.useSOLBalance && itemReward.rewardMint.equals(Token.WSOL.mint)
+
+        const ownerRewardAccount = ownerMintToAccount[itemReward.rewardMint.toString()] ?? await this._selectOrCreateTokenAccount({
+          mint: itemReward.rewardMint,
+          tokenAccounts: rewardUseSOLBalance ? [] : ownerInfo.tokenAccounts,
+          owner: ownerInfo.wallet,
+
+          createInfo: {
+            connection,
+            payer: ownerInfo.feePayer,
+            amount: 0,
+
+            frontInstructions,
+            endInstructions: rewardUseSOLBalance ? endInstructions : [],
+            signers
+          },
+
+          associatedOnly: rewardUseSOLBalance ? false : associatedOnly
+        })
+        ownerMintToAccount[itemReward.rewardMint.toString()] = ownerRewardAccount
+        rewardAccounts.push(ownerRewardAccount!)
+      }
+
+      harvestInstructions.push(
+        this.makeWithdrawInstruction({
+          poolKeys: apiPoolInfo,
+          userKeys: {
+            ledger: this.getAssociatedLedgerAccount({ programId: apiPoolInfo.programId, poolId: apiPoolInfo.id, owner: ownerInfo.wallet }),
+            lpTokenAccount: ownerLpTokenAccount,
+            rewardTokenAccounts: rewardAccounts,
+            owner: ownerInfo.wallet
+          },
+          amount: 0
+        })
+      )
+    }
+
+    const allInstruction = [...frontInstructions, ...harvestInstructions, ...endInstructions]
+
+    const transactions = splitTxAndSigners({instructions: allInstruction, signers, payer: ownerInfo.wallet})
+
+    return {
+      transactions, address: {}
+    }
   }
 }

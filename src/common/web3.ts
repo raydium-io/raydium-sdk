@@ -4,7 +4,8 @@
 // import { TOKEN_PROGRAM_ID } from './id';
 
 import {
-  AccountInfo, Commitment, Connection, PublicKey, SimulatedTransactionResponse, Transaction, TransactionInstruction,
+  AccountInfo, Commitment, Connection, Keypair, PublicKey, Signer, SimulatedTransactionResponse, Transaction,
+  TransactionInstruction,
 } from "@solana/web3.js";
 
 import { chunkArray } from "./lodash";
@@ -336,4 +337,44 @@ export async function simulateTransaction(connection: Connection, transactions: 
   }
 
   return results
+}
+
+export function splitTxAndSigners({ instructions, signers, payer }: {
+  instructions: TransactionInstruction[],
+  signers: (Signer | Keypair)[],
+  payer: PublicKey
+}) {
+  const signerKey: { [key: string]: Signer } = {}
+  for (const item of signers) signerKey[item.publicKey.toString()] = item
+
+  const transactions: { transaction: Transaction, signer: (Keypair | Signer)[] }[] = []
+
+  let itemIns: TransactionInstruction[] = []
+
+  for (const item of instructions) {
+    const _itemIns = [...itemIns, item]
+    const _signerStrs = new Set<string>(_itemIns.map(i => i.keys.filter(ii => ii.isSigner).map(ii => ii.pubkey.toString())).flat())
+    const _signer = [..._signerStrs.values()].map(i => new PublicKey(i))
+
+    if (forecastTransactionSize(_itemIns, [payer, ..._signer])) {
+      itemIns.push(item)
+    } else {
+      transactions.push({
+        transaction: new Transaction().add(...itemIns),
+        signer: [..._signerStrs.values()].map(i => signerKey[i]).filter(i => i !== undefined)
+      })
+
+      itemIns = [item]
+    }
+  }
+
+  if (itemIns.length > 0) {
+    const _signerStrs = new Set<string>(itemIns.map(i => i.keys.filter(ii => ii.isSigner).map(ii => ii.pubkey.toString())).flat())
+    transactions.push({
+      transaction: new Transaction().add(...itemIns),
+      signer: [..._signerStrs.values()].map(i => signerKey[i]).filter(i => i !== undefined)
+    })
+  }
+
+  return transactions
 }

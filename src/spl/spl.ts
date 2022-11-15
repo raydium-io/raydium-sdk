@@ -4,7 +4,10 @@ import {
 } from "@solana/web3.js";
 import BN from "bn.js";
 
-import { ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID, SYSVAR_RENT_PUBKEY, validateAndParsePublicKey } from "../common";
+import { getATAAddress } from "../ammV3/utils/pda";
+import {
+  ASSOCIATED_TOKEN_PROGRAM_ID, SYSVAR_RENT_PUBKEY, TOKEN_PROGRAM_ID, validateAndParsePublicKey,
+} from "../common";
 import { BigNumberish, parseBigNumberish } from "../entity";
 import { u64, u8 } from "../marshmallow";
 import { WSOL } from "../token";
@@ -14,7 +17,8 @@ import { SPL_ACCOUNT_LAYOUT } from "./layout";
 // https://github.com/solana-labs/solana-program-library/tree/master/token/js/client
 export class Spl {
   static getAssociatedTokenAccount({ mint, owner }: { mint: PublicKey; owner: PublicKey }) {
-    return _Token.getAssociatedTokenAddress(ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID, mint, owner, true);
+    // return _Token.getAssociatedTokenAddress(ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID, mint, owner, true);
+    return getATAAddress(owner, mint).publicKey
   }
 
   static makeCreateAssociatedTokenAccountInstruction({

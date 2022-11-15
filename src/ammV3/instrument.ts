@@ -371,6 +371,7 @@ export function initRewardInstruction(
   programId: PublicKey,
   payer: PublicKey,
   poolId: PublicKey,
+  operationId: PublicKey,
   ammConfigId: PublicKey,
 
   ownerTokenAccount: PublicKey,
@@ -393,13 +394,13 @@ export function initRewardInstruction(
     { pubkey: ammConfigId, isSigner: false, isWritable: false },
 
     { pubkey: poolId, isSigner: false, isWritable: true },
+    { pubkey: operationId, isSigner: false, isWritable: true },
     { pubkey: rewardMint, isSigner: false, isWritable: false },
     { pubkey: rewardVault, isSigner: false, isWritable: true },
 
     { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
     { pubkey: SYSTEM_PROGRAM_ID, isSigner: false, isWritable: false },
     { pubkey: RENT_PROGRAM_ID, isSigner: false, isWritable: false },
-
   ];
 
   const data = Buffer.alloc(dataLayout.span);
@@ -425,6 +426,7 @@ export function setRewardInstruction(
   programId: PublicKey,
   payer: PublicKey,
   poolId: PublicKey,
+  operationId: PublicKey,
   ammConfigId: PublicKey,
 
   ownerTokenAccount: PublicKey,
@@ -437,15 +439,16 @@ export function setRewardInstruction(
 ) {
   const dataLayout = struct([
     u8("rewardIndex"),
+    u128("emissionsPerSecondX64"),
     u64("openTime"),
     u64("endTime"),
-    u128("emissionsPerSecondX64"),
   ]);
 
   const keys = [
     { pubkey: payer, isSigner: true, isWritable: true },
     { pubkey: ammConfigId, isSigner: false, isWritable: false },
     { pubkey: poolId, isSigner: false, isWritable: true },
+    { pubkey: operationId, isSigner: false, isWritable: true },
 
     { pubkey: rewardVault, isSigner: false, isWritable: true },
     { pubkey: ownerTokenAccount, isSigner: false, isWritable: true },
