@@ -467,21 +467,25 @@ export class Liquidity extends Base {
 
   static getAssociatedPoolKeys({
     version,
+    marketVersion,
     marketId,
     baseMint,
     quoteMint,
     baseDecimals,
     quoteDecimals,
+    programId,
+    marketProgramId
   }: {
     version: number;
+    marketVersion: number;
     marketId: PublicKey;
     baseMint: PublicKey;
     quoteMint: PublicKey;
     baseDecimals: number;
     quoteDecimals: number;
+    programId: PublicKey;
+    marketProgramId: PublicKey;
   }): LiquidityAssociatedPoolKeys {
-    const programId = this.getProgramId(version);
-
     const id = this.getAssociatedId({ programId, marketId });
     const lpMint = this.getAssociatedLpMint({ programId, marketId });
     const { publicKey: authority, nonce } = this.getAssociatedAuthority({ programId });
@@ -492,10 +496,8 @@ export class Liquidity extends Base {
     const targetOrders = this.getAssociatedTargetOrders({ programId, marketId });
     const withdrawQueue = this.getAssociatedWithdrawQueue({ programId, marketId });
 
-    const serumVersion = this.getSerumVersion(version);
-    const serumProgramId = Market.getProgramId(serumVersion);
     const { publicKey: marketAuthority } = Market.getAssociatedAuthority({
-      programId: serumProgramId,
+      programId: marketProgramId,
       marketId,
     });
 
@@ -521,8 +523,8 @@ export class Liquidity extends Base {
       targetOrders,
       withdrawQueue,
       // market version
-      marketVersion: serumVersion,
-      marketProgramId: serumProgramId,
+      marketVersion,
+      marketProgramId,
       // market keys
       marketId,
       marketAuthority,
@@ -1487,11 +1489,14 @@ export class Liquidity extends Base {
 
       const associatedPoolKeys = Liquidity.getAssociatedPoolKeys({
         version,
+        marketVersion: serumVersion,
+        marketId,
         baseMint,
         baseDecimals: baseDecimal.toNumber(),
         quoteMint,
         quoteDecimals: quoteDecimal.toNumber(),
-        marketId,
+        programId,
+        marketProgramId: serumProgramId
       });
       // double check keys with on-chain data
       // logger.assert(Number(nonce) === associatedPoolKeys.nonce, "invalid nonce");
