@@ -5,6 +5,7 @@ import { ApiJsonPairInfo, ApiLiquidityPoolInfo, LiquidityVersion } from "../../a
 import { GetMultipleAccountsInfoConfig } from "../../common/accountInfo";
 import { BigNumberish } from "../../common/bignumber";
 import { PublicKeyish } from "../../common/pubKey";
+import { JsonFileMetaData } from "../../common/json-file";
 import { Percent, Price, Token, TokenAmount } from "../../module";
 import { ReplaceType } from "../type";
 
@@ -235,4 +236,9 @@ export interface LiquidityComputeAnotherAmountParams {
   amount: TokenAmount;
   anotherToken: Token;
   slippage: Percent;
+}
+
+export interface LiquidityPoolsJsonFile extends JsonFileMetaData {
+  readonly official: LiquidityPoolJsonInfo[];
+  readonly unOfficial: LiquidityPoolJsonInfo[];
 }

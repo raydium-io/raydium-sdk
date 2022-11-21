@@ -1,7 +1,6 @@
 import {
   Connection,
   PublicKey,
-  RpcResponseAndContext,
   sendAndConfirmTransaction,
   Signer,
   SimulatedTransactionResponse,
@@ -181,11 +180,15 @@ export function forecastTransactionSize(instructions: TransactionInstruction[], 
 /**
  * Simulates multiple instruction
  */
+/**
+ * Simulates multiple instruction
+ */
 export async function simulateMultipleInstruction(
   connection: Connection,
   instructions: TransactionInstruction[],
   keyword: string,
-): Promise<any> {
+  batchRequest = true,
+): Promise<string[]> {
   const feePayer = new PublicKey("RaydiumSimuLateTransaction11111111111111111");
 
   const transactions: Transaction[] = [];
@@ -198,34 +201,34 @@ export async function simulateMultipleInstruction(
       transactions.push(transaction);
       transaction = new Transaction();
       transaction.feePayer = feePayer;
-      transaction.add(instruction);
-    } else {
-      transaction.add(instruction);
     }
+    transaction.add(instruction);
   }
   if (transaction.instructions.length > 0) {
     transactions.push(transaction);
   }
 
-  let results: RpcResponseAndContext<SimulatedTransactionResponse>[] = [];
+  let results: SimulatedTransactionResponse[] = [];
 
   try {
-    results = await Promise.all(transactions.map((transaction) => connection.simulateTransaction(transaction)));
+    results = await simulateTransaction(connection, transactions, batchRequest);
+    if (results.find((i) => i.err !== null)) throw Error("rpc simulateTransaction error");
   } catch (error) {
     if (error instanceof Error) {
-      logger.logWithError(`failed to simulate for instructions, RPC_ERROR, ${error.message}`);
+      logger.logWithError("failed to simulate for instructions", "RPC_ERROR", {
+        message: error.message,
+      });
     }
   }
 
   const logs: string[] = [];
   for (const result of results) {
-    const { value } = result;
-    logger.debug(`simulate result: ${JSON.stringify(result)}`);
+    logger.debug("simulate result:", result);
 
-    if (value.logs) {
-      const filteredLog = value.logs.filter((log) => log && log.includes(keyword));
-      logger.debug(`filteredLog: ${JSON.stringify(logs)}`);
-      if (!filteredLog.length) logger.logWithError(` "simulate log not match keyword, keyword: ${keyword}`);
+    if (result.logs) {
+      const filteredLog = result.logs.filter((log) => log && log.includes(keyword));
+      logger.debug("filteredLog:", logs);
+      if (!filteredLog.length) logger.logWithError("simulate log not match keyword", "keyword", keyword);
       logs.push(...filteredLog);
     }
   }
@@ -263,4 +266,68 @@ export async function findProgramAddress(
 ): Promise<ProgramAddress> {
   const [publicKey, nonce] = await PublicKey.findProgramAddress(seeds, programId);
   return { publicKey, nonce };
+}
+
+export async function simulateTransaction(
+  connection: Connection,
+  transactions: Transaction[],
+  batchRequest?: boolean,
+): Promise<any[]> {
+  let results: any[] = [];
+  if (batchRequest) {
+    const getLatestBlockhash = await connection.getLatestBlockhash();
+
+    const encodedTransactions: string[] = [];
+    for (const transaction of transactions) {
+      transaction.recentBlockhash = getLatestBlockhash.blockhash;
+      transaction.lastValidBlockHeight = getLatestBlockhash.lastValidBlockHeight;
+
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
+      const message = transaction._compile();
+      const signData = message.serialize();
+
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
+      const wireTransaction = transaction._serialize(signData);
+      const encodedTransaction = wireTransaction.toString("base64");
+
+      encodedTransactions.push(encodedTransaction);
+    }
+
+    const batch = encodedTransactions.map((keys) => {
+      const args = connection._buildArgs([keys], undefined, "base64");
+      return {
+        methodName: "simulateTransaction",
+        args,
+      };
+    });
+
+    const reqData: { methodName: string; args: any[] }[][] = [];
+    const itemReqIndex = 20;
+    for (let i = 0; i < Math.ceil(batch.length / itemReqIndex); i++) {
+      reqData.push(batch.slice(i * itemReqIndex, (i + 1) * itemReqIndex));
+    }
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    results = await (
+      await Promise.all(
+        reqData.map(async (i) => (await (connection as any)._rpcBatchRequest(i)).map((ii) => ii.result.value)),
+      )
+    ).flat();
+  } else {
+    try {
+      results = await Promise.all(
+        transactions.map(async (transaction) => await (await connection.simulateTransaction(transaction)).value),
+      );
+    } catch (error) {
+      if (error instanceof Error) {
+        logger.logWithError("failed to get info for multiple accounts", "RPC_ERROR", {
+          message: error.message,
+        });
+      }
+    }
+  }
+
+  return results;
 }
