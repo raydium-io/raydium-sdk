@@ -1,6 +1,13 @@
-import { Token as _Token, u64 as _u64 } from "@solana/spl-token";
+// @ts-ignore
+import { Token as _Token, u64 as _u64, getAccount, createSyncNativeInstruction } from "@solana/spl-token";
 import {
-  Commitment, Connection, Keypair, PublicKey, Signer, SystemProgram, TransactionInstruction,
+  Commitment,
+  Connection,
+  Keypair,
+  PublicKey,
+  Signer,
+  SystemProgram,
+  TransactionInstruction,
 } from "@solana/web3.js";
 import BN from "bn.js";
 
@@ -40,6 +47,50 @@ export class Spl {
       owner,
       payer,
     );
+  }
+
+  // https://github.com/solana-labs/solana-program-library/blob/master/token/js/client/token.js
+  static async makeEnsureWrappedNativeAccountBalanceInstructions({
+    connection,
+    owner,
+    accountKey,
+    payer,
+    amount,
+    // baseRentExemption,
+    commitment,
+  }: {
+    connection: Connection;
+    owner: PublicKey;
+    accountKey: PublicKey;
+    payer: PublicKey;
+    amount: BigNumberish;
+    // baseRentExemption?: number;
+    commitment?: Commitment;
+  }): Promise<TransactionInstruction[]> {
+    const instructions: TransactionInstruction[] = [];
+
+    const balanceNeededForRent = await connection.getMinimumBalanceForRentExemption(
+      SPL_ACCOUNT_LAYOUT.span,
+      commitment,
+    );
+
+    const lamportsAlreadyPresent = (await getAccount(connection, accountKey)).lamports;
+    const lamportsToTransfer = parseBigNumberish(amount)
+      .add(new BN(balanceNeededForRent))
+      .sub(new BN(lamportsAlreadyPresent));
+
+    instructions.push(
+      SystemProgram.transfer({
+        fromPubkey: payer,
+        toPubkey: accountKey,
+        lamports: lamportsToTransfer.toNumber(),
+        programId: TOKEN_PROGRAM_ID,
+      }),
+    );
+
+    instructions.push(createSyncNativeInstruction(accountKey));
+
+    return instructions;
   }
 
   // https://github.com/solana-labs/solana-program-library/blob/master/token/js/client/token.js
