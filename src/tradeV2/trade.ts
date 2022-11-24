@@ -585,7 +585,6 @@ export class TradeV2 extends Base {
       const poolKey1 = swapInfo.poolKey[0]
       const poolKey2 = swapInfo.poolKey[1]
 
-
       return {
         signers: [] as Keypair[],
         instructions: [
@@ -615,7 +614,7 @@ export class TradeV2 extends Base {
             ownerInfo.userPdaAccount!,
             ownerInfo.wallet,
 
-            inputMint,
+            swapInfo.middleMint!,
 
             swapInfo.remainingAccounts[1]
           )

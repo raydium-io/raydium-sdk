@@ -125,7 +125,7 @@ export function route2Instruction(
   userPdaAccount: PublicKey,
   ownerWallet: PublicKey,
 
-  inputMint: PublicKey,
+  routeMint: PublicKey,
 
   // tickArrayA?: PublicKey[],
   tickArrayB?: PublicKey[],
@@ -152,8 +152,8 @@ export function route2Instruction(
     keys.push(...[
       { pubkey: poolKey.ammConfig.id, isSigner: false, isWritable: false },
       { pubkey: poolKey.id, isSigner: false, isWritable: true },
-      { pubkey: poolKey.mintA.mint.equals(inputMint) ? poolKey.mintA.vault : poolKey.mintB.vault, isSigner: false, isWritable: true },
-      { pubkey: poolKey.mintA.mint.equals(inputMint) ? poolKey.mintB.vault : poolKey.mintA.vault, isSigner: false, isWritable: true },
+      { pubkey: poolKey.mintA.mint.equals(routeMint) ? poolKey.mintA.vault : poolKey.mintB.vault, isSigner: false, isWritable: true },
+      { pubkey: poolKey.mintA.mint.equals(routeMint) ? poolKey.mintB.vault : poolKey.mintA.vault, isSigner: false, isWritable: true },
       { pubkey: poolKey.observationId, isSigner: false, isWritable: true },
       ...tickArrayB!.map(i => ({ pubkey: i, isSigner: false, isWritable: true }))
     ])
