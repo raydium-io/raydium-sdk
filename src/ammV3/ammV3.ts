@@ -6,7 +6,7 @@ import Decimal from "decimal.js";
 
 import { Base, TokenAccount } from "../base";
 import { getMultipleAccountsInfo, getMultipleAccountsInfoWithCustomFlags, Logger, splitTxAndSigners } from "../common";
-import { Currency, CurrencyAmount, Percent, Price, Token, TokenAmount, ZERO } from "../entity";
+import { Currency, CurrencyAmount, ONE, Percent, Price, Token, TokenAmount, ZERO } from "../entity";
 import { SPL_ACCOUNT_LAYOUT } from "../spl";
 import { WSOL } from "../token";
 
@@ -16,7 +16,7 @@ import {
   setRewardInstruction, swapInstruction,
 } from "./instrument";
 import { ObservationInfoLayout, OperationLayout, PoolInfoLayout, PositionInfoLayout, TickArrayLayout } from "./layout";
-import { MAX_SQRT_PRICE_X64, MIN_SQRT_PRICE_X64, ONE } from "./utils/constants";
+import { MAX_SQRT_PRICE_X64, MIN_SQRT_PRICE_X64 } from "./utils/constants";
 import { LiquidityMath, MathUtil, SqrtPriceMath, TickMath } from "./utils/math";
 import {
   getATAAddress, getPdaMetadataKey, getPdaOperationAccount, getPdaPersonalPositionAddress, getPdaPoolId,

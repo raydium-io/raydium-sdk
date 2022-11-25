@@ -2,12 +2,12 @@ import { Connection, Keypair, PublicKey, Signer, Transaction, TransactionInstruc
 import BN from "bn.js";
 
 import { AmmV3, AmmV3PoolInfo, ReturnTypeFetchMultiplePoolTickArrays } from "../ammV3";
-import { MAX_SQRT_PRICE_X64, MIN_SQRT_PRICE_X64, ONE } from "../ammV3/utils/constants";
+import { MAX_SQRT_PRICE_X64, MIN_SQRT_PRICE_X64 } from "../ammV3/utils/constants";
 import { Base, TokenAccount } from "../base";
 import {
   forecastTransactionSize, jsonInfo2PoolKeys, parseSimulateLogToJson, parseSimulateValue, simulateMultipleInstruction,
 } from "../common";
-import { Currency, CurrencyAmount, Percent, Price, Token, TokenAmount, ZERO } from "../entity";
+import { Currency, CurrencyAmount, ONE, Percent, Price, Token, TokenAmount, ZERO } from "../entity";
 import {
   initStableModelLayout, Liquidity, LiquidityPoolJsonInfo, LiquidityPoolKeys, LiquidityPoolsJsonFile,
 } from "../liquidity";

@@ -1,9 +1,10 @@
 import { PublicKey } from "@solana/web3.js";
 import BN from "bn.js";
 
+import { ZERO } from "../../entity";
 import { AmmV3PoolInfo, AmmV3PoolRewardInfo, AmmV3PoolRewardLayoutInfo } from "../ammV3";
 
-import { NEGATIVE_ONE, Q64, ZERO } from "./constants";
+import { NEGATIVE_ONE, Q64 } from "./constants";
 import { MathUtil, SwapMath } from "./math";
 import { getPdaTickArrayAddress } from "./pda";
 import { TickArray, TickUtils } from "./tick";

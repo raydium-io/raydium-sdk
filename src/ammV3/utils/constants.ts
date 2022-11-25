@@ -1,7 +1,7 @@
 import BN from "bn.js";
 
-export const ZERO = new BN(0);
-export const ONE = new BN(1);
+import { ONE } from "../../entity";
+
 export const NEGATIVE_ONE = new BN(-1);
 
 export const Q64 = new BN(1).shln(64);

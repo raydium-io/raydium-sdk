@@ -2,10 +2,12 @@ import { PublicKey } from "@solana/web3.js";
 import BN from "bn.js";
 import Decimal from "decimal.js";
 
+import { ONE, ZERO } from "../../entity";
+
 import {
   BIT_PRECISION, Fee, FEE_RATE_DENOMINATOR, LOG_B_2_X32, LOG_B_P_ERR_MARGIN_LOWER_X64, LOG_B_P_ERR_MARGIN_UPPER_X64,
-  MAX_SQRT_PRICE_X64, MAX_TICK, MaxU64, MaxUint128, MIN_SQRT_PRICE_X64, MIN_TICK, NEGATIVE_ONE, ONE, Q128, Q64,
-  U64Resolution, ZERO,
+  MAX_SQRT_PRICE_X64, MAX_TICK, MaxU64, MaxUint128, MIN_SQRT_PRICE_X64, MIN_TICK, NEGATIVE_ONE, Q128, Q64,
+  U64Resolution,
 } from "./constants";
 import { TickArray } from "./tick";
 import { TickQuery } from "./tickQuery";
