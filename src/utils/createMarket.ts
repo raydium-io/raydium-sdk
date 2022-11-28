@@ -4,6 +4,7 @@ import BN from "bn.js";
 
 import { Base } from "../base";
 import { SYSVAR_RENT_PUBKEY, TOKEN_PROGRAM_ID } from "../common";
+import { ZERO } from "../entity";
 import { blob, publicKey, struct, u16, u32, u64, u8, WideBits } from "../marshmallow";
 
 function accountFlagsLayout(property = 'accountFlags') {
@@ -98,6 +99,9 @@ export class MarketV2 extends Base {
 
     const baseLotSize = new BN(Math.round(10 ** baseInfo.decimals * lotSize));
     const quoteLotSize = new BN(Math.round(lotSize * 10 ** quoteInfo.decimals * tickSize));
+
+    if (baseLotSize.eq(ZERO)) throw Error('lot size is too small')
+    if (quoteLotSize.eq(ZERO)) throw Error('tick size or lot size is too small')
 
     return {
       transactions: await this.makeCreateMarketInstruction({
