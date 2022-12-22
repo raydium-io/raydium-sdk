@@ -15,7 +15,7 @@ export class PositionUtils {
   ) {
     let feeGrowthBelowX64A = new BN(0);
     let feeGrowthBelowX64B = new BN(0);
-    if (poolState.tickCurrent > tickLowerState.tick) {
+    if (poolState.tickCurrent >= tickLowerState.tick) {
       feeGrowthBelowX64A = tickLowerState.feeGrowthOutsideX64A;
       feeGrowthBelowX64B = tickLowerState.feeGrowthOutsideX64B;
     } else {
