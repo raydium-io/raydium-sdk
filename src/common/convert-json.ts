@@ -1,6 +1,6 @@
-import { Token } from "@solana/spl-token";
 import { PublicKey } from "@solana/web3.js";
 import { BN } from "bn.js";
+
 import { Currency, CurrencyAmount, Fraction, Percent, Price, TokenAmount } from "../entity";
 
 import { validateAndParsePublicKey } from "./pubkey";
@@ -44,7 +44,7 @@ export type ReplaceType<Old, From, To> = {
     : ReplaceType<Old[T], From, To>; // recursively replace
 };
 
-const baseInnerObjects = [Token, TokenAmount, PublicKey, Fraction, BN, Currency, CurrencyAmount, Price, Percent];
+const baseInnerObjects = [TokenAmount, PublicKey, Fraction, BN, Currency, CurrencyAmount, Price, Percent];
 
 function notInnerObject(v: unknown): v is Record<string, any> {
   return typeof v === "object" && v !== null && !baseInnerObjects.some((o) => typeof o === "object" && v instanceof o);

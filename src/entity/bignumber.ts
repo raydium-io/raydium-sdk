@@ -60,5 +60,5 @@ export function divCeil(a: BN, b: BN): BN {
   if (dm.mod.isZero()) return dm.div;
 
   // Round up
-  return dm.div.negative !== 0 ? dm.div.isubn(1) : dm.div.iaddn(1);
+  return dm.div.isNeg() ? dm.div.isubn(1) : dm.div.iaddn(1);
 }

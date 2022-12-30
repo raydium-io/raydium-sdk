@@ -1,4 +1,7 @@
-import { Token as _Token, u64 as _u64 } from "@solana/spl-token";
+import {
+  createAssociatedTokenAccountInstruction, createCloseAccountInstruction, createInitializeAccountInstruction,
+  createInitializeMintInstruction, createMintToInstruction, createTransferInstruction,
+} from "@solana/spl-token";
 import {
   Commitment, Connection, Keypair, PublicKey, Signer, SystemProgram, TransactionInstruction,
 } from "@solana/web3.js";
@@ -17,7 +20,7 @@ import { SPL_ACCOUNT_LAYOUT } from "./layout";
 // https://github.com/solana-labs/solana-program-library/tree/master/token/js/client
 export class Spl {
   static getAssociatedTokenAccount({ mint, owner }: { mint: PublicKey; owner: PublicKey }) {
-    // return _Token.getAssociatedTokenAddress(ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID, mint, owner, true);
+    // return getAssociatedTokenAddress(ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID, mint, owner, true);
     return getATAAddress(owner, mint).publicKey
   }
 
@@ -32,13 +35,11 @@ export class Spl {
     owner: PublicKey;
     payer: PublicKey;
   }) {
-    return _Token.createAssociatedTokenAccountInstruction(
-      ASSOCIATED_TOKEN_PROGRAM_ID,
-      TOKEN_PROGRAM_ID,
-      mint,
+    return createAssociatedTokenAccountInstruction(
+      payer,
       associatedAccount,
       owner,
-      payer,
+      mint,
     );
   }
 
@@ -147,7 +148,7 @@ export class Spl {
     mintAuthority: PublicKey;
     freezeAuthority?: PublicKey | null;
   }) {
-    return _Token.createInitMintInstruction(TOKEN_PROGRAM_ID, mint, decimals, mintAuthority, freezeAuthority);
+    return createInitializeMintInstruction(mint, decimals, mintAuthority, freezeAuthority);
   }
 
   static makeMintToInstruction({
@@ -163,11 +164,7 @@ export class Spl {
     amount: BigNumberish;
     multiSigners?: Signer[];
   }) {
-    const LAYOUT = u64("amount");
-    const data = Buffer.alloc(LAYOUT.span);
-    LAYOUT.encode(parseBigNumberish(amount), data);
-
-    return _Token.createMintToInstruction(TOKEN_PROGRAM_ID, mint, dest, authority, multiSigners, _u64.fromBuffer(data));
+    return createMintToInstruction(mint, dest, authority, BigInt(String(amount)), multiSigners);
   }
 
   static makeInitAccountInstruction({
@@ -179,7 +176,7 @@ export class Spl {
     tokenAccount: PublicKey;
     owner: PublicKey;
   }) {
-    return _Token.createInitAccountInstruction(TOKEN_PROGRAM_ID, mint, tokenAccount, owner);
+    return createInitializeAccountInstruction(tokenAccount, mint, owner);
   }
 
   static makeTransferInstruction({
@@ -195,17 +192,12 @@ export class Spl {
     amount: BigNumberish;
     multiSigners?: Signer[];
   }) {
-    const LAYOUT = u64("amount");
-    const data = Buffer.alloc(LAYOUT.span);
-    LAYOUT.encode(parseBigNumberish(amount), data);
-
-    return _Token.createTransferInstruction(
-      TOKEN_PROGRAM_ID,
+    return createTransferInstruction(
       source,
       destination,
       owner,
-      multiSigners,
-      _u64.fromBuffer(data),
+      BigInt(String(amount)),
+      multiSigners
     );
   }
 
@@ -220,7 +212,7 @@ export class Spl {
     payer: PublicKey;
     multiSigners?: Signer[];
   }) {
-    return _Token.createCloseAccountInstruction(TOKEN_PROGRAM_ID, tokenAccount, payer, owner, multiSigners);
+    return createCloseAccountInstruction(tokenAccount, payer, owner, multiSigners);
   }
 
   static createInitAccountInstruction(programId, mint, account, owner) {

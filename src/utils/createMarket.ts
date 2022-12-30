@@ -1,4 +1,4 @@
-import { Token } from "@solana/spl-token";
+import { createInitializeAccountInstruction } from "@solana/spl-token";
 import { Connection, Keypair, PublicKey, SystemProgram, Transaction, TransactionInstruction } from "@solana/web3.js";
 import BN from "bn.js";
 
@@ -172,16 +172,14 @@ export class MarketV2 extends Base {
         space: 165,
         programId: TOKEN_PROGRAM_ID,
       }),
-      Token.createInitAccountInstruction(
-        TOKEN_PROGRAM_ID,
-        marketInfo.baseMint,
+      createInitializeAccountInstruction(
         marketInfo.baseVault.publicKey,
+        marketInfo.baseMint,
         marketInfo.vaultOwner,
       ),
-      Token.createInitAccountInstruction(
-        TOKEN_PROGRAM_ID,
-        marketInfo.quoteMint,
+      createInitializeAccountInstruction(
         marketInfo.quoteVault.publicKey,
+        marketInfo.quoteMint,
         marketInfo.vaultOwner,
       ),
     );

@@ -260,7 +260,7 @@ export function array<T, P extends string = "">(
   );
 }
 
-export class Structure<T, P, D> extends _Structure<T, P, D> {
+export class Structure<T, P, D extends { [key: string]: any } = any> extends _Structure<T, P, D> {
   /** @override */
   decode(b: Buffer, offset?: number) {
     return super.decode(b, offset);
@@ -289,9 +289,9 @@ export function struct<T, P extends string = "">(
 export type GetLayoutSchemaFromStructure<T extends Structure<any, any, any>> = T extends Structure<any, any, infer S>
   ? S
   : any;
-export type GetStructureFromLayoutSchema<S> = Structure<any, any, S>;
+export type GetStructureFromLayoutSchema<S extends { [key: string]: any } = any> = Structure<any, any, S>;
 
-export class Union<Schema> extends _Union<Schema> {
+export class Union<Schema extends { [key: string]: any } = any> extends _Union<Schema> {
   encodeInstruction(instruction: any): Buffer {
     const instructionMaxSpan = Math.max(...Object.values(this.registry).map((r) => r.span));
     const b = Buffer.alloc(instructionMaxSpan);
