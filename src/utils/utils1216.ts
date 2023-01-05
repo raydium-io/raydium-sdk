@@ -132,12 +132,6 @@ export class Utils1216 extends Base {
       const itemPoolInfo = this.POOL_LAYOUT.decode(itemPoolInfoS.data)
       const itemOwnerInfo = this.OWNER_LAYOUT.decode(itemOwnerInfoS.data)
 
-      console.log(itemPoolInfo)
-      console.log(itemOwnerInfo.tokenInfo.map(i => ({
-        mintAddress: i.mintAddress.toString(),
-        debtAmount: i.debtAmount.toString()
-      })))
-
       const openTime = itemPoolInfo.openTime.toNumber()
       const endTime = itemPoolInfo.endTime.toNumber()
 
