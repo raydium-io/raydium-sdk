@@ -157,7 +157,7 @@ export function closePositionInstruction(
     { pubkey: positionNftOwner, isSigner: true, isWritable: true },
     { pubkey: positionNftMint, isSigner: false, isWritable: true },
     { pubkey: positionNftAccount, isSigner: false, isWritable: true },
-    { pubkey: personalPosition, isSigner: false, isWritable: false },
+    { pubkey: personalPosition, isSigner: false, isWritable: true },
 
     { pubkey: SYSTEM_PROGRAM_ID, isSigner: false, isWritable: false },
     { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
