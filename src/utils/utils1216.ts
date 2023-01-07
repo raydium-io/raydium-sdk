@@ -1,9 +1,8 @@
-import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { Connection, PublicKey, Signer, Transaction, TransactionInstruction } from "@solana/web3.js";
 import BN from "bn.js";
 
 import { Base, TokenAccount } from "../base";
-import { findProgramAddress, forecastTransactionSize, getMultipleAccountsInfo } from "../common";
+import { findProgramAddress, forecastTransactionSize, getMultipleAccountsInfo, TOKEN_PROGRAM_ID } from "../common";
 import { Token } from "../entity";
 import { blob, publicKey, seq, struct, u64, u8 } from "../marshmallow";
 
