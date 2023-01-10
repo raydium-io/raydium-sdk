@@ -16,6 +16,8 @@ export interface SHOW_INFO {
   openTime: number,
   endTime: number,
 
+  project: (typeof Utils1216.VERSION_PROJECT)[number],
+
   canClaim: boolean,
   canClaimErrorType: canClaimErrorType
 
@@ -85,6 +87,8 @@ export class Utils1216 extends Base {
     }
   }
 
+  static VERSION_PROJECT = [undefined, 'Francuium', 'Tulip'] as const
+
   // pda
   static getPdaPoolId(programId: PublicKey, ammId: PublicKey) {
     return findProgramAddress([this.SEED_CONFIG.pool.id, ammId.toBuffer()], programId);
@@ -115,12 +119,19 @@ export class Utils1216 extends Base {
     if (poolIds.length === 0) return []
 
     const allPoolPda = poolIds.map(id => this.getPdaPoolId(programId, id).publicKey)
-    const allOwnerPda = allPoolPda.map(id => this.getPdaOwnerId(programId, id, wallet, 0).publicKey)
+
+    const allOwnerPda: PublicKey[] = []
+    for (let itemVersion = 0 ; itemVersion < this.VERSION_PROJECT.length; itemVersion++) {
+      allOwnerPda.push(...allPoolPda.map(id => this.getPdaOwnerId(programId, id, wallet, 0).publicKey))
+    }
 
     const pdaInfo = await getMultipleAccountsInfo(connection, [...allPoolPda, ...allOwnerPda])
 
     const info: SHOW_INFO[] = []
-    for (let i = 0; i < poolIds.length; i++) {
+    for (let index = 0 ; index < pdaInfo.length ; index++) {
+      const version = Math.floor(index / poolIds.length)
+      const i = index % poolIds.length
+
       const itemPoolId = allPoolPda[i]
       const itemOwnerId = allOwnerPda[i]
       const itemPoolInfoS = pdaInfo[i]
@@ -145,6 +156,8 @@ export class Utils1216 extends Base {
         ammId: itemPoolInfo.ammId,
         ownerAccountId: itemOwnerId,
         snapshotLpAmount: itemOwnerInfo.lpAmount,
+
+        project: this.VERSION_PROJECT[version],
 
         openTime,
         endTime,
