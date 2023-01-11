@@ -122,7 +122,7 @@ export class Utils1216 extends Base {
 
     const allOwnerPda: PublicKey[] = []
     for (let itemVersion = 0 ; itemVersion < this.VERSION_PROJECT.length; itemVersion++) {
-      allOwnerPda.push(...allPoolPda.map(id => this.getPdaOwnerId(programId, id, wallet, 0).publicKey))
+      allOwnerPda.push(...allPoolPda.map(id => this.getPdaOwnerId(programId, id, wallet, itemVersion).publicKey))
     }
 
     const pdaInfo = await getMultipleAccountsInfo(connection, [...allPoolPda, ...allOwnerPda])
@@ -133,9 +133,9 @@ export class Utils1216 extends Base {
       const i = index % poolIds.length
 
       const itemPoolId = allPoolPda[i]
-      const itemOwnerId = allOwnerPda[i]
+      const itemOwnerId = allOwnerPda[index]
       const itemPoolInfoS = pdaInfo[i]
-      const itemOwnerInfoS = pdaInfo[poolIds.length + i]
+      const itemOwnerInfoS = pdaInfo[poolIds.length + index]
       if (!(itemPoolInfoS && itemOwnerInfoS)) continue
       if (itemPoolInfoS.data.length !== this.POOL_LAYOUT.span || itemOwnerInfoS.data.length !== this.OWNER_LAYOUT.span) continue
 
