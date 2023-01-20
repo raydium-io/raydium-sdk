@@ -87,7 +87,7 @@ export class Utils1216 extends Base {
     }
   }
 
-  static VERSION_PROJECT = [undefined, 'Francuium', 'Tulip'] as const
+  static VERSION_PROJECT = [undefined, 'Francium', 'Tulip'] as const
 
   // pda
   static getPdaPoolId(programId: PublicKey, ammId: PublicKey) {
