@@ -329,6 +329,15 @@ export interface ReturnTypeComputeAmountOut {
   fee: BN,
   remainingAccounts: PublicKey[]
 }
+export interface ReturnTypeComputeAmountOutBaseOut {
+  amountIn: BN,
+  maxAmountIn: BN,
+  currentPrice: Decimal,
+  executionPrice: Decimal,
+  priceImpact: Percent,
+  fee: BN,
+  remainingAccounts: PublicKey[]
+}
 export interface ReturnTypeFetchMultiplePoolInfos {
   [id: string]: {
     state: AmmV3PoolInfo;
@@ -363,7 +372,7 @@ export class AmmV3 extends Base {
     const initialPriceX64 = SqrtPriceMath.priceToSqrtPriceX64(initPrice, mintA.decimals, mintB.decimals);
 
     const transaction = new Transaction()
-    transaction.add(addComputations())
+    transaction.add(...addComputations())
 
     const insInfo = await this.makeCreatePoolInstructions({
       connection,
@@ -524,7 +533,7 @@ export class AmmV3 extends Base {
     );
 
     const transaction = new Transaction()
-    transaction.add(addComputations())
+    transaction.add(...addComputations())
 
     const insInfo = this.makeOpenPositionInstructions({
       poolInfo,
@@ -637,7 +646,7 @@ export class AmmV3 extends Base {
     );
 
     const transaction = new Transaction()
-    transaction.add(addComputations())
+    transaction.add(...addComputations())
 
     const insInfo = this.makeIncreaseLiquidityInstructions({
       poolInfo,
@@ -775,7 +784,7 @@ export class AmmV3 extends Base {
     );
 
     const transaction = new Transaction()
-    transaction.add(addComputations())
+    transaction.add(...addComputations())
 
     const insInfo = this.makeDecreaseLiquidityInstructions({
       poolInfo,
@@ -911,7 +920,7 @@ export class AmmV3 extends Base {
     );
 
     const transaction = new Transaction()
-    transaction.add(addComputations())
+    transaction.add(...addComputations())
 
     const insInfo = this.makeSwapBaseInInstructions({
       poolInfo,
@@ -925,6 +934,139 @@ export class AmmV3 extends Base {
 
       amountIn,
       amountOutMin,
+      sqrtPriceLimitX64,
+
+      remainingAccounts,
+    })
+
+    transaction.add(...frontInstructions, ...insInfo.instructions, ...endInstructions)
+
+    return {
+      signers: [...signers, ...insInfo.signers],
+      transaction,
+      address: { ...insInfo.address }
+    }
+  }
+
+  static async makeSwapBaseOutTransaction({
+    connection,
+    poolInfo,
+    ownerInfo,
+
+    outputMint,
+    amountOut,
+    amountInMax,
+    priceLimit,
+
+    remainingAccounts
+  }: {
+    connection: Connection
+    poolInfo: AmmV3PoolInfo,
+    ownerInfo: {
+      feePayer: PublicKey,
+      wallet: PublicKey,
+      tokenAccounts: TokenAccount[],
+      useSOLBalance?: boolean  // if has WSOL mint
+    },
+
+    outputMint: PublicKey,
+    amountOut: BN,
+    amountInMax: BN,
+    priceLimit?: Decimal
+
+    remainingAccounts: PublicKey[]
+  }): Promise<ReturnTypeMakeTransaction> {
+    const frontInstructions: TransactionInstruction[] = [];
+    const endInstructions: TransactionInstruction[] = [];
+
+    const signers: Signer[] = []
+
+    let sqrtPriceLimitX64: BN;
+    if (!priceLimit || priceLimit.equals(new Decimal(0))) {
+      sqrtPriceLimitX64 = outputMint.equals(poolInfo.mintB.mint)
+        ? MIN_SQRT_PRICE_X64.add(ONE)
+        : MAX_SQRT_PRICE_X64.sub(ONE);
+    } else {
+      sqrtPriceLimitX64 = SqrtPriceMath.priceToSqrtPriceX64(
+        priceLimit,
+        poolInfo.mintA.decimals,
+        poolInfo.mintB.decimals
+      );
+    }
+
+    const isInputMintA = poolInfo.mintA.mint.equals(outputMint)
+
+    let ownerTokenAccountA: PublicKey | null
+    let ownerTokenAccountB: PublicKey | null
+    if (poolInfo.mintA.mint.equals(new PublicKey(WSOL.mint)) && ownerInfo.useSOLBalance) {
+      // mintA
+      ownerTokenAccountA = await this._handleTokenAccount({
+        connection,
+        side: "in",
+        amount: isInputMintA ? amountInMax : 0,
+        mint: poolInfo.mintA.mint,
+        tokenAccount: null,
+        owner: ownerInfo.wallet,
+        payer: ownerInfo.feePayer,
+        frontInstructions,
+        endInstructions,
+        signers,
+        bypassAssociatedCheck: true
+      })
+    } else {
+      ownerTokenAccountA = this._selectTokenAccount({
+        tokenAccounts: ownerInfo.tokenAccounts,
+        mint: poolInfo.mintA.mint,
+        owner: ownerInfo.wallet,
+        config: { associatedOnly: false },
+      })
+    }
+    if (poolInfo.mintB.mint.equals(new PublicKey(WSOL.mint)) && ownerInfo.useSOLBalance) {
+      // mintB
+      ownerTokenAccountB = await this._handleTokenAccount({
+        connection,
+        side: "in",
+        amount: !isInputMintA ? amountInMax : 0,
+        mint: poolInfo.mintB.mint,
+        tokenAccount: null,
+        owner: ownerInfo.wallet,
+        payer: ownerInfo.feePayer,
+        frontInstructions,
+        endInstructions,
+        signers,
+        bypassAssociatedCheck: true
+      })
+    } else {
+      ownerTokenAccountB = this._selectTokenAccount({
+        tokenAccounts: ownerInfo.tokenAccounts,
+        mint: poolInfo.mintB.mint,
+        owner: ownerInfo.wallet,
+        config: { associatedOnly: false },
+      })
+    }
+
+    logger.assertArgument(
+      !!ownerTokenAccountA || !!ownerTokenAccountB,
+      "cannot found target token accounts",
+      "tokenAccounts",
+      ownerInfo.tokenAccounts,
+    );
+
+    const transaction = new Transaction()
+    transaction.add(...addComputations())
+
+    const insInfo = this.makeSwapBaseOutInstructions({
+      poolInfo,
+      ownerInfo: {
+        wallet: ownerInfo.wallet,
+        tokenAccountA: ownerTokenAccountA!,
+        tokenAccountB: ownerTokenAccountB!
+      },
+
+      outputMint,
+
+      amountOut,
+      amountInMax,
       sqrtPriceLimitX64,
 
       remainingAccounts,
@@ -1023,7 +1165,7 @@ export class AmmV3 extends Base {
     );
 
     const transaction = new Transaction()
-    transaction.add(addComputations())
+    transaction.add(...addComputations())
 
     const insInfo = this.makeInitRewardInstructions({
       poolInfo,
@@ -1075,7 +1217,7 @@ export class AmmV3 extends Base {
     for (const rewardInfo of rewardInfos) logger.assertArgument(rewardInfo.endTime > rewardInfo.openTime, "reward time error", "rewardInfo", rewardInfo,);
 
     const transaction = new Transaction()
-    transaction.add(addComputations())
+    transaction.add(...addComputations())
 
     const frontInstructions: TransactionInstruction[] = [];
     const endInstructions: TransactionInstruction[] = [];
@@ -1198,7 +1340,7 @@ export class AmmV3 extends Base {
     );
 
     const transaction = new Transaction()
-    transaction.add(addComputations())
+    transaction.add(...addComputations())
 
     const insInfo = this.makeSetRewardInstructions({
       poolInfo,
@@ -1254,7 +1396,7 @@ export class AmmV3 extends Base {
     const signers: Signer[] = []
 
     const transaction = new Transaction()
-    transaction.add(addComputations())
+    transaction.add(...addComputations())
 
     for (const rewardInfo of rewardInfos) {
       logger.assertArgument(
@@ -1366,7 +1508,7 @@ export class AmmV3 extends Base {
     );
 
     const transaction = new Transaction()
-    transaction.add(addComputations())
+    transaction.add(...addComputations())
 
     const insInfo = this.makeCollectRewardInstructions({
       poolInfo,
@@ -1411,7 +1553,7 @@ export class AmmV3 extends Base {
     const iInstructions: TransactionInstruction[] = [];
 
     const transaction = new Transaction()
-    transaction.add(addComputations())
+    transaction.add(...addComputations())
 
     const signers: Signer[] = []
 
@@ -1929,6 +2071,53 @@ export class AmmV3 extends Base {
       address: {},
     };
   }
+  
+  static makeSwapBaseOutInstructions({ poolInfo, ownerInfo, outputMint, amountOut, amountInMax, sqrtPriceLimitX64, remainingAccounts }: {
+    poolInfo: AmmV3PoolInfo,
+
+    ownerInfo: {
+      wallet: PublicKey,
+      tokenAccountA: PublicKey
+      tokenAccountB: PublicKey
+    },
+
+    outputMint: PublicKey
+
+    amountOut: BN
+    amountInMax: BN
+    sqrtPriceLimitX64: BN
+
+    remainingAccounts: PublicKey[]
+  }): ReturnTypeMakeInstructions {
+    const isInputMintA = poolInfo.mintA.mint.equals(outputMint)
+    const ins = [
+      swapInstruction(
+        poolInfo.programId,
+        ownerInfo.wallet,
+
+        poolInfo.id,
+        poolInfo.ammConfig.id,
+
+        isInputMintA ? ownerInfo.tokenAccountB : ownerInfo.tokenAccountA,
+        isInputMintA ? ownerInfo.tokenAccountA : ownerInfo.tokenAccountB,
+
+        isInputMintA ? poolInfo.mintB.vault : poolInfo.mintA.vault,
+        isInputMintA ? poolInfo.mintA.vault : poolInfo.mintB.vault,
+
+        remainingAccounts,
+        poolInfo.observationId,
+        amountOut,
+        amountInMax,
+        sqrtPriceLimitX64,
+        false
+      ),
+    ];
+    return {
+      signers: [],
+      instructions: ins,
+      address: {},
+    };
+  }
 
   static makeInitRewardInstructions({
     poolInfo, ownerInfo, rewardInfo
@@ -2221,6 +2410,61 @@ export class AmmV3 extends Base {
     return {
       amountOut: expectedAmountOut,
       minAmountOut,
+      currentPrice: poolInfo.currentPrice,
+      executionPrice,
+      priceImpact,
+      fee: feeAmount,
+
+      remainingAccounts
+    }
+  }
+
+  static computeAmountIn(
+    { poolInfo, tickArrayCache, baseMint, amountOut, slippage, priceLimit = new Decimal(0) }: {
+      poolInfo: AmmV3PoolInfo,
+      tickArrayCache: { [key: string]: TickArray; },
+      baseMint: PublicKey,
+
+      amountOut: BN,
+      slippage: number,
+      priceLimit?: Decimal
+    }
+  ): ReturnTypeComputeAmountOutBaseOut {
+    let sqrtPriceLimitX64: BN;
+    if (priceLimit.equals(new Decimal(0))) {
+      sqrtPriceLimitX64 = baseMint.equals(poolInfo.mintB.mint)
+        ? MIN_SQRT_PRICE_X64.add(ONE)
+        : MAX_SQRT_PRICE_X64.sub(ONE);
+    } else {
+      sqrtPriceLimitX64 = SqrtPriceMath.priceToSqrtPriceX64(
+        priceLimit,
+        poolInfo.mintA.decimals,
+        poolInfo.mintB.decimals
+      );
+    }
+
+    const { expectedAmountIn, remainingAccounts, executionPrice: _executionPriceX64, feeAmount } = PoolUtils.getInputAmountAndRemainAccounts(
+      poolInfo,
+      tickArrayCache,
+      baseMint,
+      amountOut,
+      sqrtPriceLimitX64
+    );
+
+    const _executionPrice = SqrtPriceMath.sqrtPriceX64ToPrice(_executionPriceX64, poolInfo.mintA.decimals, poolInfo.mintB.decimals)
+    const executionPrice = baseMint.equals(poolInfo.mintA.mint) ? _executionPrice : new Decimal(1).div(_executionPrice)
+
+    const maxAmountIn = expectedAmountIn.mul(new BN(Math.floor((1 + slippage) * 10000000000))).div(new BN(10000000000));
+
+    const poolPrice = poolInfo.mintA.mint.equals(baseMint) ? poolInfo.currentPrice : new Decimal(1).div(poolInfo.currentPrice)
+    const priceImpact = new Percent(
+      parseInt(String(Math.abs(parseFloat(executionPrice.toFixed()) - parseFloat(poolPrice.toFixed())) * 1e9)),
+      parseInt(String(parseFloat(poolPrice.toFixed()) * 1e9)),
+    );
+
+    return {
+      amountIn: expectedAmountIn,
+      maxAmountIn,
       currentPrice: poolInfo.currentPrice,
       executionPrice,
       priceImpact,
