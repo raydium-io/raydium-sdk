@@ -2406,8 +2406,8 @@ export class AmmV3 extends Base {
     const _numerator = new Decimal(executionPrice).sub(poolPrice).abs()
     const _denominator = poolPrice
     const priceImpact = new Percent(
-      new Decimal(_numerator).mul(10 ** 9).toString(),
-      new Decimal(_denominator).mul(10 ** 9).toString(),
+      new Decimal(_numerator).mul(10 ** 15).toFixed(0),
+      new Decimal(_denominator).mul(10 ** 15).toFixed(0),
     );
 
     return {
@@ -2464,8 +2464,8 @@ export class AmmV3 extends Base {
     const _numerator = new Decimal(executionPrice).sub(poolPrice).abs()
     const _denominator = poolPrice
     const priceImpact = new Percent(
-      new Decimal(_numerator).mul(10 ** 9).toString(),
-      new Decimal(_denominator).mul(10 ** 9).toString(),
+      new Decimal(_numerator).mul(10 ** 15).toFixed(0),
+      new Decimal(_denominator).mul(10 ** 15).toFixed(0),
     );
 
     return {
