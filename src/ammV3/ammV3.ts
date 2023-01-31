@@ -2402,9 +2402,12 @@ export class AmmV3 extends Base {
     const minAmountOut = expectedAmountOut.mul(new BN(Math.floor((1 - slippage) * 10000000000))).div(new BN(10000000000));
 
     const poolPrice = poolInfo.mintA.mint.equals(baseMint) ? poolInfo.currentPrice : new Decimal(1).div(poolInfo.currentPrice)
+
+    const _numerator = new Decimal(executionPrice).sub(poolPrice).abs()
+    const _denominator = poolPrice
     const priceImpact = new Percent(
-      parseInt(String(Math.abs(parseFloat(executionPrice.toFixed()) - parseFloat(poolPrice.toFixed())) * 1e9)),
-      parseInt(String(parseFloat(poolPrice.toFixed()) * 1e9)),
+      new Decimal(_numerator).mul(10 ** 9).toString(),
+      new Decimal(_denominator).mul(10 ** 9).toString(),
     );
 
     return {
@@ -2457,9 +2460,12 @@ export class AmmV3 extends Base {
     const maxAmountIn = expectedAmountIn.mul(new BN(Math.floor((1 + slippage) * 10000000000))).div(new BN(10000000000));
 
     const poolPrice = poolInfo.mintA.mint.equals(baseMint) ? poolInfo.currentPrice : new Decimal(1).div(poolInfo.currentPrice)
+
+    const _numerator = new Decimal(executionPrice).sub(poolPrice).abs()
+    const _denominator = poolPrice
     const priceImpact = new Percent(
-      parseInt(String(Math.abs(parseFloat(executionPrice.toFixed()) - parseFloat(poolPrice.toFixed())) * 1e9)),
-      parseInt(String(parseFloat(poolPrice.toFixed()) * 1e9)),
+      new Decimal(_numerator).mul(10 ** 9).toString(),
+      new Decimal(_denominator).mul(10 ** 9).toString(),
     );
 
     return {
