@@ -2648,7 +2648,7 @@ export class AmmV3 extends Base {
     }
 
     if (ownerInfo) {
-      const allMint = ownerInfo.tokenAccounts.map(i => i.accountInfo.mint)
+      const allMint = ownerInfo.tokenAccounts.filter(i => i.accountInfo.amount.eq(new BN(1))).map(i => i.accountInfo.mint)
       const allPositionKey: PublicKey[] = []
       for (const itemMint of allMint) {
         for (const itemProgramId of programIds) {
