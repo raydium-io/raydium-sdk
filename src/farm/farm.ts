@@ -1866,7 +1866,7 @@ export class Farm extends Base {
 
     const { lpVault, wrapped, apiPoolInfo } = fetchPoolInfo
 
-    if (wrapped === undefined || wrapped.pendingRewards.find(i => i.gt(ZERO)) === undefined) throw Error('pending reward = 0')
+    if (wrapped === undefined) throw Error('no lp')
 
     const lpMint = lpVault.mint
     const lpMintUseSOLBalance = ownerInfo.useSOLBalance && lpMint.equals(Token.WSOL.mint)
