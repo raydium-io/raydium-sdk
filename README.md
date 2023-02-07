@@ -74,8 +74,8 @@ const OPENBOOK_PROGRAM_ID = new PublicKey(
 );
 
 export async function parsePoolInfo() {
-  const connection = new Connection({mainnect rpc node}, "confirmed");
-  const owner = new PublicKey("FQXYQXaNkc8K469KkU3nsQzNFfPo3woX726MrCG9EXum");
+  const connection = new Connection({mainnet rpc node}, "confirmed");
+  const owner = new PublicKey("VnxDzsZ7chE88e9rB6UKztCt2HUwrkgCTx8WieWf5mM");
 
   const tokenAccounts = await getTokenAccounts(connection, owner);
 
@@ -149,6 +149,283 @@ parsePoolInfo();
 **_Includes all pubkeys that build transaction need_**
 
 - https://api.raydium.io/v2/sdk/farm/mainnet.json
+
+#### Example of parse farm info
+
+```
+import { Connection, PublicKey } from "@solana/web3.js";
+import { Farm } from "@raydium-io/raydium-sdk";
+import {
+  JsonPairItemInfo,
+  FarmPoolsJsonFile,
+  FarmPoolJsonInfo,
+  TokenInfo,
+} from "./types";
+import axios from "axios";
+import Decimal from "decimal.js";
+
+// raydium farm id can get from api: https://api.raydium.io/v2/sdk/farm-v2/mainnet.json
+const SOL_USDC_FARM_ID = "GUzaohfNuFbBqQTnPgPSNciv3aUvriXYjQduRE3ZkqFw";
+
+export async function demoFarm() {
+  const connection = new Connection({mainnet rpc node}, "confirmed");
+  const owner = new PublicKey("VnxDzsZ7chE88e9rB6UKztCt2HUwrkgCTx8WieWf5mM");
+
+  console.log("fetching farms");
+  const { data: farmData } = await axios.get<FarmPoolsJsonFile>(
+    "https://api.raydium.io/v2/sdk/farm-v2/mainnet.json"
+  );
+
+  console.log("fetching pairs");
+  const { data: pairData } = await axios.get<JsonPairItemInfo[]>(
+    "https://api.raydium.io/v2/main/pairs"
+  );
+
+  const pairApr = Object.fromEntries(
+    pairData.map((i) => [
+      i.ammId,
+      { apr30d: i.apr30d, apr7d: i.apr7d, apr24h: i.apr24h },
+    ])
+  );
+
+  console.log("fetching liquidity");
+  const { data: liquidityData } = await axios.get<{
+    official: any[];
+    unOfficial: any[];
+  }>("https://api.raydium.io/v2/sdk/liquidity/mainnet.json");
+
+  const allLiquidity = [...liquidityData.official, ...liquidityData.unOfficial];
+
+  console.log("fetching token data");
+  const { data: tokenData } = await axios.get<{
+    official: TokenInfo[];
+    unOfficial: TokenInfo[];
+  }>("https://api.raydium.io/v2/sdk/token/raydium.mainnet.json");
+
+  const allToken: Map<string, TokenInfo> = [
+    ...tokenData.official,
+    ...tokenData.unOfficial,
+  ].reduce((acc, cur) => {
+    acc.set(cur.mint, cur);
+    return acc;
+  }, new Map());
+
+  console.log("fetching token prices");
+  const { data: tokenPrices } = await axios.get<{ [key: string]: number }>(
+    "https://api.raydium.io/v2/main/price"
+  );
+
+  console.log("fetching chain time");
+  const { data: chainTimeData } = await axios.get<{
+    chainTime: number;
+    offset: number;
+  }>("https://api.raydium.io/v2/sdk/token/raydium.mainnet.json");
+
+  const currentBlockChainDate =
+    chainTimeData.chainTime * 1000 + chainTimeData.offset * 1000;
+
+  const allFarms: FarmPoolJsonInfo[] = Object.keys(farmData).reduce(
+    // @ts-ignore
+    (acc, cur) => [...acc.concat(farmData[cur])],
+    []
+  );
+
+  const farmInfo = allFarms.find((farm) => farm.id === SOL_USDC_FARM_ID)!;
+  const pairInfo = pairData.find((p) => p.lpMint === farmInfo.lpMint)!;
+  const liquidityInfo = allLiquidity.find((p) => p.lpMint === farmInfo.lpMint)!;
+
+  const farmInfoWithKeys = {
+    ...farmInfo,
+    id: new PublicKey(farmInfo.id),
+    programId: new PublicKey(farmInfo.programId),
+    baseMint: new PublicKey(farmInfo.baseMint),
+    quoteMint: new PublicKey(farmInfo.quoteMint),
+    lpMint: new PublicKey(farmInfo.lpMint),
+    authority: new PublicKey(farmInfo.authority),
+    lpVault: new PublicKey(farmInfo.lpVault),
+    rewardInfos: farmInfo.rewardInfos.map((r) => ({
+      ...r,
+      rewardMint: new PublicKey(r.rewardMint),
+      rewardVault: new PublicKey(r.rewardVault),
+    })),
+  };
+
+  console.log("decode farm data");
+  const parsedFarmInfo = (
+    await Farm.fetchMultipleInfoAndUpdate({
+      connection,
+      pools: [farmInfoWithKeys],
+      owner,
+      config: { commitment: "confirmed" },
+    })
+  )[SOL_USDC_FARM_ID];
+
+  const tvl = new Decimal(parsedFarmInfo.lpVault.amount.toString())
+    .div(10 ** liquidityInfo.lpDecimals)
+    .mul(pairInfo.lpPrice || 0);
+
+  const samples = await connection.getRecentPerformanceSamples(4);
+  const slotList = samples.map((item) => item.numSlots);
+  const blockSlotCountForSecond =
+    slotList.reduce((a, b) => a + b, 0) / slotList.length / 60;
+
+  const rewardsApr = parsedFarmInfo.state.rewardInfos.map((r: any, idx) => {
+    if (farmInfo.version === 6) {
+      const { rewardPerSecond, rewardOpenTime, rewardEndTime, rewardMint } = r;
+      const isRewardBeforeStart =
+        rewardOpenTime.toNumber() * 1000 < currentBlockChainDate;
+      const isRewardAfterEnd =
+        rewardEndTime.toNumber() * 1000 > currentBlockChainDate;
+      if (isRewardBeforeStart || isRewardAfterEnd) return 0;
+
+      if (!rewardMint) return 0;
+      const rewardPrice = tokenPrices[rewardMint.toString()] || 0;
+      if (!rewardPrice) return 0;
+      const rewardToken = allToken.get(rewardMint.toString())!;
+      if (!rewardToken) return 0;
+
+      const reward = new Decimal(rewardPerSecond.toString())
+        .div(10 ** rewardToken.decimals)
+        .mul(60 * 60 * 24 * 365)
+        .mul(rewardPrice);
+
+      const tvl = new Decimal(parsedFarmInfo.lpVault.amount.toString())
+        .div(10 ** liquidityInfo.lpDecimals)
+        .mul(pairInfo.lpPrice || 0);
+
+      const apr = reward.div(tvl);
+
+      return apr.toNumber();
+    }
+
+    const rewardMint = farmInfo.rewardInfos[idx].rewardMint;
+    const rewardPrice = tokenPrices[rewardMint] || 0;
+    const rewardToken = allToken.get(rewardMint)!;
+    const reward = new Decimal(r.perSlotReward.toString())
+      .div(10 ** rewardToken.decimals)
+      .mul(blockSlotCountForSecond * 60 * 60 * 24 * 365)
+      .mul(rewardPrice);
+
+    const apr = reward.div(tvl);
+
+    return apr.toNumber();
+  });
+
+  const totalApr24h = new Decimal(rewardsApr.reduce((acc, cur) => acc + cur, 0))
+    .mul(100)
+    .add(pairApr[liquidityInfo.id].apr24h);
+
+  const userDeposited = new Decimal(
+    parsedFarmInfo.ledger?.deposited.toString() || 0
+  ).div(10 ** liquidityInfo.lpDecimals);
+
+  console.log({
+    userDeposited: userDeposited.toString(),
+    tvl: tvl.toString(),
+    totalApr24h: totalApr24h.toString(),
+    rewards: rewardsApr
+      .filter((apr) => apr > 0)
+      .map((apr, idx) => ({
+        apr: apr * 100 + "%",
+        rewardToken: allToken.get(
+          farmInfo.rewardInfos[idx].rewardMint ||
+            // @ts-ignore
+            parsedFarmInfo.state.rewardInfos[idx].rewardMint.toString()
+        )!.symbol,
+      })),
+  });
+}
+
+demoFarm();
+```
+
+##### types
+```
+export interface JsonPairItemInfo {
+  ammId: string;
+  apr24h: number;
+  apr7d: number;
+  apr30d: number;
+  fee7d: number;
+  fee7dQuote: number;
+  fee24h: number;
+  fee24hQuote: number;
+  fee30d: number;
+  fee30dQuote: number;
+  liquidity: number;
+  lpMint: string;
+  lpPrice: number | null;
+  market: string;
+  name: string;
+  official: boolean;
+  price: number;
+  tokenAmountCoin: number;
+  tokenAmountLp: number;
+  tokenAmountPc: number;
+  volume7d: number;
+  volume7dQuote: number;
+  volume24h: number;
+  volume24hQuote: number;
+  volume30d: number;
+  volume30dQuote: number;
+}
+
+export interface APIRewardInfo {
+  rewardMint: string;
+  rewardVault: string;
+  rewardOpenTime: number;
+  rewardEndTime: number;
+  rewardPerSecond: string | number;
+  rewardSender?: string;
+  rewardType: "Standard SPL" | "Option tokens";
+}
+
+export interface FarmPoolJsonInfo {
+  id: string;
+  lpMint: string;
+  lpVault: string;
+
+  baseMint: string;
+  quoteMint: string;
+  name: string;
+
+  version: number;
+  programId: string;
+
+  authority: string;
+  creator?: string;
+  rewardInfos: APIRewardInfo[];
+  upcoming: boolean;
+
+  rewardPeriodMin?: number; // v6 '7-90 days's     7 * 24 * 60 * 60 seconds
+  rewardPeriodMax?: number; // v6 '7-90 days's     90 * 24 * 60 * 60 seconds
+  rewardPeriodExtend?: number; // v6 'end before 72h's    72 * 60 * 60 seconds
+
+  local: boolean; // only if it is in localstorage(create just by user)
+  category: "stake" | "raydium" | "fusion" | "ecosystem"; // add by UI for unify the interface
+}
+
+export type FarmPoolsJsonFile = {
+  name: string;
+  version: unknown;
+  stake: Omit<FarmPoolJsonInfo, "category">[];
+  raydium: Omit<FarmPoolJsonInfo, "category">[];
+  fusion: Omit<FarmPoolJsonInfo, "category">[];
+  ecosystem: Omit<FarmPoolJsonInfo, "category">[];
+};
+
+export interface TokenInfo {
+  symbol: string;
+  name: string;
+  mint: string;
+  decimals: number;
+  extensions: {
+    coingeckoId?: string;
+  };
+  icon: string;
+  hasFreeze: number;
+}
+```
 
 ## Program IDs
 
