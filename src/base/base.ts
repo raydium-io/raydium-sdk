@@ -6,6 +6,8 @@ import {
 import { BigNumberish, Token } from "../entity";
 import { Spl, SplAccount } from "../spl";
 
+import { InstructionType } from "./type";
+
 export interface TokenAccount {
   pubkey: PublicKey;
   accountInfo: SplAccount;
@@ -28,6 +30,8 @@ export interface HandleTokenAccountParams {
   payer?: PublicKey;
   frontInstructions: TransactionInstruction[];
   endInstructions?: TransactionInstruction[];
+  frontInstructionsType: InstructionType[];
+  endInstructionsType?: InstructionType[];
   signers: Signer[];
   bypassAssociatedCheck: boolean;
 }
@@ -46,6 +50,9 @@ export interface SelectOrCreateTokenAccountParams {
     frontInstructions: TransactionInstruction[];
     endInstructions?: TransactionInstruction[];
     signers: Signer[];
+
+    frontInstructionsType: InstructionType[];
+    endInstructionsType?: InstructionType[];
   }
 
   associatedOnly: boolean
@@ -103,22 +110,25 @@ export class Base {
       endInstructions,
       signers,
       bypassAssociatedCheck,
+      frontInstructionsType,
+      endInstructionsType,
     } = params;
 
     const ata = Spl.getAssociatedTokenAccount({ mint, owner });
 
     if (Token.WSOL.mint.equals(mint)) {
-      const newTokenAccount = await Spl.insertCreateWrappedNativeAccountInstructions({
+      const newTokenAccount = await Spl.insertCreateWrappedNativeAccount({
         connection,
         owner,
         payer,
         instructions: frontInstructions,
+        instructionsType: frontInstructionsType,
         signers,
         amount,
       });
       // if no endInstructions provide, no need to close
       if (endInstructions) {
-        endInstructions.push(Spl.makeCloseAccountInstruction({ tokenAccount: newTokenAccount, owner, payer }));
+        endInstructions.push(Spl.makeCloseAccountInstruction({ tokenAccount: newTokenAccount, owner, payer, instructionsType: endInstructionsType ?? [] }));
       }
 
       return newTokenAccount;
@@ -129,22 +139,22 @@ export class Base {
           associatedAccount: ata,
           owner,
           payer,
+          instructionsType: frontInstructionsType,
         }),
       );
-
       return ata;
     }
 
     return tokenAccount;
   }
 
-  static async _selectOrCreateTokenAccount(params: SelectOrCreateTokenAccountParams) {
+  static async _selectOrCreateTokenAccount<T extends SelectOrCreateTokenAccountParams>(params: T): Promise<T['createInfo'] extends undefined ? PublicKey | undefined: PublicKey> {
     const { mint, tokenAccounts, createInfo, associatedOnly, owner } = params
     const ata = Spl.getAssociatedTokenAccount({ mint, owner });
     const accounts = tokenAccounts.filter((i) => i.accountInfo.mint.equals(mint) && (!associatedOnly || i.pubkey.equals(ata))).sort((a, b) => (a.accountInfo.amount.lt(b.accountInfo.amount) ? 1 : -1))
     // find token or don't need create
     if (createInfo === undefined || accounts.length > 0) {
-      return accounts.length > 0 ? accounts[0].pubkey : undefined
+      return accounts.length > 0 ? accounts[0].pubkey : undefined as any
     }
 
     if (associatedOnly) {
@@ -154,21 +164,22 @@ export class Base {
           associatedAccount: ata,
           owner,
           payer: createInfo.payer,
+          instructionsType: createInfo.frontInstructionsType,
         }),
       );
 
       if (mint.equals(Token.WSOL.mint)) {
-        const newTokenAccount = await Spl.insertCreateWrappedNativeAccountInstructions({
+        const newTokenAccount = await Spl.insertCreateWrappedNativeAccount({
           connection: createInfo.connection,
           owner,
           payer: createInfo.payer,
           instructions: createInfo.frontInstructions,
+          instructionsType: createInfo.frontInstructionsType,
           signers: createInfo.signers,
           amount: createInfo.amount ?? 0,
         });
-        if (createInfo.endInstructions) {
-          createInfo.endInstructions.push(Spl.makeCloseAccountInstruction({ tokenAccount: newTokenAccount, owner, payer: createInfo.payer }));
-        }
+
+        (createInfo.endInstructions ?? []).push(Spl.makeCloseAccountInstruction({ tokenAccount: newTokenAccount, owner, payer: createInfo.payer, instructionsType: createInfo.endInstructionsType ?? [] }));
 
         if (createInfo.amount) {
           createInfo.frontInstructions.push(
@@ -177,29 +188,27 @@ export class Base {
               destination: ata,
               owner,
               amount: createInfo.amount,
+              instructionsType: createInfo.frontInstructionsType
             })
           )
         }
       }
 
-      if (createInfo.endInstructions) {
-        createInfo.endInstructions.push(Spl.makeCloseAccountInstruction({ tokenAccount: ata, owner, payer: createInfo.payer }));
-      }
+      (createInfo.endInstructions ?? []).push(Spl.makeCloseAccountInstruction({ tokenAccount: ata, owner, payer: createInfo.payer, instructionsType: createInfo.endInstructionsType ?? [] }));
 
       return ata
     } else {
       if (mint.equals(Token.WSOL.mint)) {
-        const newTokenAccount = await Spl.insertCreateWrappedNativeAccountInstructions({
+        const newTokenAccount = await Spl.insertCreateWrappedNativeAccount({
           connection: createInfo.connection,
           owner,
           payer: createInfo.payer,
           instructions: createInfo.frontInstructions,
+          instructionsType: createInfo.frontInstructionsType,
           signers: createInfo.signers,
           amount: createInfo.amount ?? 0,
         });
-        if (createInfo.endInstructions) {
-          createInfo.endInstructions.push(Spl.makeCloseAccountInstruction({ tokenAccount: newTokenAccount, owner, payer: createInfo.payer }));
-        }
+        (createInfo.endInstructions ?? []).push(Spl.makeCloseAccountInstruction({ tokenAccount: newTokenAccount, owner, payer: createInfo.payer , instructionsType: createInfo.endInstructionsType ?? []}));
         return newTokenAccount
       } else {
         const newTokenAccount = Keypair.generate()
@@ -220,10 +229,9 @@ export class Base {
           owner,
         )
         createInfo.frontInstructions.push(createAccountIns, initAccountIns)
-        createInfo.signers.push(newTokenAccount)
-        if (createInfo.endInstructions) {
-          createInfo.endInstructions.push(Spl.makeCloseAccountInstruction({ tokenAccount: newTokenAccount.publicKey, owner, payer: createInfo.payer }))
-        }
+        createInfo.frontInstructionsType.push(InstructionType.createAccount, InstructionType.initAccount)
+        createInfo.signers.push(newTokenAccount);
+        (createInfo.endInstructions ?? []).push(Spl.makeCloseAccountInstruction({ tokenAccount: newTokenAccount.publicKey, owner, payer: createInfo.payer , instructionsType: createInfo.endInstructionsType ?? []}));
         return newTokenAccount.publicKey
       }
     }

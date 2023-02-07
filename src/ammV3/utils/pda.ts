@@ -1,6 +1,6 @@
 import { PublicKey } from "@solana/web3.js";
 
-import { findProgramAddress, METADATA_PROGRAM_ID, TOKEN_PROGRAM_ID } from "../../common";
+import { findProgramAddress, METADATA_PROGRAM_ID } from "../../common";
 
 import { i32ToBytes, u16ToBytes } from "./util";
 
@@ -88,13 +88,6 @@ export function getPdaPersonalPositionAddress(
   return findProgramAddress(
     [POSITION_SEED, nftMint.toBuffer()],
     programId
-  );
-}
-
-export function getATAAddress(owner: PublicKey, mint: PublicKey) {
-  return findProgramAddress(
-    [owner.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), mint.toBuffer()],
-    new PublicKey("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL")
   );
 }
 

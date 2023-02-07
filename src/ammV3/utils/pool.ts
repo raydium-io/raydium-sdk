@@ -46,7 +46,7 @@ export class PoolUtils {
     allNeededAccounts.push(...reaminAccounts);
     return { expectedAmountOut: outputAmount.mul(NEGATIVE_ONE), remainingAccounts: allNeededAccounts, executionPrice, feeAmount };
   }
-
+  
   public static getInputAmountAndRemainAccounts(
     poolInfo: AmmV3PoolInfo,
     tickArrayCache: { [key: string]: TickArray },

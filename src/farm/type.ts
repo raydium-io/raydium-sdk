@@ -22,11 +22,11 @@ export interface FarmPoolJsonInfoV1 {
   readonly lpVault: string;
   readonly rewardVaults: string[];
 }
-interface rewardInfoV3V4V5 {
+interface RewardInfoV3V4V5 {
   readonly rewardMint: string;
   readonly rewardVault: string;
 }
-interface rewardInfoV6 {
+interface RewardInfoV6 {
   readonly rewardMint: string;
   readonly rewardVault: string;
   readonly rewardOpenTime: number;
@@ -43,7 +43,7 @@ export interface FarmPoolJsonInfoV3V4V5 {
   readonly authority: string;
   readonly lpVault: string;
   readonly upcoming: boolean;
-  readonly rewardInfos: rewardInfoV3V4V5[];
+  readonly rewardInfos: RewardInfoV3V4V5[];
 }
 export interface FarmPoolJsonInfoV6 {
   readonly id: string;
@@ -57,7 +57,7 @@ export interface FarmPoolJsonInfoV6 {
   readonly rewardPeriodExtend: number;
   readonly creator: string;
   readonly upcoming: boolean;
-  readonly rewardInfos: rewardInfoV6[];
+  readonly rewardInfos: RewardInfoV6[];
 }
 
 export type FarmPoolJsonInfo = FarmPoolJsonInfoV3V4V5 | FarmPoolJsonInfoV6;

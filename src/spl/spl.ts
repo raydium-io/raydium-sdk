@@ -7,12 +7,11 @@ import {
 } from "@solana/web3.js";
 import BN from "bn.js";
 
-import { getATAAddress } from "../ammV3/utils/pda";
-import {
-  ASSOCIATED_TOKEN_PROGRAM_ID, SYSVAR_RENT_PUBKEY, TOKEN_PROGRAM_ID, validateAndParsePublicKey,
-} from "../common";
+import { InstructionType, MakeInstructionOutType, TxVersion } from "../base";
+import { getATAAddress } from "../base/pda";
+import { SYSVAR_RENT_PUBKEY, TOKEN_PROGRAM_ID, validateAndParsePublicKey } from "../common";
 import { BigNumberish, parseBigNumberish } from "../entity";
-import { u64, u8 } from "../marshmallow";
+import { u8 } from "../marshmallow";
 import { WSOL } from "../token";
 
 import { SPL_ACCOUNT_LAYOUT } from "./layout";
@@ -29,12 +28,15 @@ export class Spl {
     associatedAccount,
     owner,
     payer,
+    instructionsType,
   }: {
     mint: PublicKey;
     associatedAccount: PublicKey;
     owner: PublicKey;
     payer: PublicKey;
+    instructionsType: InstructionType[];
   }) {
+    instructionsType.push(InstructionType.createATA)
     return createAssociatedTokenAccountInstruction(
       payer,
       associatedAccount,
@@ -60,6 +62,7 @@ export class Spl {
     commitment?: Commitment;
   }) {
     const instructions: TransactionInstruction[] = [];
+    const instructionTypes: InstructionType[] = []
 
     // Allocate memory for the account
     // baseRentExemption = getMinimumBalanceForRentExemption size is 0
@@ -80,6 +83,7 @@ export class Spl {
         programId: TOKEN_PROGRAM_ID,
       }),
     );
+    instructionTypes.push(InstructionType.createAccount)
 
     // * merge this instruction into SystemProgram.createAccount
     // * will save transaction size ~17(441-424) bytes
@@ -100,18 +104,30 @@ export class Spl {
         mint: validateAndParsePublicKey(WSOL.mint),
         tokenAccount: newAccount.publicKey,
         owner,
+        instructionTypes,
       }),
     );
+    
 
-    return { newAccount, instructions };
+    return {
+      address: { newAccount: newAccount.publicKey },
+      innerTransaction: {
+        instructions,
+        signers: [newAccount],
+        lookupTableAddress: [],
+        instructionTypes,
+        supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
+      }
+    }
   }
 
-  static async insertCreateWrappedNativeAccountInstructions({
+  static async insertCreateWrappedNativeAccount({
     connection,
     owner,
     payer,
     amount,
     instructions,
+    instructionsType,
     signers,
     commitment,
   }: {
@@ -120,10 +136,11 @@ export class Spl {
     payer: PublicKey;
     amount: BigNumberish;
     instructions: TransactionInstruction[];
+    instructionsType: InstructionType[];
     signers: Signer[];
     commitment?: Commitment;
   }) {
-    const { newAccount, instructions: newInstructions } = await this.makeCreateWrappedNativeAccountInstructions({
+    const ins = await this.makeCreateWrappedNativeAccountInstructions({
       connection,
       owner,
       payer,
@@ -131,10 +148,11 @@ export class Spl {
       commitment,
     });
 
-    instructions.push(...newInstructions);
-    signers.push(newAccount);
+    instructions.push(...ins.innerTransaction.instructions);
+    signers.push(...ins.innerTransaction.signers);
+    instructionsType.push(...ins.innerTransaction.instructionTypes)
 
-    return newAccount.publicKey;
+    return ins.address.newAccount
   }
 
   static makeInitMintInstruction({
@@ -142,12 +160,15 @@ export class Spl {
     decimals,
     mintAuthority,
     freezeAuthority = null,
+    instructionTypes
   }: {
     mint: PublicKey;
     decimals: number;
     mintAuthority: PublicKey;
     freezeAuthority?: PublicKey | null;
+    instructionTypes: InstructionType[];
   }) {
+    instructionTypes.push(InstructionType.initMint)
     return createInitializeMintInstruction(mint, decimals, mintAuthority, freezeAuthority);
   }
 
@@ -157,13 +178,16 @@ export class Spl {
     authority,
     amount,
     multiSigners = [],
+    instructionTypes,
   }: {
     mint: PublicKey;
     dest: PublicKey;
     authority: PublicKey;
     amount: BigNumberish;
     multiSigners?: Signer[];
+    instructionTypes: InstructionType[];
   }) {
+    instructionTypes.push(InstructionType.mintTo)
     return createMintToInstruction(mint, dest, authority, BigInt(String(amount)), multiSigners);
   }
 
@@ -171,11 +195,14 @@ export class Spl {
     mint,
     tokenAccount,
     owner,
+    instructionTypes,
   }: {
     mint: PublicKey;
     tokenAccount: PublicKey;
     owner: PublicKey;
+    instructionTypes: InstructionType[];
   }) {
+    instructionTypes.push(InstructionType.initAccount)
     return createInitializeAccountInstruction(tokenAccount, mint, owner);
   }
 
@@ -185,13 +212,16 @@ export class Spl {
     owner,
     amount,
     multiSigners = [],
+    instructionsType
   }: {
     source: PublicKey;
     destination: PublicKey;
     owner: PublicKey;
     amount: BigNumberish;
     multiSigners?: Signer[];
+    instructionsType: InstructionType[];
   }) {
+    instructionsType.push(InstructionType.transferAmount)
     return createTransferInstruction(
       source,
       destination,
@@ -206,12 +236,15 @@ export class Spl {
     owner,
     payer,
     multiSigners = [],
+    instructionsType
   }: {
     tokenAccount: PublicKey;
     owner: PublicKey;
     payer: PublicKey;
     multiSigners?: Signer[];
+    instructionsType: InstructionType[]
   }) {
+    instructionsType.push(InstructionType.closeAccount)
     return createCloseAccountInstruction(tokenAccount, payer, owner, multiSigners);
   }
 

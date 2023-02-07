@@ -1,4 +1,4 @@
-import { ComputeBudgetProgram, PublicKey, TransactionInstruction } from "@solana/web3.js";
+import { PublicKey, TransactionInstruction } from "@solana/web3.js";
 import BN from "bn.js";
 
 import {
@@ -513,15 +513,4 @@ export function collectRewardInstruction(
     programId,
     data: aData,
   });
-}
-
-export function addComputations() {
-  return [
-    ComputeBudgetProgram.setComputeUnitLimit({
-      units: 1000000
-    }),
-    ComputeBudgetProgram.setComputeUnitPrice({
-      microLamports: 1
-    })
-  ]
 }

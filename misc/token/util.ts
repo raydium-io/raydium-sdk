@@ -5,7 +5,7 @@ import consola from "consola";
 import { getMultipleAccountsInfo } from "../../src/common";
 import { SPL_MINT_LAYOUT } from "../../src/spl";
 
-interface checkTokenListConfig {
+interface CheckTokenListConfig {
   throwError: boolean;
   bypassNullInfo: boolean;
 }
@@ -13,7 +13,7 @@ interface checkTokenListConfig {
 export async function checkTokenList(
   connection: Connection,
   tokenList: { mint: string; decimals: number }[],
-  customConfig?: checkTokenListConfig,
+  customConfig?: CheckTokenListConfig,
 ) {
   const defaultConfig = {
     throwError: false,

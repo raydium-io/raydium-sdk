@@ -1,7 +1,7 @@
-import { Connection, PublicKey, Signer, Transaction, TransactionInstruction } from "@solana/web3.js";
+import { Connection, PublicKey, Signer, TransactionInstruction } from "@solana/web3.js";
 import BN from "bn.js";
 
-import { Base, TokenAccount } from "../base";
+import { Base, InstructionType, MakeInstructionSimpleOutType, TokenAccount, TxVersion } from "../base";
 import { findProgramAddress, forecastTransactionSize, getMultipleAccountsInfo, TOKEN_PROGRAM_ID } from "../common";
 import { Token } from "../entity";
 import { blob, publicKey, seq, struct, u64, u8 } from "../marshmallow";
@@ -178,7 +178,7 @@ export class Utils1216 extends Base {
     return info
   }
 
-  static async makeClaimTransaction({ connection, poolInfo, ownerInfo }: {
+  static async makeClaimInstructionSimple({ connection, poolInfo, ownerInfo }: {
     connection: Connection,
     poolInfo: SHOW_INFO,
     ownerInfo: {
@@ -187,10 +187,12 @@ export class Utils1216 extends Base {
       associatedOnly: boolean
     }
   }) {
-
     const frontInstructions: TransactionInstruction[] = [];
+    const frontInstructionsType: InstructionType[] = [];
     const endInstructions: TransactionInstruction[] = [];
+    const endInstructionsType: InstructionType[] = [];
     const instructions: TransactionInstruction[] = [];
+    const instructionsType: InstructionType[] = [];
 
     const signers: Signer[] = []
 
@@ -208,11 +210,13 @@ export class Utils1216 extends Base {
   
           frontInstructions,
           endInstructions: itemToken.mintAddress.equals(Token.WSOL.mint) ? endInstructions : [],
+          frontInstructionsType,
+          endInstructionsType,
           signers
         },
   
         associatedOnly: itemToken.mintAddress.equals(Token.WSOL.mint) ? false : ownerInfo.associatedOnly
-      }))!)
+      })))
     }
 
     instructions.push(this.makeClaimInstruction({
@@ -224,13 +228,23 @@ export class Utils1216 extends Base {
         claimAddress: ownerVaultList
       }
     }))
+    instructionsType.push(InstructionType.util1216OwnerClaim)
 
-    return [
-      { transaction: new Transaction().add(...frontInstructions, ...instructions, ...endInstructions), signer: signers },
-    ]
+    return {
+      address: {},
+      innerTransactions: [
+        {
+          instructions: [...frontInstructions, ...instructions, ...endInstructions],
+          signers,
+          
+          instructionTypes: [...frontInstructionsType, ...instructionsType, ...endInstructionsType],
+          supportedVersion: [TxVersion.LEGACY, TxVersion.V0],
+        }
+      ]
+    } 
   }
 
-  static async makeClaimAllTransaction({ connection, poolInfos, ownerInfo }: {
+  static async makeClaimAllInstructionSimple({ connection, poolInfos, ownerInfo }: {
     connection: Connection,
     poolInfos: SHOW_INFO[],
     ownerInfo: {
@@ -239,10 +253,12 @@ export class Utils1216 extends Base {
       associatedOnly: boolean
     }
   }) {
-    
     const frontInstructions: TransactionInstruction[] = [];
+    const frontInstructionsType: InstructionType[] = [];
     const endInstructions: TransactionInstruction[] = [];
+    const endInstructionsType: InstructionType[] = [];
     const instructions: TransactionInstruction[] = [];
+    const instructionsType: InstructionType[] = [];
 
     const signers: Signer[] = []
 
@@ -263,6 +279,8 @@ export class Utils1216 extends Base {
     
             frontInstructions,
             endInstructions: itemToken.mintAddress.equals(Token.WSOL.mint) ? endInstructions : [],
+            frontInstructionsType,
+            endInstructionsType,
             signers
           },
     
@@ -281,18 +299,45 @@ export class Utils1216 extends Base {
           claimAddress: ownerVaultList
         }
       }))
+      instructionsType.push(InstructionType.util1216OwnerClaim)
     }
 
     if (forecastTransactionSize([...frontInstructions, ...instructions, ...endInstructions], [ownerInfo.wallet, ...signers.map(i => i.publicKey)])) {
-      return [
-        { transaction: new Transaction().add(...frontInstructions, ...instructions, ...endInstructions), signer: signers },
-      ]
+      return {
+        address: {},
+        innerTransactions: [
+          {
+            instructions: [...frontInstructions, ...instructions, ...endInstructions],
+            signers,
+            instructionTypes: [...frontInstructionsType, ...instructionsType, ...endInstructionsType],
+            supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
+          }
+        ],
+      }
     } else {
-      return [
-        { transaction: new Transaction().add(...frontInstructions), signer: signers },
-        { transaction: new Transaction().add(...instructions), signer: [] },
-        { transaction: new Transaction().add(...endInstructions), signer: [] },
-      ]
+      return {
+        address: {},
+        innerTransactions: [
+          {
+            instructions: frontInstructions,
+            signers,
+            instructionTypes: frontInstructionsType,
+            supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
+          },
+          {
+            instructions,
+            signers: [],
+            instructionTypes: instructionsType,
+            supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
+          },
+          {
+            instructions: endInstructions,
+            signers: [],
+            instructionTypes: endInstructionsType,
+            supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
+          },
+        ],
+      }
     }
   }
 

@@ -1,8 +1,8 @@
 import { createInitializeAccountInstruction } from "@solana/spl-token";
-import { Connection, Keypair, PublicKey, SystemProgram, Transaction, TransactionInstruction } from "@solana/web3.js";
+import { Connection, Keypair, PublicKey, SystemProgram, TransactionInstruction } from "@solana/web3.js";
 import BN from "bn.js";
 
-import { Base } from "../base";
+import { Base, InstructionType, MakeInstructionSimpleOutType, TxVersion } from "../base";
 import { SYSVAR_RENT_PUBKEY, TOKEN_PROGRAM_ID } from "../common";
 import { ZERO } from "../entity";
 import { blob, publicKey, struct, u16, u32, u64, u8, WideBits } from "../marshmallow";
@@ -45,8 +45,7 @@ export const MARKET_STATE_LAYOUT_V2 = struct([
 ]);
 
 export class MarketV2 extends Base {
-
-  static async makeCreateMarketTransaction({
+  static async makeCreateMarketInstructionSimple({
     connection,
     wallet,
     baseInfo,
@@ -103,32 +102,27 @@ export class MarketV2 extends Base {
     if (baseLotSize.eq(ZERO)) throw Error('lot size is too small')
     if (quoteLotSize.eq(ZERO)) throw Error('tick size or lot size is too small')
 
-    return {
-      transactions: await this.makeCreateMarketInstruction({
-        connection, wallet, marketInfo: {
-          programId: dexProgramId,
-          id: market,
-          baseMint: baseInfo.mint,
-          quoteMint: quoteInfo.mint,
-          baseVault,
-          quoteVault,
-          vaultOwner,
-          requestQueue,
-          eventQueue,
-          bids,
-          asks,
+    return await this.makeCreateMarketInstruction({
+      connection, wallet, marketInfo: {
+        programId: dexProgramId,
+        id: market,
+        baseMint: baseInfo.mint,
+        quoteMint: quoteInfo.mint,
+        baseVault,
+        quoteVault,
+        vaultOwner,
+        requestQueue,
+        eventQueue,
+        bids,
+        asks,
 
-          feeRateBps,
-          quoteDustThreshold,
-          vaultSignerNonce,
-          baseLotSize,
-          quoteLotSize
-        }
-      }),
-      address: {
-        id: market.publicKey
+        feeRateBps,
+        quoteDustThreshold,
+        vaultSignerNonce,
+        baseLotSize,
+        quoteLotSize
       }
-    }
+    })
   }
 
   static async makeCreateMarketInstruction({ connection, wallet, marketInfo }: {
@@ -156,19 +150,20 @@ export class MarketV2 extends Base {
       quoteLotSize: BN,
     }
   }) {
-    const tx1 = new Transaction();
-    tx1.add(
+    const ins1: TransactionInstruction[] = [];
+    const accountLamports = await connection.getMinimumBalanceForRentExemption(165)
+    ins1.push(
       SystemProgram.createAccount({
         fromPubkey: wallet,
         newAccountPubkey: marketInfo.baseVault.publicKey,
-        lamports: await connection.getMinimumBalanceForRentExemption(165),
+        lamports: accountLamports,
         space: 165,
         programId: TOKEN_PROGRAM_ID,
       }),
       SystemProgram.createAccount({
         fromPubkey: wallet,
         newAccountPubkey: marketInfo.quoteVault.publicKey,
-        lamports: await connection.getMinimumBalanceForRentExemption(165),
+        lamports: accountLamports,
         space: 165,
         programId: TOKEN_PROGRAM_ID,
       }),
@@ -184,8 +179,8 @@ export class MarketV2 extends Base {
       ),
     );
 
-    const tx2 = new Transaction();
-    tx2.add(
+    const ins2: TransactionInstruction[] = []
+    ins2.push(
       SystemProgram.createAccount({
         fromPubkey: wallet,
         newAccountPubkey: marketInfo.id.publicKey,
@@ -221,7 +216,7 @@ export class MarketV2 extends Base {
         space: 65536 + 12,
         programId: marketInfo.programId,
       }),
-      this.initializeMarket({
+      this.initializeMarketInstruction({
         programId: marketInfo.programId,
         marketInfo: {
           id: marketInfo.id.publicKey,
@@ -243,16 +238,36 @@ export class MarketV2 extends Base {
       }),
     );
 
-    return [
-      { transaction: tx1, signer: [marketInfo.baseVault, marketInfo.quoteVault] },
-      {
-        transaction: tx2,
-        signer: [marketInfo.id, marketInfo.requestQueue, marketInfo.eventQueue, marketInfo.bids, marketInfo.asks],
+    return {
+      address: {
+        marketId: marketInfo.id.publicKey,
+        requestQueue: marketInfo.requestQueue.publicKey,
+        eventQueue: marketInfo.eventQueue.publicKey,
+        bids: marketInfo.bids.publicKey,
+        asks: marketInfo.asks.publicKey,
+        baseVault: marketInfo.baseVault.publicKey,
+        quoteVault: marketInfo.quoteVault.publicKey,
+        baseMint: marketInfo.baseMint,
+        quoteMint: marketInfo.quoteMint,
       },
-    ]
+      innerTransactions: [
+        {
+          instructions: ins1,
+          signers: [marketInfo.baseVault, marketInfo.quoteVault],
+          instructionTypes: [InstructionType.createAccount, InstructionType.createAccount, InstructionType.initAccount, InstructionType.initAccount],
+          supportedVersion: [TxVersion.LEGACY, TxVersion.V0],
+        },
+        {
+          instructions: ins2,
+          signers: [marketInfo.id, marketInfo.requestQueue, marketInfo.eventQueue, marketInfo.bids, marketInfo.asks],
+          instructionTypes: [InstructionType.createAccount, InstructionType.createAccount, InstructionType.createAccount, InstructionType.createAccount, InstructionType.createAccount, InstructionType.initMarket],
+          supportedVersion: [TxVersion.LEGACY, TxVersion.V0],
+        },
+      ],
+    }
   }
 
-  static initializeMarket({ programId, marketInfo }: {
+  static initializeMarketInstruction({ programId, marketInfo }: {
     programId: PublicKey,
     marketInfo: {
       id: PublicKey,

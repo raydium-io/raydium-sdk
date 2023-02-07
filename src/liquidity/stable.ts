@@ -15,7 +15,7 @@ export const ModelDataInfo = struct([
   seq(DataElement, ELEMENT_SIZE, "DataElement"),
 ]);
 
-export interface stableModelLayout {
+export interface StableModelLayout {
   accountType: number;
   status: number;
   multiplier: number;
@@ -39,7 +39,7 @@ function estimateRangeByY(_y: number) {
 }
 
 function getMininumRangeByXyReal(
-  layoutData: stableModelLayout,
+  layoutData: StableModelLayout,
   xReal: number,
   yReal: number,
 ): [number, number, boolean] {
@@ -75,7 +75,7 @@ function getMininumRangeByXyReal(
   }
   return [mid, mid, false];
 }
-function getRatio(layoutData: stableModelLayout, xReal: number, yReal: number) {
+function getRatio(layoutData: StableModelLayout, xReal: number, yReal: number) {
   const [minRangeIdx, maxRangeIdx, find] = getMininumRangeByXyReal(layoutData, xReal, yReal);
 
   if (!find) {
@@ -102,15 +102,15 @@ function getRatio(layoutData: stableModelLayout, xReal: number, yReal: number) {
   }
 }
 
-function realToTable(layoutData: stableModelLayout, realValue: number, ratio: number): number {
+function realToTable(layoutData: StableModelLayout, realValue: number, ratio: number): number {
   return (realValue * layoutData.multiplier) / ratio;
 }
 
-function tableToReal(layoutData: stableModelLayout, tableValue: number, ratio: number): number {
+function tableToReal(layoutData: StableModelLayout, tableValue: number, ratio: number): number {
   return (tableValue * ratio) / layoutData.multiplier;
 }
 
-function getMinimumRangeByX(layoutData: stableModelLayout, x: number): [number, number, boolean] {
+function getMinimumRangeByX(layoutData: StableModelLayout, x: number): [number, number, boolean] {
   const [min, max] = estimateRangeByX(x);
   let minRangeIdx = min;
   let maxRangeIdx = max;
@@ -137,7 +137,7 @@ function getMinimumRangeByX(layoutData: stableModelLayout, x: number): [number, 
   return [mid, mid, false];
 }
 
-function getMinimumRangeByY(layoutData: stableModelLayout, y: number): [number, number, boolean] {
+function getMinimumRangeByY(layoutData: StableModelLayout, y: number): [number, number, boolean] {
   const [min, max] = estimateRangeByY(y);
   let minRangeIdx = min;
   let maxRangeIdx = max;
@@ -165,7 +165,7 @@ function getMinimumRangeByY(layoutData: stableModelLayout, y: number): [number, 
 }
 
 function getDataByX(
-  layoutData: stableModelLayout,
+  layoutData: StableModelLayout,
   x: number,
   dx: number,
   priceUp: boolean,
@@ -201,7 +201,7 @@ function getDataByX(
 }
 
 function getDataByY(
-  layoutData: stableModelLayout,
+  layoutData: StableModelLayout,
   y: number,
   dy: number,
   priceUp: boolean,
@@ -234,13 +234,13 @@ function getDataByY(
   }
 }
 
-function getMidPrice(layoutData: stableModelLayout, x: number): number {
+function getMidPrice(layoutData: StableModelLayout, x: number): number {
   const ret = getDataByX(layoutData, x, 0, false);
   if (ret[3]) return ret[0];
   else return 0;
 }
 
-export function getDyByDxBaseIn(layoutData: stableModelLayout, xReal: number, yReal: number, dxReal: number) {
+export function getDyByDxBaseIn(layoutData: StableModelLayout, xReal: number, yReal: number, dxReal: number) {
   const ratio = getRatio(layoutData, xReal, yReal);
   const x = realToTable(layoutData, xReal, ratio);
   const y = realToTable(layoutData, yReal, ratio);
@@ -258,7 +258,7 @@ export function getDyByDxBaseIn(layoutData: stableModelLayout, xReal: number, yR
   }
 }
 
-export function getDxByDyBaseIn(layoutData: stableModelLayout, xReal: number, yReal: number, dyReal: number) {
+export function getDxByDyBaseIn(layoutData: StableModelLayout, xReal: number, yReal: number, dyReal: number) {
   const ratio = getRatio(layoutData, xReal, yReal);
   const x = realToTable(layoutData, xReal, ratio);
   const y = realToTable(layoutData, yReal, ratio);
@@ -276,7 +276,7 @@ export function getDxByDyBaseIn(layoutData: stableModelLayout, xReal: number, yR
   }
 }
 
-export function formatLayout(buffer: Buffer): stableModelLayout {
+export function formatLayout(buffer: Buffer): StableModelLayout {
   const layoutInfo = ModelDataInfo.decode(buffer);
   return {
     accountType: layoutInfo.accountType.toNumber(),
@@ -291,7 +291,7 @@ export function formatLayout(buffer: Buffer): stableModelLayout {
   };
 }
 
-export function getStablePrice(layoutData: stableModelLayout, coinReal: number, pcReal: number, baseCoin: boolean) {
+export function getStablePrice(layoutData: StableModelLayout, coinReal: number, pcReal: number, baseCoin: boolean) {
   const price =
     getMidPrice(layoutData, realToTable(layoutData, coinReal, getRatio(layoutData, coinReal, pcReal))) /
     layoutData.multiplier;

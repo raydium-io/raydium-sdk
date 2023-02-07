@@ -2,8 +2,7 @@ import { Connection } from "@solana/web3.js";
 import consola from "consola";
 import dotenv from "dotenv";
 
-import { poolKeys2JsonInfo } from "../../src/common";
-import { Liquidity, LiquidityPoolJsonInfo, MAINNET_OFFICIAL_LIQUIDITY_POOLS } from "../../src/liquidity";
+import { ApiPoolInfoItem, Liquidity, MAINNET_OFFICIAL_LIQUIDITY_POOLS, poolKeys2JsonInfo } from "../../src";
 import { getTimestamp, mkdirIfNotExists, writeJsonFile } from "../util";
 
 dotenv.config();
@@ -17,8 +16,8 @@ async function buildLiquidityPools(connection: Connection) {
   // raydium v4
   const poolsKeys = await Liquidity.fetchAllPoolKeys(connection);
 
-  const official: LiquidityPoolJsonInfo[] = [];
-  const unOfficial: LiquidityPoolJsonInfo[] = [];
+  const official: ApiPoolInfoItem[] = [];
+  const unOfficial: ApiPoolInfoItem[] = [];
 
   for (const poolKeys of poolsKeys) {
     if (MAINNET_OFFICIAL_LIQUIDITY_POOLS.includes(poolKeys.id.toBase58())) {

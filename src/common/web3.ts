@@ -4,8 +4,8 @@
 // import { TOKEN_PROGRAM_ID } from './id';
 
 import {
-  AccountInfo, Commitment, Connection, Keypair, PublicKey, Signer, SimulatedTransactionResponse, Transaction,
-  TransactionInstruction,
+  AccountInfo, AddressLookupTableAccount, Commitment, Connection, Keypair, PublicKey, Signer,
+  SimulatedTransactionResponse, Transaction, TransactionInstruction,
 } from "@solana/web3.js";
 
 import { chunkArray } from "./lodash";
@@ -343,11 +343,14 @@ export function splitTxAndSigners({ instructions, signers, payer }: {
   instructions: TransactionInstruction[],
   signers: (Signer | Keypair)[],
   payer: PublicKey
-}) {
+}): {
+  instruction: TransactionInstruction[];
+  signer: (Keypair | Signer)[];
+}[] {
   const signerKey: { [key: string]: Signer } = {}
   for (const item of signers) signerKey[item.publicKey.toString()] = item
 
-  const transactions: { transaction: Transaction, signer: (Keypair | Signer)[] }[] = []
+  const transactions: { instruction: TransactionInstruction[], signer: (Keypair | Signer)[] }[] = []
 
   let itemIns: TransactionInstruction[] = []
 
@@ -360,7 +363,7 @@ export function splitTxAndSigners({ instructions, signers, payer }: {
       itemIns.push(item)
     } else {
       transactions.push({
-        transaction: new Transaction().add(...itemIns),
+        instruction: itemIns,
         signer: [..._signerStrs.values()].map(i => signerKey[i]).filter(i => i !== undefined)
       })
 
@@ -371,10 +374,27 @@ export function splitTxAndSigners({ instructions, signers, payer }: {
   if (itemIns.length > 0) {
     const _signerStrs = new Set<string>(itemIns.map(i => i.keys.filter(ii => ii.isSigner).map(ii => ii.pubkey.toString())).flat())
     transactions.push({
-      transaction: new Transaction().add(...itemIns),
+      instruction: itemIns,
       signer: [..._signerStrs.values()].map(i => signerKey[i]).filter(i => i !== undefined)
     })
   }
 
   return transactions
+}
+
+export async function getMultipleLookupTableInfo({ connection, address}: { connection: Connection, address: PublicKey[]}) {
+  const dataInfos = await getMultipleAccountsInfo(connection, address)
+
+  const outList: AddressLookupTableAccount[] = []
+  for (let i = 0 ; i < address.length; i++) {
+    const info = dataInfos[i]
+    const key = address[i]
+    if (!info) continue
+    outList.push(new AddressLookupTableAccount({
+      key,
+      state: AddressLookupTableAccount.deserialize(info.data)
+    }))
+  }
+
+  return outList
 }

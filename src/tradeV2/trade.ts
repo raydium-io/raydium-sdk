@@ -1,21 +1,24 @@
-import { Connection, Keypair, PublicKey, Signer, Transaction, TransactionInstruction } from "@solana/web3.js";
+import { Connection, PublicKey, Signer, TransactionInstruction } from "@solana/web3.js";
 import BN from "bn.js";
 
 import { AmmV3, AmmV3PoolInfo, ReturnTypeFetchMultiplePoolTickArrays } from "../ammV3";
 import { MAX_SQRT_PRICE_X64, MIN_SQRT_PRICE_X64 } from "../ammV3/utils/constants";
-import { Base, TokenAccount } from "../base";
 import {
-  forecastTransactionSize, jsonInfo2PoolKeys, parseSimulateLogToJson, parseSimulateValue, simulateMultipleInstruction,
+  Base, ComputeBudgetConfig, InnerTransaction, InstructionType, MakeInstructionOutType, MakeInstructionSimpleOutType,
+  TokenAccount, TxVersion,
+} from "../base";
+import { addComputeBudget } from "../base/instrument";
+import { ApiPoolInfo, ApiPoolInfoItem } from "../baseInfo";
+import {
+  findProgramAddress, forecastTransactionSize, jsonInfo2PoolKeys, parseSimulateLogToJson, parseSimulateValue,
+  simulateMultipleInstruction,
 } from "../common";
 import { Currency, CurrencyAmount, ONE, Percent, Price, Token, TokenAmount, ZERO } from "../entity";
-import {
-  initStableModelLayout, Liquidity, LiquidityPoolJsonInfo, LiquidityPoolKeys, LiquidityPoolsJsonFile,
-} from "../liquidity";
-import { Route } from "../route";
+import { initStableModelLayout, Liquidity, LiquidityPoolKeys } from "../liquidity";
 
 import { route1Instruction, route2Instruction } from "./instrument";
 
-export type PoolType = AmmV3PoolInfo | LiquidityPoolJsonInfo
+export type PoolType = AmmV3PoolInfo | ApiPoolInfoItem
 type RoutePathType = {
   [routeMint: string]: {
     in: PoolType[];
@@ -25,7 +28,7 @@ type RoutePathType = {
 }
 
 
-interface poolAccountInfoV4 {
+interface PoolAccountInfoV4 {
   ammId: string;
   status: BN;
   baseDecimals: number;
@@ -89,26 +92,14 @@ type makeSwapInstructionParam = {
 
 export interface ReturnTypeGetAllRoute {
   directPath: PoolType[];
-  addLiquidityPools: LiquidityPoolJsonInfo[];
+  addLiquidityPools: ApiPoolInfoItem[];
   routePathDict: RoutePathType;
-  needSimulate: LiquidityPoolJsonInfo[];
+  needSimulate: ApiPoolInfoItem[];
   needTickArray: AmmV3PoolInfo[];
 }
-export interface ReturnTypeFetchMultipleInfo { [ammId: string]: poolAccountInfoV4 }
-export type ReturnTypeGetAddLiquidityDefaultPool = LiquidityPoolJsonInfo | undefined
+export interface ReturnTypeFetchMultipleInfo { [ammId: string]: PoolAccountInfoV4 }
+export type ReturnTypeGetAddLiquidityDefaultPool = ApiPoolInfoItem | undefined
 export type ReturnTypeGetAllRouteComputeAmountOut = ComputeAmountOutLayout[]
-export interface ReturnTypeMakeSwapInstruction {
-  signers: (Keypair | Signer)[],
-  instructions: TransactionInstruction[]
-  address: { [key: string]: PublicKey },
-}
-export interface ReturnTypeMakeSwapTranscation {
-  transactions: {
-    transaction: Transaction,
-    signer: (Keypair | Signer)[]
-  }[],
-  address: { [key: string]: PublicKey },
-}
 
 export class TradeV2 extends Base {
 
@@ -118,11 +109,11 @@ export class TradeV2 extends Base {
     inputMint: PublicKey,
     outputMint: PublicKey,
 
-    apiPoolList?: LiquidityPoolsJsonFile
+    apiPoolList?: ApiPoolInfo
     ammV3List?: AmmV3PoolInfo[]
   }): ReturnTypeGetAllRoute {
 
-    const needSimulate: { [poolKey: string]: LiquidityPoolJsonInfo } = {}
+    const needSimulate: { [poolKey: string]: ApiPoolInfoItem } = {}
     const needTickArray: { [poolKey: string]: AmmV3PoolInfo } = {}
 
     const directPath: PoolType[] = []
@@ -156,7 +147,7 @@ export class TradeV2 extends Base {
       }
     }
 
-    const addLiquidityPools: LiquidityPoolJsonInfo[] = []
+    const addLiquidityPools: ApiPoolInfoItem[] = []
 
     const _inputMint = inputMint.toString()
     const _outputMint = outputMint.toString()
@@ -226,12 +217,12 @@ export class TradeV2 extends Base {
           if (infoIn.version === 6 && needTickArray[infoIn.id.toString()] === undefined) {
             needTickArray[infoIn.id.toString()] = infoIn as AmmV3PoolInfo
           } else if (infoIn.version !== 6 && needSimulate[infoIn.id as string] === undefined) {
-            needSimulate[infoIn.id as string] = infoIn as LiquidityPoolJsonInfo
+            needSimulate[infoIn.id as string] = infoIn as ApiPoolInfoItem
           }
           if (infoOut.version === 6 && needTickArray[infoOut.id.toString()] === undefined) {
             needTickArray[infoOut.id.toString()] = infoOut as AmmV3PoolInfo
           } else if (infoOut.version !== 6 && needSimulate[infoOut.id as string] === undefined) {
-            needSimulate[infoOut.id as string] = infoOut as LiquidityPoolJsonInfo
+            needSimulate[infoOut.id as string] = infoOut as ApiPoolInfoItem
           }
         }
       }
@@ -250,14 +241,14 @@ export class TradeV2 extends Base {
     connection, pools, batchRequest = true
   }: {
     connection: Connection,
-    pools: LiquidityPoolJsonInfo[],
+    pools: ApiPoolInfoItem[],
     batchRequest?: boolean,
   }): Promise<ReturnTypeFetchMultipleInfo> {
     if (pools.find(i => i.version === 5)) await initStableModelLayout(connection);
 
     const instructions = pools.map((pool) => Liquidity.makeSimulatePoolInfoInstruction({ poolKeys: jsonInfo2PoolKeys(pool) }));
 
-    const logs = await simulateMultipleInstruction(connection, instructions, "GetPoolData", batchRequest);
+    const logs = await simulateMultipleInstruction(connection, instructions.map(i=>i.innerTransaction.instructions).flat(), "GetPoolData", batchRequest);
 
     const poolsInfo: ReturnTypeFetchMultipleInfo = {}
     for (const log of logs) {
@@ -296,8 +287,8 @@ export class TradeV2 extends Base {
   }
 
   static getAddLiquidityDefaultPool({ addLiquidityPools, poolInfosCache }: {
-    addLiquidityPools: LiquidityPoolJsonInfo[]
-    poolInfosCache: { [ammId: string]: poolAccountInfoV4 }
+    addLiquidityPools: ApiPoolInfoItem[]
+    poolInfosCache: { [ammId: string]: PoolAccountInfoV4 }
   }): ReturnTypeGetAddLiquidityDefaultPool {
     if (addLiquidityPools.length === 0) return undefined
     if (addLiquidityPools.length === 1) return addLiquidityPools[0]
@@ -310,7 +301,7 @@ export class TradeV2 extends Base {
     return _addLiquidityPools[0]
   }
 
-  private static ComparePoolSize(a: LiquidityPoolJsonInfo, b: LiquidityPoolJsonInfo, ammIdToPoolInfo: { [ammId: string]: poolAccountInfoV4 }) {
+  private static ComparePoolSize(a: ApiPoolInfoItem, b: ApiPoolInfoItem, ammIdToPoolInfo: { [ammId: string]: PoolAccountInfoV4 }) {
     const aInfo = ammIdToPoolInfo[a.id]
     const bInfo = ammIdToPoolInfo[b.id]
     if (aInfo === undefined) return 1
@@ -336,6 +327,7 @@ export class TradeV2 extends Base {
     slippage: Percent,
     chainTime: number
   }): ReturnTypeGetAllRouteComputeAmountOut {
+    console.log('sdk call log', directPath.length, Object.keys(routePathDict).length, Object.keys(simulateCache).length, Object.keys(tickCache).length, inputTokenAmount.raw.toString(), inputTokenAmount instanceof TokenAmount ? inputTokenAmount.token.mint.toString() : 'sol', outputToken instanceof Token ? outputToken.mint.toString() : 'sol', slippage, chainTime)
     const amountIn = inputTokenAmount
     const outRoute: ComputeAmountOutLayout[] = []
 
@@ -409,6 +401,11 @@ export class TradeV2 extends Base {
 
     outRoute.sort((a, b) => (a.amountOut.raw.sub(b.amountOut.raw).gt(ZERO) ? -1 : 1))
 
+    console.log('sdk call log', outRoute.map(i => (i.routeType === 'amm' ? {type: i.routeType, inValue: i.amountIn.toFixed(), value: i.amountOut.toFixed(), e: i.executionPrice?.toFixed(5), valueMin: i.minAmountOut.toFixed(), v1: i.poolKey[0].version, p1: String(i.poolKey[0].id), priceI: i.priceImpact.denominator.eq(new BN(0)) ? 0: i.priceImpact.toFixed(5)} : {
+      type: i.routeType, inValue: i.amountIn.toFixed(), value: i.amountOut.toFixed(), e: i.executionPrice?.toFixed(5), valueMin: i.minAmountOut.toFixed(), v1: i.poolKey[0].version, v2: i.poolKey[1].version, p1: String(i.poolKey[0].id), p2: String(i.poolKey[1].id), priceI: i.priceImpact.denominator.eq(new BN(0)) ? 0: i.priceImpact.toFixed(5)
+    })))
+    console.log('sdk call log', outRoute.length)
+    
     return outRoute
   }
 
@@ -539,7 +536,7 @@ export class TradeV2 extends Base {
     };
   }
 
-  static makeSwapInstruction({ routeProgram, ownerInfo, inputMint, swapInfo }: makeSwapInstructionParam): ReturnTypeMakeSwapInstruction {
+  static makeSwapInstruction({ routeProgram, ownerInfo, inputMint, swapInfo }: makeSwapInstructionParam) {
     if (swapInfo.routeType === 'amm') {
       if (swapInfo.poolKey[0].version === 6) {
         const _poolKey = swapInfo.poolKey[0] as AmmV3PoolInfo
@@ -561,72 +558,71 @@ export class TradeV2 extends Base {
           remainingAccounts: swapInfo.remainingAccounts[0]
         })
       } else {
-        const _poolKey = swapInfo.poolKey[0] as LiquidityPoolJsonInfo
+        const _poolKey = swapInfo.poolKey[0] as ApiPoolInfoItem
 
-        return {
-          signers: [] as Keypair[],
-          instructions: [
-            Liquidity.makeSwapInstruction({
-              poolKeys: jsonInfo2PoolKeys(_poolKey),
-              userKeys: {
-                tokenAccountIn: ownerInfo.sourceToken,
-                tokenAccountOut: ownerInfo.destinationToken,
-                owner: ownerInfo.wallet,
-              },
-              amountIn: swapInfo.amountIn.raw,
-              amountOut: swapInfo.minAmountOut.raw,
-              fixedSide: "in",
-            })
-          ],
-          address: {} as { [key: string]: PublicKey },
-        };
+        return Liquidity.makeSwapInstruction({
+          poolKeys: jsonInfo2PoolKeys(_poolKey),
+          userKeys: {
+            tokenAccountIn: ownerInfo.sourceToken,
+            tokenAccountOut: ownerInfo.destinationToken,
+            owner: ownerInfo.wallet,
+          },
+          amountIn: swapInfo.amountIn.raw,
+          amountOut: swapInfo.minAmountOut.raw,
+          fixedSide: "in",
+        })
       }
     } else if (swapInfo.routeType === 'route') {
       const poolKey1 = swapInfo.poolKey[0]
       const poolKey2 = swapInfo.poolKey[1]
 
       return {
-        signers: [] as Keypair[],
-        instructions: [
-          route1Instruction(
-            routeProgram,
-            poolKey1,
-            poolKey2,
-
-            ownerInfo.sourceToken,
-            ownerInfo.routeToken!,
-            ownerInfo.userPdaAccount!,
-            ownerInfo.wallet,
-
-            inputMint,
-
-            swapInfo.amountIn.raw,
-            swapInfo.minAmountOut.raw,
-            swapInfo.remainingAccounts[0]
-          ),
-          route2Instruction(
-            routeProgram,
-            poolKey1,
-            poolKey2,
-
-            ownerInfo.routeToken!,
-            ownerInfo.destinationToken,
-            ownerInfo.userPdaAccount!,
-            ownerInfo.wallet,
-
-            swapInfo.middleMint!,
-
-            swapInfo.remainingAccounts[1]
-          )
-        ],
-        address: {} as { [key: string]: PublicKey },
-      };
+        address: {},
+        innerTransaction: {
+          instructions: [
+            route1Instruction(
+              routeProgram,
+              poolKey1,
+              poolKey2,
+  
+              ownerInfo.sourceToken,
+              ownerInfo.routeToken!,
+              ownerInfo.userPdaAccount!,
+              ownerInfo.wallet,
+  
+              inputMint,
+  
+              swapInfo.amountIn.raw,
+              swapInfo.minAmountOut.raw,
+              swapInfo.remainingAccounts[0]
+            ),
+            route2Instruction(
+              routeProgram,
+              poolKey1,
+              poolKey2,
+  
+              ownerInfo.routeToken!,
+              ownerInfo.destinationToken,
+              ownerInfo.userPdaAccount!,
+              ownerInfo.wallet,
+  
+              swapInfo.middleMint!,
+  
+              swapInfo.remainingAccounts[1]
+            )
+          ],
+          signers: [],
+          lookupTableAddress: [],
+          instructionTypes: [InstructionType.routeSwap1, InstructionType.routeSwap2],
+          supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
+        }
+      }
     } else {
       throw Error('route type error')
     }
   }
 
-  static async makeSwapTranscation({ connection, swapInfo, ownerInfo, checkTransaction }: {
+  static async makeSwapInstructionSimple({ connection, swapInfo, ownerInfo, checkTransaction, computeBudgetConfig }: {
     connection: Connection
     swapInfo: ComputeAmountOutLayout,
     ownerInfo: {
@@ -635,9 +631,12 @@ export class TradeV2 extends Base {
       associatedOnly: boolean
     }
     checkTransaction: boolean
-  }): Promise<ReturnTypeMakeSwapTranscation> {
+    computeBudgetConfig?: ComputeBudgetConfig
+  }) {
     const frontInstructions: TransactionInstruction[] = [];
     const endInstructions: TransactionInstruction[] = [];
+    const frontInstructionsType: InstructionType[] = [];
+    const endInstructionsType: InstructionType[] = [];
 
     const signers: Signer[] = []
 
@@ -662,6 +661,8 @@ export class TradeV2 extends Base {
         frontInstructions,
         endInstructions,
         signers,
+        frontInstructionsType,
+        endInstructionsType,
       } : undefined,
       owner: ownerInfo.wallet,
       associatedOnly: useSolBalance ? false : ownerInfo.associatedOnly
@@ -682,6 +683,8 @@ export class TradeV2 extends Base {
         frontInstructions,
         endInstructions: outSolBalance ? endInstructions : undefined,
         signers,
+        frontInstructionsType,
+        endInstructionsType,
       },
       owner: ownerInfo.wallet,
       associatedOnly: ownerInfo.associatedOnly
@@ -700,6 +703,8 @@ export class TradeV2 extends Base {
           frontInstructions,
           endInstructions,
           signers,
+          frontInstructionsType,
+          endInstructionsType,
         },
         owner: ownerInfo.wallet,
         associatedOnly: false
@@ -715,78 +720,126 @@ export class TradeV2 extends Base {
         sourceToken,
         routeToken,
         destinationToken: destinationToken!,
-        userPdaAccount: swapInfo.poolKey.length === 2 ? Route.getAssociatedMiddleStatusAccount({
+        userPdaAccount: swapInfo.poolKey.length === 2 ? this.getAssociatedMiddleStatusAccount({
           programId: routeProgram, fromPoolId: new PublicKey(String(swapInfo.poolKey[0].id)), owner: ownerInfo.wallet, middleMint: swapInfo.middleMint!
         }) : undefined
       }
     })
 
-    const transactions: {transaction: Transaction, signer: Signer[]}[] = []
+    const innerTransactions: InnerTransaction[] = []
     
-    const tempIns = [...frontInstructions, ...ins.instructions, ...endInstructions]
-    const tempSigner = [...signers, ...ins.signers]
+    const { instructions, instructionTypes } = computeBudgetConfig ? addComputeBudget(computeBudgetConfig).innerTransaction : { instructions: [], instructionTypes: [] }
+
+    const tempIns = [...instructions, ...frontInstructions, ...ins.innerTransaction.instructions, ...endInstructions]
+    const tempInsType = [...instructionTypes, ...frontInstructionsType, ...ins.innerTransaction.instructionTypes, ...endInstructionsType]
+    const tempSigner = [...signers, ...ins.innerTransaction.signers]
     if (checkTransaction) {
       if (forecastTransactionSize(tempIns, [ownerInfo.wallet, ...tempSigner.map(i => i.publicKey)])) {
-        transactions.push({
-          transaction: new Transaction().add(...tempIns),
-          signer: tempSigner
+        innerTransactions.push({
+          instructions: tempIns,
+          signers: tempSigner,
+          lookupTableAddress: [],
+          instructionTypes: tempInsType,
+          supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
         })
       } else {
         if (frontInstructions.length > 0) {
-          transactions.push({
-            transaction: new Transaction().add(...frontInstructions),
-            signer: [...signers]
+          innerTransactions.push({
+            instructions: [...instructions, ...frontInstructions],
+            signers,
+            lookupTableAddress: [],
+            instructionTypes: [...instructionTypes, ...frontInstructionsType],
+            supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
           })
         }
-        if (forecastTransactionSize(ins.instructions, [ownerInfo.wallet])) {
-          transactions.push({
-            transaction: new Transaction().add(...ins.instructions),
-            signer: [...ins.signers]
+        if (forecastTransactionSize(ins.innerTransaction.instructions, [ownerInfo.wallet])) {
+          innerTransactions.push({
+            instructions: [...instructions, ...ins.innerTransaction.instructions],
+            signers: ins.innerTransaction.signers,
+            lookupTableAddress: ins.innerTransaction.lookupTableAddress,
+            instructionTypes: [...instructionTypes, ...ins.innerTransaction.instructionTypes],
+            supportedVersion: ins.innerTransaction.supportedVersion
           })
         } else {
-          for (const i of ins.instructions) {
-            transactions.push({
-              transaction: new Transaction().add(i),
-              signer: [...ins.signers]
+          for (let index = 0 ; index < ins.innerTransaction.instructions.length; index++) {
+            innerTransactions.push({
+              instructions: [...instructions, ins.innerTransaction.instructions[index]],
+              signers: ins.innerTransaction.signers,
+              lookupTableAddress: [],
+              instructionTypes: [...instructionTypes, ins.innerTransaction.instructionTypes[index]],
+              supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
             })
           }
         }
         if (endInstructions.length > 0) {
-          transactions.push({
-            transaction: new Transaction().add(...endInstructions),
-            signer: []
+          innerTransactions.push({
+            instructions: [...instructions, ...endInstructions],
+            signers: [],
+            lookupTableAddress: [],
+            instructionTypes: [...instructionTypes, ...endInstructionsType],
+            supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
           })
         }
       }
     } else {
       if (swapInfo.routeType === 'amm') {
-        transactions.push({
-          transaction: new Transaction().add(...tempIns),
-          signer: tempSigner
+        innerTransactions.push({
+          instructions: tempIns,
+          signers: tempSigner,
+          lookupTableAddress: [],
+          instructionTypes: tempInsType,
+          supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
         })
       } else {
         if (frontInstructions.length > 0) {
-          transactions.push({
-            transaction: new Transaction().add(...frontInstructions),
-            signer: [...signers]
+          innerTransactions.push({
+            instructions: [...instructions, ...frontInstructions],
+            signers,
+            lookupTableAddress: [],
+            instructionTypes: [...instructionTypes, ...frontInstructionsType],
+            supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
           })
         }
-        transactions.push({
-          transaction: new Transaction().add(...ins.instructions),
-          signer: [...ins.signers]
+        innerTransactions.push({
+          instructions: [...instructions, ...ins.innerTransaction.instructions],
+          signers: ins.innerTransaction.signers,
+          lookupTableAddress: ins.innerTransaction.lookupTableAddress,
+          instructionTypes: [...instructionTypes, ...ins.innerTransaction.instructionTypes],
+          supportedVersion: ins.innerTransaction.supportedVersion
         })
         if (endInstructions.length > 0) {
-          transactions.push({
-            transaction: new Transaction().add(...endInstructions),
-            signer: []
+          innerTransactions.push({
+            instructions: [...instructions, ...endInstructions],
+            signers: [],
+            lookupTableAddress: [],
+            instructionTypes: [...instructionTypes, ...endInstructionsType],
+            supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
           })
         }
       }
     }
 
     return {
-      transactions,
-      address: { ...ins.address }
+      address: ins.address,
+      innerTransactions
     }
+  }
+
+  static getAssociatedMiddleStatusAccount({
+    programId,
+    fromPoolId,
+    middleMint,
+    owner,
+  }: {
+    programId: PublicKey;
+    fromPoolId: PublicKey;
+    middleMint: PublicKey;
+    owner: PublicKey;
+  }) {
+    const { publicKey } = findProgramAddress(
+      [fromPoolId.toBuffer(), middleMint.toBuffer(), owner.toBuffer()],
+      programId,
+    );
+    return publicKey;
   }
 }

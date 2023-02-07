@@ -1,13 +1,15 @@
 import {
-  AccountInfo, ComputeBudgetProgram, Connection, PublicKey, Signer, Transaction, TransactionInstruction,
+  ComputeBudgetProgram, Connection, PublicKey, Signer, Transaction, TransactionInstruction,
 } from "@solana/web3.js";
 import BN from "bn.js";
 
-import { Base, TokenAccount } from "../base";
 import {
-  AccountMeta, AccountMetaReadonly, findProgramAddress, getMultipleAccountsInfo, GetMultipleAccountsInfoConfig, Logger,
-  parseSimulateLogToJson, parseSimulateValue, simulateMultipleInstruction, SYSTEM_PROGRAM_ID, SYSVAR_RENT_PUBKEY,
-  TOKEN_PROGRAM_ID,
+  Base, InstructionType, MakeInstructionOutType, MakeInstructionSimpleOutType, TokenAccount, TxVersion,
+} from "../base";
+import { ApiPoolInfoItem } from "../baseInfo";
+import {
+  AccountMeta, AccountMetaReadonly, findProgramAddress, GetMultipleAccountsInfoConfig, Logger, parseSimulateLogToJson,
+  parseSimulateValue, simulateMultipleInstruction, SYSTEM_PROGRAM_ID, SYSVAR_RENT_PUBKEY, TOKEN_PROGRAM_ID,
 } from "../common";
 import {
   BigNumberish, Currency, CurrencyAmount, divCeil, ONE, parseBigNumberish, Percent, Price, Token, TokenAmount, ZERO,
@@ -16,18 +18,14 @@ import { struct, u64, u8 } from "../marshmallow";
 import { Market } from "../serum";
 import { Spl } from "../spl";
 
+import { LIQUIDITY_VERSION_TO_STATE_LAYOUT, LiquidityStateV4 } from "./layout";
 import {
-  LIQUIDITY_PROGRAMID_TO_VERSION, LIQUIDITY_VERSION_TO_PROGRAMID, LIQUIDITY_VERSION_TO_SERUM_VERSION,
-} from "./id";
-import { LIQUIDITY_VERSION_TO_STATE_LAYOUT, LiquidityStateLayout, LiquidityStateV4 } from "./layout";
-import {
-  formatLayout, getDxByDyBaseIn, getDyByDxBaseIn, getStablePrice, ModelDataPubkey, stableModelLayout,
+  formatLayout, getDxByDyBaseIn, getDyByDxBaseIn, getStablePrice, ModelDataPubkey, StableModelLayout,
 } from "./stable";
-import { LiquidityPoolJsonInfo } from "./type";
 
 const logger = Logger.from("Liquidity");
 
-let modelData: stableModelLayout = {
+let modelData: StableModelLayout = {
   accountType: 0,
   status: 0,
   multiplier: 0,
@@ -55,7 +53,7 @@ export type AmountSide = "base" | "quote";
 
 /* ================= pool keys ================= */
 export type LiquidityPoolKeysV4 = {
-  [T in keyof LiquidityPoolJsonInfo]: string extends LiquidityPoolJsonInfo[T] ? PublicKey : LiquidityPoolJsonInfo[T];
+  [T in keyof ApiPoolInfoItem]: string extends ApiPoolInfoItem[T] ? PublicKey : ApiPoolInfoItem[T];
 };
 
 /**
@@ -143,7 +141,7 @@ export type LiquidityAddInstructionParams = LiquidityAddInstructionParamsV4;
 /**
  * Add liquidity transaction params
  */
-export interface LiquidityAddTransactionParams {
+export interface LiquidityAddInstructionSimpleParams {
   connection: Connection;
   poolKeys: LiquidityPoolKeys;
   userKeys: {
@@ -173,7 +171,7 @@ export type LiquidityRemoveInstructionParams = LiquidityRemoveInstructionParamsV
 /**
  * Remove liquidity transaction params
  */
-export interface LiquidityRemoveTransactionParams {
+export interface LiquidityRemoveInstructionSimpleParams {
   connection: Connection;
   poolKeys: LiquidityPoolKeys;
   userKeys: {
@@ -229,7 +227,7 @@ export interface LiquiditySwapInstructionParams {
 /**
  * Swap transaction params
  */
-export interface LiquiditySwapTransactionParams {
+export interface LiquiditySwapInstructionSimpleParams {
   connection: Connection;
   poolKeys: LiquidityPoolKeys;
   userKeys: {
@@ -260,7 +258,7 @@ export type LiquidityCreatePoolInstructionParams = LiquidityCreatePoolInstructio
 /**
  * Create pool transaction params
  */
-export type LiquidityCreatePoolTransactionParams = LiquidityCreatePoolInstructionParams;
+export type LiquidityCreatePoolInstructionSimpleParams = LiquidityCreatePoolInstructionParams;
 
 export interface LiquidityInitPoolInstructionParamsV4 {
   poolKeys: LiquidityAssociatedPoolKeysV4;
@@ -357,28 +355,28 @@ export class Liquidity extends Base {
   // }
 
   /* ================= get version and program id ================= */
-  static getProgramId(version: number) {
-    const programId = LIQUIDITY_VERSION_TO_PROGRAMID[version];
-    logger.assertArgument(!!programId, "invalid version", "version", version);
+  // static getProgramId(version: number) {
+  //   const programId = LIQUIDITY_VERSION_TO_PROGRAMID[version];
+  //   logger.assertArgument(!!programId, "invalid version", "version", version);
 
-    return programId;
-  }
+  //   return programId;
+  // }
 
-  static getVersion(programId: PublicKey) {
-    const programIdString = programId.toBase58();
+  // static getVersion(programId: PublicKey) {
+  //   const programIdString = programId.toBase58();
 
-    const version = LIQUIDITY_PROGRAMID_TO_VERSION[programIdString];
-    logger.assertArgument(!!version, "invalid program id", "programId", programIdString);
+  //   const version = LIQUIDITY_PROGRAMID_TO_VERSION[programIdString];
+  //   logger.assertArgument(!!version, "invalid program id", "programId", programIdString);
 
-    return version;
-  }
+  //   return version;
+  // }
 
-  static getSerumVersion(version: number) {
-    const serumVersion = LIQUIDITY_VERSION_TO_SERUM_VERSION[version];
-    logger.assertArgument(!!serumVersion, "invalid version", "version", version);
+  // static getSerumVersion(version: number) {
+  //   const serumVersion = LIQUIDITY_VERSION_TO_SERUM_VERSION[version];
+  //   logger.assertArgument(!!serumVersion, "invalid version", "version", version);
 
-    return serumVersion;
-  }
+  //   return serumVersion;
+  // }
 
   /* ================= get layout ================= */
   static getStateLayout(version: number) {
@@ -476,8 +474,8 @@ export class Liquidity extends Base {
     programId,
     marketProgramId
   }: {
-    version: number;
-    marketVersion: number;
+    version: 4 | 5;
+    marketVersion: 3;
     marketId: PublicKey;
     baseMint: PublicKey;
     quoteMint: PublicKey;
@@ -576,18 +574,27 @@ export class Liquidity extends Base {
         AccountMetaReadonly(userKeys.owner, true),
         AccountMetaReadonly(poolKeys.marketEventQueue, false),
       );
-
-      return new TransactionInstruction({
-        programId: poolKeys.programId,
-        keys,
-        data,
-      });
+      
+      return {
+        address: {},
+        innerTransaction: {
+          instructions: [new TransactionInstruction({
+            programId: poolKeys.programId,
+            keys,
+            data,
+          })],
+          signers: [],
+          lookupTableAddress: [],
+          instructionTypes: [version === 4 ? InstructionType.ammV4AddLiquidity : InstructionType.ammV5AddLiquidity],
+          supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
+        }
+      }
     }
 
     return logger.throwArgumentError("invalid version", "poolKeys.version", version);
   }
 
-  static async makeAddLiquidityTransaction(params: LiquidityAddTransactionParams) {
+  static async makeAddLiquidityInstructionSimple(params: LiquidityAddInstructionSimpleParams) {
     const { connection, poolKeys, userKeys, amountInA, amountInB, fixedSide, config } = params;
     const { lpMint } = poolKeys;
     const { tokenAccounts, owner, payer = owner } = userKeys;
@@ -667,6 +674,8 @@ export class Liquidity extends Base {
 
     const frontInstructions: TransactionInstruction[] = [];
     const endInstructions: TransactionInstruction[] = [];
+    const frontInstructionsType: InstructionType[] = [];
+    const endInstructionsType: InstructionType[] = [];
     const signers: Signer[] = [];
 
     const _baseTokenAccount = await this._handleTokenAccount({
@@ -681,6 +690,8 @@ export class Liquidity extends Base {
       endInstructions,
       signers,
       bypassAssociatedCheck,
+      frontInstructionsType,
+      endInstructionsType,
     });
     const _quoteTokenAccount = await this._handleTokenAccount({
       connection,
@@ -694,6 +705,8 @@ export class Liquidity extends Base {
       endInstructions,
       signers,
       bypassAssociatedCheck,
+      frontInstructionsType,
+      endInstructionsType,
     });
     const _lpTokenAccount = await this._handleTokenAccount({
       connection,
@@ -707,27 +720,46 @@ export class Liquidity extends Base {
       endInstructions,
       signers,
       bypassAssociatedCheck,
+      frontInstructionsType,
+      endInstructionsType,
     });
 
-    frontInstructions.push(
-      this.makeAddLiquidityInstruction({
-        poolKeys,
-        userKeys: {
-          baseTokenAccount: _baseTokenAccount,
-          quoteTokenAccount: _quoteTokenAccount,
-          lpTokenAccount: _lpTokenAccount,
-          owner,
-        },
-        baseAmountIn: baseAmountRaw,
-        quoteAmountIn: quoteAmountRaw,
-        fixedSide: _fixedSide,
-      }),
-    );
+    const ins = this.makeAddLiquidityInstruction({
+      poolKeys,
+      userKeys: {
+        baseTokenAccount: _baseTokenAccount,
+        quoteTokenAccount: _quoteTokenAccount,
+        lpTokenAccount: _lpTokenAccount,
+        owner,
+      },
+      baseAmountIn: baseAmountRaw,
+      quoteAmountIn: quoteAmountRaw,
+      fixedSide: _fixedSide,
+    })
 
-    const transaction = new Transaction();
-    transaction.add(...[...frontInstructions, ...endInstructions]);
-
-    return { transaction, signers };
+    return {
+      address: {
+        lpTokenAccount: _lpTokenAccount,
+      },
+      innerTransactions: [{
+        instructions: [
+          ...frontInstructions,
+          ...ins.innerTransaction.instructions,
+          ...endInstructions
+        ],
+        signers: [
+          ...signers,
+          ...ins.innerTransaction.signers,
+        ],
+        lookupTableAddress: ins.innerTransaction.lookupTableAddress ?? [],
+        instructionTypes: [
+          ...frontInstructionsType, 
+          ...ins.innerTransaction.instructionTypes, 
+          ...endInstructionsType
+        ],
+        supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
+      }]
+    }
   }
 
   static makeRemoveLiquidityInstruction(params: LiquidityRemoveInstructionParams) {
@@ -783,17 +815,28 @@ export class Liquidity extends Base {
         AccountMeta(poolKeys.marketAsks, false),
       );
 
-      return new TransactionInstruction({
-        programId: poolKeys.programId,
-        keys,
-        data,
-      });
+      return {
+        address: {},
+        innerTransaction: {
+          instructions: [
+            new TransactionInstruction({
+              programId: poolKeys.programId,
+              keys,
+              data,
+            })
+          ],
+          signers: [],
+          lookupTableAddress: [],
+          instructionTypes: [version === 4 ? InstructionType.ammV4RemoveLiquidity : InstructionType.ammV5RemoveLiquidity],
+          supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
+        }
+      }
     }
 
     return logger.throwArgumentError("invalid version", "poolKeys.version", version);
   }
 
-  static async makeRemoveLiquidityTransaction(params: LiquidityRemoveTransactionParams) {
+  static async makeRemoveLiquidityInstructionSimple(params: LiquidityRemoveInstructionSimpleParams) {
     const { connection, poolKeys, userKeys, amountIn, config } = params;
     const { baseMint, quoteMint, lpMint } = poolKeys;
     const { tokenAccounts, owner, payer = owner } = userKeys;
@@ -835,6 +878,8 @@ export class Liquidity extends Base {
 
     const frontInstructions: TransactionInstruction[] = [];
     const endInstructions: TransactionInstruction[] = [];
+    const frontInstructionsType: InstructionType[] = [];
+    const endInstructionsType: InstructionType[] = [];
     const signers: Signer[] = [];
 
     const _lpTokenAccount = lpTokenAccount;
@@ -850,6 +895,7 @@ export class Liquidity extends Base {
       endInstructions,
       signers,
       bypassAssociatedCheck,
+      frontInstructionsType
     });
     const _quoteTokenAccount = await this._handleTokenAccount({
       connection,
@@ -863,6 +909,7 @@ export class Liquidity extends Base {
       endInstructions,
       signers,
       bypassAssociatedCheck,
+      frontInstructionsType,
     });
 
     frontInstructions.push(
@@ -872,23 +919,40 @@ export class Liquidity extends Base {
       }),
     );
 
-    frontInstructions.push(
-      this.makeRemoveLiquidityInstruction({
-        poolKeys,
-        userKeys: {
-          lpTokenAccount: _lpTokenAccount,
-          baseTokenAccount: _baseTokenAccount,
-          quoteTokenAccount: _quoteTokenAccount,
-          owner,
-        },
-        amountIn: amountIn.raw,
-      }),
-    );
+    const ins = this.makeRemoveLiquidityInstruction({
+      poolKeys,
+      userKeys: {
+        lpTokenAccount: _lpTokenAccount,
+        baseTokenAccount: _baseTokenAccount,
+        quoteTokenAccount: _quoteTokenAccount,
+        owner,
+      },
+      amountIn: amountIn.raw,
+    })
 
-    const transaction = new Transaction();
-    transaction.add(...[...frontInstructions, ...endInstructions]);
-
-    return { transaction, signers };
+    return {
+      address: {
+        lpTokenAccount: _lpTokenAccount,
+      },
+      innerTransactions: [{
+        instructions: [
+          ...frontInstructions,
+          ...ins.innerTransaction.instructions,
+          ...endInstructions
+        ],
+        signers: [
+          ...signers,
+          ...ins.innerTransaction.signers,
+        ],
+        lookupTableAddress: ins.innerTransaction.lookupTableAddress ?? [],
+        instructionTypes: [
+          ...frontInstructionsType, 
+          ...ins.innerTransaction.instructionTypes, 
+          ...endInstructionsType
+        ],
+        supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
+      }]
+    }
   }
 
   static makeSwapInstruction(params: LiquiditySwapInstructionParams) {
@@ -974,11 +1038,22 @@ export class Liquidity extends Base {
       AccountMetaReadonly(userKeys.owner, true),
     );
 
-    return new TransactionInstruction({
-      programId: poolKeys.programId,
-      keys,
-      data,
-    });
+    return {
+      address: {},
+      innerTransaction: {
+        instructions: [
+          new TransactionInstruction({
+            programId: poolKeys.programId,
+            keys,
+            data,
+          })
+        ],
+        signers: [],
+        lookupTableAddress: [],
+        instructionTypes: [version === 4 ? InstructionType.ammV4SwapBaseIn : InstructionType.ammV5SwapBaseIn],
+        supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
+      }
+    }
   }
 
   static makeSwapFixedOutInstruction(
@@ -1028,14 +1103,25 @@ export class Liquidity extends Base {
       AccountMetaReadonly(userKeys.owner, true),
     );
 
-    return new TransactionInstruction({
-      programId: poolKeys.programId,
-      keys,
-      data,
-    });
+    return {
+      address: {},
+      innerTransaction: {
+        instructions: [
+          new TransactionInstruction({
+            programId: poolKeys.programId,
+            keys,
+            data,
+          })
+        ],
+        signers: [],
+        lookupTableAddress: [],
+        instructionTypes: [version === 4 ? InstructionType.ammV4SwapBaseOut : InstructionType.ammV5SwapBaseOut],
+        supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
+      }
+    }
   }
 
-  static async makeSwapTransaction(params: LiquiditySwapTransactionParams) {
+  static async makeSwapInstructionSimple(params: LiquiditySwapInstructionSimpleParams) {
     const { connection, poolKeys, userKeys, amountIn, amountOut, fixedSide, config } = params;
     const { tokenAccounts, owner, payer = owner } = userKeys;
 
@@ -1078,6 +1164,8 @@ export class Liquidity extends Base {
 
     const frontInstructions: TransactionInstruction[] = [];
     const endInstructions: TransactionInstruction[] = [];
+    const frontInstructionsType: InstructionType[] = [];
+    const endInstructionsType: InstructionType[] = [];
     const signers: Signer[] = [];
 
     const _tokenAccountIn = await this._handleTokenAccount({
@@ -1092,6 +1180,7 @@ export class Liquidity extends Base {
       endInstructions,
       signers,
       bypassAssociatedCheck,
+      frontInstructionsType,
     });
     const _tokenAccountOut = await this._handleTokenAccount({
       connection,
@@ -1105,26 +1194,42 @@ export class Liquidity extends Base {
       endInstructions,
       signers,
       bypassAssociatedCheck,
+      frontInstructionsType,
     });
 
-    frontInstructions.push(
-      this.makeSwapInstruction({
-        poolKeys,
-        userKeys: {
-          tokenAccountIn: _tokenAccountIn,
-          tokenAccountOut: _tokenAccountOut,
-          owner,
-        },
-        amountIn: amountInRaw,
-        amountOut: amountOutRaw,
-        fixedSide,
-      }),
-    );
+    const ins = this.makeSwapInstruction({
+      poolKeys,
+      userKeys: {
+        tokenAccountIn: _tokenAccountIn,
+        tokenAccountOut: _tokenAccountOut,
+        owner,
+      },
+      amountIn: amountInRaw,
+      amountOut: amountOutRaw,
+      fixedSide,
+    })
 
-    const transaction = new Transaction();
-    transaction.add(...[...frontInstructions, ...endInstructions]);
-
-    return { transaction, signers };
+    return {
+      address: {},
+      innerTransactions: [{
+        instructions: [
+          ...frontInstructions,
+          ...ins.innerTransaction.instructions,
+          ...endInstructions
+        ],
+        signers: [
+          ...signers,
+          ...ins.innerTransaction.signers,
+        ],
+        lookupTableAddress: ins.innerTransaction.lookupTableAddress ?? [],
+        instructionTypes: [
+          ...frontInstructionsType, 
+          ...ins.innerTransaction.instructionTypes, 
+          ...endInstructionsType
+        ],
+        supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
+      }]
+    }
   }
 
   static makeCreatePoolInstruction(params: LiquidityCreatePoolInstructionParams) {
@@ -1170,20 +1275,28 @@ export class Liquidity extends Base {
       AccountMeta(userKeys.payer, true),
     ];
 
-    return new TransactionInstruction({
-      programId: poolKeys.programId,
-      keys,
-      data,
-    });
+    return {
+      address: {},
+      innerTransaction: {
+        instructions: [new TransactionInstruction({
+          programId: poolKeys.programId,
+          keys,
+          data,
+        })],
+        signers: [],
+        lookupTableAddress: [],
+        instructionTypes: [InstructionType.ammV4CreatePool],
+        supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
+      }
+    }
   }
 
-  static makeCreatePoolTransaction(params: LiquidityCreatePoolTransactionParams) {
-    const transaction = new Transaction();
-    const signers: Signer[] = [];
-
-    transaction.add(this.makeCreatePoolInstruction(params));
-
-    return { transaction, signers };
+  static makeCreatePoolInstructionSimple(params: LiquidityCreatePoolInstructionSimpleParams) {
+    const ins = this.makeCreatePoolInstruction(params)
+    return {
+      address: ins.address,
+      innerTransactions: [ins.innerTransaction]
+    }
   }
 
   static makeInitPoolInstruction(params: LiquidityInitPoolInstructionParams) {
@@ -1234,14 +1347,23 @@ export class Liquidity extends Base {
       AccountMeta(userKeys.payer, true),
     ];
 
-    return new TransactionInstruction({
-      programId: poolKeys.programId,
-      keys,
-      data,
-    });
+    return {
+      address: {},
+      innerTransaction: {
+        instructions: [new TransactionInstruction({
+          programId: poolKeys.programId,
+          keys,
+          data,
+        })],
+        signers: [],
+        lookupTableAddress: [],
+        instructionTypes: [InstructionType.ammV4InitPool],
+        supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
+      }
+    }
   }
 
-  static async makeInitPoolTransaction(params: LiquidityInitPoolTransactionParams) {
+  static async makeInitPoolInstructionSimple(params: LiquidityInitPoolTransactionParams) {
     const { connection, poolKeys, userKeys, baseAmount, quoteAmount, startTime = 0, config } = params;
     const { baseMint, quoteMint, lpMint, baseVault, quoteVault } = poolKeys;
     const { tokenAccounts, owner, payer = owner } = userKeys;
@@ -1279,6 +1401,8 @@ export class Liquidity extends Base {
 
     const frontInstructions: TransactionInstruction[] = [];
     const endInstructions: TransactionInstruction[] = [];
+    const frontInstructionsType: InstructionType[] = [];
+    const endInstructionsType: InstructionType[] = [];
     const signers: Signer[] = [];
 
     const _baseTokenAccount = await this._handleTokenAccount({
@@ -1293,6 +1417,7 @@ export class Liquidity extends Base {
       endInstructions,
       signers,
       bypassAssociatedCheck,
+      frontInstructionsType,
     });
     const _quoteTokenAccount = await this._handleTokenAccount({
       connection,
@@ -1306,6 +1431,7 @@ export class Liquidity extends Base {
       endInstructions,
       signers,
       bypassAssociatedCheck,
+      frontInstructionsType,
     });
     const _lpTokenAccount = await this._handleTokenAccount({
       connection,
@@ -1319,6 +1445,7 @@ export class Liquidity extends Base {
       endInstructions,
       signers,
       bypassAssociatedCheck,
+      frontInstructionsType,
     });
 
     frontInstructions.push(
@@ -1327,6 +1454,7 @@ export class Liquidity extends Base {
         destination: baseVault,
         owner,
         amount: baseAmount.raw,
+        instructionsType: frontInstructionsType,
       }),
     );
     frontInstructions.push(
@@ -1335,23 +1463,45 @@ export class Liquidity extends Base {
         destination: quoteVault,
         owner,
         amount: quoteAmount.raw,
+        instructionsType: frontInstructionsType,
       }),
     );
-    frontInstructions.push(
-      this.makeInitPoolInstruction({
-        poolKeys,
-        userKeys: {
-          lpTokenAccount: _lpTokenAccount,
-          payer,
-        },
-        startTime,
-      }),
-    );
+    
+    const ins = this.makeInitPoolInstruction({
+      poolKeys,
+      userKeys: {
+        lpTokenAccount: _lpTokenAccount,
+        payer,
+      },
+      startTime,
+    })
 
     const transaction = new Transaction();
     transaction.add(...[...frontInstructions, ...endInstructions]);
 
-    return { transaction, signers };
+    return {
+      address: {
+        lpTokenAccount: _lpTokenAccount,
+      },
+      innerTransactions: [{
+        instructions: [
+          ...frontInstructions,
+          ...ins.innerTransaction.instructions,
+          ...endInstructions
+        ],
+        signers: [
+          ...signers,
+          ...ins.innerTransaction.signers,
+        ],
+        lookupTableAddress: ins.innerTransaction.lookupTableAddress ?? [],
+        instructionTypes: [
+          ...frontInstructionsType, 
+          ...ins.innerTransaction.instructionTypes, 
+          ...endInstructionsType
+        ],
+        supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
+      }]
+    }
   }
 
   static makeSimulatePoolInfoInstruction({ poolKeys }: { poolKeys: LiquidityPoolKeys }) {
@@ -1378,11 +1528,22 @@ export class Liquidity extends Base {
       AccountMetaReadonly(poolKeys.marketEventQueue, false),
     ];
 
-    return new TransactionInstruction({
-      programId: poolKeys.programId,
-      keys,
-      data,
-    });
+    return {
+      address: {},
+      innerTransaction: {
+        instructions: [
+          new TransactionInstruction({
+            programId: poolKeys.programId,
+            keys,
+            data,
+          })
+        ],
+        signers: [],
+        lookupTableAddress: [],
+        instructionTypes: [poolKeys.version === 4 ? InstructionType.ammV4SimulatePoolInfo : InstructionType.ammV5SimulatePoolInfo],
+        supportedVersion: [TxVersion.LEGACY, TxVersion.V0],
+      }
+    }
   }
 
   static isV4(lsl: any): lsl is LiquidityStateV4 {
@@ -1393,200 +1554,200 @@ export class Liquidity extends Base {
   /**
    * Fetch all pools keys from on-chain data
    */
-  static async fetchAllPoolKeys(
-    connection: Connection,
-    config?: GetMultipleAccountsInfoConfig,
-  ): Promise<LiquidityPoolKeys[]> {
-    // supported versions
-    const supported = Object.keys(LIQUIDITY_VERSION_TO_STATE_LAYOUT).map((v) => {
-      const version = Number(v);
-      const serumVersion = this.getSerumVersion(version);
-      const serumProgramId = Market.getProgramId(serumVersion);
-      return {
-        version,
-        programId: this.getProgramId(version),
-        serumVersion,
-        serumProgramId,
-        stateLayout: this.getStateLayout(version),
-      };
-    });
+  // static async fetchAllPoolKeys(
+  //   connection: Connection,
+  //   config?: GetMultipleAccountsInfoConfig,
+  // ): Promise<LiquidityPoolKeys[]> {
+  //   // supported versions
+  //   const supported = Object.keys(LIQUIDITY_VERSION_TO_STATE_LAYOUT).map((v) => {
+  //     const version = Number(v) as 4 | 5;
+  //     const serumVersion = this.getSerumVersion(version);
+  //     const serumProgramId = Market.getProgramId(serumVersion);
+  //     return {
+  //       version,
+  //       programId: this.getProgramId(version),
+  //       serumVersion,
+  //       serumProgramId,
+  //       stateLayout: this.getStateLayout(version),
+  //     };
+  //   });
 
-    let poolsAccountInfo: {
-      pubkey: PublicKey;
-      account: AccountInfo<Buffer>;
+  //   let poolsAccountInfo: {
+  //     pubkey: PublicKey;
+  //     account: AccountInfo<Buffer>;
 
-      version: number;
-      programId: PublicKey;
-      serumVersion: number;
-      serumProgramId: PublicKey;
-      stateLayout: LiquidityStateLayout;
-    }[][] = [];
-    try {
-      poolsAccountInfo = await Promise.all(
-        supported.map(({ programId, version, serumVersion, serumProgramId, stateLayout }) =>
-          connection
-            .getProgramAccounts(programId, {
-              filters: [{ dataSize: stateLayout.span }],
-            })
-            .then((accounts) => {
-              return accounts.map((info) => {
-                return {
-                  ...info,
-                  ...{ version, programId, serumVersion, serumProgramId, stateLayout },
-                };
-              });
-            }),
-        ),
-      );
-    } catch (error) {
-      if (error instanceof Error) {
-        return logger.throwError("failed to fetch all liquidity pools", Logger.errors.RPC_ERROR, {
-          message: error.message,
-        });
-      }
-    }
+  //     version: number;
+  //     programId: PublicKey;
+  //     serumVersion: number;
+  //     serumProgramId: PublicKey;
+  //     stateLayout: LiquidityStateLayout;
+  //   }[][] = [];
+  //   try {
+  //     poolsAccountInfo = await Promise.all(
+  //       supported.map(({ programId, version, serumVersion, serumProgramId, stateLayout }) =>
+  //         connection
+  //           .getProgramAccounts(programId, {
+  //             filters: [{ dataSize: stateLayout.span }],
+  //           })
+  //           .then((accounts) => {
+  //             return accounts.map((info) => {
+  //               return {
+  //                 ...info,
+  //                 ...{ version, programId, serumVersion, serumProgramId, stateLayout },
+  //               };
+  //             });
+  //           }),
+  //       ),
+  //     );
+  //   } catch (error) {
+  //     if (error instanceof Error) {
+  //       return logger.throwError("failed to fetch all liquidity pools", Logger.errors.RPC_ERROR, {
+  //         message: error.message,
+  //       });
+  //     }
+  //   }
 
-    const flatPoolsAccountInfo = poolsAccountInfo.flat();
-    // temp pool keys without market keys
-    const tempPoolsKeys: Omit<LiquidityAssociatedPoolKeys, "nonce">[] = [];
+  //   const flatPoolsAccountInfo = poolsAccountInfo.flat();
+  //   // temp pool keys without market keys
+  //   const tempPoolsKeys: Omit<LiquidityAssociatedPoolKeys, "nonce">[] = [];
 
-    for (const {
-      pubkey,
-      account: accountInfo,
-      version,
-      programId,
-      serumVersion,
-      serumProgramId,
-      stateLayout: LIQUIDITY_STATE_LAYOUT,
-    } of flatPoolsAccountInfo) {
-      logger.assertArgument(!!accountInfo, "empty state account info", "pool.id", pubkey);
+  //   for (const {
+  //     pubkey,
+  //     account: accountInfo,
+  //     version,
+  //     programId,
+  //     serumVersion,
+  //     serumProgramId,
+  //     stateLayout: LIQUIDITY_STATE_LAYOUT,
+  //   } of flatPoolsAccountInfo) {
+  //     logger.assertArgument(!!accountInfo, "empty state account info", "pool.id", pubkey);
 
-      const { data } = accountInfo;
-      logger.assertArgument(
-        data.length === LIQUIDITY_STATE_LAYOUT.span,
-        "invalid state data length",
-        "pool.id",
-        pubkey,
-      );
+  //     const { data } = accountInfo;
+  //     logger.assertArgument(
+  //       data.length === LIQUIDITY_STATE_LAYOUT.span,
+  //       "invalid state data length",
+  //       "pool.id",
+  //       pubkey,
+  //     );
 
-      const fields = LIQUIDITY_STATE_LAYOUT.decode(data);
+  //     const fields = LIQUIDITY_STATE_LAYOUT.decode(data);
 
-      const { status, baseMint, quoteMint, baseDecimal, quoteDecimal, lpMint, openOrders, targetOrders, baseVault, quoteVault, marketId } =
-        fields;
+  //     const { status, baseMint, quoteMint, baseDecimal, quoteDecimal, lpMint, openOrders, targetOrders, baseVault, quoteVault, marketId } =
+  //       fields;
 
-      let withdrawQueue, lpVault;
-      if (this.isV4(fields)) {
-        withdrawQueue = fields.withdrawQueue;
-        lpVault = fields.lpVault;
-      } else {
-        withdrawQueue = PublicKey.default;
-        lpVault = PublicKey.default;
-      }
-      // uninitialized
-      if (status.isZero()) {
-        continue;
-      }
+  //     let withdrawQueue, lpVault;
+  //     if (this.isV4(fields)) {
+  //       withdrawQueue = fields.withdrawQueue;
+  //       lpVault = fields.lpVault;
+  //     } else {
+  //       withdrawQueue = PublicKey.default;
+  //       lpVault = PublicKey.default;
+  //     }
+  //     // uninitialized
+  //     if (status.isZero()) {
+  //       continue;
+  //     }
 
-      const associatedPoolKeys = Liquidity.getAssociatedPoolKeys({
-        version,
-        marketVersion: serumVersion,
-        marketId,
-        baseMint,
-        baseDecimals: baseDecimal.toNumber(),
-        quoteMint,
-        quoteDecimals: quoteDecimal.toNumber(),
-        programId,
-        marketProgramId: serumProgramId
-      });
-      // double check keys with on-chain data
-      // logger.assert(Number(nonce) === associatedPoolKeys.nonce, "invalid nonce");
+  //     const associatedPoolKeys = Liquidity.getAssociatedPoolKeys({
+  //       version,
+  //       marketVersion: serumVersion,
+  //       marketId,
+  //       baseMint,
+  //       baseDecimals: baseDecimal.toNumber(),
+  //       quoteMint,
+  //       quoteDecimals: quoteDecimal.toNumber(),
+  //       programId,
+  //       marketProgramId: serumProgramId
+  //     });
+  //     // double check keys with on-chain data
+  //     // logger.assert(Number(nonce) === associatedPoolKeys.nonce, "invalid nonce");
 
-      tempPoolsKeys.push({
-        id: pubkey,
-        baseMint,
-        quoteMint,
-        baseDecimals: associatedPoolKeys.baseDecimals,
-        quoteDecimals: associatedPoolKeys.quoteDecimals,
-        lpDecimals: associatedPoolKeys.lpDecimals,
-        lpMint,
-        version,
-        programId,
+  //     tempPoolsKeys.push({
+  //       id: pubkey,
+  //       baseMint,
+  //       quoteMint,
+  //       baseDecimals: associatedPoolKeys.baseDecimals,
+  //       quoteDecimals: associatedPoolKeys.quoteDecimals,
+  //       lpDecimals: associatedPoolKeys.lpDecimals,
+  //       lpMint,
+  //       version,
+  //       programId,
 
-        authority: associatedPoolKeys.authority,
-        openOrders,
-        targetOrders,
-        baseVault,
-        quoteVault,
-        withdrawQueue,
-        lpVault,
-        marketVersion: serumVersion,
-        marketProgramId: serumProgramId,
-        marketId,
-        marketAuthority: associatedPoolKeys.marketAuthority,
-      });
-    }
+  //       authority: associatedPoolKeys.authority,
+  //       openOrders,
+  //       targetOrders,
+  //       baseVault,
+  //       quoteVault,
+  //       withdrawQueue,
+  //       lpVault,
+  //       marketVersion: serumVersion,
+  //       marketProgramId: serumProgramId,
+  //       marketId,
+  //       marketAuthority: associatedPoolKeys.marketAuthority,
+  //     });
+  //   }
 
-    // fetch market keys
-    let marketsInfo: (AccountInfo<Buffer> | null)[] = [];
-    try {
-      marketsInfo = await getMultipleAccountsInfo(
-        connection,
-        tempPoolsKeys.map(({ marketId }) => marketId),
-        config,
-      );
-    } catch (error) {
-      if (error instanceof Error) {
-        return logger.throwError("failed to fetch markets", Logger.errors.RPC_ERROR, {
-          message: error.message,
-        });
-      }
-    }
+  //   // fetch market keys
+  //   let marketsInfo: (AccountInfo<Buffer> | null)[] = [];
+  //   try {
+  //     marketsInfo = await getMultipleAccountsInfo(
+  //       connection,
+  //       tempPoolsKeys.map(({ marketId }) => marketId),
+  //       config,
+  //     );
+  //   } catch (error) {
+  //     if (error instanceof Error) {
+  //       return logger.throwError("failed to fetch markets", Logger.errors.RPC_ERROR, {
+  //         message: error.message,
+  //       });
+  //     }
+  //   }
 
-    logger.assertArgument(
-      marketsInfo.length === tempPoolsKeys.length,
-      "markets count not equal to pools",
-      "markets.length",
-      marketsInfo.length,
-    );
+  //   logger.assertArgument(
+  //     marketsInfo.length === tempPoolsKeys.length,
+  //     "markets count not equal to pools",
+  //     "markets.length",
+  //     marketsInfo.length,
+  //   );
 
-    const poolsKeys: LiquidityPoolKeys[] = [];
+  //   const poolsKeys: LiquidityPoolKeys[] = [];
 
-    for (const index in marketsInfo) {
-      const poolKeys = tempPoolsKeys[index];
-      const marketInfo = marketsInfo[index];
+  //   for (const index in marketsInfo) {
+  //     const poolKeys = tempPoolsKeys[index];
+  //     const marketInfo = marketsInfo[index];
 
-      const { id, marketVersion } = poolKeys;
+  //     const { id, marketVersion } = poolKeys;
 
-      if (!marketInfo) {
-        return logger.throwArgumentError("empty market account info", "pool.id", id);
-      }
+  //     if (!marketInfo) {
+  //       return logger.throwArgumentError("empty market account info", "pool.id", id);
+  //     }
 
-      const { data } = marketInfo;
-      const { state: MARKET_STATE_LAYOUT } = Market.getLayouts(marketVersion);
-      logger.assertArgument(data.length === MARKET_STATE_LAYOUT.span, "invalid market data length", "pool.id", id);
+  //     const { data } = marketInfo;
+  //     const { state: MARKET_STATE_LAYOUT } = Market.getLayouts(marketVersion);
+  //     logger.assertArgument(data.length === MARKET_STATE_LAYOUT.span, "invalid market data length", "pool.id", id);
 
-      const {
-        baseVault: marketBaseVault,
-        quoteVault: marketQuoteVault,
-        bids: marketBids,
-        asks: marketAsks,
-        eventQueue: marketEventQueue,
-      } = MARKET_STATE_LAYOUT.decode(data);
+  //     const {
+  //       baseVault: marketBaseVault,
+  //       quoteVault: marketQuoteVault,
+  //       bids: marketBids,
+  //       asks: marketAsks,
+  //       eventQueue: marketEventQueue,
+  //     } = MARKET_STATE_LAYOUT.decode(data);
 
-      poolsKeys.push({
-        ...poolKeys,
-        ...{
-          marketBaseVault,
-          marketQuoteVault,
-          marketBids,
-          marketAsks,
-          marketEventQueue,
-        },
-      });
-    }
+  //     poolsKeys.push({
+  //       ...poolKeys,
+  //       ...{
+  //         marketBaseVault,
+  //         marketQuoteVault,
+  //         marketBids,
+  //         marketAsks,
+  //         marketEventQueue,
+  //       },
+  //     });
+  //   }
 
-    return poolsKeys;
-  }
+  //   return poolsKeys;
+  // }
 
   /**
    * Fetch liquidity pool's info
@@ -1617,7 +1778,7 @@ export class Liquidity extends Base {
 
     const instructions = pools.map((pool) => this.makeSimulatePoolInfoInstruction({ poolKeys: pool }));
 
-    const logs = await simulateMultipleInstruction(connection, instructions, "GetPoolData");
+    const logs = await simulateMultipleInstruction(connection, instructions.map(i => i.innerTransaction.instructions).flat(), "GetPoolData");
 
     const poolsInfo = logs.map((log) => {
       const json = parseSimulateLogToJson(log, "GetPoolData");
