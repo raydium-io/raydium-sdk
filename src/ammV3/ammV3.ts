@@ -683,8 +683,8 @@ export class AmmV3 extends Base {
 
           frontInstructions,
           frontInstructionsType,
-          endInstructions: mintAUseSOLBalance ? endInstructions : [],
-          endInstructionsType: mintAUseSOLBalance ? endInstructionsType : [],
+          endInstructions: rewardUseSOLBalance ? endInstructions : [],
+          endInstructionsType: rewardUseSOLBalance ? endInstructionsType : [],
           signers
         },
 
