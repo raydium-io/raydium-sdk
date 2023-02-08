@@ -69,6 +69,7 @@ export enum InstructionType {
   'ammV4SwapBaseOut',
   'ammV4CreatePool',
   'ammV4InitPool',
+  'ammV4CreatePoolV2',
 
   'ammV5AddLiquidity',
   'ammV5RemoveLiquidity',

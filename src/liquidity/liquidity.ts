@@ -6,10 +6,12 @@ import BN from "bn.js";
 import {
   Base, InstructionType, MakeInstructionOutType, MakeInstructionSimpleOutType, TokenAccount, TxVersion,
 } from "../base";
+import { getATAAddress } from "../base/pda";
 import { ApiPoolInfoItem } from "../baseInfo";
 import {
-  AccountMeta, AccountMetaReadonly, findProgramAddress, GetMultipleAccountsInfoConfig, Logger, parseSimulateLogToJson,
-  parseSimulateValue, simulateMultipleInstruction, SYSTEM_PROGRAM_ID, SYSVAR_RENT_PUBKEY, TOKEN_PROGRAM_ID,
+  AccountMeta, AccountMetaReadonly, ASSOCIATED_TOKEN_PROGRAM_ID, findProgramAddress, GetMultipleAccountsInfoConfig,
+  Logger, parseSimulateLogToJson, parseSimulateValue, RENT_PROGRAM_ID, simulateMultipleInstruction, SYSTEM_PROGRAM_ID,
+  SYSVAR_RENT_PUBKEY, TOKEN_PROGRAM_ID,
 } from "../common";
 import {
   BigNumberish, Currency, CurrencyAmount, divCeil, ONE, parseBigNumberish, Percent, Price, Token, TokenAmount, ZERO,
@@ -63,8 +65,8 @@ export type LiquidityPoolKeys = LiquidityPoolKeysV4;
 
 export interface LiquidityAssociatedPoolKeysV4
   extends Omit<
-  LiquidityPoolKeysV4,
-  "marketBaseVault" | "marketQuoteVault" | "marketBids" | "marketAsks" | "marketEventQueue"
+    LiquidityPoolKeysV4,
+    "marketBaseVault" | "marketQuoteVault" | "marketBids" | "marketAsks" | "marketEventQueue"
   > {
   nonce: number;
 }
@@ -574,7 +576,7 @@ export class Liquidity extends Base {
         AccountMetaReadonly(userKeys.owner, true),
         AccountMetaReadonly(poolKeys.marketEventQueue, false),
       );
-      
+
       return {
         address: {},
         innerTransaction: {
@@ -753,8 +755,8 @@ export class Liquidity extends Base {
         ],
         lookupTableAddress: ins.innerTransaction.lookupTableAddress ?? [],
         instructionTypes: [
-          ...frontInstructionsType, 
-          ...ins.innerTransaction.instructionTypes, 
+          ...frontInstructionsType,
+          ...ins.innerTransaction.instructionTypes,
           ...endInstructionsType
         ],
         supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
@@ -946,8 +948,8 @@ export class Liquidity extends Base {
         ],
         lookupTableAddress: ins.innerTransaction.lookupTableAddress ?? [],
         instructionTypes: [
-          ...frontInstructionsType, 
-          ...ins.innerTransaction.instructionTypes, 
+          ...frontInstructionsType,
+          ...ins.innerTransaction.instructionTypes,
           ...endInstructionsType
         ],
         supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
@@ -1223,8 +1225,8 @@ export class Liquidity extends Base {
         ],
         lookupTableAddress: ins.innerTransaction.lookupTableAddress ?? [],
         instructionTypes: [
-          ...frontInstructionsType, 
-          ...ins.innerTransaction.instructionTypes, 
+          ...frontInstructionsType,
+          ...ins.innerTransaction.instructionTypes,
           ...endInstructionsType
         ],
         supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
@@ -1466,7 +1468,7 @@ export class Liquidity extends Base {
         instructionsType: frontInstructionsType,
       }),
     );
-    
+
     const ins = this.makeInitPoolInstruction({
       poolKeys,
       userKeys: {
@@ -1495,8 +1497,8 @@ export class Liquidity extends Base {
         ],
         lookupTableAddress: ins.innerTransaction.lookupTableAddress ?? [],
         instructionTypes: [
-          ...frontInstructionsType, 
-          ...ins.innerTransaction.instructionTypes, 
+          ...frontInstructionsType,
+          ...ins.innerTransaction.instructionTypes,
           ...endInstructionsType
         ],
         supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
@@ -1548,6 +1550,226 @@ export class Liquidity extends Base {
 
   static isV4(lsl: any): lsl is LiquidityStateV4 {
     return lsl.withdrawQueue !== undefined;
+  }
+
+  static async makeCreatePoolV4InstructionV2Simple({
+    connection, programId, marketInfo, baseMintInfo, quoteMintInfo, baseAmount, quoteAmount,startTime, ownerInfo, associatedOnly=false
+  }: {
+    connection: Connection,
+    programId: PublicKey,
+    marketInfo: {
+      marketId: PublicKey,
+      programId: PublicKey,
+    },
+    baseMintInfo: {
+      mint: PublicKey,
+      decimals: number
+    },
+    quoteMintInfo: {
+      mint: PublicKey,
+      decimals: number
+    },
+
+    baseAmount: BN,
+    quoteAmount: BN,
+    startTime: BN,
+
+    ownerInfo: {
+      feePayer: PublicKey,
+      wallet: PublicKey,
+      tokenAccounts: TokenAccount[],
+      useSOLBalance?: boolean  // if has WSOL mint
+    },
+    associatedOnly: boolean
+  }): Promise<MakeInstructionSimpleOutType> {
+    const frontInstructions: TransactionInstruction[] = [];
+    const endInstructions: TransactionInstruction[] = [];
+    const frontInstructionsType: InstructionType[] = [];
+    const endInstructionsType: InstructionType[] = [];
+    const signers: Signer[] = []
+
+    const mintAUseSOLBalance = ownerInfo.useSOLBalance && baseMintInfo.mint.equals(Token.WSOL.mint)
+    const mintBUseSOLBalance = ownerInfo.useSOLBalance && quoteMintInfo.mint.equals(Token.WSOL.mint)
+
+    const ownerTokenAccountBase = await this._selectOrCreateTokenAccount({
+      mint: baseMintInfo.mint,
+      tokenAccounts: mintAUseSOLBalance ? [] : ownerInfo.tokenAccounts,
+      owner: ownerInfo.wallet,
+
+      createInfo: mintAUseSOLBalance ? {
+        connection,
+        payer: ownerInfo.feePayer,
+        amount: 0,
+
+        frontInstructions,
+        frontInstructionsType,
+        endInstructions: mintAUseSOLBalance ? endInstructions : [],
+        endInstructionsType: mintAUseSOLBalance ? endInstructionsType : [],
+        signers
+      } : undefined,
+
+      associatedOnly: mintAUseSOLBalance ? false : associatedOnly
+    })
+
+    const ownerTokenAccountQuote = await this._selectOrCreateTokenAccount({
+      mint: quoteMintInfo.mint,
+      tokenAccounts: mintBUseSOLBalance ? [] : ownerInfo.tokenAccounts,
+      owner: ownerInfo.wallet,
+
+      createInfo: mintBUseSOLBalance ? {
+        connection,
+        payer: ownerInfo.feePayer,
+        amount: 0,
+
+        frontInstructions,
+        frontInstructionsType,
+        endInstructions: mintBUseSOLBalance ? endInstructions : [],
+        endInstructionsType: mintBUseSOLBalance ? endInstructionsType : [],
+        signers
+      } : undefined,
+
+      associatedOnly: mintBUseSOLBalance ? false : associatedOnly
+    })
+
+    if (ownerTokenAccountBase === undefined || ownerTokenAccountQuote === undefined) throw Error("you don't has some token account")
+
+    const poolInfo = Liquidity.getAssociatedPoolKeys({
+      version: 4,
+      marketVersion: 3,
+      marketId: marketInfo.marketId,
+      baseMint: baseMintInfo.mint,
+      quoteMint: quoteMintInfo.mint,
+      baseDecimals: baseMintInfo.decimals,
+      quoteDecimals: quoteMintInfo.decimals,
+      programId,
+      marketProgramId: marketInfo.programId
+    })
+
+    const ins = this.makeCreatePoolV4InstructionV2({
+      programId,
+      ammId: poolInfo.id,
+      ammAuthority: poolInfo.authority,
+      ammOpenOrders: poolInfo.openOrders,
+      lpMint: poolInfo.lpMint,
+      coinMint: poolInfo.baseMint,
+      pcMint: poolInfo.quoteMint,
+      coinVault: poolInfo.baseVault,
+      pcVault: poolInfo.quoteVault,
+      withdrawQueue: poolInfo.withdrawQueue,
+      ammTargetOrders: poolInfo.targetOrders,
+      poolTempLp: poolInfo.lpVault,
+      marketProgramId: poolInfo.marketProgramId,
+      marketId: poolInfo.marketId,
+      userWallet: ownerInfo.wallet,
+      userCoinVault: ownerTokenAccountBase,
+      userPcVault: ownerTokenAccountQuote,
+      userLpVault: getATAAddress(ownerInfo.wallet, poolInfo.lpMint).publicKey,
+
+      nonce: poolInfo.nonce,
+      openTime: startTime,
+      coinAmount: baseAmount,
+      pcAmount: quoteAmount,
+    }).innerTransaction
+    return {
+      address: {
+        programId,
+        ammId: poolInfo.id,
+        ammAuthority: poolInfo.authority,
+        ammOpenOrders: poolInfo.openOrders,
+        lpMint: poolInfo.lpMint,
+        coinMint: poolInfo.baseMint,
+        pcMint: poolInfo.quoteMint,
+        coinVault: poolInfo.baseVault,
+        pcVault: poolInfo.quoteVault,
+        withdrawQueue: poolInfo.withdrawQueue,
+        ammTargetOrders: poolInfo.targetOrders,
+        poolTempLp: poolInfo.lpVault,
+        marketProgramId: poolInfo.marketProgramId,
+        marketId: poolInfo.marketId,
+      },
+      innerTransactions: [{
+        instructions: [...frontInstructions, ...ins.instructions, ...endInstructions],
+        signers: [],
+        lookupTableAddress: [],
+        instructionTypes: [...frontInstructionsType, ...ins.instructionTypes, ...endInstructionsType],
+        supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
+      }]
+    }
+  }
+
+  static makeCreatePoolV4InstructionV2({
+    programId, ammId, ammAuthority, ammOpenOrders, lpMint, coinMint, pcMint, coinVault, pcVault, withdrawQueue, 
+    ammTargetOrders, poolTempLp, marketProgramId, marketId, userWallet, userCoinVault, userPcVault, userLpVault, 
+    nonce, openTime, coinAmount, pcAmount,
+  }: {
+    programId: PublicKey,
+    ammId: PublicKey,
+    ammAuthority: PublicKey,
+    ammOpenOrders: PublicKey,
+    lpMint: PublicKey,
+    coinMint: PublicKey,
+    pcMint: PublicKey,
+    coinVault: PublicKey,
+    pcVault: PublicKey,
+    withdrawQueue: PublicKey,
+    ammTargetOrders: PublicKey,
+    poolTempLp: PublicKey,
+    marketProgramId: PublicKey,
+    marketId: PublicKey,
+    userWallet: PublicKey,
+    userCoinVault: PublicKey,
+    userPcVault: PublicKey,
+    userLpVault: PublicKey,
+
+    nonce: number,
+    openTime: BN,
+    coinAmount: BN,
+    pcAmount: BN,
+  }): MakeInstructionOutType {
+    const dataLayout = struct([u8('instruction'), u8('nonce'), u64('openTime'), u64('pcAmount'), u64('coinAmount')]);
+
+    const keys = [
+      { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+      { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+      { pubkey: SYSTEM_PROGRAM_ID, isSigner: false, isWritable: false },
+      { pubkey: RENT_PROGRAM_ID, isSigner: false, isWritable: false },
+      { pubkey: ammId, isSigner: false, isWritable: true },
+      { pubkey: ammAuthority, isSigner: false, isWritable: false },
+      { pubkey: ammOpenOrders, isSigner: false, isWritable: true },
+      { pubkey: lpMint, isSigner: false, isWritable: true },
+      { pubkey: coinMint, isSigner: false, isWritable: false },
+      { pubkey: pcMint, isSigner: false, isWritable: false },
+      { pubkey: coinVault, isSigner: false, isWritable: true },
+      { pubkey: pcVault, isSigner: false, isWritable: true },
+      { pubkey: withdrawQueue, isSigner: false, isWritable: true },
+      { pubkey: ammTargetOrders, isSigner: false, isWritable: true },
+      { pubkey: poolTempLp, isSigner: false, isWritable: true },
+      { pubkey: marketProgramId, isSigner: false, isWritable: false },
+      { pubkey: marketId, isSigner: false, isWritable: false },
+      { pubkey: userWallet, isSigner: true, isWritable: true },
+      { pubkey: userCoinVault, isSigner: false, isWritable: true },
+      { pubkey: userPcVault, isSigner: false, isWritable: true },
+      { pubkey: userLpVault, isSigner: false, isWritable: true },
+    ];
+
+    const data = Buffer.alloc(dataLayout.span);
+    dataLayout.encode({ instruction: 1, nonce, openTime, coinAmount, pcAmount }, data);
+
+    const ins = new TransactionInstruction({
+      keys,
+      programId,
+      data,
+    })
+    return {
+      address: {},
+      innerTransaction: {
+        instructions: [ins],
+        signers: [],
+        lookupTableAddress: [],
+        instructionTypes: [InstructionType.ammV4CreatePoolV2],
+        supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
+      }
+    }
   }
 
   /* ================= fetch data ================= */
