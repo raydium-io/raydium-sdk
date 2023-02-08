@@ -745,19 +745,19 @@ export class TradeV2 extends Base {
       } else {
         if (frontInstructions.length > 0) {
           innerTransactions.push({
-            instructions: [...instructions, ...frontInstructions],
+            instructions: frontInstructions,
             signers,
             lookupTableAddress: [],
-            instructionTypes: [...instructionTypes, ...frontInstructionsType],
+            instructionTypes: frontInstructionsType,
             supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
           })
         }
         if (forecastTransactionSize(ins.innerTransaction.instructions, [ownerInfo.wallet])) {
           innerTransactions.push({
-            instructions: [...instructions, ...ins.innerTransaction.instructions],
+            instructions: ins.innerTransaction.instructions,
             signers: ins.innerTransaction.signers,
             lookupTableAddress: ins.innerTransaction.lookupTableAddress,
-            instructionTypes: [...instructionTypes, ...ins.innerTransaction.instructionTypes],
+            instructionTypes: ins.innerTransaction.instructionTypes,
             supportedVersion: ins.innerTransaction.supportedVersion
           })
         } else {
@@ -773,13 +773,50 @@ export class TradeV2 extends Base {
         }
         if (endInstructions.length > 0) {
           innerTransactions.push({
-            instructions: [...instructions, ...endInstructions],
+            instructions: endInstructions,
             signers: [],
             lookupTableAddress: [],
-            instructionTypes: [...instructionTypes, ...endInstructionsType],
+            instructionTypes: endInstructionsType,
             supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
           })
         }
+        // if (frontInstructions.length > 0) {
+        //   innerTransactions.push({
+        //     instructions: [...instructions, ...frontInstructions],
+        //     signers,
+        //     lookupTableAddress: [],
+        //     instructionTypes: [...instructionTypes, ...frontInstructionsType],
+        //     supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
+        //   })
+        // }
+        // if (forecastTransactionSize(ins.innerTransaction.instructions, [ownerInfo.wallet])) {
+        //   innerTransactions.push({
+        //     instructions: [...instructions, ...ins.innerTransaction.instructions],
+        //     signers: ins.innerTransaction.signers,
+        //     lookupTableAddress: ins.innerTransaction.lookupTableAddress,
+        //     instructionTypes: [...instructionTypes, ...ins.innerTransaction.instructionTypes],
+        //     supportedVersion: ins.innerTransaction.supportedVersion
+        //   })
+        // } else {
+        //   for (let index = 0 ; index < ins.innerTransaction.instructions.length; index++) {
+        //     innerTransactions.push({
+        //       instructions: [...instructions, ins.innerTransaction.instructions[index]],
+        //       signers: ins.innerTransaction.signers,
+        //       lookupTableAddress: [],
+        //       instructionTypes: [...instructionTypes, ins.innerTransaction.instructionTypes[index]],
+        //       supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
+        //     })
+        //   }
+        // }
+        // if (endInstructions.length > 0) {
+        //   innerTransactions.push({
+        //     instructions: [...instructions, ...endInstructions],
+        //     signers: [],
+        //     lookupTableAddress: [],
+        //     instructionTypes: [...instructionTypes, ...endInstructionsType],
+        //     supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
+        //   })
+        // }
       }
     } else {
       if (swapInfo.routeType === 'amm') {
