@@ -1599,7 +1599,7 @@ export class Liquidity extends Base {
       createInfo: mintAUseSOLBalance ? {
         connection,
         payer: ownerInfo.feePayer,
-        amount: 0,
+        amount: baseAmount,
 
         frontInstructions,
         frontInstructionsType,
@@ -1619,7 +1619,7 @@ export class Liquidity extends Base {
       createInfo: mintBUseSOLBalance ? {
         connection,
         payer: ownerInfo.feePayer,
-        amount: 0,
+        amount: quoteAmount,
 
         frontInstructions,
         frontInstructionsType,
