@@ -1689,7 +1689,7 @@ export class Liquidity extends Base {
       },
       innerTransactions: [{
         instructions: [...frontInstructions, ...ins.instructions, ...endInstructions],
-        signers: [],
+        signers,
         lookupTableAddress: [],
         instructionTypes: [...frontInstructionsType, ...ins.instructionTypes, ...endInstructionsType],
         supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
