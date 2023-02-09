@@ -4,8 +4,10 @@ import {
 import BN from "bn.js";
 
 import {
-  Base, InstructionType, MakeInstructionOutType, MakeInstructionSimpleOutType, TokenAccount, TxVersion,
+  Base, ComputeBudgetConfig, InstructionType, MakeInstructionOutType, MakeInstructionSimpleOutType, TokenAccount,
+  TxVersion,
 } from "../base";
+import { addComputeBudget } from "../base/instrument";
 import { getATAAddress } from "../base/pda";
 import { ApiPoolInfoItem } from "../baseInfo";
 import {
@@ -1553,7 +1555,7 @@ export class Liquidity extends Base {
   }
 
   static async makeCreatePoolV4InstructionV2Simple({
-    connection, programId, marketInfo, baseMintInfo, quoteMintInfo, baseAmount, quoteAmount,startTime, ownerInfo, associatedOnly=false
+    connection, programId, marketInfo, baseMintInfo, quoteMintInfo, baseAmount, quoteAmount,startTime, ownerInfo, associatedOnly=false, computeBudgetConfig
   }: {
     connection: Connection,
     programId: PublicKey,
@@ -1580,7 +1582,8 @@ export class Liquidity extends Base {
       tokenAccounts: TokenAccount[],
       useSOLBalance?: boolean  // if has WSOL mint
     },
-    associatedOnly: boolean
+    associatedOnly: boolean,
+    computeBudgetConfig?: ComputeBudgetConfig
   }): Promise<MakeInstructionSimpleOutType> {
     const frontInstructions: TransactionInstruction[] = [];
     const endInstructions: TransactionInstruction[] = [];
@@ -1670,6 +1673,9 @@ export class Liquidity extends Base {
       coinAmount: baseAmount,
       pcAmount: quoteAmount,
     }).innerTransaction
+
+    const { instructions, instructionTypes } = computeBudgetConfig ? addComputeBudget(computeBudgetConfig).innerTransaction : { instructions: [], instructionTypes: [] }
+
     return {
       address: {
         programId,
@@ -1688,10 +1694,10 @@ export class Liquidity extends Base {
         marketId: poolInfo.marketId,
       },
       innerTransactions: [{
-        instructions: [...frontInstructions, ...ins.instructions, ...endInstructions],
+        instructions: [...instructions, ...frontInstructions, ...ins.instructions, ...endInstructions],
         signers,
         lookupTableAddress: [],
-        instructionTypes: [...frontInstructionsType, ...ins.instructionTypes, ...endInstructionsType],
+        instructionTypes: [...instructionTypes, ...frontInstructionsType, ...ins.instructionTypes, ...endInstructionsType],
         supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
       }]
     }
