@@ -11,13 +11,13 @@ An SDK for building applications on top of Raydium.
 
 ### Yarn
 
-```
+```bash
 $ yarn add @raydium-io/raydium-sdk
 ```
 
 ### npm
 
-```
+```bash
 $ npm install @raydium-io/raydium-sdk --save
 ```
 
@@ -40,7 +40,7 @@ $ npm install @raydium-io/raydium-sdk --save
 
 #### Example of parse pool info
 
-```
+```typescript
 import { Connection, PublicKey } from "@solana/web3.js";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import {
@@ -152,7 +152,7 @@ parsePoolInfo();
 
 #### Example of parse farm info
 
-```
+```typescript
 import { Connection, PublicKey } from "@solana/web3.js";
 import { Farm } from "@raydium-io/raydium-sdk";
 import {
@@ -340,7 +340,7 @@ demoFarm();
 ```
 
 ##### types
-```
+```typescript
 export interface JsonPairItemInfo {
   ammId: string;
   apr24h: number;
