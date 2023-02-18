@@ -1,5 +1,5 @@
 import {
-  ComputeBudgetProgram, Connection, PublicKey, Signer, Transaction, TransactionInstruction,
+  AccountInfo, ComputeBudgetProgram, Connection, PublicKey, Signer, Transaction, TransactionInstruction,
 } from "@solana/web3.js";
 import BN from "bn.js";
 
@@ -11,18 +11,18 @@ import { addComputeBudget } from "../base/instrument";
 import { getATAAddress } from "../base/pda";
 import { ApiPoolInfoItem } from "../baseInfo";
 import {
-  AccountMeta, AccountMetaReadonly, ASSOCIATED_TOKEN_PROGRAM_ID, findProgramAddress, GetMultipleAccountsInfoConfig,
-  Logger, parseSimulateLogToJson, parseSimulateValue, RENT_PROGRAM_ID, simulateMultipleInstruction, SYSTEM_PROGRAM_ID,
-  SYSVAR_RENT_PUBKEY, TOKEN_PROGRAM_ID,
+  AccountMeta, AccountMetaReadonly, ASSOCIATED_TOKEN_PROGRAM_ID, findProgramAddress, getMultipleAccountsInfo,
+  GetMultipleAccountsInfoConfig, Logger, parseSimulateLogToJson, parseSimulateValue, RENT_PROGRAM_ID,
+  simulateMultipleInstruction, SYSTEM_PROGRAM_ID, SYSVAR_RENT_PUBKEY, TOKEN_PROGRAM_ID,
 } from "../common";
 import {
   BigNumberish, Currency, CurrencyAmount, divCeil, ONE, parseBigNumberish, Percent, Price, Token, TokenAmount, ZERO,
 } from "../entity";
 import { struct, u64, u8 } from "../marshmallow";
-import { Market } from "../serum";
+import { Market, MARKET_STATE_LAYOUT_V3, MarketState } from "../serum";
 import { Spl } from "../spl";
 
-import { LIQUIDITY_VERSION_TO_STATE_LAYOUT, LiquidityStateV4 } from "./layout";
+import { LIQUIDITY_VERSION_TO_STATE_LAYOUT, LiquidityStateV4, LiquidityStateV5 } from "./layout";
 import {
   formatLayout, getDxByDyBaseIn, getDyByDxBaseIn, getStablePrice, ModelDataPubkey, StableModelLayout,
 } from "./stable";
@@ -1782,200 +1782,108 @@ export class Liquidity extends Base {
   /**
    * Fetch all pools keys from on-chain data
    */
-  // static async fetchAllPoolKeys(
-  //   connection: Connection,
-  //   config?: GetMultipleAccountsInfoConfig,
-  // ): Promise<LiquidityPoolKeys[]> {
-  //   // supported versions
-  //   const supported = Object.keys(LIQUIDITY_VERSION_TO_STATE_LAYOUT).map((v) => {
-  //     const version = Number(v) as 4 | 5;
-  //     const serumVersion = this.getSerumVersion(version);
-  //     const serumProgramId = Market.getProgramId(serumVersion);
-  //     return {
-  //       version,
-  //       programId: this.getProgramId(version),
-  //       serumVersion,
-  //       serumProgramId,
-  //       stateLayout: this.getStateLayout(version),
-  //     };
-  //   });
+  static async fetchAllPoolKeys(
+    connection: Connection,
+    programId: {4: PublicKey, 5: PublicKey},
+    config?: GetMultipleAccountsInfoConfig,
+  ): Promise<LiquidityPoolKeys[]> {
+    const allPools = (await Promise.all(
+      Object.entries(LIQUIDITY_VERSION_TO_STATE_LAYOUT).map(([version, layout]) => {
+        try {
+          return connection
+          .getProgramAccounts(programId[version], {
+            filters: [{ dataSize: layout.span }],
+          })
+          .then((accounts) => {
+            return accounts.map((info) => {
+              return {
+                id: info.pubkey,
+                version: Number(version) as 4 | 5,
+                programId: programId[version],
+                ...layout.decode(info.account.data)
+              };
+            });
+          })
+        } catch (error) {
+          if (error instanceof Error) {
+            return logger.throwError("failed to fetch pool info", Logger.errors.RPC_ERROR, {
+              message: error.message,
+            });
+          }
+        }
+      }),
+    )).flat();
 
-  //   let poolsAccountInfo: {
-  //     pubkey: PublicKey;
-  //     account: AccountInfo<Buffer>;
+    const allMarketIds = allPools.map(i => i!.marketId)
+    const marketsInfo: {[marketId: string]: MarketState} = {}
+    try {
+      const _marketsInfo = await getMultipleAccountsInfo(connection, allMarketIds, config);
+      for (const item of _marketsInfo) {
+        if (item === null) continue
+        
+        const _i = {programId: item.owner, ...MARKET_STATE_LAYOUT_V3.decode(item.data)}
+        marketsInfo[_i.ownAddress.toString()] = _i
+      }
+    } catch (error) {
+      if (error instanceof Error) {
+        return logger.throwError("failed to fetch markets", Logger.errors.RPC_ERROR, {
+          message: error.message,
+        });
+      }
+    }
 
-  //     version: number;
-  //     programId: PublicKey;
-  //     serumVersion: number;
-  //     serumProgramId: PublicKey;
-  //     stateLayout: LiquidityStateLayout;
-  //   }[][] = [];
-  //   try {
-  //     poolsAccountInfo = await Promise.all(
-  //       supported.map(({ programId, version, serumVersion, serumProgramId, stateLayout }) =>
-  //         connection
-  //           .getProgramAccounts(programId, {
-  //             filters: [{ dataSize: stateLayout.span }],
-  //           })
-  //           .then((accounts) => {
-  //             return accounts.map((info) => {
-  //               return {
-  //                 ...info,
-  //                 ...{ version, programId, serumVersion, serumProgramId, stateLayout },
-  //               };
-  //             });
-  //           }),
-  //       ),
-  //     );
-  //   } catch (error) {
-  //     if (error instanceof Error) {
-  //       return logger.throwError("failed to fetch all liquidity pools", Logger.errors.RPC_ERROR, {
-  //         message: error.message,
-  //       });
-  //     }
-  //   }
+    const authority = {}
+    for (const [version, _programId] of Object.entries(programId)) authority[version] = this.getAssociatedAuthority({programId: _programId}).publicKey
 
-  //   const flatPoolsAccountInfo = poolsAccountInfo.flat();
-  //   // temp pool keys without market keys
-  //   const tempPoolsKeys: Omit<LiquidityAssociatedPoolKeys, "nonce">[] = [];
+    const formatPoolInfos: LiquidityPoolKeys[] = []
+    for (const pool of allPools) {
+      if (pool === undefined) continue
+      if (pool.baseMint.equals(PublicKey.default)) continue
+      const market = marketsInfo[pool.marketId.toString()]
 
-  //   for (const {
-  //     pubkey,
-  //     account: accountInfo,
-  //     version,
-  //     programId,
-  //     serumVersion,
-  //     serumProgramId,
-  //     stateLayout: LIQUIDITY_STATE_LAYOUT,
-  //   } of flatPoolsAccountInfo) {
-  //     logger.assertArgument(!!accountInfo, "empty state account info", "pool.id", pubkey);
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
+      const marketProgramId = market.programId
 
-  //     const { data } = accountInfo;
-  //     logger.assertArgument(
-  //       data.length === LIQUIDITY_STATE_LAYOUT.span,
-  //       "invalid state data length",
-  //       "pool.id",
-  //       pubkey,
-  //     );
-
-  //     const fields = LIQUIDITY_STATE_LAYOUT.decode(data);
-
-  //     const { status, baseMint, quoteMint, baseDecimal, quoteDecimal, lpMint, openOrders, targetOrders, baseVault, quoteVault, marketId } =
-  //       fields;
-
-  //     let withdrawQueue, lpVault;
-  //     if (this.isV4(fields)) {
-  //       withdrawQueue = fields.withdrawQueue;
-  //       lpVault = fields.lpVault;
-  //     } else {
-  //       withdrawQueue = PublicKey.default;
-  //       lpVault = PublicKey.default;
-  //     }
-  //     // uninitialized
-  //     if (status.isZero()) {
-  //       continue;
-  //     }
-
-  //     const associatedPoolKeys = Liquidity.getAssociatedPoolKeys({
-  //       version,
-  //       marketVersion: serumVersion,
-  //       marketId,
-  //       baseMint,
-  //       baseDecimals: baseDecimal.toNumber(),
-  //       quoteMint,
-  //       quoteDecimals: quoteDecimal.toNumber(),
-  //       programId,
-  //       marketProgramId: serumProgramId
-  //     });
-  //     // double check keys with on-chain data
-  //     // logger.assert(Number(nonce) === associatedPoolKeys.nonce, "invalid nonce");
-
-  //     tempPoolsKeys.push({
-  //       id: pubkey,
-  //       baseMint,
-  //       quoteMint,
-  //       baseDecimals: associatedPoolKeys.baseDecimals,
-  //       quoteDecimals: associatedPoolKeys.quoteDecimals,
-  //       lpDecimals: associatedPoolKeys.lpDecimals,
-  //       lpMint,
-  //       version,
-  //       programId,
-
-  //       authority: associatedPoolKeys.authority,
-  //       openOrders,
-  //       targetOrders,
-  //       baseVault,
-  //       quoteVault,
-  //       withdrawQueue,
-  //       lpVault,
-  //       marketVersion: serumVersion,
-  //       marketProgramId: serumProgramId,
-  //       marketId,
-  //       marketAuthority: associatedPoolKeys.marketAuthority,
-  //     });
-  //   }
-
-  //   // fetch market keys
-  //   let marketsInfo: (AccountInfo<Buffer> | null)[] = [];
-  //   try {
-  //     marketsInfo = await getMultipleAccountsInfo(
-  //       connection,
-  //       tempPoolsKeys.map(({ marketId }) => marketId),
-  //       config,
-  //     );
-  //   } catch (error) {
-  //     if (error instanceof Error) {
-  //       return logger.throwError("failed to fetch markets", Logger.errors.RPC_ERROR, {
-  //         message: error.message,
-  //       });
-  //     }
-  //   }
-
-  //   logger.assertArgument(
-  //     marketsInfo.length === tempPoolsKeys.length,
-  //     "markets count not equal to pools",
-  //     "markets.length",
-  //     marketsInfo.length,
-  //   );
-
-  //   const poolsKeys: LiquidityPoolKeys[] = [];
-
-  //   for (const index in marketsInfo) {
-  //     const poolKeys = tempPoolsKeys[index];
-  //     const marketInfo = marketsInfo[index];
-
-  //     const { id, marketVersion } = poolKeys;
-
-  //     if (!marketInfo) {
-  //       return logger.throwArgumentError("empty market account info", "pool.id", id);
-  //     }
-
-  //     const { data } = marketInfo;
-  //     const { state: MARKET_STATE_LAYOUT } = Market.getLayouts(marketVersion);
-  //     logger.assertArgument(data.length === MARKET_STATE_LAYOUT.span, "invalid market data length", "pool.id", id);
-
-  //     const {
-  //       baseVault: marketBaseVault,
-  //       quoteVault: marketQuoteVault,
-  //       bids: marketBids,
-  //       asks: marketAsks,
-  //       eventQueue: marketEventQueue,
-  //     } = MARKET_STATE_LAYOUT.decode(data);
-
-  //     poolsKeys.push({
-  //       ...poolKeys,
-  //       ...{
-  //         marketBaseVault,
-  //         marketQuoteVault,
-  //         marketBids,
-  //         marketAsks,
-  //         marketEventQueue,
-  //       },
-  //     });
-  //   }
-
-  //   return poolsKeys;
-  // }
+      formatPoolInfos.push({
+        id: pool.id,
+        baseMint: pool.baseMint,
+        quoteMint: pool.quoteMint,
+        lpMint: pool.lpMint,
+        baseDecimals: pool.baseDecimal.toNumber(),
+        quoteDecimals: pool.quoteDecimal.toNumber(),
+        lpDecimals: pool.id.toString() === '6kmMMacvoCKBkBrqssLEdFuEZu2wqtLdNQxh9VjtzfwT' ? 5 : pool.baseDecimal.toNumber(),
+        version: pool.version,
+        programId: pool.programId,
+        authority: authority[pool.version],
+        openOrders: pool.openOrders,
+        targetOrders: pool.targetOrders,
+        baseVault: pool.baseVault,
+        quoteVault: pool.quoteVault,
+        marketVersion: 3,
+        marketProgramId,
+        marketId: market.ownAddress,
+        marketAuthority: Market.getAssociatedAuthority({
+          programId: marketProgramId,
+          marketId: market.ownAddress,
+        }).publicKey,
+        marketBaseVault: market.baseVault,
+        marketQuoteVault: market.quoteVault,
+        marketBids: market.bids,
+        marketAsks: market.asks,
+        marketEventQueue: market.eventQueue,
+        ...(pool.version === 5 ? {
+          modelDataAccount: (pool as LiquidityStateV5).modelDataAccount,
+          withdrawQueue: PublicKey.default,
+          lpVault: PublicKey.default,
+        } : {
+          withdrawQueue: (pool as LiquidityStateV4).withdrawQueue,
+          lpVault: (pool as LiquidityStateV4).lpVault
+        })
+      })
+    }
+    return formatPoolInfos
+  }
 
   /**
    * Fetch liquidity pool's info
