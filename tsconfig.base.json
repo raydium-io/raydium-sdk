@@ -6,7 +6,8 @@
     "esModuleInterop": true,
     "noEmitOnError": true,
     "resolveJsonModule": true,
-    "stripInternal": true
+    "stripInternal": true,
+    "rootDir": "src"
   },
   "include": ["src"],
   "ts-node": {
