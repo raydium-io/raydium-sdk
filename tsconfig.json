@@ -1,22 +1,14 @@
 {
-  "extends": "@tsconfig/node14/tsconfig.json",
-
+  "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    "target": "es6",
-    "lib": ["es2019"],
-    "outDir": "./lib",
-    "allowJs": true,
-    "checkJs": true,
-    "declaration": true,
-    "declarationMap": true,
-    "noImplicitAny": false,
-    "resolveJsonModule": true,
-    "sourceMap": true,
-    "jsx": "react"
+    "composite": true
   },
-  "include": ["./src/**/*"],
-  "exclude": ["node_modules"],
-  "ts-node": {
-    "files": true
-  }
+  "references": [
+    {
+      "path": "./tsconfig.cjs.json"
+    },
+    {
+      "path": "./tsconfig.esm.json"
+    }
+  ]
 }

@@ -4,9 +4,7 @@
   "editor.tabSize": 2,
   "editor.codeActionsOnSave": ["source.formatDocument", "source.organizeImports.sortImports"],
   "eslint.validate": ["typescript"],
-  "[json]": {
-    "editor.defaultFormatter": "vscode.json-language-features"
-  },
+  // https://marketplace.visualstudio.com/items?itemName=aaron-bond.better-comments
   "better-comments.multilineComments": true,
   "better-comments.tags": [
     {
@@ -55,13 +53,21 @@
       "italic": false
     }
   ],
+  // https://marketplace.visualstudio.com/items?itemName=fabiospampinato.vscode-highlight
+  "highlight.regexes": {},
   // https://marketplace.visualstudio.com/items?itemName=dozerg.tsimportsorter
   "tsImportSorter.configuration.groupRules": [
-    ["^@\\w", "^\\w"],
+    // https://github.com/daidodo/format-imports/wiki/Grouping-Rules#types-of-imports
+    { "flags": "scripts" },
+    [
+      {
+        "flags": "named",
+        "subGroups": ["^react$", "^next$", "^next/", "^@next/", "^next-", "^@\\w", "^\\w"]
+      }
+    ],
     ["^@/"],
     ["^\\.\\."],
-    ["^\\."],
-    { "flags": "scripts" }
+    ["^\\."]
   ],
   "tsImportSorter.configuration.keepUnused": [".*"],
   "tsImportSorter.configuration.wrappingStyle": {

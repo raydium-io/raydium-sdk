@@ -4,7 +4,6 @@
     "rohit-gohri.format-code-action",
     "dozerg.tsimportsorter",
     "aaron-bond.better-comments",
-    "salbert.comment-ts",
-    "richie5um2.vscode-sort-json"
+    "salbert.comment-ts"
   ]
 }
