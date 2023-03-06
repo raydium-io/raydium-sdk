@@ -2,9 +2,6 @@ import { PublicKey } from "@solana/web3.js";
 
 import { version } from "../version";
 
-// https://github.com/DABH/colors.js
-import "@colors/colors";
-
 let _permanentCensorErrors = false;
 let _censorErrors = false;
 
@@ -175,15 +172,15 @@ export class Logger {
   }
 
   debug(...args: Array<any>): void {
-    this._log(Logger.levels.DEBUG, ["[DEBUG]".blue, ...args]);
+    this._log(Logger.levels.DEBUG, ["[DEBUG]", ...args]);
   }
 
   info(...args: Array<any>): void {
-    this._log(Logger.levels.INFO, ["[INFO]".green, ...args]);
+    this._log(Logger.levels.INFO, ["[INFO]", ...args]);
   }
 
   warn(...args: Array<any>): void {
-    this._log(Logger.levels.WARNING, ["[WARN]".yellow, ...args]);
+    this._log(Logger.levels.WARNING, ["[WARN]", ...args]);
   }
 
   makeError(message: string, code?: ErrorCode, params?: any): Error {
