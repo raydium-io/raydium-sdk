@@ -1,9 +1,11 @@
-import { PublicKey } from "@solana/web3.js";
-import { BN } from "bn.js";
+import { PublicKey } from '@solana/web3.js';
+import { BN } from 'bn.js';
 
-import { Currency, CurrencyAmount, Fraction, Percent, Price, TokenAmount } from "../entity";
+import {
+  Currency, CurrencyAmount, Fraction, Percent, Price, TokenAmount,
+} from '../entity';
 
-import { validateAndParsePublicKey } from "./pubkey";
+import { validateAndParsePublicKey } from './pubkey';
 
 type Primitive = boolean | number | string | null | undefined | PublicKey;
 
@@ -44,10 +46,8 @@ export type ReplaceType<Old, From, To> = {
     : ReplaceType<Old[T], From, To>; // recursively replace
 };
 
-const baseInnerObjects = [TokenAmount, PublicKey, Fraction, BN, Currency, CurrencyAmount, Price, Percent];
-
 function notInnerObject(v: unknown): v is Record<string, any> {
-  return typeof v === "object" && v !== null && !baseInnerObjects.some((o) => typeof o === "object" && v instanceof o);
+  return typeof v === "object" && v !== null && ![TokenAmount, PublicKey, Fraction, BN, Currency, CurrencyAmount, Price, Percent].some((o) => typeof o === "object" && v instanceof o);
 }
 
 export function jsonInfo2PoolKeys<T>(jsonInfo: T): ReplaceType<T, string, PublicKey> {
