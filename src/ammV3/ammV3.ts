@@ -1,32 +1,46 @@
-import { Connection, Keypair, PublicKey, Signer, SystemProgram, TransactionInstruction } from "@solana/web3.js";
-import BN from "bn.js";
-import Decimal from "decimal.js";
+import {
+  Connection, Keypair, PublicKey, Signer, SystemProgram, TransactionInstruction,
+} from '@solana/web3.js';
+import BN from 'bn.js';
+import Decimal from 'decimal.js';
 
 import {
-  Base, ComputeBudgetConfig, InnerTransaction, InstructionType, MakeInstructionOutType, TokenAccount, TxVersion,
-} from "../base";
-import { addComputeBudget } from "../base/instrument";
-import { getATAAddress } from "../base/pda";
-import { ApiAmmV3PoolsItem, ApiAmmV3PoolsItemStatistics } from "../baseInfo";
-import { getMultipleAccountsInfo, getMultipleAccountsInfoWithCustomFlags, Logger, splitTxAndSigners } from "../common";
-import { Currency, CurrencyAmount, ONE, Percent, Price, Token, TokenAmount, ZERO } from "../entity";
-import { SPL_ACCOUNT_LAYOUT } from "../spl";
+  Base, ComputeBudgetConfig, InnerTransaction, InstructionType,
+  MakeInstructionOutType, TokenAccount, TxVersion,
+} from '../base';
+import { addComputeBudget } from '../base/instrument';
+import { getATAAddress } from '../base/pda';
+import { ApiAmmV3PoolsItem, ApiAmmV3PoolsItemStatistics } from '../baseInfo';
+import {
+  getMultipleAccountsInfo, getMultipleAccountsInfoWithCustomFlags, Logger,
+  splitTxAndSigners,
+} from '../common';
+import {
+  Currency, CurrencyAmount, ONE, Percent, Price, Token, TokenAmount, ZERO,
+} from '../entity';
+import { SPL_ACCOUNT_LAYOUT } from '../spl';
 
 import {
-  closePositionInstruction, collectRewardInstruction, createPoolInstruction, decreaseLiquidityInstruction,
-  increaseLiquidityInstruction, initRewardInstruction, openPositionInstruction, setRewardInstruction, swapInstruction,
-} from "./instrument";
-import { ObservationInfoLayout, OperationLayout, PoolInfoLayout, PositionInfoLayout, TickArrayLayout } from "./layout";
-import { MAX_SQRT_PRICE_X64, MIN_SQRT_PRICE_X64 } from "./utils/constants";
-import { LiquidityMath, MathUtil, SqrtPriceMath, TickMath } from "./utils/math";
+  closePositionInstruction, collectRewardInstruction, createPoolInstruction,
+  decreaseLiquidityInstruction, increaseLiquidityInstruction,
+  initRewardInstruction, openPositionInstruction, setRewardInstruction,
+  swapInstruction,
+} from './instrument';
 import {
-  getPdaMetadataKey, getPdaOperationAccount, getPdaPersonalPositionAddress, getPdaPoolId, getPdaPoolRewardVaulId,
-  getPdaPoolVaultId, getPdaProtocolPositionAddress, getPdaTickArrayAddress,
-} from "./utils/pda";
-import { PoolUtils } from "./utils/pool";
-import { PositionUtils } from "./utils/position";
-import { Tick, TickArray, TickUtils } from "./utils/tick";
-import { FETCH_TICKARRAY_COUNT } from "./utils/tickQuery";
+  ObservationInfoLayout, OperationLayout, PoolInfoLayout, PositionInfoLayout,
+  TickArrayLayout,
+} from './layout';
+import { MAX_SQRT_PRICE_X64, MIN_SQRT_PRICE_X64 } from './utils/constants';
+import { LiquidityMath, MathUtil, SqrtPriceMath, TickMath } from './utils/math';
+import {
+  getPdaMetadataKey, getPdaOperationAccount, getPdaPersonalPositionAddress,
+  getPdaPoolId, getPdaPoolRewardVaulId, getPdaPoolVaultId,
+  getPdaProtocolPositionAddress, getPdaTickArrayAddress,
+} from './utils/pda';
+import { PoolUtils } from './utils/pool';
+import { PositionUtils } from './utils/position';
+import { Tick, TickArray, TickUtils } from './utils/tick';
+import { FETCH_TICKARRAY_COUNT } from './utils/tickQuery';
 
 const logger = Logger.from("AmmV3");
 
@@ -1731,28 +1745,32 @@ export class AmmV3 extends Base {
 
     const transactions = splitTxAndSigners({ instructions: makeDecreaseLiquidityInstructions.map(i => i.innerTransaction.instructions).flat(), signers: [], payer: ownerInfo.wallet })
 
+    const innerTransactions = []
+    if (frontInstructions.length > 0) innerTransactions.push({
+      instructions: frontInstructions,
+      signers,
+      instructionTypes: frontInstructionsType,
+      supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
+    })
+
+    innerTransactions.push(...transactions.map(i => ({
+      instructions: i.instruction,
+      signers: i.signer as Signer[],
+      instructionTypes: new Array(i.instruction.length).fill(InstructionType.clmmDecreasePosition),
+      supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
+    })))
+
+    if (endInstructions.length > 0) innerTransactions.push({
+      instructions: endInstructions,
+      signers: [],
+      instructionTypes: endInstructionsType,
+      supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
+    })
+
+
     return {
       address: {},
-      innerTransactions: [
-        {
-          instructions: frontInstructions,
-          signers,
-          instructionTypes: frontInstructionsType,
-          supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
-        },
-        ...transactions.map(i => ({
-          instructions: i.instruction,
-          signers: i.signer as Signer[],
-          instructionTypes: new Array(i.instruction.length).fill(InstructionType.clmmDecreasePosition),
-          supportedVersion: [TxVersion.LEGACY, TxVersion.V0] as TxVersion[]
-        })),
-        {
-          instructions: endInstructions,
-          signers: [],
-          instructionTypes: endInstructionsType,
-          supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
-        },
-      ]
+      innerTransactions
     }
   }
 
