@@ -1,16 +1,17 @@
-import { PublicKey } from "@solana/web3.js";
-import BN from "bn.js";
-import Decimal from "decimal.js";
+import { PublicKey } from '@solana/web3.js';
+import BN from 'bn.js';
+import Decimal from 'decimal.js';
 
-import { ONE, ZERO } from "../../entity";
+import { ONE, ZERO } from '../../entity';
 
 import {
-  BIT_PRECISION, Fee, FEE_RATE_DENOMINATOR, LOG_B_2_X32, LOG_B_P_ERR_MARGIN_LOWER_X64, LOG_B_P_ERR_MARGIN_UPPER_X64,
-  MAX_SQRT_PRICE_X64, MAX_TICK, MaxU64, MaxUint128, MIN_SQRT_PRICE_X64, MIN_TICK, NEGATIVE_ONE, Q128, Q64,
-  U64Resolution,
-} from "./constants";
-import { TickArray } from "./tick";
-import { TickQuery } from "./tickQuery";
+  BIT_PRECISION, Fee, FEE_RATE_DENOMINATOR, LOG_B_2_X32,
+  LOG_B_P_ERR_MARGIN_LOWER_X64, LOG_B_P_ERR_MARGIN_UPPER_X64,
+  MAX_SQRT_PRICE_X64, MAX_TICK, MaxU64, MaxUint128, MIN_SQRT_PRICE_X64,
+  MIN_TICK, NEGATIVE_ONE, Q128, Q64, U64Resolution,
+} from './constants';
+import { TickArray } from './tick';
+import { TickQuery } from './tickQuery';
 
 export class MathUtil {
   public static mulDivRoundingUp(a: BN, b: BN, denominator: BN): BN {
@@ -641,7 +642,7 @@ export abstract class SwapMath {
     let loopCount = 0;
     while (
       !state.amountSpecifiedRemaining.eq(ZERO) &&
-      state.sqrtPriceX64 != sqrtPriceLimitX64 &&
+      !state.sqrtPriceX64.eq(sqrtPriceLimitX64) &&
       state.tick < MAX_TICK &&
       state.tick > MIN_TICK
     ) {

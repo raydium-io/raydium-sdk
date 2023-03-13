@@ -1,10 +1,17 @@
-import { Connection, PublicKey, Signer, TransactionInstruction } from "@solana/web3.js";
-import BN from "bn.js";
+import {
+  Connection, PublicKey, Signer, TransactionInstruction,
+} from '@solana/web3.js';
+import BN from 'bn.js';
 
-import { Base, InstructionType, MakeInstructionSimpleOutType, TokenAccount, TxVersion } from "../base";
-import { findProgramAddress, forecastTransactionSize, getMultipleAccountsInfo, TOKEN_PROGRAM_ID } from "../common";
-import { Token } from "../entity";
-import { blob, publicKey, seq, struct, u64, u8 } from "../marshmallow";
+import {
+  Base, InstructionType, MakeInstructionSimpleOutType, TokenAccount, TxVersion,
+} from '../base';
+import {
+  findProgramAddress, forecastTransactionSize, getMultipleAccountsInfo,
+  TOKEN_PROGRAM_ID,
+} from '../common';
+import { Token } from '../entity';
+import { blob, publicKey, seq, struct, u64, u8 } from '../marshmallow';
 
 export interface SHOW_INFO {
   programId: PublicKey,
@@ -87,7 +94,7 @@ export class Utils1216 extends Base {
     }
   }
 
-  static VERSION_PROJECT = [undefined, 'Francium', 'Tulip'] as const
+  static VERSION_PROJECT = [undefined, 'Francium', 'Tulip', 'Larix'] as const
 
   // pda
   static getPdaPoolId(programId: PublicKey, ammId: PublicKey) {
