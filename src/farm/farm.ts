@@ -1,23 +1,30 @@
-import { Connection, Keypair, PublicKey, Signer, SystemProgram, TransactionInstruction } from "@solana/web3.js";
-import BN from "bn.js";
+import {
+  Connection, Keypair, PublicKey, Signer, SystemProgram, TransactionInstruction,
+} from '@solana/web3.js';
+import BN from 'bn.js';
 
 import {
-  Base, InnerTransaction, InstructionType, MakeInstructionOutType, MakeInstructionSimpleOutType, TokenAccount,
-  TxVersion,
-} from "../base";
-import { getATAAddress } from "../base/pda";
+  Base, InnerTransaction, InstructionType, MakeInstructionOutType,
+  MakeInstructionSimpleOutType, TokenAccount, TxVersion,
+} from '../base';
+import { getATAAddress } from '../base/pda';
 import {
-  AccountMeta, AccountMetaReadonly, findProgramAddress, GetMultipleAccountsInfoConfig,
-  getMultipleAccountsInfoWithCustomFlags, Logger, splitTxAndSigners, SYSTEM_PROGRAM_ID, SYSVAR_CLOCK_PUBKEY,
-  SYSVAR_RENT_PUBKEY, TOKEN_PROGRAM_ID,
-} from "../common";
-import { BigNumberish, parseBigNumberish, TEN, Token, ZERO } from "../entity";
-import { seq, struct, u64, u8 } from "../marshmallow";
-import { Spl, SPL_ACCOUNT_LAYOUT, SplAccount } from "../spl";
+  AccountMeta, AccountMetaReadonly, findProgramAddress, getMultipleAccountsInfo,
+  GetMultipleAccountsInfoConfig, getMultipleAccountsInfoWithCustomFlags, Logger,
+  splitTxAndSigners, SYSTEM_PROGRAM_ID, SYSVAR_CLOCK_PUBKEY, SYSVAR_RENT_PUBKEY,
+  TOKEN_PROGRAM_ID,
+} from '../common';
+import { BigNumberish, parseBigNumberish, TEN, Token, ZERO } from '../entity';
+import { seq, struct, u64, u8 } from '../marshmallow';
+import { Spl, SPL_ACCOUNT_LAYOUT, SplAccount } from '../spl';
+import { WSOL } from '../token';
 
 import {
-  FARM_STATE_LAYOUT_V6, FARM_VERSION_TO_LEDGER_LAYOUT, FARM_VERSION_TO_STATE_LAYOUT, FarmLedger, FarmState,
-} from "./layout";
+  FARM_LEDGER_LAYOUT_V3_1, FARM_LEDGER_LAYOUT_V3_2, FARM_LEDGER_LAYOUT_V5_1,
+  FARM_LEDGER_LAYOUT_V5_2, FARM_STATE_LAYOUT_V6, FARM_VERSION_TO_LEDGER_LAYOUT,
+  FARM_VERSION_TO_STATE_LAYOUT, FarmLedger, FarmState,
+  REAL_FARM_STATE_LAYOUT_V3, REAL_FARM_STATE_LAYOUT_V5,
+} from './layout';
 
 const logger = Logger.from("Farm");
 
@@ -237,7 +244,7 @@ export class Farm extends Base {
     programId: PublicKey;
     poolId: PublicKey;
     owner: PublicKey;
-    version: number
+    version: 6 | 5 | 3
   }) {
     const { publicKey } = findProgramAddress(
       [
@@ -1068,7 +1075,7 @@ export class Farm extends Base {
 
       if (owner) {
         publicKeys.push({
-          pubkey: this.getAssociatedLedgerAccount({ programId: pool.programId, poolId: pool.id, owner, version: pool.version }),
+          pubkey: this.getAssociatedLedgerAccount({ programId: pool.programId, poolId: pool.id, owner, version: pool.version as 6 | 5 | 3 }),
           version: pool.version,
           key: "ledger",
           poolId: pool.id,
@@ -1794,7 +1801,7 @@ export class Farm extends Base {
       programId: new PublicKey(apiPoolInfo.programId),
       poolId: new PublicKey(apiPoolInfo.id),
       owner: ownerInfo.wallet,
-      version: apiPoolInfo.version
+      version: apiPoolInfo.version as 6 | 5 | 3
     })
 
     if (apiPoolInfo.version < 6 && !ledger) {
@@ -1919,7 +1926,7 @@ export class Farm extends Base {
     const ins = this.makeWithdrawInstruction({
       poolKeys: apiPoolInfo,
       userKeys: {
-        ledger: this.getAssociatedLedgerAccount({ programId: apiPoolInfo.programId, poolId: apiPoolInfo.id, owner: ownerInfo.wallet, version: apiPoolInfo.version }),
+        ledger: this.getAssociatedLedgerAccount({ programId: apiPoolInfo.programId, poolId: apiPoolInfo.id, owner: ownerInfo.wallet, version: apiPoolInfo.version as 6| 5 | 3 }),
         lpTokenAccount: ownerLpTokenAccount,
         rewardTokenAccounts: rewardAccounts,
         owner: ownerInfo.wallet
@@ -2039,7 +2046,7 @@ export class Farm extends Base {
       const ins = this.makeWithdrawInstruction({
         poolKeys: apiPoolInfo,
         userKeys: {
-          ledger: this.getAssociatedLedgerAccount({ programId: apiPoolInfo.programId, poolId: apiPoolInfo.id, owner: ownerInfo.wallet, version: apiPoolInfo.version }),
+          ledger: this.getAssociatedLedgerAccount({ programId: apiPoolInfo.programId, poolId: apiPoolInfo.id, owner: ownerInfo.wallet, version: apiPoolInfo.version as 6| 5 | 3 }),
           lpTokenAccount: ownerLpTokenAccount,
           rewardTokenAccounts: rewardAccounts,
           owner: ownerInfo.wallet
@@ -2069,6 +2076,293 @@ export class Farm extends Base {
       }
     })
 
+    return {
+      address: {},
+      innerTransactions
+    }
+  }
+
+  static async makeV1InfoToV2PdaAndHarvestSimple({connection, wallet, tokenAccounts, programIdV3, programIdV5}: {
+    connection: Connection,
+    wallet: PublicKey,
+    tokenAccounts: TokenAccount[]
+    programIdV3: PublicKey,
+    programIdV5: PublicKey
+  }) {
+    const mintToAccount: {[mint: string]: PublicKey} = {}
+    for (const item of tokenAccounts) {
+      const mint = item.accountInfo.mint
+      const ata = getATAAddress(wallet, mint).publicKey
+      if (ata.equals(item.pubkey)) mintToAccount[mint.toString()] = ata
+      if (mintToAccount[mint.toString()] === undefined) mintToAccount[mint.toString()] = item.pubkey
+    }
+
+    const dataInfoV3 = await connection.getProgramAccounts(programIdV3, {filters: [{memcmp: {offset: 40, bytes: wallet.toString()}}]})
+    const dataInfoV5 = await connection.getProgramAccounts(programIdV5, {filters: [{memcmp: {offset: 40, bytes: wallet.toString()}}]})
+
+    const poolIdToAccountV3: {[id: string]: {pda: PublicKey | undefined, other: PublicKey[]}} = {}
+    const poolIdToAccountV5: {[id: string]: {pda: PublicKey | undefined, other: PublicKey[]}} = {}
+
+    for (const item of dataInfoV3) {
+      const layout = item.account.data.length === FARM_LEDGER_LAYOUT_V3_1.span ? FARM_LEDGER_LAYOUT_V3_1 : FARM_LEDGER_LAYOUT_V3_2
+      const info = layout.decode(item.account.data)
+      const poolId = info.id.toString()
+      
+      const pda = this.getAssociatedLedgerAccount({
+        programId: programIdV3,
+        poolId: info.id,
+        owner: wallet,
+        version: 3
+      })
+
+      if (poolIdToAccountV3[poolId] === undefined) {
+        poolIdToAccountV3[poolId] = { pda: undefined, other: [] }
+      }
+
+      if (pda.equals(item.pubkey)) {
+        poolIdToAccountV3[poolId].pda = item.pubkey
+      } else {
+        poolIdToAccountV3[poolId].other.push(item.pubkey)
+      }
+    }
+    for (const item of dataInfoV5) {
+      const layout = item.account.data.length === FARM_LEDGER_LAYOUT_V5_1.span ? FARM_LEDGER_LAYOUT_V5_1 : FARM_LEDGER_LAYOUT_V5_2
+      const info = layout.decode(item.account.data)
+      const poolId = info.id.toString()
+      
+      const pda = this.getAssociatedLedgerAccount({
+        programId: programIdV3,
+        poolId: info.id,
+        owner: wallet,
+        version: 5
+      })
+
+      if (poolIdToAccountV5[poolId] === undefined) {
+        poolIdToAccountV5[poolId] = { pda: undefined, other: [] }
+      }
+
+      if (pda.equals(item.pubkey)) {
+        poolIdToAccountV5[poolId].pda = item.pubkey
+      } else {
+        poolIdToAccountV5[poolId].other.push(item.pubkey)
+      }
+    }
+
+    const needCheckPoolId = [
+      ...Object.entries(poolIdToAccountV3).filter(i => i[1].other.length > 0).map(i => i[0]), 
+      ...Object.entries(poolIdToAccountV5).filter(i => i[1].other.length > 0).map(i => i[0])
+    ]
+
+    const allPoolInfo = await connection.getMultipleAccountsInfo(needCheckPoolId.map(i => new PublicKey(i)))
+    const poolIdToInfo: {[id: string]: Buffer} = {}
+    for (let i = 0 ; i < needCheckPoolId.length ; i++) {
+      const id = needCheckPoolId[i]
+      const info = allPoolInfo[i]
+      if (info === null) continue
+      poolIdToInfo[id] = info.data
+    }
+
+    const frontInstructions: TransactionInstruction[] = []
+    const frontInstructionsType: InstructionType[] = []
+    const instructions: TransactionInstruction[] = []
+    const instructionsType: InstructionType[] = []
+    const endInstructions: TransactionInstruction[] = []
+    const endInstructionsType: InstructionType[] = []
+
+    for (const [poolId, info] of Object.entries(poolIdToAccountV3)) {
+      if (info.other.length === 0) continue
+      if (poolIdToInfo[poolId] === undefined) continue
+
+      const poolInfo = REAL_FARM_STATE_LAYOUT_V3.decode(poolIdToInfo[poolId])
+
+      const [_lpInfo, _rewardInfo] = await connection.getMultipleAccountsInfo([poolInfo.lpVault, poolInfo.rewardVault])
+      const lpInfo = SPL_ACCOUNT_LAYOUT.decode(_lpInfo.data)
+      const rewardInfo = SPL_ACCOUNT_LAYOUT.decode(_rewardInfo.data)
+
+      let lpAccount = mintToAccount[lpInfo.mint.toString()]
+      if (lpAccount === undefined) {
+        lpAccount = await this._selectOrCreateTokenAccount({
+          mint: lpInfo.mint,
+          tokenAccounts: [],
+          owner: wallet,
+          createInfo: { connection, payer: wallet, amount: 0, frontInstructions, frontInstructionsType, endInstructions: [], endInstructionsType: [], signers: [] },
+          associatedOnly: true
+        })
+        mintToAccount[lpInfo.mint.toString()] = lpAccount
+      } 
+
+      let rewardAccount = mintToAccount[rewardInfo.mint.toString()]
+      if (rewardAccount === undefined) {
+        rewardAccount = await this._selectOrCreateTokenAccount({
+          mint: rewardInfo.mint,
+          tokenAccounts: [],
+          owner: wallet,
+          createInfo: { connection, payer: wallet, amount: 0, frontInstructions, frontInstructionsType, endInstructions: rewardInfo.mint.toString() === WSOL.mint? endInstructions : [], endInstructionsType: rewardInfo.mint.toString() === WSOL.mint? endInstructionsType : [], signers: [] },
+          associatedOnly: true
+        })
+        mintToAccount[rewardInfo.mint.toString()] = rewardAccount
+      } 
+
+      if (info.pda === undefined) {
+        const _i = this.makeCreateAssociatedLedgerAccountInstructionV3({
+          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+          // @ts-ignore
+          poolKeys: { programId: programIdV3, id: new PublicKey(poolId), },
+          userKeys: {
+            ledger: this.getAssociatedLedgerAccount({
+              programId: programIdV3,
+              poolId: new PublicKey(poolId),
+              owner: wallet,
+              version: 3
+            }),
+            owner: wallet
+          }
+        })
+        instructions.push(..._i.innerTransaction.instructions)
+        instructionsType.push(..._i.innerTransaction.instructionTypes)
+      }
+      
+      const _i = this.makeDepositInstructionV3({
+        amount: 0,
+        userKeys: {
+          ledger: this.getAssociatedLedgerAccount({
+            programId: programIdV3,
+            poolId: new PublicKey(poolId),
+            owner: wallet,
+            version: 3
+          }),
+          owner: wallet,
+          lpTokenAccount: lpAccount,
+          rewardTokenAccounts: [rewardAccount],
+          auxiliaryLedgers: info.other
+        },
+        poolKeys: {
+          programId: programIdV3,
+          id: new PublicKey(poolId),
+          authority: this.getAssociatedAuthority({programId: programIdV3, poolId: new PublicKey(poolId)}).publicKey,
+          lpVault: poolInfo.lpVault,
+          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+          // @ts-ignore
+          rewardInfos: [ {rewardVault: poolInfo.rewardVault} ]
+        }
+      })
+
+      instructions.push(..._i.innerTransaction.instructions)
+      instructionsType.push(..._i.innerTransaction.instructionTypes)
+    }
+
+    for (const [poolId, info] of Object.entries(poolIdToAccountV5)) {
+      if (info.other.length === 0) continue
+      if (poolIdToInfo[poolId] === undefined) continue
+
+      const poolInfo = REAL_FARM_STATE_LAYOUT_V5.decode(poolIdToInfo[poolId])
+
+      const [_lpInfo, _rewardInfoA, _rewardInfoB] = await connection.getMultipleAccountsInfo([poolInfo.lpVault, poolInfo.rewardVaultA, poolInfo.rewardVaultB])
+      const lpInfo = SPL_ACCOUNT_LAYOUT.decode(_lpInfo.data)
+      const rewardInfoA = SPL_ACCOUNT_LAYOUT.decode(_rewardInfoA.data)
+      const rewardInfoB = SPL_ACCOUNT_LAYOUT.decode(_rewardInfoB.data)
+
+      let lpAccount = mintToAccount[lpInfo.mint.toString()]
+      if (lpAccount === undefined) {
+        lpAccount = await this._selectOrCreateTokenAccount({
+          mint: lpInfo.mint,
+          tokenAccounts: [],
+          owner: wallet,
+          createInfo: { connection, payer: wallet, amount: 0, frontInstructions, frontInstructionsType, endInstructions: [], endInstructionsType: [], signers: [] },
+          associatedOnly: true
+        })
+        mintToAccount[lpInfo.mint.toString()] = lpAccount
+      } 
+
+      let rewardAccountA = mintToAccount[rewardInfoA.mint.toString()]
+      if (rewardAccountA === undefined) {
+        rewardAccountA = await this._selectOrCreateTokenAccount({
+          mint: rewardInfoA.mint,
+          tokenAccounts: [],
+          owner: wallet,
+          createInfo: { connection, payer: wallet, amount: 0, frontInstructions, frontInstructionsType, endInstructions: rewardInfoA.mint.toString() === WSOL.mint? endInstructions : [], endInstructionsType: rewardInfoA.mint.toString() === WSOL.mint? endInstructionsType : [], signers: [] },
+          associatedOnly: true
+        })
+        mintToAccount[rewardInfoA.mint.toString()] = rewardAccountA
+      } 
+
+      let rewardAccountB = mintToAccount[rewardInfoB.mint.toString()]
+      if (rewardAccountB === undefined) {
+        rewardAccountB = await this._selectOrCreateTokenAccount({
+          mint: rewardInfoB.mint,
+          tokenAccounts: [],
+          owner: wallet,
+          createInfo: { connection, payer: wallet, amount: 0, frontInstructions, frontInstructionsType, endInstructions: rewardInfoB.mint.toString() === WSOL.mint? endInstructions : [], endInstructionsType: rewardInfoB.mint.toString() === WSOL.mint? endInstructionsType : [], signers: [] },
+          associatedOnly: true
+        })
+        mintToAccount[rewardInfoB.mint.toString()] = rewardAccountB
+      } 
+
+      if (info.pda === undefined) {
+        const _i = this.makeCreateAssociatedLedgerAccountInstructionV3({
+          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+          // @ts-ignore
+          poolKeys: { programId: programIdV5, id: new PublicKey(poolId), },
+          userKeys: {
+            ledger: this.getAssociatedLedgerAccount({
+              programId: programIdV5,
+              poolId: new PublicKey(poolId),
+              owner: wallet,
+              version: 5
+            }),
+            owner: wallet
+          }
+        })
+        instructions.push(..._i.innerTransaction.instructions)
+        instructionsType.push(..._i.innerTransaction.instructionTypes)
+      }
+      
+      const _i = this.makeDepositInstructionV5({
+        amount: 0,
+        userKeys: {
+          ledger: this.getAssociatedLedgerAccount({
+            programId: programIdV3,
+            poolId: new PublicKey(poolId),
+            owner: wallet,
+            version: 5
+          }),
+          owner: wallet,
+          lpTokenAccount: lpAccount,
+          rewardTokenAccounts: [rewardAccountA, rewardAccountB],
+          auxiliaryLedgers: info.other
+        },
+        poolKeys: {
+          programId: programIdV5,
+          id: new PublicKey(poolId),
+          authority: this.getAssociatedAuthority({programId: programIdV3, poolId: new PublicKey(poolId)}).publicKey,
+          lpVault: poolInfo.lpVault,
+          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+          // @ts-ignore
+          rewardInfos: [ {rewardVault: poolInfo.rewardVaultA}, {rewardVault: poolInfo.rewardVaultB} ]
+        }
+      })
+
+      instructions.push(..._i.innerTransaction.instructions)
+      instructionsType.push(..._i.innerTransaction.instructionTypes)
+    }
+
+    const allInstruction = [...frontInstructions, ...instructions, ...endInstructions]
+    const allInstructionTyep = [...frontInstructionsType, ...instructionsType, ...endInstructionsType]
+
+    const transactions = splitTxAndSigners({ instructions: allInstruction, signers: [], payer: wallet })
+
+    let index = 0
+    const innerTransactions: InnerTransaction[] = transactions.map(i => {
+      const instructionTypes = allInstructionTyep.slice(index, index + i.instruction.length)
+      index += i.instruction.length
+      return {
+        instructions: i.instruction,
+        signers: i.signer,
+        lookupTableAddress: [],
+        instructionTypes,
+        supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
+      }
+    })
     return {
       address: {},
       innerTransactions
