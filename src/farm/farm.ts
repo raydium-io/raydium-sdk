@@ -2321,7 +2321,7 @@ export class Farm extends Base {
         amount: 0,
         userKeys: {
           ledger: this.getAssociatedLedgerAccount({
-            programId: programIdV3,
+            programId: programIdV5,
             poolId: new PublicKey(poolId),
             owner: wallet,
             version: 5
@@ -2334,7 +2334,7 @@ export class Farm extends Base {
         poolKeys: {
           programId: programIdV5,
           id: new PublicKey(poolId),
-          authority: this.getAssociatedAuthority({programId: programIdV3, poolId: new PublicKey(poolId)}).publicKey,
+          authority: this.getAssociatedAuthority({programId: programIdV5, poolId: new PublicKey(poolId)}).publicKey,
           lpVault: poolInfo.lpVault,
           // eslint-disable-next-line @typescript-eslint/ban-ts-comment
           // @ts-ignore
