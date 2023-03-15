@@ -2299,7 +2299,7 @@ export class Farm extends Base {
       } 
 
       if (info.pda === undefined) {
-        const _i = this.makeCreateAssociatedLedgerAccountInstructionV3({
+        const _i = this.makeCreateAssociatedLedgerAccountInstructionV5({
           // eslint-disable-next-line @typescript-eslint/ban-ts-comment
           // @ts-ignore
           poolKeys: { programId: programIdV5, id: new PublicKey(poolId), },
