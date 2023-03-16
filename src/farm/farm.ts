@@ -2131,7 +2131,7 @@ export class Farm extends Base {
       const poolId = info.id.toString()
       
       const pda = this.getAssociatedLedgerAccount({
-        programId: programIdV3,
+        programId: programIdV5,
         poolId: info.id,
         owner: wallet,
         version: 5
