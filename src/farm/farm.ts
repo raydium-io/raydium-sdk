@@ -2082,6 +2082,9 @@ export class Farm extends Base {
     }
   }
 
+  /** 
+   * @deprecated the method is **DANGEROUS**, please don't use
+   */
   static async makeV1InfoToV2PdaAndHarvestSimple({connection, wallet, tokenAccounts, programIdV3, programIdV5}: {
     connection: Connection,
     wallet: PublicKey,
