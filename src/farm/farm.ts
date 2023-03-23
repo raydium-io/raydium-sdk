@@ -197,6 +197,7 @@ export interface FarmFetchMultipleInfoParams {
   pools: FarmPoolKeys[];
   owner?: PublicKey;
   config?: GetMultipleAccountsInfoConfig;
+  chainTime: number,
 }
 export interface FarmFetchMultipleInfoReturnItem {
   apiPoolInfo: FarmPoolKeys;
@@ -1041,7 +1042,7 @@ export class Farm extends Base {
   }
 
   /* ================= fetch data ================= */
-  static async fetchMultipleInfoAndUpdate({ connection, pools, owner, config }: FarmFetchMultipleInfoParams): Promise<FarmFetchMultipleInfoReturn> {
+  static async fetchMultipleInfoAndUpdate({ connection, pools, owner, config, chainTime }: FarmFetchMultipleInfoParams): Promise<FarmFetchMultipleInfoReturn> {
     let hasNotV6Pool = false;
     let hasV6Pool = false;
 
@@ -1128,7 +1129,6 @@ export class Farm extends Base {
     }
 
     const slot = hasV6Pool || hasNotV6Pool ? await connection.getSlot() : 0;
-    const chainTime = hasV6Pool ? (await connection.getBlockTime(slot)) ?? 0 : 0;
 
     for (const poolId of Object.keys(poolsInfo)) {
       poolsInfo[poolId].state = Farm.updatePoolInfo(
