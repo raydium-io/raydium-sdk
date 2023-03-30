@@ -129,6 +129,8 @@ export interface AmmV3PoolInfo {
   tvl: number
 
   lookupTableAccount: PublicKey
+
+  startTime: number
 }
 export interface AmmV3PoolPersonalPosition {
   poolId: PublicKey,
@@ -224,6 +226,7 @@ export class AmmV3 extends Base {
     ammConfig,
     createPoolInstructionSimpleAddress,
     initialPrice,
+    startTime,
     owner
   }: {
     programId: PublicKey,
@@ -240,6 +243,7 @@ export class AmmV3 extends Base {
       mintB: PublicKey
     },
     initialPrice: Decimal,
+    startTime: BN,
     owner: PublicKey,
   }): AmmV3PoolInfo {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -292,7 +296,9 @@ export class AmmV3 extends Base {
       month: { volume: 0, volumeFee: 0, feeA: 0, feeB: 0, feeApr: 0, rewardApr: { A: 0, B: 0, C: 0 }, apr: 0, priceMax: 0, priceMin: 0 },
       tvl: 0,
 
-      lookupTableAccount: PublicKey.default
+      lookupTableAccount: PublicKey.default,
+
+      startTime: startTime.toNumber(),
     }
   }
 
@@ -305,6 +311,7 @@ export class AmmV3 extends Base {
     mint2,
     ammConfig,
     initialPrice,
+    startTime,
     computeBudgetConfig
   }: {
     connection: Connection,
@@ -314,6 +321,7 @@ export class AmmV3 extends Base {
     mint2: MintInfo,
     ammConfig: AmmV3ConfigInfo,
     initialPrice: Decimal,
+    startTime: BN,
     computeBudgetConfig?: ComputeBudgetConfig
   }) {
     const { instructions, instructionTypes } = computeBudgetConfig ? addComputeBudget(computeBudgetConfig).innerTransaction : { instructions: [], instructionTypes: [] }
@@ -331,7 +339,8 @@ export class AmmV3 extends Base {
       mintA,
       mintB,
       ammConfigId: ammConfig.id,
-      initialPriceX64
+      initialPriceX64,
+      startTime
     })
 
     return {
@@ -1782,7 +1791,8 @@ export class AmmV3 extends Base {
     mintA,
     mintB,
     ammConfigId,
-    initialPriceX64
+    initialPriceX64,
+    startTime,
   }: {
     connection: Connection,
     programId: PublicKey,
@@ -1790,7 +1800,8 @@ export class AmmV3 extends Base {
     mintA: MintInfo,
     mintB: MintInfo,
     ammConfigId: PublicKey,
-    initialPriceX64: BN
+    initialPriceX64: BN,
+    startTime: BN,
   }) {
     const observationId = new Keypair();
 
@@ -1816,7 +1827,8 @@ export class AmmV3 extends Base {
         mintAVault,
         mintB.mint,
         mintBVault,
-        initialPriceX64
+        initialPriceX64,
+        startTime
       )
     ];
 
@@ -2725,7 +2737,9 @@ export class AmmV3 extends Base {
           week: apiPoolInfo.week,
           month: apiPoolInfo.month,
           tvl: apiPoolInfo.tvl,
-          lookupTableAccount: new PublicKey(apiPoolInfo.lookupTableAccount)
+          lookupTableAccount: new PublicKey(apiPoolInfo.lookupTableAccount),
+
+          startTime: layoutAccountInfo.startTime.toNumber(),
         }
       }
 

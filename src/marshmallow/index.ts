@@ -1,10 +1,11 @@
-import { PublicKey } from "@solana/web3.js";
-import BN, { isBN } from "bn.js";
+import { PublicKey } from '@solana/web3.js';
+import BN, { isBN } from 'bn.js';
 
 import {
-  bits, blob, Blob, Layout, offset as _offset, seq as _seq, Structure as _Structure, u32 as _u32, u8 as _u8, UInt,
-  union as _union, Union as _Union,
-} from "./buffer-layout";
+  bits, blob, Blob, Layout, offset as _offset, seq as _seq,
+  Structure as _Structure, u32 as _u32, u8 as _u8, UInt, union as _union,
+  Union as _Union,
+} from './buffer-layout';
 
 export * from "./buffer-layout";
 export { blob };
@@ -83,6 +84,10 @@ export function u64<P extends string = "">(property?: P): BNLayout<P> {
 
 export function u128<P extends string = "">(property?: P): BNLayout<P> {
   return new BNLayout(16, false, property);
+}
+
+export function i8<P extends string = "">(property?: P): BNLayout<P> {
+  return new BNLayout(1, true, property);
 }
 
 export function i64<P extends string = "">(property?: P): BNLayout<P> {

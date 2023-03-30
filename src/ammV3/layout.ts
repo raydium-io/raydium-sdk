@@ -1,6 +1,8 @@
-import { blob, bool, i128, publicKey, s32, seq, struct, u128, u16, u32, u64, u8 } from "../marshmallow";
+import {
+  blob, bool, i128, publicKey, s32, seq, struct, u128, u16, u32, u64, u8,
+} from '../marshmallow';
 
-import { TICK_ARRAY_SIZE } from "./utils/tick";
+import { TICK_ARRAY_SIZE } from './utils/tick';
 
 export const AmmConfigLayout = struct([
   blob(8),
@@ -86,7 +88,9 @@ export const PoolInfoLayout = struct([
   u64("fundFeesTokenA"),
   u64("fundFeesTokenB"),
 
-  seq(u64(), 15 * 4 - 2, "padding"),
+  u64("startTime"),
+
+  seq(u64(), 15 * 4 - 3, "padding"),
 ]);
 
 export const PositionRewardInfoLayout = struct([

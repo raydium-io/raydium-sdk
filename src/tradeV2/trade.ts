@@ -1,22 +1,32 @@
-import { Connection, PublicKey, Signer, TransactionInstruction } from "@solana/web3.js";
-import BN from "bn.js";
-
-import { AmmV3, AmmV3PoolInfo, ReturnTypeFetchMultiplePoolTickArrays } from "../ammV3";
-import { MAX_SQRT_PRICE_X64, MIN_SQRT_PRICE_X64 } from "../ammV3/utils/constants";
 import {
-  Base, ComputeBudgetConfig, InnerTransaction, InstructionType, MakeInstructionOutType, MakeInstructionSimpleOutType,
-  TokenAccount, TxVersion,
-} from "../base";
-import { addComputeBudget } from "../base/instrument";
-import { ApiPoolInfo, ApiPoolInfoItem } from "../baseInfo";
-import {
-  findProgramAddress, forecastTransactionSize, jsonInfo2PoolKeys, parseSimulateLogToJson, parseSimulateValue,
-  simulateMultipleInstruction,
-} from "../common";
-import { Currency, CurrencyAmount, ONE, Percent, Price, Token, TokenAmount, ZERO } from "../entity";
-import { initStableModelLayout, Liquidity, LiquidityPoolKeys } from "../liquidity";
+  Connection, PublicKey, Signer, TransactionInstruction,
+} from '@solana/web3.js';
+import BN from 'bn.js';
 
-import { route1Instruction, route2Instruction } from "./instrument";
+import {
+  AmmV3, AmmV3PoolInfo, ReturnTypeFetchMultiplePoolTickArrays,
+} from '../ammV3';
+import {
+  MAX_SQRT_PRICE_X64, MIN_SQRT_PRICE_X64,
+} from '../ammV3/utils/constants';
+import {
+  Base, ComputeBudgetConfig, InnerTransaction, InstructionType,
+  MakeInstructionOutType, MakeInstructionSimpleOutType, TokenAccount, TxVersion,
+} from '../base';
+import { addComputeBudget } from '../base/instrument';
+import { ApiPoolInfo, ApiPoolInfoItem } from '../baseInfo';
+import {
+  findProgramAddress, forecastTransactionSize, jsonInfo2PoolKeys,
+  parseSimulateLogToJson, parseSimulateValue, simulateMultipleInstruction,
+} from '../common';
+import {
+  Currency, CurrencyAmount, ONE, Percent, Price, Token, TokenAmount, ZERO,
+} from '../entity';
+import {
+  initStableModelLayout, Liquidity, LiquidityPoolKeys,
+} from '../liquidity';
+
+import { route1Instruction, route2Instruction } from './instrument';
 
 export type PoolType = AmmV3PoolInfo | ApiPoolInfoItem
 type RoutePathType = {
@@ -341,7 +351,7 @@ export class TradeV2 extends Base {
             currencyOut: outputToken,
             slippage,
           })
-          outRoute.push({ amountIn, amountOut, minAmountOut, currentPrice, executionPrice, priceImpact, fee: [fee], remainingAccounts: [remainingAccounts], routeType: 'amm', poolKey: [itemPool], middleMint: undefined, poolReady: true, poolType: 'CLMM' })
+          outRoute.push({ amountIn, amountOut, minAmountOut, currentPrice, executionPrice, priceImpact, fee: [fee], remainingAccounts: [remainingAccounts], routeType: 'amm', poolKey: [itemPool], middleMint: undefined, poolReady: itemPool.startTime < chainTime, poolType: 'CLMM' })
         } catch (e) {
           // 
         }
@@ -384,8 +394,8 @@ export class TradeV2 extends Base {
               simulateCache,
               tickCache
             });
-            const infoAPoolOpen = iFromPool.version === 6 ? true : simulateCache[iFromPool.id as string].startTime.toNumber() < chainTime
-            const infoBPoolOpen = iOutPool.version === 6 ? true : simulateCache[iOutPool.id as string].startTime.toNumber() < chainTime
+            const infoAPoolOpen = iFromPool.version === 6 ? iFromPool.startTime < chainTime : simulateCache[iFromPool.id as string].startTime.toNumber() < chainTime
+            const infoBPoolOpen = iOutPool.version === 6 ? iOutPool.startTime < chainTime : simulateCache[iOutPool.id as string].startTime.toNumber() < chainTime
 
             const poolTypeA = iFromPool.version === 6 ? 'CLMM' : iFromPool.version === 5 ? "STABLE" : undefined
             const poolTypeB = iOutPool.version === 6 ? 'CLMM' : iOutPool.version === 5 ? "STABLE" : undefined

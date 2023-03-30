@@ -1,16 +1,17 @@
+import { createAssociatedTokenAccountInstruction } from '@solana/spl-token';
 import {
   Connection, Keypair, PublicKey, Signer, SystemProgram, TransactionInstruction,
 } from '@solana/web3.js';
 import BN from 'bn.js';
 
 import {
-  Base, InnerTransaction, InstructionType, MakeInstructionOutType,
-  MakeInstructionSimpleOutType, TokenAccount, TxVersion,
+  Base, InnerTransaction, InstructionType, TokenAccount, TxVersion,
 } from '../base';
 import { getATAAddress } from '../base/pda';
 import {
-  AccountMeta, AccountMetaReadonly, findProgramAddress, getMultipleAccountsInfo,
-  GetMultipleAccountsInfoConfig, getMultipleAccountsInfoWithCustomFlags, Logger,
+  AccountMeta, AccountMetaReadonly, ASSOCIATED_TOKEN_PROGRAM_ID,
+  findProgramAddress, GetMultipleAccountsInfoConfig,
+  getMultipleAccountsInfoWithCustomFlags, Logger, RENT_PROGRAM_ID,
   splitTxAndSigners, SYSTEM_PROGRAM_ID, SYSVAR_CLOCK_PUBKEY, SYSVAR_RENT_PUBKEY,
   TOKEN_PROGRAM_ID,
 } from '../common';
@@ -20,11 +21,20 @@ import { Spl, SPL_ACCOUNT_LAYOUT, SplAccount } from '../spl';
 import { WSOL } from '../token';
 
 import {
+  governanceCreateTokenOwnerRecord, voterStakeRegistryCreateDepositEntry,
+  voterStakeRegistryCreateVoter, voterStakeRegistryDeposit,
+  voterStakeRegistryUpdateVoterWeightRecord, voterStakeRegistryWithdraw,
+} from './importInstruction';
+import {
   FARM_LEDGER_LAYOUT_V3_1, FARM_LEDGER_LAYOUT_V3_2, FARM_LEDGER_LAYOUT_V5_1,
   FARM_LEDGER_LAYOUT_V5_2, FARM_STATE_LAYOUT_V6, FARM_VERSION_TO_LEDGER_LAYOUT,
   FARM_VERSION_TO_STATE_LAYOUT, FarmLedger, FarmState,
-  REAL_FARM_STATE_LAYOUT_V3, REAL_FARM_STATE_LAYOUT_V5,
+  REAL_FARM_STATE_LAYOUT_V3, REAL_FARM_STATE_LAYOUT_V5, Voter, VoterRegistrar,
 } from './layout';
+import {
+  getRegistrarAddress, getTokenOwnerRecordAddress, getVoterAddress,
+  getVoterWeightRecordAddress, getVotingMintAuthority, getVotingTokenMint,
+} from './pda';
 
 const logger = Logger.from("Farm");
 
@@ -1131,6 +1141,7 @@ export class Farm extends Base {
     const slot = hasV6Pool || hasNotV6Pool ? await connection.getSlot() : 0;
 
     for (const poolId of Object.keys(poolsInfo)) {
+      if (poolsInfo[poolId] === undefined) continue
       poolsInfo[poolId].state = Farm.updatePoolInfo(
         poolsInfo[poolId].state,
         poolsInfo[poolId].lpVault,
@@ -2371,4 +2382,251 @@ export class Farm extends Base {
       innerTransactions
     }
   }
+
+  static async makeDepositTokenInstruction({
+    connection,
+    programId,
+    governanceProgramId,
+    voteWeightAddinProgramId,
+    realm,
+    communityTokenMint,
+    owner,
+    poolId,
+  }: {
+    connection: Connection,
+    programId: PublicKey,
+    governanceProgramId: PublicKey,
+    voteWeightAddinProgramId: PublicKey,
+    realm: PublicKey,
+    communityTokenMint: PublicKey,
+    owner: PublicKey,
+    poolId: PublicKey,
+  }) {
+    const registrar = getRegistrarAddress(voteWeightAddinProgramId, realm, communityTokenMint).publicKey
+    const ownerPda = this.getAssociatedLedgerAccount({programId, poolId, owner, version: 3})
+    const ownerAccountInfo = await connection.getAccountInfo(ownerPda)
+    if (ownerAccountInfo === null) {
+      throw Error('user is not staker')
+    }
+    const ownerInfo = FARM_LEDGER_LAYOUT_V3_2.decode(ownerAccountInfo.data)
+    const mintAmount = ownerInfo.deposited.sub(ownerInfo.voteLockedBalance)
+    console.log('amount', mintAmount.toString())
+    if (mintAmount.eq(ZERO)) {
+      throw Error('user do not has new stake amount')
+    }
+
+    const votingMint = getVotingTokenMint(programId, poolId).publicKey
+    const votingMintAuthority = getVotingMintAuthority(programId, poolId).publicKey
+    const {publicKey: voter, nonce: voterBump} = getVoterAddress(voteWeightAddinProgramId, registrar, owner)
+    const voterVault = getATAAddress(voter, votingMint).publicKey
+
+    const {publicKey: voterWeightRecord, nonce: voterWeightRecordBump} = getVoterWeightRecordAddress(voteWeightAddinProgramId, registrar, owner)
+
+    const tokenOwnerRecordAddress = getTokenOwnerRecordAddress(
+      governanceProgramId,
+      realm,
+      communityTokenMint,
+      owner,
+    ).publicKey;
+
+    const instructions: TransactionInstruction[] = []
+
+    const depositToken = getATAAddress(owner, votingMint).publicKey
+    const depositTokenAccountInfo = await connection.getAccountInfo(depositToken)
+    if (depositTokenAccountInfo === null) {
+      instructions.push(
+        Spl.makeCreateAssociatedTokenAccountInstruction({
+          mint: votingMint,
+          associatedAccount: depositToken,
+          owner,
+          payer: owner,
+          instructionsType: [],
+        })
+      )
+    }
+    const voterAccountInfo = await connection.getAccountInfo(voter)
+    if (voterAccountInfo === null) {
+      const createTokenOwnerRecodeIns = governanceCreateTokenOwnerRecord(
+        governanceProgramId,
+        realm,
+        owner,
+        communityTokenMint,
+        owner,
+        tokenOwnerRecordAddress
+      )
+
+      instructions.push(createTokenOwnerRecodeIns, 
+        voterStakeRegistryCreateVoter(
+          voteWeightAddinProgramId,
+          registrar,
+          voter,
+          voterWeightRecord,
+          owner,
+          owner,
+          voterBump,
+          voterWeightRecordBump,
+        ), 
+        
+      )
+    }
+
+    const {index: depositEntryIndex, isInit: depositEntryInit} = await getDepositEntryIndex(connection, registrar, voter, votingMint)
+    if (!depositEntryInit) {
+      instructions.push(
+        voterStakeRegistryCreateDepositEntry(
+          voteWeightAddinProgramId,
+          registrar,
+          voter,
+          voterVault,
+          owner,
+          owner,
+          votingMint,
+
+          depositEntryIndex,
+          0,
+          undefined,
+          0,
+          false
+        ),
+      )
+    }
+
+    instructions.push(
+      voterStakeRegistryDeposit(
+        voteWeightAddinProgramId,
+        registrar,
+        voter,
+        voterVault,
+        depositToken,
+        owner,
+
+        ownerPda,
+        poolId,
+        votingMint,
+        votingMintAuthority,
+        programId,
+
+        depositEntryIndex,
+        mintAmount
+      ),
+      voterStakeRegistryUpdateVoterWeightRecord(
+        voteWeightAddinProgramId,
+        registrar,
+        voter,
+        voterWeightRecord
+      )
+    )
+
+    return {
+      address: {},
+      innerTransaction: {
+        instructions,
+        signers: [],
+        lookupTableAddress: [],
+        instructionTypes: Array(instructions.length).fill(InstructionType.test),
+        supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
+      }
+    }
+  }
+
+  static async makeWithdrawTokenInstruction({
+    connection,
+    programId,
+    governanceProgramId,
+    voteWeightAddinProgramId,
+    realm,
+    communityTokenMint,
+    owner,
+    poolId,
+  }: {
+    connection: Connection,
+    programId: PublicKey,
+
+    governanceProgramId: PublicKey,
+    voteWeightAddinProgramId: PublicKey,
+    realm: PublicKey,
+    communityTokenMint: PublicKey,
+    owner: PublicKey,
+    poolId: PublicKey,
+  }) {
+    const registrar = getRegistrarAddress(voteWeightAddinProgramId, realm, communityTokenMint).publicKey
+    const ownerPda = this.getAssociatedLedgerAccount({programId, poolId, owner, version: 3})
+    const ownerAccountInfo = await connection.getAccountInfo(ownerPda)
+    if (ownerAccountInfo === null) {
+      throw Error('user is not staker')
+    }
+    const ownerInfo = FARM_LEDGER_LAYOUT_V3_2.decode(ownerAccountInfo.data)
+    if (ownerInfo.voteLockedBalance.eq(ZERO)) {
+      throw Error('user has vote locked balance = 0')
+    }
+
+    const votingMint = getVotingTokenMint(programId, poolId).publicKey
+    const votingMintAuthority = getVotingMintAuthority(programId, poolId).publicKey
+    const {publicKey: voter} = getVoterAddress(voteWeightAddinProgramId, registrar, owner)
+    const voterVault = getATAAddress(voter, votingMint).publicKey
+    const {publicKey: voterWeightRecord} = getVoterWeightRecordAddress(voteWeightAddinProgramId, registrar, owner)
+
+    const tokenOwnerRecordAddress = getTokenOwnerRecordAddress(
+      governanceProgramId,
+      realm,
+      communityTokenMint,
+      owner,
+    ).publicKey;
+    
+    const instructions: TransactionInstruction[] = []
+
+    const {index: depositEntryIndex, isInit: depositEntryInit} = await getDepositEntryIndex(connection, registrar, voter, votingMint)
+    if (!depositEntryInit) throw Error('deposit entry index check error')
+
+    instructions.push(
+      voterStakeRegistryWithdraw(
+        voteWeightAddinProgramId,
+        registrar,
+        voter,
+        owner,
+        tokenOwnerRecordAddress,
+        voterWeightRecord,
+        voterVault,
+        getATAAddress(owner, votingMint).publicKey,
+        ownerPda,
+        poolId,
+        votingMint,
+        votingMintAuthority,
+        programId,
+
+        depositEntryIndex,
+        ownerInfo.voteLockedBalance
+      )
+    )
+
+    return {
+      address: {},
+      innerTransaction: {
+        instructions,
+        signers: [],
+        lookupTableAddress: [],
+        instructionTypes: Array(instructions.length).fill(InstructionType.test),
+        supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
+      }
+    }
+  }
+}
+
+async function getDepositEntryIndex(connection: Connection, registrar: PublicKey, voter: PublicKey, voterMint: PublicKey): Promise<{index: number, isInit: boolean}> {
+  const registrarAccountData = await connection.getAccountInfo(registrar)
+  if (registrarAccountData === null) throw Error('registrar info check error')
+  const registrarData = VoterRegistrar.decode(registrarAccountData.data)
+
+  const votingMintConfigIndex = registrarData.votingMints.findIndex(i => i.mint.equals(voterMint))
+
+  if (votingMintConfigIndex === -1) throw Error('find voter mint error')
+
+  const voterAccountData = await connection.getAccountInfo(voter)
+  if (voterAccountData === null) return {index: votingMintConfigIndex, isInit: false} // throw Error('voter info check error')
+  
+  const voterData = Voter.decode(voterAccountData.data)
+
+  const depositEntryIndex = voterData.deposits.findIndex(i => i.isUsed && i.votingMintConfigIdx === votingMintConfigIndex)
+  if (depositEntryIndex === -1) return {index: votingMintConfigIndex, isInit: false}
+  else return {index: depositEntryIndex, isInit: true}
 }

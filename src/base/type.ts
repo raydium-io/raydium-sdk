@@ -1,4 +1,6 @@
-import { ComputeBudgetProgram, PublicKey, Signer, TransactionInstruction } from "@solana/web3.js";
+import {
+  ComputeBudgetProgram, PublicKey, Signer, TransactionInstruction,
+} from '@solana/web3.js';
 
 ComputeBudgetProgram.setComputeUnitPrice
 export interface ComputeBudgetConfig {
@@ -94,4 +96,6 @@ export enum InstructionType {
   'farmV6Restart',
   'farmV6CreatorAddReward',
   'farmV6CreatorWithdraw',
+
+  'test',
 }

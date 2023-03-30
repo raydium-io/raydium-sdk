@@ -1,11 +1,12 @@
-import { PublicKey, TransactionInstruction } from "@solana/web3.js";
-import BN from "bn.js";
+import { PublicKey, TransactionInstruction } from '@solana/web3.js';
+import BN from 'bn.js';
 
 import {
-  ASSOCIATED_TOKEN_PROGRAM_ID, METADATA_PROGRAM_ID, RENT_PROGRAM_ID, SYSTEM_PROGRAM_ID, TOKEN_PROGRAM_ID,
-} from "../common";
-import { parseBigNumberish } from "../entity";
-import { bool, s32, struct, u128, u64, u8 } from "../marshmallow";
+  ASSOCIATED_TOKEN_PROGRAM_ID, METADATA_PROGRAM_ID, RENT_PROGRAM_ID,
+  SYSTEM_PROGRAM_ID, TOKEN_PROGRAM_ID,
+} from '../common';
+import { parseBigNumberish } from '../entity';
+import { bool, s32, struct, u128, u64, u8 } from '../marshmallow';
 
 const anchorDataBuf = {
   createPool: [233, 146, 209, 142, 207, 104, 64, 188],
@@ -29,9 +30,10 @@ export function createPoolInstruction(
   mintVaultA: PublicKey,
   mintB: PublicKey,
   mintVaultB: PublicKey,
-  sqrtPriceX64: BN
+  sqrtPriceX64: BN,
+  startTime: BN,
 ) {
-  const dataLayout = struct([u128("sqrtPriceX64")]);
+  const dataLayout = struct([u128("sqrtPriceX64"), u64("startTime")]);
 
   const keys = [
     { pubkey: poolCreator, isSigner: true, isWritable: true },
@@ -51,6 +53,7 @@ export function createPoolInstruction(
   dataLayout.encode(
     {
       sqrtPriceX64,
+      startTime,
     },
     data
   );

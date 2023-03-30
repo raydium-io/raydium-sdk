@@ -1,21 +1,13 @@
-import { PublicKey } from "@solana/web3.js";
-import BN from "bn.js";
+import { PublicKey } from '@solana/web3.js';
+import BN from 'bn.js';
 
 import {
-  blob,
-  GetLayoutSchemaFromStructure,
-  GetStructureFromLayoutSchema,
-  GetStructureSchema,
-  publicKey,
-  seq,
-  struct,
-  u128,
-  u64,
-  u8,
-} from "../marshmallow";
-import { poolTypeV6 } from "./farm";
+  blob, bool, GetLayoutSchemaFromStructure, GetStructureFromLayoutSchema,
+  GetStructureSchema, i64, i8, publicKey, seq, struct, u128, u64, u8,
+} from '../marshmallow';
 
-import { FarmVersion } from "./type";
+import { poolTypeV6 } from './farm';
+import { FarmVersion } from './type';
 
 /* ================= state layouts ================= */
 export const REAL_FARM_STATE_LAYOUT_V3 = struct([
@@ -226,7 +218,9 @@ export const FARM_LEDGER_LAYOUT_V3_2 = struct([
   publicKey("owner"),
   u64("deposited"),
   seq(u128(), 1, "rewardDebts"),
-  seq(u64(), 17),
+  u64(''),
+  u64('voteLockedBalance'),
+  seq(u64(), 15),
 ]);
 
 export const FARM_LEDGER_LAYOUT_V5_1 = struct([
@@ -297,3 +291,61 @@ export const FARM_VERSION_TO_LEDGER_LAYOUT: {
   5: FARM_LEDGER_LAYOUT_V5_2,
   6: FARM_LEDGER_LAYOUT_V6_1,
 };
+
+export const VoterVotingMintConfig = struct([
+  publicKey("mint"),
+  publicKey("grantAuthority"),
+  u64('baselineVoteWeightScaledFactor'),
+  u64('maxExtraLockupVoteWeightScaledFactor'),
+  u64('lockupSaturationSecs'),
+  
+  i8('digitShift'), // TODO
+  seq(u8(), 7, "reserved1"),
+  seq(u64(), 7, "reserved2"),
+]);
+
+
+export const VoterRegistrar = struct([
+  blob(8),
+  publicKey("governanceProgramId"),
+  publicKey("realm"),
+  publicKey("realmGoverningTokenMint"),
+  publicKey("realmAuthority"),
+
+  seq(u8(), 32, "reserved1"),
+  seq(VoterVotingMintConfig, 4, "votingMints"),
+
+  i64('timeOffset'),
+  u8('bump'),
+  seq(u8(), 7, "reserved2"),
+  seq(u64(), 11, "reserved3"),
+]);
+
+export const VoterLockup = struct([
+  i64("startTime"),
+  i64("endTime"),
+  u8('kind'),
+  seq(u8(), 15, "reserved"),
+]);
+
+export const VoterDepositEntry = struct([
+  seq(VoterLockup, 1, "lockup"),
+  u64("amountDeposited_native"),
+  u64("amountInitiallyLockedNative"),
+  bool("isUsed"),
+  bool("allowClawback"),
+  u8("votingMintConfigIdx"),
+  seq(u8(), 29, "reserved"),
+]);
+
+export const Voter = struct([
+  blob(8),
+  publicKey("voterAuthority"),
+  publicKey("registrar"),
+
+  seq(VoterDepositEntry, 32, "deposits"),
+
+  u8('voterBump'),
+  u8('voterWweightRecordBump'),
+  seq(u8(), 94, "reserved"),
+]);
