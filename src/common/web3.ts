@@ -4,12 +4,13 @@
 // import { TOKEN_PROGRAM_ID } from './id';
 
 import {
-  AccountInfo, AddressLookupTableAccount, Commitment, Connection, Keypair, PublicKey, Signer,
-  SimulatedTransactionResponse, Transaction, TransactionInstruction,
-} from "@solana/web3.js";
+  AccountInfo, AddressLookupTableAccount, Commitment, Connection, Keypair,
+  PublicKey, Signer, SimulatedTransactionResponse, Transaction,
+  TransactionInstruction,
+} from '@solana/web3.js';
 
-import { chunkArray } from "./lodash";
-import { Logger } from "./logger";
+import { chunkArray } from './lodash';
+import { Logger } from './logger';
 
 const logger = Logger.from("common/web3");
 
@@ -58,9 +59,11 @@ export async function getMultipleAccountsInfo(
         args,
       };
     });
+    const _batch = chunkArray(batch, 10)
+
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
-    const unsafeResponse: MultipleAccountsJsonRpcResponse[] = await connection._rpcBatchRequest(batch);
+    const unsafeResponse: MultipleAccountsJsonRpcResponse[] = await (await Promise.all(_batch.map(async i => await connection._rpcBatchRequest(i) ))).flat()
     results = unsafeResponse.map((unsafeRes: MultipleAccountsJsonRpcResponse) => {
       if (unsafeRes.error) {
         return logger.throwError("failed to get info for multiple accounts", Logger.errors.RPC_ERROR, {

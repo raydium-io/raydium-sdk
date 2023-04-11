@@ -1,31 +1,40 @@
 import {
-  AccountInfo, ComputeBudgetProgram, Connection, PublicKey, Signer, Transaction, TransactionInstruction,
-} from "@solana/web3.js";
-import BN from "bn.js";
+  AccountInfo, ComputeBudgetProgram, Connection, PublicKey, Signer, Transaction,
+  TransactionInstruction,
+} from '@solana/web3.js';
+import BN from 'bn.js';
+
+import { AmmV3, AmmV3PoolInfo } from '../ammV3';
+import {
+  Base, ComputeBudgetConfig, InnerTransaction, InstructionType,
+  MakeInstructionOutType, MakeInstructionSimpleOutType, TokenAccount, TxVersion,
+} from '../base';
+import { addComputeBudget } from '../base/instrument';
+import { getATAAddress } from '../base/pda';
+import { ApiPoolInfoItem } from '../baseInfo';
+import {
+  AccountMeta, AccountMetaReadonly, ASSOCIATED_TOKEN_PROGRAM_ID,
+  findProgramAddress, getMultipleAccountsInfo, GetMultipleAccountsInfoConfig,
+  Logger, parseSimulateLogToJson, parseSimulateValue, RENT_PROGRAM_ID,
+  simulateMultipleInstruction, SYSTEM_PROGRAM_ID, SYSVAR_RENT_PUBKEY,
+  TOKEN_PROGRAM_ID,
+} from '../common';
+import {
+  BigNumberish, Currency, CurrencyAmount, divCeil, ONE, parseBigNumberish,
+  Percent, Price, Token, TokenAmount, ZERO,
+} from '../entity';
+import { Farm, FarmPoolKeys } from '../farm';
+import { struct, u64, u8 } from '../marshmallow';
+import { Market, MARKET_STATE_LAYOUT_V3, MarketState } from '../serum';
+import { Spl } from '../spl';
 
 import {
-  Base, ComputeBudgetConfig, InstructionType, MakeInstructionOutType, MakeInstructionSimpleOutType, TokenAccount,
-  TxVersion,
-} from "../base";
-import { addComputeBudget } from "../base/instrument";
-import { getATAAddress } from "../base/pda";
-import { ApiPoolInfoItem } from "../baseInfo";
+  LIQUIDITY_VERSION_TO_STATE_LAYOUT, LiquidityStateV4, LiquidityStateV5,
+} from './layout';
 import {
-  AccountMeta, AccountMetaReadonly, ASSOCIATED_TOKEN_PROGRAM_ID, findProgramAddress, getMultipleAccountsInfo,
-  GetMultipleAccountsInfoConfig, Logger, parseSimulateLogToJson, parseSimulateValue, RENT_PROGRAM_ID,
-  simulateMultipleInstruction, SYSTEM_PROGRAM_ID, SYSVAR_RENT_PUBKEY, TOKEN_PROGRAM_ID,
-} from "../common";
-import {
-  BigNumberish, Currency, CurrencyAmount, divCeil, ONE, parseBigNumberish, Percent, Price, Token, TokenAmount, ZERO,
-} from "../entity";
-import { struct, u64, u8 } from "../marshmallow";
-import { Market, MARKET_STATE_LAYOUT_V3, MarketState } from "../serum";
-import { Spl } from "../spl";
-
-import { LIQUIDITY_VERSION_TO_STATE_LAYOUT, LiquidityStateV4, LiquidityStateV5 } from "./layout";
-import {
-  formatLayout, getDxByDyBaseIn, getDyByDxBaseIn, getStablePrice, ModelDataPubkey, StableModelLayout,
-} from "./stable";
+  formatLayout, getDxByDyBaseIn, getDyByDxBaseIn, getStablePrice,
+  ModelDataPubkey, StableModelLayout,
+} from './stable';
 
 const logger = Logger.from("Liquidity");
 
@@ -1775,6 +1784,194 @@ export class Liquidity extends Base {
         instructionTypes: [InstructionType.ammV4CreatePoolV2],
         supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
       }
+    }
+  }
+
+  static async makeRemoveAllLpAndCreateClmmPosition({
+    connection, poolKeys, removeLpAmount, userKeys, clmmPoolKeys, createPositionInfo, farmInfo, computeBudgetConfig
+  }: {
+    connection: Connection;
+    poolKeys: LiquidityPoolKeys;
+    removeLpAmount: BN,
+    clmmPoolKeys: AmmV3PoolInfo,
+    createPositionInfo: {
+      tickLower: number,
+      tickUpper: number,
+      liquidity: BN,
+      amountSlippageA: BN,
+      amountSlippageB: BN,
+    },
+    userKeys: {
+      tokenAccounts: TokenAccount[];
+      owner: PublicKey;
+      payer?: PublicKey;
+    };
+    farmInfo?: {
+      poolKeys: FarmPoolKeys;
+      amount: BN;
+    }
+    computeBudgetConfig?: ComputeBudgetConfig
+  }): Promise<MakeInstructionSimpleOutType> {
+    const { instructions, instructionTypes } = computeBudgetConfig ? addComputeBudget(computeBudgetConfig).innerTransaction : { instructions: [], instructionTypes: [] }
+
+    if (!(poolKeys.baseMint.equals(clmmPoolKeys.mintA.mint) || poolKeys.baseMint.equals(clmmPoolKeys.mintB.mint))) throw Error('mint check error')
+    if (!(poolKeys.quoteMint.equals(clmmPoolKeys.mintA.mint) || poolKeys.quoteMint.equals(clmmPoolKeys.mintB.mint))) throw Error('mint check error')
+
+    const frontInstructions: TransactionInstruction[] = [];
+    const endInstructions: TransactionInstruction[] = [];
+    const frontInstructionsType: InstructionType[] = [];
+    const endInstructionsType: InstructionType[] = [];
+    const signers: Signer[] = [];
+
+    const mintToAccount: {[mint: string]: PublicKey} = {}
+    for (const item of userKeys.tokenAccounts) {
+      if (mintToAccount[item.accountInfo.mint.toString()] === undefined || getATAAddress(userKeys.owner, item.accountInfo.mint).publicKey.equals(item.pubkey)) {
+        mintToAccount[item.accountInfo.mint.toString()] = item.pubkey
+      }
+    }
+
+    const lpTokenAccount = mintToAccount[poolKeys.lpMint.toString()]
+    if (lpTokenAccount === undefined) throw Error('find lp account error in trade accounts')
+
+    const amountIn = removeLpAmount.add(farmInfo?.amount ?? new BN(0))
+    
+    const mintBaseUseSOLBalance = poolKeys.baseMint.equals(Token.WSOL.mint)
+    const mintQuoteUseSOLBalance = poolKeys.quoteMint.equals(Token.WSOL.mint)
+
+    const baseTokenAccount = await this._selectOrCreateTokenAccount({
+      mint: poolKeys.baseMint,
+      tokenAccounts: userKeys.tokenAccounts,
+      owner: userKeys.owner,
+      createInfo: {
+        connection,
+        payer: userKeys.payer ?? userKeys.owner,
+
+        frontInstructions,
+        frontInstructionsType,
+        endInstructions: mintBaseUseSOLBalance ? endInstructions : [],
+        endInstructionsType: mintBaseUseSOLBalance ? endInstructionsType : [],
+        signers
+      },
+      associatedOnly: true
+    })
+
+    const quoteTokenAccount = await this._selectOrCreateTokenAccount({
+      mint: poolKeys.quoteMint,
+      tokenAccounts: userKeys.tokenAccounts,
+      owner: userKeys.owner,
+
+      createInfo: {
+        connection,
+        payer: userKeys.payer ?? userKeys.owner,
+        amount: 0,
+
+        frontInstructions,
+        frontInstructionsType,
+        endInstructions: mintQuoteUseSOLBalance ? endInstructions : [],
+        endInstructionsType: mintQuoteUseSOLBalance ? endInstructionsType : [],
+        signers
+      },
+
+      associatedOnly: true
+    })
+
+    mintToAccount[poolKeys.baseMint.toString()] = baseTokenAccount
+    mintToAccount[poolKeys.quoteMint.toString()] = quoteTokenAccount
+
+    const removeIns = this.makeRemoveLiquidityInstruction({
+      poolKeys,
+      userKeys: {
+        lpTokenAccount,
+        baseTokenAccount,
+        quoteTokenAccount,
+        owner: userKeys.owner,
+      },
+      amountIn,
+    })
+
+    const [tokenAccountA, tokenAccountB] = poolKeys.baseMint.equals(clmmPoolKeys.mintA.mint) ? [baseTokenAccount, quoteTokenAccount] : [quoteTokenAccount, baseTokenAccount]
+    const createPositionIns = AmmV3.makeOpenPositionInstructions({
+      poolInfo: clmmPoolKeys,
+      ownerInfo: {
+        feePayer: userKeys.payer ?? userKeys.owner,
+        wallet: userKeys.owner,
+        tokenAccountA, tokenAccountB
+      },
+      ...createPositionInfo
+    })
+
+    let withdrawFarmIns: InnerTransaction = {
+      instructions: [],
+      signers: [],
+      instructionTypes: [],
+      supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
+    }
+    if (farmInfo !== undefined) {
+      const rewardTokenAccounts = []
+      for (const item of farmInfo.poolKeys.rewardInfos) {
+        const rewardIsWsol = item.rewardMint.equals(Token.WSOL.mint)
+        rewardTokenAccounts.push(mintToAccount[item.rewardMint.toString()] ?? await this._selectOrCreateTokenAccount({
+          mint: item.rewardMint,
+          tokenAccounts: userKeys.tokenAccounts,
+          owner: userKeys.owner,
+          createInfo: {
+            connection,
+            payer: userKeys.payer ?? userKeys.owner,
+    
+            frontInstructions,
+            frontInstructionsType,
+            endInstructions: rewardIsWsol ? endInstructions : [],
+            endInstructionsType: rewardIsWsol ? endInstructionsType : [],
+            signers
+          },
+          associatedOnly: true
+        }))
+        console.log(222, frontInstructions.length)
+      }
+      console.log(333, frontInstructions.length)
+      withdrawFarmIns = Farm.makeWithdrawInstruction({
+        poolKeys: farmInfo.poolKeys,
+        amount: farmInfo.amount,
+        userKeys: {
+          ledger: Farm.getAssociatedLedgerAccount({
+            programId: farmInfo.poolKeys.programId,
+            poolId: farmInfo.poolKeys.id,
+            owner: userKeys.owner,
+            version: farmInfo.poolKeys.version as 3 | 5 | 6,
+          }),
+          lpTokenAccount,
+          rewardTokenAccounts,
+          owner: userKeys.owner
+        }
+      }).innerTransaction
+    }
+
+    const innerTransactions = []
+    if (frontInstructions.length > 0) {
+      innerTransactions.push({
+        instructions: frontInstructions,
+        signers,
+        instructionTypes: frontInstructionsType,
+        supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
+      })
+    }
+    innerTransactions.push({
+      instructions: [...withdrawFarmIns.instructions, ...removeIns.innerTransaction.instructions],
+      signers: [...withdrawFarmIns.signers, ...removeIns.innerTransaction.signers],
+      instructionTypes: [...withdrawFarmIns.instructionTypes, ...removeIns.innerTransaction.instructionTypes],
+      supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
+    })
+
+    innerTransactions.push({
+      instructions: [...instructions, ...createPositionIns.innerTransaction.instructions, ...endInstructions],
+      signers: createPositionIns.innerTransaction.signers,
+      instructionTypes: [...instructionTypes, ...createPositionIns.innerTransaction.instructionTypes, ...endInstructionsType],
+      supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
+    })
+
+    return {
+      address: {...removeIns.address, ...createPositionIns.address},
+      innerTransactions
     }
   }
 

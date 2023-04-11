@@ -1,12 +1,13 @@
-import { AccountLayout, TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import { AccountLayout, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import {
-  Connection, Keypair, PublicKey, Signer, SystemProgram, Transaction, TransactionInstruction,
-} from "@solana/web3.js";
+  Connection, Keypair, PublicKey, Signer, SystemProgram, Transaction,
+  TransactionInstruction,
+} from '@solana/web3.js';
 
-import { BigNumberish, Token } from "../entity";
-import { Spl, SplAccount } from "../spl";
+import { BigNumberish, Token } from '../entity';
+import { Spl, SplAccount } from '../spl';
 
-import { InstructionType } from "./type";
+import { InstructionType } from './type';
 
 export interface TokenAccount {
   pubkey: PublicKey;
@@ -168,7 +169,7 @@ export class Base {
         }),
       );
 
-      if (mint.equals(Token.WSOL.mint)) {
+      if (mint.equals(Token.WSOL.mint) && createInfo.amount) {
         const newTokenAccount = await Spl.insertCreateWrappedNativeAccount({
           connection: createInfo.connection,
           owner,
