@@ -1,13 +1,15 @@
-import { PublicKey } from "@solana/web3.js";
-import BN from "bn.js";
+import { PublicKey } from '@solana/web3.js';
+import BN from 'bn.js';
 
-import { ZERO } from "../../entity";
-import { AmmV3PoolInfo, AmmV3PoolRewardInfo, AmmV3PoolRewardLayoutInfo } from "../ammV3";
+import { ZERO } from '../../entity';
+import {
+  AmmV3PoolInfo, AmmV3PoolRewardInfo, AmmV3PoolRewardLayoutInfo,
+} from '../ammV3';
 
-import { NEGATIVE_ONE, Q64 } from "./constants";
-import { MathUtil, SwapMath } from "./math";
-import { getPdaTickArrayAddress } from "./pda";
-import { TickArray, TickUtils } from "./tick";
+import { NEGATIVE_ONE, Q64 } from './constants';
+import { MathUtil, SwapMath } from './math';
+import { getPdaTickArrayAddress } from './pda';
+import { TickArray, TickUtils } from './tick';
 
 export class PoolUtils {
   public static getOutputAmountAndRemainAccounts(
@@ -22,6 +24,16 @@ export class PoolUtils {
     const allNeededAccounts: PublicKey[] = [];
     const { isExist, startIndex: firstTickArrayStartIndex, nextAccountMeta } = this.getFirstInitializedTickArray(poolInfo, zeroForOne);
     if (!isExist || firstTickArrayStartIndex === undefined || !nextAccountMeta) throw new Error("Invalid tick array");
+    
+    const preTick = this.preInitializedTickArrayStartIndex(poolInfo, !zeroForOne)
+    if (isExist) {
+      const { publicKey: address } = getPdaTickArrayAddress(
+        poolInfo.programId,
+        poolInfo.id,
+        preTick.nextStartIndex
+      );
+      allNeededAccounts.push(address)
+    }
 
     allNeededAccounts.push(nextAccountMeta);
     const {
@@ -59,6 +71,16 @@ export class PoolUtils {
     const allNeededAccounts: PublicKey[] = [];
     const { isExist, startIndex: firstTickArrayStartIndex, nextAccountMeta } = this.getFirstInitializedTickArray(poolInfo, zeroForOne);
     if (!isExist || firstTickArrayStartIndex === undefined || !nextAccountMeta) throw new Error("Invalid tick array");
+
+    const preTick = this.preInitializedTickArrayStartIndex(poolInfo, !zeroForOne)
+    if (isExist) {
+      const { publicKey: address } = getPdaTickArrayAddress(
+        poolInfo.programId,
+        poolInfo.id,
+        preTick.nextStartIndex
+      );
+      allNeededAccounts.push(address)
+    }
 
     allNeededAccounts.push(nextAccountMeta);
     const {
@@ -122,6 +144,33 @@ export class PoolUtils {
       }
     }
     return { isExist: false, nextAccountMeta: undefined, startIndex: undefined }
+  }
+
+  public static preInitializedTickArrayStartIndex(
+    poolInfo: AmmV3PoolInfo,
+    zeroForOne: boolean) {
+    const tickArrayBitmap = TickUtils.mergeTickArrayBitmap(
+      poolInfo.tickArrayBitmap
+    );
+    const currentOffset = TickUtils.getTickArrayOffsetInBitmapByTick(
+      poolInfo.tickCurrent,
+      poolInfo.tickSpacing
+    );
+    const result: number[] = zeroForOne ? TickUtils.searchLowBitFromStart(
+      tickArrayBitmap,
+      currentOffset - 1,
+      0,
+      1,
+      poolInfo.tickSpacing
+    ) : TickUtils.searchHightBitFromStart(
+      tickArrayBitmap,
+      currentOffset + 1,
+      1024,
+      1,
+      poolInfo.tickSpacing
+    );
+
+    return result.length > 0 ? { isExist: true, nextStartIndex: result[0] } : { isExist: false, nextStartIndex: 0 }
   }
 
   public static nextInitializedTickArrayStartIndex(

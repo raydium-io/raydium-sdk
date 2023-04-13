@@ -1,13 +1,13 @@
-import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
-import { PublicKey, TransactionInstruction } from "@solana/web3.js";
-import BN from "bn.js";
+import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import { PublicKey, TransactionInstruction } from '@solana/web3.js';
+import BN from 'bn.js';
 
-import { AmmV3PoolInfo } from "../ammV3";
-import { jsonInfo2PoolKeys, SYSTEM_PROGRAM_ID } from "../common";
-import { LiquidityPoolKeysV4 } from "../liquidity";
-import { struct, u64, u8 } from "../marshmallow";
+import { AmmV3PoolInfo } from '../ammV3';
+import { jsonInfo2PoolKeys, SYSTEM_PROGRAM_ID } from '../common';
+import { LiquidityPoolKeysV4 } from '../liquidity';
+import { struct, u64, u8 } from '../marshmallow';
 
-import { PoolType } from "./trade";
+import { PoolType } from './trade';
 
 export function route1Instruction(
   programId: PublicKey,
@@ -210,4 +210,141 @@ export function route2Instruction(
     programId,
     data,
   });
+}
+
+export function routeInstruction(
+  programId: PublicKey,
+  wallet: PublicKey,
+
+  userSourceToken: PublicKey,
+  userRouteToken: PublicKey,
+  userDestinationToken: PublicKey,
+
+  inputMint: string,
+  routeMint: string,
+
+  poolKeyA: PoolType,
+  poolKeyB: PoolType,
+
+  amountIn: BN,
+  amountOut: BN,
+  
+  remainingAccounts: PublicKey[][]
+) {
+  const dataLayout = struct([
+    u8("instruction"),
+    u64("amountIn"),
+    u64("amountOut"),
+  ]);
+
+  const keys: { pubkey: PublicKey, isSigner: boolean, isWritable: boolean }[] = [
+    { pubkey: wallet, isSigner: true, isWritable: false },
+    { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+  ];
+
+  keys.push(
+    ...makeInnerInsKey(
+      poolKeyA,
+      inputMint,
+      userSourceToken,
+      userRouteToken,
+      remainingAccounts[0]
+    )
+  )
+
+  keys.push(
+    ...makeInnerInsKey(
+      poolKeyB,
+      routeMint,
+      userRouteToken,
+      userDestinationToken,
+      remainingAccounts[1]
+    )
+  )
+
+  const data = Buffer.alloc(dataLayout.span);
+  dataLayout.encode(
+    {
+      instruction: 8,
+      amountIn,
+      amountOut,
+    },
+    data
+  );
+
+  return new TransactionInstruction({
+    keys,
+    programId,
+    data,
+  });
+}
+
+function makeInnerInsKey(itemPool: PoolType, inMint: string, userInAccount: PublicKey, userOutAccount: PublicKey, remainingAccount: PublicKey[]) {
+  if (itemPool.version === 4) {
+    const poolKey = jsonInfo2PoolKeys(itemPool) as LiquidityPoolKeysV4
+
+    return [
+      { pubkey: poolKey.programId, isSigner: false, isWritable: false },
+      { pubkey: userInAccount, isSigner: false, isWritable: true },
+      { pubkey: userOutAccount, isSigner: false, isWritable: true },
+
+      { pubkey: poolKey.id, isSigner: false, isWritable: true },
+      { pubkey: poolKey.authority, isSigner: false, isWritable: false },
+      { pubkey: poolKey.marketProgramId, isSigner: false, isWritable: false },
+      { pubkey: poolKey.marketAuthority, isSigner: false, isWritable: false },
+
+      { pubkey: poolKey.openOrders, isSigner: false, isWritable: true },
+      { pubkey: poolKey.baseVault, isSigner: false, isWritable: true },
+      { pubkey: poolKey.quoteVault, isSigner: false, isWritable: true },
+      { pubkey: poolKey.marketId, isSigner: false, isWritable: true },
+      { pubkey: poolKey.marketBids, isSigner: false, isWritable: true },
+      { pubkey: poolKey.marketAsks, isSigner: false, isWritable: true },
+      { pubkey: poolKey.marketEventQueue, isSigner: false, isWritable: true },
+      ...(poolKey.marketProgramId.toString() === 'srmqPvymJeFKQ4zGQed1GFppgkRHL9kaELCbyksJtPX' ? [
+        { pubkey: poolKey.marketBaseVault, isSigner: false, isWritable: true },
+        { pubkey: poolKey.marketQuoteVault, isSigner: false, isWritable: true },
+      ] : [
+        { pubkey: poolKey.id, isSigner: false, isWritable: true },
+        { pubkey: poolKey.id, isSigner: false, isWritable: true },
+      ])
+    ]
+  } else if (itemPool.version === 5) {
+    const poolKey = jsonInfo2PoolKeys(itemPool) as LiquidityPoolKeysV4
+
+    return [
+      { pubkey: poolKey.programId, isSigner: false, isWritable: false },
+      { pubkey: userInAccount, isSigner: false, isWritable: true },
+      { pubkey: userOutAccount, isSigner: false, isWritable: true },
+
+      { pubkey: poolKey.id, isSigner: false, isWritable: true },
+      { pubkey: poolKey.authority, isSigner: false, isWritable: false },
+      { pubkey: poolKey.marketProgramId, isSigner: false, isWritable: false },
+      { pubkey: poolKey.id, isSigner: false, isWritable: true },
+      { pubkey: new PublicKey('CDSr3ssLcRB6XYPJwAfFt18MZvEZp4LjHcvzBVZ45duo'), isSigner: false, isWritable: false },
+      { pubkey: poolKey.openOrders, isSigner: false, isWritable: true },
+      { pubkey: poolKey.baseVault, isSigner: false, isWritable: true },
+      { pubkey: poolKey.quoteVault, isSigner: false, isWritable: true },
+      { pubkey: poolKey.marketId, isSigner: false, isWritable: true },
+      { pubkey: poolKey.marketBids, isSigner: false, isWritable: true },
+      { pubkey: poolKey.marketAsks, isSigner: false, isWritable: true },
+      { pubkey: poolKey.marketEventQueue, isSigner: false, isWritable: true },
+      { pubkey: poolKey.id, isSigner: false, isWritable: true },
+      { pubkey: poolKey.id, isSigner: false, isWritable: true },
+    ]
+  } else if (itemPool.version === 6) {
+    const baseIn = itemPool.mintA.mint.toString() === inMint
+    return [
+      { pubkey: new PublicKey(String(itemPool.programId)), isSigner: false, isWritable: false },
+      { pubkey: userInAccount, isSigner: false, isWritable: true },
+      { pubkey: userOutAccount, isSigner: false, isWritable: true },
+      { pubkey: itemPool.ammConfig.id, isSigner: false, isWritable: false },
+      { pubkey: itemPool.id, isSigner: false, isWritable: true },
+      { pubkey: baseIn ? itemPool.mintA.vault : itemPool.mintB.vault, isSigner: false, isWritable: true },
+      { pubkey: baseIn ? itemPool.mintB.vault : itemPool.mintA.vault, isSigner: false, isWritable: true },
+      { pubkey: itemPool.observationId, isSigner: false, isWritable: true },
+      ...remainingAccount.map(i => ({ pubkey: i, isSigner: false, isWritable: true }))
+    ]
+  } else {
+    throw Error('make swap ins error')
+  }
 }

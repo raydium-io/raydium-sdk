@@ -26,7 +26,7 @@ import {
   initStableModelLayout, Liquidity, LiquidityPoolKeys,
 } from '../liquidity';
 
-import { route1Instruction, route2Instruction } from './instrument';
+import { routeInstruction } from './instrument';
 
 export type PoolType = AmmV3PoolInfo | ApiPoolInfoItem
 type RoutePathType = {
@@ -590,35 +590,23 @@ export class TradeV2 extends Base {
         address: {},
         innerTransaction: {
           instructions: [
-            route1Instruction(
+            routeInstruction(
               routeProgram,
+              ownerInfo.wallet,
+              ownerInfo.sourceToken,
+              ownerInfo.routeToken,
+              ownerInfo.destinationToken,
+
+              inputMint.toString(),
+              swapInfo.middleMint.toString(),
+
               poolKey1,
               poolKey2,
-  
-              ownerInfo.sourceToken,
-              ownerInfo.routeToken!,
-              ownerInfo.userPdaAccount!,
-              ownerInfo.wallet,
-  
-              inputMint,
-  
+
               swapInfo.amountIn.raw,
               swapInfo.minAmountOut.raw,
-              swapInfo.remainingAccounts[0]
-            ),
-            route2Instruction(
-              routeProgram,
-              poolKey1,
-              poolKey2,
-  
-              ownerInfo.routeToken!,
-              ownerInfo.destinationToken,
-              ownerInfo.userPdaAccount!,
-              ownerInfo.wallet,
-  
-              swapInfo.middleMint!,
-  
-              swapInfo.remainingAccounts[1]
+
+              swapInfo.remainingAccounts
             )
           ],
           signers: [],
@@ -762,7 +750,15 @@ export class TradeV2 extends Base {
             supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
           })
         }
-        if (forecastTransactionSize(ins.innerTransaction.instructions, [ownerInfo.wallet])) {
+        if (forecastTransactionSize([...instructions, ...ins.innerTransaction.instructions], [ownerInfo.wallet])) {
+          innerTransactions.push({
+            instructions: [...instructions, ...ins.innerTransaction.instructions],
+            signers: ins.innerTransaction.signers,
+            lookupTableAddress: ins.innerTransaction.lookupTableAddress,
+            instructionTypes: [...instructionTypes, ...ins.innerTransaction.instructionTypes],
+            supportedVersion: ins.innerTransaction.supportedVersion
+          })
+        } else if (forecastTransactionSize(ins.innerTransaction.instructions, [ownerInfo.wallet])) {
           innerTransactions.push({
             instructions: ins.innerTransaction.instructions,
             signers: ins.innerTransaction.signers,

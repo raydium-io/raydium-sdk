@@ -1,12 +1,14 @@
-import { Connection, PublicKey } from "@solana/web3.js";
-import BN from "bn.js";
+import { Connection, PublicKey } from '@solana/web3.js';
+import BN from 'bn.js';
 
-import { getMultipleAccountsInfo } from "../../common";
-import { TickArrayLayout } from "../layout";
+import { getMultipleAccountsInfo } from '../../common';
+import { TickArrayLayout } from '../layout';
 
-import { MAX_TICK_ARRAY_START_INDEX, MIN_TICK_ARRAY_START_INDEX } from "./constants";
-import { getPdaTickArrayAddress } from "./pda";
-import { Tick, TICK_ARRAY_SIZE, TickArray, TickUtils } from "./tick";
+import {
+  MAX_TICK_ARRAY_START_INDEX, MIN_TICK_ARRAY_START_INDEX,
+} from './constants';
+import { getPdaTickArrayAddress } from './pda';
+import { Tick, TICK_ARRAY_SIZE, TickArray, TickUtils } from './tick';
 
 export const FETCH_TICKARRAY_COUNT = 15;
 
@@ -99,6 +101,57 @@ export class TickQuery {
       );
       [nextTick, tickArrayAddress, tickArrayStartTickIndex] = [_nextTick, _tickArrayAddress, _tickArrayStartTickIndex]
     }
+    if (nextTick == undefined) {
+      throw new Error("No invaild tickArray cache");
+    }
+    return { nextTick, tickArrayAddress, tickArrayStartTickIndex };
+  }
+
+  public static nextInitializedTickArray(
+    programId: PublicKey,
+    poolId: PublicKey,
+    tickArrayCache: { [key: string]: TickArray },
+    tickIndex: number,
+    tickSpacing: number,
+    zeroForOne: boolean
+  ) {
+    let {
+      initializedTick: nextTick,
+      tickArrayAddress,
+      tickArrayStartTickIndex,
+    } = this.nextInitializedTickInOneArray(
+      programId,
+      poolId,
+      tickArrayCache,
+      tickIndex,
+      tickSpacing,
+      zeroForOne
+    );
+    do {
+      tickArrayStartTickIndex = TickUtils.getNextTickArrayStartIndex(
+        tickArrayStartTickIndex,
+        tickSpacing,
+        zeroForOne
+      );
+      if (
+        tickArrayStartTickIndex < MIN_TICK_ARRAY_START_INDEX ||
+        tickArrayStartTickIndex > MAX_TICK_ARRAY_START_INDEX
+      ) {
+        throw new Error("No enough initialized tickArray");
+      }
+      const cachedTickArray = tickArrayCache[tickArrayStartTickIndex];
+
+      if (cachedTickArray === undefined) continue
+
+      const { nextTick: _nextTick, tickArrayAddress: _tickArrayAddress, tickArrayStartTickIndex: _tickArrayStartTickIndex } = this.firstInitializedTickInOneArray(
+        programId,
+        poolId,
+        cachedTickArray,
+        zeroForOne
+      );
+      [nextTick, tickArrayAddress, tickArrayStartTickIndex] = [_nextTick, _tickArrayAddress, _tickArrayStartTickIndex]
+    } while (nextTick == undefined || nextTick.liquidityGross.lten(0))
+
     if (nextTick == undefined) {
       throw new Error("No invaild tickArray cache");
     }

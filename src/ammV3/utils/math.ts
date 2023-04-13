@@ -726,6 +726,23 @@ export abstract class SwapMath {
       }
       ++loopCount;
     }
+    
+    const { tickArrayAddress, tickArrayStartTickIndex: tickAarrayStartIndex } = TickQuery.nextInitializedTickArray(
+      programId,
+      poolId,
+      tickArrayCache,
+      state.tick,
+      tickSpacing,
+      zeroForOne
+    );
+    if (
+      lastSavedTickArrayStartIndex !== tickAarrayStartIndex &&
+      tickArrayAddress
+    ) {
+      state.accounts.push(tickArrayAddress);
+      lastSavedTickArrayStartIndex = tickAarrayStartIndex;
+    }
+    
     return {
       amountCalculated: state.amountCalculated,
       feeAmount: state.feeAmount,
