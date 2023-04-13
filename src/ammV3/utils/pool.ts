@@ -24,16 +24,18 @@ export class PoolUtils {
     const allNeededAccounts: PublicKey[] = [];
     const { isExist, startIndex: firstTickArrayStartIndex, nextAccountMeta } = this.getFirstInitializedTickArray(poolInfo, zeroForOne);
     if (!isExist || firstTickArrayStartIndex === undefined || !nextAccountMeta) throw new Error("Invalid tick array");
-    
-    const preTick = this.preInitializedTickArrayStartIndex(poolInfo, !zeroForOne)
-    if (isExist) {
-      const { publicKey: address } = getPdaTickArrayAddress(
-        poolInfo.programId,
-        poolInfo.id,
-        preTick.nextStartIndex
-      );
-      allNeededAccounts.push(address)
-    }
+
+    try {
+      const preTick = this.preInitializedTickArrayStartIndex(poolInfo, !zeroForOne)
+      if (isExist) {
+        const { publicKey: address } = getPdaTickArrayAddress(
+          poolInfo.programId,
+          poolInfo.id,
+          preTick.nextStartIndex
+        );
+        allNeededAccounts.push(address)
+      }
+    } catch (e) { /* empty */ }
 
     allNeededAccounts.push(nextAccountMeta);
     const {
@@ -58,7 +60,7 @@ export class PoolUtils {
     allNeededAccounts.push(...reaminAccounts);
     return { expectedAmountOut: outputAmount.mul(NEGATIVE_ONE), remainingAccounts: allNeededAccounts, executionPrice, feeAmount };
   }
-  
+
   public static getInputAmountAndRemainAccounts(
     poolInfo: AmmV3PoolInfo,
     tickArrayCache: { [key: string]: TickArray },
@@ -72,15 +74,17 @@ export class PoolUtils {
     const { isExist, startIndex: firstTickArrayStartIndex, nextAccountMeta } = this.getFirstInitializedTickArray(poolInfo, zeroForOne);
     if (!isExist || firstTickArrayStartIndex === undefined || !nextAccountMeta) throw new Error("Invalid tick array");
 
-    const preTick = this.preInitializedTickArrayStartIndex(poolInfo, !zeroForOne)
-    if (isExist) {
-      const { publicKey: address } = getPdaTickArrayAddress(
-        poolInfo.programId,
-        poolInfo.id,
-        preTick.nextStartIndex
-      );
-      allNeededAccounts.push(address)
-    }
+    try {
+      const preTick = this.preInitializedTickArrayStartIndex(poolInfo, !zeroForOne)
+      if (isExist) {
+        const { publicKey: address } = getPdaTickArrayAddress(
+          poolInfo.programId,
+          poolInfo.id,
+          preTick.nextStartIndex
+        );
+        allNeededAccounts.push(address)
+      }
+    } catch (e) { /* empty */ }
 
     allNeededAccounts.push(nextAccountMeta);
     const {
@@ -103,7 +107,7 @@ export class PoolUtils {
       sqrtPriceLimitX64
     );
     allNeededAccounts.push(...reaminAccounts);
-    return  {expectedAmountIn: inputAmount, remainingAccounts: allNeededAccounts, executionPrice, feeAmount };
+    return { expectedAmountIn: inputAmount, remainingAccounts: allNeededAccounts, executionPrice, feeAmount };
   }
 
   public static getFirstInitializedTickArray(
