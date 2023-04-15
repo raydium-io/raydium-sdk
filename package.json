@@ -1,6 +1,6 @@
 {
   "name": "@raydium-io/raydium-sdk",
-  "version": "1.3.0-beta.12",
+  "version": "1.3.0-beta.13",
   "description": "An SDK for building applications on top of Raydium.",
   "license": "GPL-3.0",
   "files": [
