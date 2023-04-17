@@ -141,7 +141,7 @@ export class TickQuery {
       }
       const cachedTickArray = tickArrayCache[tickArrayStartTickIndex];
 
-      if (cachedTickArray === undefined) continue
+      if (cachedTickArray === undefined) return undefined
 
       const { nextTick: _nextTick, tickArrayAddress: _tickArrayAddress, tickArrayStartTickIndex: _tickArrayStartTickIndex } = this.firstInitializedTickInOneArray(
         programId,
