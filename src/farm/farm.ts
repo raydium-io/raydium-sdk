@@ -1641,7 +1641,7 @@ export class Farm extends Base {
     const rewardVault = Farm.getAssociatedLedgerPoolAccount({
       programId: poolKeys.programId,
       poolId: poolKeys.id,
-      mint: newRewardInfo.rewardMint,
+      mint: newRewardInfo.rewardMint.equals(PublicKey.default) ? Token.WSOL.mint : newRewardInfo.rewardMint,
       type: "rewardVault",
     });
 
