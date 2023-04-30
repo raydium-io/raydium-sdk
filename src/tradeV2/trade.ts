@@ -339,7 +339,6 @@ export class TradeV2 extends Base {
     slippage: Percent,
     chainTime: number
   }): ReturnTypeGetAllRouteComputeAmountOut {
-    console.log('sdk call log', directPath.length, Object.keys(routePathDict).length, Object.keys(simulateCache).length, Object.keys(tickCache).length, inputTokenAmount.raw.toString(), inputTokenAmount instanceof TokenAmount ? inputTokenAmount.token.mint.toString() : 'sol', outputToken instanceof Token ? outputToken.mint.toString() : 'sol', slippage, chainTime)
     const amountIn = inputTokenAmount
     const outRoute: ComputeAmountOutLayout[] = []
 
@@ -413,11 +412,6 @@ export class TradeV2 extends Base {
 
     outRoute.sort((a, b) => (a.amountOut.raw.sub(b.amountOut.raw).gt(ZERO) ? -1 : 1))
 
-    console.log('sdk call log', outRoute.map(i => (i.routeType === 'amm' ? {type: i.routeType, inValue: i.amountIn.toFixed(), value: i.amountOut.toFixed(), e: i.executionPrice?.toFixed(5), valueMin: i.minAmountOut.toFixed(), v1: i.poolKey[0].version, p1: String(i.poolKey[0].id), priceI: i.priceImpact.denominator.eq(new BN(0)) ? 0: i.priceImpact.toFixed(5)} : {
-      type: i.routeType, inValue: i.amountIn.toFixed(), value: i.amountOut.toFixed(), e: i.executionPrice?.toFixed(5), valueMin: i.minAmountOut.toFixed(), v1: i.poolKey[0].version, v2: i.poolKey[1].version, p1: String(i.poolKey[0].id), p2: String(i.poolKey[1].id), priceI: i.priceImpact.denominator.eq(new BN(0)) ? 0: i.priceImpact.toFixed(5)
-    })))
-    console.log('sdk call log', outRoute.length)
-    
     return outRoute
   }
 

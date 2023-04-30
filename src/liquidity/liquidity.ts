@@ -1926,9 +1926,7 @@ export class Liquidity extends Base {
           },
           associatedOnly: true
         }))
-        console.log(222, frontInstructions.length)
       }
-      console.log(333, frontInstructions.length)
       withdrawFarmIns = Farm.makeWithdrawInstruction({
         poolKeys: farmInfo.poolKeys,
         amount: farmInfo.amount,

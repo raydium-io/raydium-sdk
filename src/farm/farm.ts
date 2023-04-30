@@ -2410,7 +2410,6 @@ export class Farm extends Base {
     }
     const ownerInfo = FARM_LEDGER_LAYOUT_V3_2.decode(ownerAccountInfo.data)
     const mintAmount = ownerInfo.deposited.sub(ownerInfo.voteLockedBalance)
-    console.log('amount', mintAmount.toString())
     if (mintAmount.eq(ZERO)) {
       throw Error('user do not has new stake amount')
     }
