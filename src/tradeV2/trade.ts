@@ -25,6 +25,7 @@ import {
 import {
   initStableModelLayout, Liquidity, LiquidityPoolKeys,
 } from '../liquidity';
+import { WSOL } from '../token';
 
 import { routeInstruction } from './instrument';
 
@@ -112,7 +113,6 @@ export type ReturnTypeGetAddLiquidityDefaultPool = ApiPoolInfoItem | undefined
 export type ReturnTypeGetAllRouteComputeAmountOut = ComputeAmountOutLayout[]
 
 export class TradeV2 extends Base {
-
   static getAllRoute({
     inputMint, outputMint, apiPoolList, ammV3List
   }: {
@@ -122,6 +122,8 @@ export class TradeV2 extends Base {
     apiPoolList?: ApiPoolInfo
     ammV3List?: AmmV3PoolInfo[]
   }): ReturnTypeGetAllRoute {
+    inputMint = inputMint.toString() === PublicKey.default.toString() ? new PublicKey(WSOL.mint) : inputMint
+    outputMint = outputMint.toString() === PublicKey.default.toString() ? new PublicKey(WSOL.mint) : outputMint
 
     const needSimulate: { [poolKey: string]: ApiPoolInfoItem } = {}
     const needTickArray: { [poolKey: string]: AmmV3PoolInfo } = {}
@@ -611,7 +613,7 @@ export class TradeV2 extends Base {
           ],
           signers: [],
           lookupTableAddress: [],
-          instructionTypes: [InstructionType.routeSwap1, InstructionType.routeSwap2],
+          instructionTypes: [InstructionType.routeSwap],
           supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
         }
       }

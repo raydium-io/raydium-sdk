@@ -79,6 +79,7 @@ export enum InstructionType {
   'ammV5SwapBaseIn',
   'ammV5SwapBaseOut',
 
+  'routeSwap',
   'routeSwap1',
   'routeSwap2',
 
