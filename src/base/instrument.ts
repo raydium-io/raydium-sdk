@@ -1,6 +1,6 @@
-import { ComputeBudgetProgram, TransactionInstruction } from "@solana/web3.js";
+import { ComputeBudgetProgram, TransactionInstruction } from '@solana/web3.js';
 
-import { ComputeBudgetConfig, InstructionType, TxVersion } from "../base";
+import { ComputeBudgetConfig, InstructionType, TxVersion } from '../base';
 
 export function addComputeBudget(config: ComputeBudgetConfig) {
   const ins: TransactionInstruction[] = []
@@ -11,7 +11,7 @@ export function addComputeBudget(config: ComputeBudgetConfig) {
   }
   if (config.units) {
     ins.push(ComputeBudgetProgram.setComputeUnitLimit({units: config.units}))
-    insTypes.push(InstructionType.setComputeUnitPrice)
+    insTypes.push(InstructionType.setComputeUnitLimit)
   }
 
   return {

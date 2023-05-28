@@ -1,3 +1,4 @@
+import { createTransferInstruction } from '@solana/spl-token';
 import {
   Connection, PublicKey, Signer, TransactionInstruction,
 } from '@solana/web3.js';
@@ -10,14 +11,14 @@ import {
   MAX_SQRT_PRICE_X64, MIN_SQRT_PRICE_X64,
 } from '../ammV3/utils/constants';
 import {
-  Base, ComputeBudgetConfig, InnerTransaction, InstructionType,
-  MakeInstructionOutType, MakeInstructionSimpleOutType, TokenAccount, TxVersion,
+  Base, ComputeBudgetConfig, InnerTransaction, InstructionType, TokenAccount,
+  TxVersion,
 } from '../base';
 import { addComputeBudget } from '../base/instrument';
 import { ApiPoolInfo, ApiPoolInfoItem } from '../baseInfo';
 import {
-  findProgramAddress, forecastTransactionSize, jsonInfo2PoolKeys,
-  parseSimulateLogToJson, parseSimulateValue, simulateMultipleInstruction,
+  forecastTransactionSize, jsonInfo2PoolKeys, parseSimulateLogToJson,
+  parseSimulateValue, simulateMultipleInstruction,
 } from '../common';
 import {
   Currency, CurrencyAmount, ONE, Percent, Price, Token, TokenAmount, ZERO,
@@ -65,6 +66,11 @@ export interface ComputeAmountOutAmmLayout {
   middleMint: PublicKey | undefined,
   poolReady: boolean
   poolType: string | undefined
+
+  feeConfig?: {
+    feeAmount: BN,
+    feeAccount: PublicKey
+  }
 }
 export interface ComputeAmountOutRouteLayout {
   amountIn: CurrencyAmount | TokenAmount,
@@ -80,6 +86,11 @@ export interface ComputeAmountOutRouteLayout {
   middleMint: PublicKey | undefined,
   poolReady: boolean
   poolType: (string | undefined)[]
+
+  feeConfig?: {
+    feeAmount: BN,
+    feeAccount: PublicKey
+  }
 }
 type ComputeAmountOutLayout = ComputeAmountOutAmmLayout | ComputeAmountOutRouteLayout
 
@@ -92,7 +103,6 @@ type makeSwapInstructionParam = {
     sourceToken: PublicKey,
     routeToken?: PublicKey,
     destinationToken: PublicKey,
-    userPdaAccount?: PublicKey,
   },
 
   inputMint: PublicKey
@@ -328,7 +338,7 @@ export class TradeV2 extends Base {
     }
   }
 
-  static getAllRouteComputeAmountOut({ inputTokenAmount, outputToken, directPath, routePathDict, simulateCache, tickCache, slippage, chainTime }: {
+  static getAllRouteComputeAmountOut({ inputTokenAmount, outputToken, directPath, routePathDict, simulateCache, tickCache, slippage, chainTime, feeConfig }: {
     directPath: PoolType[],
     routePathDict: RoutePathType,
     simulateCache: ReturnTypeFetchMultipleInfo,
@@ -338,8 +348,19 @@ export class TradeV2 extends Base {
     outputToken: Token | Currency,
     slippage: Percent,
     chainTime: number
+
+    feeConfig?: {
+      feeBps: BN,
+      feeAccount: PublicKey
+    }
   }): ReturnTypeGetAllRouteComputeAmountOut {
-    const amountIn = inputTokenAmount
+    const _amoutIn = inputTokenAmount.raw.mul(new BN(10000 - feeConfig.feeBps.toNumber())).div(new BN(10000))
+    const amountIn = feeConfig === undefined ? inputTokenAmount : inputTokenAmount instanceof TokenAmount ? new TokenAmount(inputTokenAmount.token, _amoutIn) : new CurrencyAmount(inputTokenAmount.currency, _amoutIn)
+    const _inFeeConfig = feeConfig === undefined ? undefined : {
+      feeAmount: _amoutIn,
+      feeAccount: feeConfig.feeAccount
+    }
+
     const outRoute: ComputeAmountOutLayout[] = []
 
     for (const itemPool of directPath) {
@@ -352,7 +373,7 @@ export class TradeV2 extends Base {
             currencyOut: outputToken,
             slippage,
           })
-          outRoute.push({ amountIn, amountOut, minAmountOut, currentPrice, executionPrice, priceImpact, fee: [fee], remainingAccounts: [remainingAccounts], routeType: 'amm', poolKey: [itemPool], middleMint: undefined, poolReady: itemPool.startTime < chainTime, poolType: 'CLMM' })
+          outRoute.push({ amountIn, amountOut, minAmountOut, currentPrice, executionPrice, priceImpact, fee: [fee], remainingAccounts: [remainingAccounts], routeType: 'amm', poolKey: [itemPool], middleMint: undefined, poolReady: itemPool.startTime < chainTime, poolType: 'CLMM', feeConfig: _inFeeConfig })
         } catch (e) {
           // 
         }
@@ -367,7 +388,7 @@ export class TradeV2 extends Base {
               currencyOut: outputToken,
               slippage,
             })
-          outRoute.push({ amountIn, amountOut, minAmountOut, currentPrice, executionPrice, priceImpact, fee: [fee], routeType: 'amm', poolKey: [itemPool], remainingAccounts: [], middleMint: undefined, poolReady: simulateCache[itemPool.id as string].startTime.toNumber() < chainTime, poolType: itemPool.version === 5 ? 'STABLE' : undefined  })
+          outRoute.push({ amountIn, amountOut, minAmountOut, currentPrice, executionPrice, priceImpact, fee: [fee], routeType: 'amm', poolKey: [itemPool], remainingAccounts: [], middleMint: undefined, poolReady: simulateCache[itemPool.id as string].startTime.toNumber() < chainTime, poolType: itemPool.version === 5 ? 'STABLE' : undefined, feeConfig: _inFeeConfig  })
         } catch (e) {
           //
         }
@@ -401,7 +422,7 @@ export class TradeV2 extends Base {
             const poolTypeA = iFromPool.version === 6 ? 'CLMM' : iFromPool.version === 5 ? "STABLE" : undefined
             const poolTypeB = iOutPool.version === 6 ? 'CLMM' : iOutPool.version === 5 ? "STABLE" : undefined
             outRoute.push({
-              amountIn, amountOut, minAmountOut, currentPrice: undefined, executionPrice, priceImpact, fee, routeType: 'route', poolKey: [iFromPool, iOutPool], remainingAccounts, middleMint: new PublicKey(routeMint), poolReady: infoAPoolOpen && infoBPoolOpen, poolType: [poolTypeA, poolTypeB]
+              amountIn, amountOut, minAmountOut, currentPrice: undefined, executionPrice, priceImpact, fee, routeType: 'route', poolKey: [iFromPool, iOutPool], remainingAccounts, middleMint: new PublicKey(routeMint), poolReady: infoAPoolOpen && infoBPoolOpen, poolType: [poolTypeA, poolTypeB], feeConfig: _inFeeConfig
             })
           } catch (e) {
             //
@@ -718,9 +739,6 @@ export class TradeV2 extends Base {
         sourceToken,
         routeToken,
         destinationToken: destinationToken!,
-        userPdaAccount: swapInfo.poolKey.length === 2 ? this.getAssociatedMiddleStatusAccount({
-          programId: routeProgram, fromPoolId: new PublicKey(String(swapInfo.poolKey[0].id)), owner: ownerInfo.wallet, middleMint: swapInfo.middleMint!
-        }) : undefined
       }
     })
 
@@ -728,8 +746,20 @@ export class TradeV2 extends Base {
     
     const { instructions, instructionTypes } = computeBudgetConfig ? addComputeBudget(computeBudgetConfig).innerTransaction : { instructions: [], instructionTypes: [] }
 
-    const tempIns = [...instructions, ...frontInstructions, ...ins.innerTransaction.instructions, ...endInstructions]
-    const tempInsType = [...instructionTypes, ...frontInstructionsType, ...ins.innerTransaction.instructionTypes, ...endInstructionsType]
+    const transferIns: TransactionInstruction[] = []
+    const transferInsType: InstructionType[] = []
+    if (swapInfo.feeConfig !== undefined) {
+      transferIns.push(createTransferInstruction(
+        sourceToken,
+        swapInfo.feeConfig.feeAccount,
+        ownerInfo.wallet,
+        swapInfo.feeConfig.feeAmount.toNumber(),
+      ))
+      transferInsType.push(InstructionType.transferAmount)
+    }
+
+    const tempIns = [...instructions, ...transferIns, ...frontInstructions, ...ins.innerTransaction.instructions, ...endInstructions]
+    const tempInsType = [...instructionTypes, ...transferInsType, ...frontInstructionsType, ...ins.innerTransaction.instructionTypes, ...endInstructionsType]
     const tempSigner = [...signers, ...ins.innerTransaction.signers]
     if (checkTransaction) {
       if (forecastTransactionSize(tempIns, [ownerInfo.wallet, ...tempSigner.map(i => i.publicKey)])) {
@@ -750,7 +780,15 @@ export class TradeV2 extends Base {
             supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
           })
         }
-        if (forecastTransactionSize([...instructions, ...ins.innerTransaction.instructions], [ownerInfo.wallet])) {
+        if (forecastTransactionSize([...instructions, ...transferIns, ...ins.innerTransaction.instructions], [ownerInfo.wallet])) {
+          innerTransactions.push({
+            instructions: [...instructions, ...transferIns, ...ins.innerTransaction.instructions],
+            signers: ins.innerTransaction.signers,
+            lookupTableAddress: ins.innerTransaction.lookupTableAddress,
+            instructionTypes: [...instructionTypes, ...transferInsType, ...ins.innerTransaction.instructionTypes],
+            supportedVersion: ins.innerTransaction.supportedVersion
+          })
+        } else if (forecastTransactionSize([...instructions, ...ins.innerTransaction.instructions], [ownerInfo.wallet])) {
           innerTransactions.push({
             instructions: [...instructions, ...ins.innerTransaction.instructions],
             signers: ins.innerTransaction.signers,
@@ -844,10 +882,10 @@ export class TradeV2 extends Base {
           })
         }
         innerTransactions.push({
-          instructions: [...instructions, ...ins.innerTransaction.instructions],
+          instructions: [...instructions, ...transferIns, ...ins.innerTransaction.instructions],
           signers: ins.innerTransaction.signers,
           lookupTableAddress: ins.innerTransaction.lookupTableAddress,
-          instructionTypes: [...instructionTypes, ...ins.innerTransaction.instructionTypes],
+          instructionTypes: [...instructionTypes, ...transferInsType, ...ins.innerTransaction.instructionTypes],
           supportedVersion: ins.innerTransaction.supportedVersion
         })
         if (endInstructions.length > 0) {
@@ -866,23 +904,5 @@ export class TradeV2 extends Base {
       address: ins.address,
       innerTransactions
     }
-  }
-
-  static getAssociatedMiddleStatusAccount({
-    programId,
-    fromPoolId,
-    middleMint,
-    owner,
-  }: {
-    programId: PublicKey;
-    fromPoolId: PublicKey;
-    middleMint: PublicKey;
-    owner: PublicKey;
-  }) {
-    const { publicKey } = findProgramAddress(
-      [fromPoolId.toBuffer(), middleMint.toBuffer(), owner.toBuffer()],
-      programId,
-    );
-    return publicKey;
   }
 }
