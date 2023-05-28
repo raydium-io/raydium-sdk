@@ -167,6 +167,7 @@ export interface LiquidityAddInstructionSimpleParams {
   fixedSide: LiquiditySide;
   config?: {
     bypassAssociatedCheck?: boolean;
+    checkCreateATAOwner?: boolean
   };
 }
 
@@ -195,6 +196,7 @@ export interface LiquidityRemoveInstructionSimpleParams {
   amountIn: TokenAmount;
   config?: {
     bypassAssociatedCheck?: boolean;
+    checkCreateATAOwner?: boolean
   };
 }
 
@@ -253,6 +255,7 @@ export interface LiquiditySwapInstructionSimpleParams {
   fixedSide: SwapSide;
   config?: {
     bypassAssociatedCheck?: boolean;
+    checkCreateATAOwner?: boolean
   };
 }
 
@@ -303,6 +306,7 @@ export interface LiquidityInitPoolTransactionParams {
   startTime?: BigNumberish;
   config?: {
     bypassAssociatedCheck?: boolean;
+    checkCreateATAOwner?: boolean
   };
 }
 
@@ -705,6 +709,7 @@ export class Liquidity extends Base {
       bypassAssociatedCheck,
       frontInstructionsType,
       endInstructionsType,
+      checkCreateATAOwner: config.checkCreateATAOwner,
     });
     const _quoteTokenAccount = await this._handleTokenAccount({
       connection,
@@ -720,6 +725,7 @@ export class Liquidity extends Base {
       bypassAssociatedCheck,
       frontInstructionsType,
       endInstructionsType,
+      checkCreateATAOwner: config.checkCreateATAOwner,
     });
     const _lpTokenAccount = await this._handleTokenAccount({
       connection,
@@ -735,6 +741,7 @@ export class Liquidity extends Base {
       bypassAssociatedCheck,
       frontInstructionsType,
       endInstructionsType,
+      checkCreateATAOwner: config.checkCreateATAOwner,
     });
 
     const ins = this.makeAddLiquidityInstruction({
@@ -908,7 +915,8 @@ export class Liquidity extends Base {
       endInstructions,
       signers,
       bypassAssociatedCheck,
-      frontInstructionsType
+      frontInstructionsType,
+      checkCreateATAOwner: config.checkCreateATAOwner,
     });
     const _quoteTokenAccount = await this._handleTokenAccount({
       connection,
@@ -923,6 +931,7 @@ export class Liquidity extends Base {
       signers,
       bypassAssociatedCheck,
       frontInstructionsType,
+      checkCreateATAOwner: config.checkCreateATAOwner,
     });
 
     frontInstructions.push(
@@ -1194,6 +1203,7 @@ export class Liquidity extends Base {
       signers,
       bypassAssociatedCheck,
       frontInstructionsType,
+      checkCreateATAOwner: config.checkCreateATAOwner,
     });
     const _tokenAccountOut = await this._handleTokenAccount({
       connection,
@@ -1208,6 +1218,7 @@ export class Liquidity extends Base {
       signers,
       bypassAssociatedCheck,
       frontInstructionsType,
+      checkCreateATAOwner: config.checkCreateATAOwner,
     });
 
     const ins = this.makeSwapInstruction({
@@ -1431,6 +1442,7 @@ export class Liquidity extends Base {
       signers,
       bypassAssociatedCheck,
       frontInstructionsType,
+      checkCreateATAOwner: config.checkCreateATAOwner,
     });
     const _quoteTokenAccount = await this._handleTokenAccount({
       connection,
@@ -1445,6 +1457,7 @@ export class Liquidity extends Base {
       signers,
       bypassAssociatedCheck,
       frontInstructionsType,
+      checkCreateATAOwner: config.checkCreateATAOwner,
     });
     const _lpTokenAccount = await this._handleTokenAccount({
       connection,
@@ -1459,6 +1472,7 @@ export class Liquidity extends Base {
       signers,
       bypassAssociatedCheck,
       frontInstructionsType,
+      checkCreateATAOwner: config.checkCreateATAOwner,
     });
 
     frontInstructions.push(
@@ -1564,7 +1578,7 @@ export class Liquidity extends Base {
   }
 
   static async makeCreatePoolV4InstructionV2Simple({
-    connection, programId, marketInfo, baseMintInfo, quoteMintInfo, baseAmount, quoteAmount,startTime, ownerInfo, associatedOnly=false, computeBudgetConfig
+    connection, programId, marketInfo, baseMintInfo, quoteMintInfo, baseAmount, quoteAmount,startTime, ownerInfo, associatedOnly=false, computeBudgetConfig, checkCreateATAOwner=false
   }: {
     connection: Connection,
     programId: PublicKey,
@@ -1592,6 +1606,7 @@ export class Liquidity extends Base {
       useSOLBalance?: boolean  // if has WSOL mint
     },
     associatedOnly: boolean,
+    checkCreateATAOwner: boolean,
     computeBudgetConfig?: ComputeBudgetConfig
   }): Promise<MakeInstructionSimpleOutType> {
     const frontInstructions: TransactionInstruction[] = [];
@@ -1620,7 +1635,8 @@ export class Liquidity extends Base {
         signers
       } : undefined,
 
-      associatedOnly: mintAUseSOLBalance ? false : associatedOnly
+      associatedOnly: mintAUseSOLBalance ? false : associatedOnly,
+      checkCreateATAOwner,
     })
 
     const ownerTokenAccountQuote = await this._selectOrCreateTokenAccount({
@@ -1640,7 +1656,8 @@ export class Liquidity extends Base {
         signers
       } : undefined,
 
-      associatedOnly: mintBUseSOLBalance ? false : associatedOnly
+      associatedOnly: mintBUseSOLBalance ? false : associatedOnly,
+      checkCreateATAOwner,
     })
 
     if (ownerTokenAccountBase === undefined || ownerTokenAccountQuote === undefined) throw Error("you don't has some token account")
@@ -1788,7 +1805,7 @@ export class Liquidity extends Base {
   }
 
   static async makeRemoveAllLpAndCreateClmmPosition({
-    connection, poolKeys, removeLpAmount, userKeys, clmmPoolKeys, createPositionInfo, farmInfo, computeBudgetConfig
+    connection, poolKeys, removeLpAmount, userKeys, clmmPoolKeys, createPositionInfo, farmInfo, computeBudgetConfig, checkCreateATAOwner=false
   }: {
     connection: Connection;
     poolKeys: LiquidityPoolKeys;
@@ -1811,6 +1828,7 @@ export class Liquidity extends Base {
       amount: BN;
     }
     computeBudgetConfig?: ComputeBudgetConfig
+    checkCreateATAOwner: boolean
   }): Promise<MakeInstructionSimpleOutType> {
     const { instructions, instructionTypes } = computeBudgetConfig ? addComputeBudget(computeBudgetConfig).innerTransaction : { instructions: [], instructionTypes: [] }
 
@@ -1852,7 +1870,8 @@ export class Liquidity extends Base {
         endInstructionsType: mintBaseUseSOLBalance ? endInstructionsType : [],
         signers
       },
-      associatedOnly: true
+      associatedOnly: true,
+      checkCreateATAOwner,
     })
 
     const quoteTokenAccount = await this._selectOrCreateTokenAccount({
@@ -1872,7 +1891,8 @@ export class Liquidity extends Base {
         signers
       },
 
-      associatedOnly: true
+      associatedOnly: true,
+      checkCreateATAOwner,
     })
 
     mintToAccount[poolKeys.baseMint.toString()] = baseTokenAccount
@@ -1924,7 +1944,8 @@ export class Liquidity extends Base {
             endInstructionsType: rewardIsWsol ? endInstructionsType : [],
             signers
           },
-          associatedOnly: true
+          associatedOnly: true,
+          checkCreateATAOwner,
         }))
       }
       withdrawFarmIns = Farm.makeWithdrawInstruction({

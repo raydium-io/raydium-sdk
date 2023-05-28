@@ -1744,7 +1744,7 @@ export class Farm extends Base {
   }
 
   static async makeDepositInstructionSimple({
-    connection, poolKeys, fetchPoolInfo, ownerInfo, amount, associatedOnly = true
+    connection, poolKeys, fetchPoolInfo, ownerInfo, amount, associatedOnly = true, checkCreateATAOwner = false
   }: {
     connection: Connection
     poolKeys: FarmPoolKeys
@@ -1757,6 +1757,7 @@ export class Farm extends Base {
     },
     amount: BN
     associatedOnly?: boolean
+    checkCreateATAOwner?: boolean
   }) {
     const ownerMintToAccount: { [mint: string]: PublicKey } = {}
     for (const item of ownerInfo.tokenAccounts) {
@@ -1802,7 +1803,8 @@ export class Farm extends Base {
           signers
         },
 
-        associatedOnly: rewardUseSOLBalance ? false : associatedOnly
+        associatedOnly: rewardUseSOLBalance ? false : associatedOnly,
+        checkCreateATAOwner,
       })
       ownerMintToAccount[itemReward.rewardMint.toString()] = ownerRewardAccount
       rewardAccounts.push(ownerRewardAccount)
@@ -1850,7 +1852,7 @@ export class Farm extends Base {
   }
 
   static async makeWithdrawInstructionSimple({
-    connection, fetchPoolInfo, ownerInfo, amount, associatedOnly = true
+    connection, fetchPoolInfo, ownerInfo, amount, associatedOnly = true, checkCreateATAOwner = false,
   }: {
     connection: Connection
     fetchPoolInfo: FarmFetchMultipleInfoReturnItem,
@@ -1862,6 +1864,7 @@ export class Farm extends Base {
     },
     amount: BN,
     associatedOnly?: boolean
+    checkCreateATAOwner?: boolean
   }) {
     const ownerMintToAccount: { [mint: string]: PublicKey } = {}
     for (const item of ownerInfo.tokenAccounts) {
@@ -1903,7 +1906,8 @@ export class Farm extends Base {
         signers
       },
 
-      associatedOnly: lpMintUseSOLBalance ? false : associatedOnly
+      associatedOnly: lpMintUseSOLBalance ? false : associatedOnly,
+      checkCreateATAOwner,
     })
     ownerMintToAccount[lpMint.toString()] = ownerLpTokenAccount
 
@@ -1928,7 +1932,8 @@ export class Farm extends Base {
           signers
         },
 
-        associatedOnly: rewardUseSOLBalance ? false : associatedOnly
+        associatedOnly: rewardUseSOLBalance ? false : associatedOnly,
+        checkCreateATAOwner,
       })
       ownerMintToAccount[itemReward.rewardMint.toString()] = ownerRewardAccount
       rewardAccounts.push(ownerRewardAccount)
@@ -1972,7 +1977,7 @@ export class Farm extends Base {
   }
 
   static async makeHarvestAllRewardInstructionSimple({
-    connection, fetchPoolInfos, ownerInfo, associatedOnly = true
+    connection, fetchPoolInfos, ownerInfo, associatedOnly = true, checkCreateATAOwner = false,
   }: {
     connection: Connection
     fetchPoolInfos: FarmFetchMultipleInfoReturn,
@@ -1983,6 +1988,7 @@ export class Farm extends Base {
       useSOLBalance?: boolean  // if has WSOL mint
     },
     associatedOnly?: boolean
+    checkCreateATAOwner?: boolean
   }) {
     const ownerMintToAccount: { [mint: string]: PublicKey } = {}
     for (const item of ownerInfo.tokenAccounts) {
@@ -2023,7 +2029,8 @@ export class Farm extends Base {
           signers
         },
 
-        associatedOnly: lpMintUseSOLBalance ? false : associatedOnly
+        associatedOnly: lpMintUseSOLBalance ? false : associatedOnly,
+        checkCreateATAOwner,
       })
       ownerMintToAccount[lpMint.toString()] = ownerLpTokenAccount
 
@@ -2048,7 +2055,8 @@ export class Farm extends Base {
             signers
           },
 
-          associatedOnly: rewardUseSOLBalance ? false : associatedOnly
+          associatedOnly: rewardUseSOLBalance ? false : associatedOnly,
+          checkCreateATAOwner,
         })
         ownerMintToAccount[itemReward.rewardMint.toString()] = ownerRewardAccount
         rewardAccounts.push(ownerRewardAccount)
@@ -2200,7 +2208,8 @@ export class Farm extends Base {
           tokenAccounts: [],
           owner: wallet,
           createInfo: { connection, payer: wallet, amount: 0, frontInstructions, frontInstructionsType, endInstructions: [], endInstructionsType: [], signers: [] },
-          associatedOnly: true
+          associatedOnly: true,
+          checkCreateATAOwner: true,
         })
         mintToAccount[lpInfo.mint.toString()] = lpAccount
       } 
@@ -2212,7 +2221,8 @@ export class Farm extends Base {
           tokenAccounts: [],
           owner: wallet,
           createInfo: { connection, payer: wallet, amount: 0, frontInstructions, frontInstructionsType, endInstructions: rewardInfo.mint.toString() === WSOL.mint? endInstructions : [], endInstructionsType: rewardInfo.mint.toString() === WSOL.mint? endInstructionsType : [], signers: [] },
-          associatedOnly: true
+          associatedOnly: true,
+          checkCreateATAOwner: true,
         })
         mintToAccount[rewardInfo.mint.toString()] = rewardAccount
       } 
@@ -2283,7 +2293,8 @@ export class Farm extends Base {
           tokenAccounts: [],
           owner: wallet,
           createInfo: { connection, payer: wallet, amount: 0, frontInstructions, frontInstructionsType, endInstructions: [], endInstructionsType: [], signers: [] },
-          associatedOnly: true
+          associatedOnly: true,
+          checkCreateATAOwner: true,
         })
         mintToAccount[lpInfo.mint.toString()] = lpAccount
       } 
@@ -2295,7 +2306,8 @@ export class Farm extends Base {
           tokenAccounts: [],
           owner: wallet,
           createInfo: { connection, payer: wallet, amount: 0, frontInstructions, frontInstructionsType, endInstructions: rewardInfoA.mint.toString() === WSOL.mint? endInstructions : [], endInstructionsType: rewardInfoA.mint.toString() === WSOL.mint? endInstructionsType : [], signers: [] },
-          associatedOnly: true
+          associatedOnly: true,
+          checkCreateATAOwner: true,
         })
         mintToAccount[rewardInfoA.mint.toString()] = rewardAccountA
       } 
@@ -2307,7 +2319,8 @@ export class Farm extends Base {
           tokenAccounts: [],
           owner: wallet,
           createInfo: { connection, payer: wallet, amount: 0, frontInstructions, frontInstructionsType, endInstructions: rewardInfoB.mint.toString() === WSOL.mint? endInstructions : [], endInstructionsType: rewardInfoB.mint.toString() === WSOL.mint? endInstructionsType : [], signers: [] },
-          associatedOnly: true
+          associatedOnly: true,
+          checkCreateATAOwner: true,
         })
         mintToAccount[rewardInfoB.mint.toString()] = rewardAccountB
       } 

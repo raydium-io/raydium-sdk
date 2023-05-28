@@ -355,7 +355,7 @@ export class AmmV3 extends Base {
   }
 
   static async makeOpenPositionInstructionSimple(
-    { connection, poolInfo, ownerInfo, tickLower, tickUpper, liquidity, slippage, associatedOnly = true, computeBudgetConfig }: {
+    { connection, poolInfo, ownerInfo, tickLower, tickUpper, liquidity, slippage, associatedOnly = true, checkCreateATAOwner = false, computeBudgetConfig }: {
       connection: Connection,
       poolInfo: AmmV3PoolInfo,
 
@@ -375,6 +375,7 @@ export class AmmV3 extends Base {
       liquidity: BN,
       slippage: number
       associatedOnly?: boolean,
+      checkCreateATAOwner?: boolean,
       computeBudgetConfig?: ComputeBudgetConfig
     }) {
     const { instructions, instructionTypes } = computeBudgetConfig ? addComputeBudget(computeBudgetConfig).innerTransaction : { instructions: [], instructionTypes: [] }
@@ -428,7 +429,8 @@ export class AmmV3 extends Base {
         signers
       } : undefined,
 
-      associatedOnly: mintAUseSOLBalance ? false : associatedOnly
+      associatedOnly: mintAUseSOLBalance ? false : associatedOnly,
+      checkCreateATAOwner,
     })
 
     const ownerTokenAccountB = await this._selectOrCreateTokenAccount({
@@ -448,7 +450,8 @@ export class AmmV3 extends Base {
         signers
       } : undefined,
 
-      associatedOnly: mintBUseSOLBalance ? false : associatedOnly
+      associatedOnly: mintBUseSOLBalance ? false : associatedOnly,
+      checkCreateATAOwner,
     })
 
     logger.assertArgument(
@@ -487,7 +490,7 @@ export class AmmV3 extends Base {
   }
 
   static async makeIncreaseLiquidityInstructionSimple({
-    connection, poolInfo, ownerPosition, ownerInfo, liquidity, slippage, associatedOnly = true, computeBudgetConfig
+    connection, poolInfo, ownerPosition, ownerInfo, liquidity, slippage, associatedOnly = true, checkCreateATAOwner = false, computeBudgetConfig
   }: {
     connection: Connection
     poolInfo: AmmV3PoolInfo,
@@ -502,6 +505,7 @@ export class AmmV3 extends Base {
     liquidity: BN,
     slippage: number,
     associatedOnly?: boolean,
+    checkCreateATAOwner?: boolean,
     computeBudgetConfig?: ComputeBudgetConfig
   }) {
     const { instructions, instructionTypes } = computeBudgetConfig ? addComputeBudget(computeBudgetConfig).innerTransaction : { instructions: [], instructionTypes: [] }
@@ -542,7 +546,8 @@ export class AmmV3 extends Base {
         signers
       } : undefined,
 
-      associatedOnly: mintAUseSOLBalance ? false : associatedOnly
+      associatedOnly: mintAUseSOLBalance ? false : associatedOnly,
+      checkCreateATAOwner,
     })
 
     const ownerTokenAccountB = await this._selectOrCreateTokenAccount({
@@ -562,7 +567,8 @@ export class AmmV3 extends Base {
         signers
       } : undefined,
 
-      associatedOnly: mintBUseSOLBalance ? false : associatedOnly
+      associatedOnly: mintBUseSOLBalance ? false : associatedOnly,
+      checkCreateATAOwner,
     })
 
     logger.assertArgument(
@@ -600,7 +606,7 @@ export class AmmV3 extends Base {
   }
 
   static async makeDecreaseLiquidityInstructionSimple({
-    connection, poolInfo, ownerPosition, ownerInfo, liquidity, amountMinA, amountMinB, slippage, associatedOnly = true, computeBudgetConfig
+    connection, poolInfo, ownerPosition, ownerInfo, liquidity, amountMinA, amountMinB, slippage, associatedOnly = true, checkCreateATAOwner = false, computeBudgetConfig
   }: {
     connection: Connection
     poolInfo: AmmV3PoolInfo,
@@ -618,6 +624,7 @@ export class AmmV3 extends Base {
     amountMinB?: BN,
     slippage?: number
     associatedOnly?: boolean
+    checkCreateATAOwner?: boolean
     computeBudgetConfig?: ComputeBudgetConfig
   }) {
     const { instructions, instructionTypes } = computeBudgetConfig ? addComputeBudget(computeBudgetConfig).innerTransaction : { instructions: [], instructionTypes: [] }
@@ -667,7 +674,8 @@ export class AmmV3 extends Base {
         signers
       },
 
-      associatedOnly: mintAUseSOLBalance ? false : associatedOnly
+      associatedOnly: mintAUseSOLBalance ? false : associatedOnly,
+      checkCreateATAOwner,
     })
 
     const ownerTokenAccountB = await this._selectOrCreateTokenAccount({
@@ -687,7 +695,8 @@ export class AmmV3 extends Base {
         signers
       },
 
-      associatedOnly: mintBUseSOLBalance ? false : associatedOnly
+      associatedOnly: mintBUseSOLBalance ? false : associatedOnly,
+      checkCreateATAOwner,
     })
 
     const rewardAccounts: PublicKey[] = []
@@ -711,7 +720,8 @@ export class AmmV3 extends Base {
           signers
         },
 
-        associatedOnly: rewardUseSOLBalance ? false : associatedOnly
+        associatedOnly: rewardUseSOLBalance ? false : associatedOnly,
+        checkCreateATAOwner,
       })
       rewardAccounts.push(ownerRewardAccount)
     }
@@ -767,6 +777,7 @@ export class AmmV3 extends Base {
 
     remainingAccounts,
     associatedOnly = true,
+    checkCreateATAOwner = false,
     computeBudgetConfig
   }: {
     connection: Connection
@@ -785,6 +796,7 @@ export class AmmV3 extends Base {
 
     remainingAccounts: PublicKey[]
     associatedOnly?: boolean
+    checkCreateATAOwner?: boolean
     computeBudgetConfig?: ComputeBudgetConfig
   }) {
     const { instructions, instructionTypes } = computeBudgetConfig ? addComputeBudget(computeBudgetConfig).innerTransaction : { instructions: [], instructionTypes: [] }
@@ -829,7 +841,8 @@ export class AmmV3 extends Base {
         signers
       } : undefined,
 
-      associatedOnly: mintAUseSOLBalance ? false : associatedOnly
+      associatedOnly: mintAUseSOLBalance ? false : associatedOnly,
+      checkCreateATAOwner,
     })
 
     const ownerTokenAccountB = await this._selectOrCreateTokenAccount({
@@ -849,7 +862,8 @@ export class AmmV3 extends Base {
         signers
       } : undefined,
 
-      associatedOnly: mintBUseSOLBalance ? false : associatedOnly
+      associatedOnly: mintBUseSOLBalance ? false : associatedOnly,
+      checkCreateATAOwner,
     })
 
     logger.assertArgument(
@@ -902,6 +916,7 @@ export class AmmV3 extends Base {
 
     remainingAccounts,
     associatedOnly = true,
+    checkCreateATAOwner = false,
     computeBudgetConfig
   }: {
     connection: Connection
@@ -920,6 +935,7 @@ export class AmmV3 extends Base {
 
     remainingAccounts: PublicKey[]
     associatedOnly?: boolean
+    checkCreateATAOwner?: boolean
     computeBudgetConfig?: ComputeBudgetConfig
   }) {
     const { instructions, instructionTypes } = computeBudgetConfig ? addComputeBudget(computeBudgetConfig).innerTransaction : { instructions: [], instructionTypes: [] }
@@ -965,7 +981,8 @@ export class AmmV3 extends Base {
         signers
       } : undefined,
 
-      associatedOnly: mintAUseSOLBalance ? false : associatedOnly
+      associatedOnly: mintAUseSOLBalance ? false : associatedOnly,
+      checkCreateATAOwner,
     })
     const ownerTokenAccountB = await this._selectOrCreateTokenAccount({
       mint: poolInfo.mintB.mint,
@@ -984,7 +1001,8 @@ export class AmmV3 extends Base {
         signers
       } : undefined,
 
-      associatedOnly: mintBUseSOLBalance ? false : associatedOnly
+      associatedOnly: mintBUseSOLBalance ? false : associatedOnly,
+      checkCreateATAOwner,
     })
 
     logger.assertArgument(
@@ -1048,7 +1066,8 @@ export class AmmV3 extends Base {
     ownerInfo,
     rewardInfo,
     chainTime,
-    associatedOnly = true
+    associatedOnly = true,
+    checkCreateATAOwner = false,
   }: {
     connection: Connection
     poolInfo: AmmV3PoolInfo,
@@ -1067,6 +1086,7 @@ export class AmmV3 extends Base {
     }
     chainTime: number,
     associatedOnly?: boolean
+    checkCreateATAOwner?: boolean
   }) {
     logger.assertArgument(
       rewardInfo.endTime > rewardInfo.openTime,
@@ -1106,7 +1126,8 @@ export class AmmV3 extends Base {
         signers
       } : undefined,
 
-      associatedOnly: rewardMintUseSOLBalance ? false : associatedOnly
+      associatedOnly: rewardMintUseSOLBalance ? false : associatedOnly,
+      checkCreateATAOwner,
     })
 
     logger.assertArgument(
@@ -1150,6 +1171,7 @@ export class AmmV3 extends Base {
     ownerInfo,
     rewardInfos,
     associatedOnly = true,
+    checkCreateATAOwner = false,
     computeBudgetConfig
   }: {
     connection: Connection
@@ -1168,6 +1190,7 @@ export class AmmV3 extends Base {
       perSecond: Decimal,
     }[],
     associatedOnly?: boolean
+    checkCreateATAOwner?: boolean
     computeBudgetConfig?: ComputeBudgetConfig
   }) {
     for (const rewardInfo of rewardInfos) logger.assertArgument(rewardInfo.endTime > rewardInfo.openTime, "reward time error", "rewardInfo", rewardInfo,);
@@ -1198,7 +1221,8 @@ export class AmmV3 extends Base {
           signers
         } : undefined,
 
-        associatedOnly: rewardMintUseSOLBalance ? false : associatedOnly
+        associatedOnly: rewardMintUseSOLBalance ? false : associatedOnly,
+        checkCreateATAOwner,
       })
 
       logger.assertArgument(
@@ -1248,6 +1272,7 @@ export class AmmV3 extends Base {
     rewardInfo,
     chainTime,
     associatedOnly = true,
+    checkCreateATAOwner = false,
   }: {
     connection: Connection
     poolInfo: AmmV3PoolInfo,
@@ -1266,6 +1291,7 @@ export class AmmV3 extends Base {
     },
     chainTime: number
     associatedOnly?: boolean
+    checkCreateATAOwner?: boolean
   }) {
     logger.assertArgument(
       rewardInfo.endTime > rewardInfo.openTime,
@@ -1305,7 +1331,8 @@ export class AmmV3 extends Base {
         signers
       } : undefined,
 
-      associatedOnly: rewardMintUseSOLBalance ? false : associatedOnly
+      associatedOnly: rewardMintUseSOLBalance ? false : associatedOnly,
+      checkCreateATAOwner
     })
 
     logger.assertArgument(
@@ -1350,6 +1377,7 @@ export class AmmV3 extends Base {
     rewardInfos,
     chainTime,
     associatedOnly = true,
+    checkCreateATAOwner = false,
     computeBudgetConfig
   }: {
     connection: Connection
@@ -1369,6 +1397,7 @@ export class AmmV3 extends Base {
     }[],
     chainTime: number
     associatedOnly?: boolean
+    checkCreateATAOwner?: boolean
     computeBudgetConfig?: ComputeBudgetConfig
   }) {
     const { instructions, instructionTypes } = computeBudgetConfig ? addComputeBudget(computeBudgetConfig).innerTransaction : { instructions: [], instructionTypes: [] }
@@ -1413,7 +1442,8 @@ export class AmmV3 extends Base {
           signers
         } : undefined,
 
-        associatedOnly: rewardMintUseSOLBalance ? false : associatedOnly
+        associatedOnly: rewardMintUseSOLBalance ? false : associatedOnly,
+        checkCreateATAOwner,
       })
 
       logger.assertArgument(
@@ -1462,6 +1492,7 @@ export class AmmV3 extends Base {
     ownerInfo,
     rewardMint,
     associatedOnly = true,
+    checkCreateATAOwner = false,
     computeBudgetConfig
   }: {
     connection: Connection
@@ -1475,6 +1506,7 @@ export class AmmV3 extends Base {
 
     rewardMint: PublicKey,
     associatedOnly: boolean
+    checkCreateATAOwner: boolean
     computeBudgetConfig?: ComputeBudgetConfig
   }) {
     const { instructions, instructionTypes } = computeBudgetConfig ? addComputeBudget(computeBudgetConfig).innerTransaction : { instructions: [], instructionTypes: [] }
@@ -1503,7 +1535,8 @@ export class AmmV3 extends Base {
         signers
       },
 
-      associatedOnly: rewardMintUseSOLBalance ? false : associatedOnly
+      associatedOnly: rewardMintUseSOLBalance ? false : associatedOnly,
+      checkCreateATAOwner,
     })
 
     logger.assertArgument(
@@ -1543,6 +1576,7 @@ export class AmmV3 extends Base {
     ownerInfo,
     rewardMints,
     associatedOnly = true,
+    checkCreateATAOwner = false,
     computeBudgetConfig
   }: {
     connection: Connection
@@ -1556,6 +1590,7 @@ export class AmmV3 extends Base {
 
     rewardMints: PublicKey[],
     associatedOnly: boolean
+    checkCreateATAOwner: boolean
     computeBudgetConfig?: ComputeBudgetConfig
   }) {
     const { instructions, instructionTypes } = computeBudgetConfig ? addComputeBudget(computeBudgetConfig).innerTransaction : { instructions: [], instructionTypes: [] }
@@ -1586,7 +1621,8 @@ export class AmmV3 extends Base {
           endInstructionsType
         },
 
-        associatedOnly: rewardMintUseSOLBalance ? false : associatedOnly
+        associatedOnly: rewardMintUseSOLBalance ? false : associatedOnly,
+        checkCreateATAOwner,
       })
 
       logger.assertArgument(
@@ -1626,7 +1662,7 @@ export class AmmV3 extends Base {
   }
 
   static async makeHarvestAllRewardInstructionSimple({
-    connection, fetchPoolInfos, ownerInfo, associatedOnly = true
+    connection, fetchPoolInfos, ownerInfo, associatedOnly = true, checkCreateATAOwner = false,
   }: {
     connection: Connection
     fetchPoolInfos: ReturnTypeFetchMultiplePoolInfos,
@@ -1637,6 +1673,7 @@ export class AmmV3 extends Base {
       useSOLBalance?: boolean  // if has WSOL mint
     },
     associatedOnly?: boolean
+    checkCreateATAOwner?: boolean
   }) {
     const ownerMintToAccount: { [mint: string]: PublicKey } = {}
     for (const item of ownerInfo.tokenAccounts) {
@@ -1683,7 +1720,8 @@ export class AmmV3 extends Base {
           signers
         },
 
-        associatedOnly: mintAUseSOLBalance ? false : associatedOnly
+        associatedOnly: mintAUseSOLBalance ? false : associatedOnly,
+        checkCreateATAOwner,
       })
 
       const ownerTokenAccountB = ownerMintToAccount[poolInfo.mintB.mint.toString()] ?? await this._selectOrCreateTokenAccount({
@@ -1703,7 +1741,8 @@ export class AmmV3 extends Base {
           signers
         },
 
-        associatedOnly: mintBUseSOLBalance ? false : associatedOnly
+        associatedOnly: mintBUseSOLBalance ? false : associatedOnly,
+        checkCreateATAOwner,
       })
       ownerMintToAccount[poolInfo.mintA.mint.toString()] = ownerTokenAccountA
       ownerMintToAccount[poolInfo.mintB.mint.toString()] = ownerTokenAccountB
@@ -1729,7 +1768,8 @@ export class AmmV3 extends Base {
             signers
           },
 
-          associatedOnly: rewardUseSOLBalance ? false : associatedOnly
+          associatedOnly: rewardUseSOLBalance ? false : associatedOnly,
+          checkCreateATAOwner,
         })
         ownerMintToAccount[itemReward.tokenMint.toString()] = ownerRewardAccount
         rewardAccounts.push(ownerRewardAccount)

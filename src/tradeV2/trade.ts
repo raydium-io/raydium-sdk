@@ -622,7 +622,8 @@ export class TradeV2 extends Base {
     ownerInfo: {
       wallet: PublicKey,
       tokenAccounts: TokenAccount[],
-      associatedOnly: boolean
+      associatedOnly: boolean,
+      checkCreateATAOwner: boolean,
     }
     checkTransaction: boolean
     computeBudgetConfig?: ComputeBudgetConfig
@@ -659,7 +660,8 @@ export class TradeV2 extends Base {
         endInstructionsType,
       } : undefined,
       owner: ownerInfo.wallet,
-      associatedOnly: useSolBalance ? false : ownerInfo.associatedOnly
+      associatedOnly: useSolBalance ? false : ownerInfo.associatedOnly,
+      checkCreateATAOwner: ownerInfo.checkCreateATAOwner,
     })
 
     if (sourceToken === undefined) {
@@ -681,7 +683,8 @@ export class TradeV2 extends Base {
         endInstructionsType,
       },
       owner: ownerInfo.wallet,
-      associatedOnly: ownerInfo.associatedOnly
+      associatedOnly: ownerInfo.associatedOnly,
+      checkCreateATAOwner: ownerInfo.checkCreateATAOwner,
     })
 
     let routeToken: PublicKey | undefined = undefined
@@ -701,7 +704,8 @@ export class TradeV2 extends Base {
           endInstructionsType,
         },
         owner: ownerInfo.wallet,
-        associatedOnly: false
+        associatedOnly: false,
+        checkCreateATAOwner: ownerInfo.checkCreateATAOwner,
       })
     }
 

@@ -192,6 +192,7 @@ export class Utils1216 extends Base {
       wallet: PublicKey,
       tokenAccounts: TokenAccount[],
       associatedOnly: boolean
+      checkCreateATAOwner: boolean
     }
   }) {
     const frontInstructions: TransactionInstruction[] = [];
@@ -222,7 +223,8 @@ export class Utils1216 extends Base {
           signers
         },
   
-        associatedOnly: itemToken.mintAddress.equals(Token.WSOL.mint) ? false : ownerInfo.associatedOnly
+        associatedOnly: itemToken.mintAddress.equals(Token.WSOL.mint) ? false : ownerInfo.associatedOnly,
+        checkCreateATAOwner: ownerInfo.checkCreateATAOwner
       })))
     }
 
@@ -257,7 +259,8 @@ export class Utils1216 extends Base {
     ownerInfo: {
       wallet: PublicKey,
       tokenAccounts: TokenAccount[],
-      associatedOnly: boolean
+      associatedOnly: boolean,
+      checkCreateATAOwner: boolean
     }
   }) {
     const frontInstructions: TransactionInstruction[] = [];
@@ -291,7 +294,8 @@ export class Utils1216 extends Base {
             signers
           },
     
-          associatedOnly: itemToken.mintAddress.equals(Token.WSOL.mint) ? false : ownerInfo.associatedOnly
+          associatedOnly: itemToken.mintAddress.equals(Token.WSOL.mint) ? false : ownerInfo.associatedOnly,
+          checkCreateATAOwner: ownerInfo.checkCreateATAOwner
         })
         tempNewVault[itemToken.mintAddress.toString()] = tempVault
         ownerVaultList.push(tempVault)

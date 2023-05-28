@@ -35,6 +35,8 @@ export interface HandleTokenAccountParams {
   endInstructionsType?: InstructionType[];
   signers: Signer[];
   bypassAssociatedCheck: boolean;
+
+  checkCreateATAOwner: boolean // if owner check error and associatedOnly = true -> then throw Error else out notATA
 }
 
 export interface SelectOrCreateTokenAccountParams {
@@ -57,6 +59,8 @@ export interface SelectOrCreateTokenAccountParams {
   }
 
   associatedOnly: boolean
+
+  checkCreateATAOwner: boolean // if owner check error and associatedOnly = true -> then throw Error else out notATA
 }
 
 export interface UnsignedTransactionAndSigners {
@@ -113,6 +117,7 @@ export class Base {
       bypassAssociatedCheck,
       frontInstructionsType,
       endInstructionsType,
+      checkCreateATAOwner,
     } = params;
 
     const ata = Spl.getAssociatedTokenAccount({ mint, owner });
@@ -134,15 +139,25 @@ export class Base {
 
       return newTokenAccount;
     } else if (!tokenAccount || (side === "out" && !ata.equals(tokenAccount) && !bypassAssociatedCheck)) {
-      frontInstructions.push(
-        Spl.makeCreateAssociatedTokenAccountInstruction({
-          mint,
-          associatedAccount: ata,
-          owner,
-          payer,
-          instructionsType: frontInstructionsType,
-        }),
-      );
+      const _createATAIns = Spl.makeCreateAssociatedTokenAccountInstruction({
+        mint,
+        associatedAccount: ata,
+        owner,
+        payer,
+        instructionsType: frontInstructionsType,
+      })
+      if (checkCreateATAOwner) {
+        const ataInfo = await connection.getAccountInfo(ata)
+        if (ataInfo === null) {
+          frontInstructions.push(_createATAIns);
+        } else if (ataInfo.owner.equals(TOKEN_PROGRAM_ID) && AccountLayout.decode(ataInfo.data).mint.equals(mint) && AccountLayout.decode(ataInfo.data).owner.equals(owner)) { 
+          /* empty */ 
+        } else {
+          throw Error(`create ata check error -> mint: ${mint.toString()}, ata: ${ata.toString()}`)
+        }
+      } else {
+        frontInstructions.push(_createATAIns);
+      }
       return ata;
     }
 
@@ -150,7 +165,7 @@ export class Base {
   }
 
   static async _selectOrCreateTokenAccount<T extends SelectOrCreateTokenAccountParams>(params: T): Promise<T['createInfo'] extends undefined ? PublicKey | undefined: PublicKey> {
-    const { mint, tokenAccounts, createInfo, associatedOnly, owner } = params
+    const { mint, tokenAccounts, createInfo, associatedOnly, owner, checkCreateATAOwner } = params
     const ata = Spl.getAssociatedTokenAccount({ mint, owner });
     const accounts = tokenAccounts.filter((i) => i.accountInfo.mint.equals(mint) && (!associatedOnly || i.pubkey.equals(ata))).sort((a, b) => (a.accountInfo.amount.lt(b.accountInfo.amount) ? 1 : -1))
     // find token or don't need create
@@ -159,15 +174,25 @@ export class Base {
     }
 
     if (associatedOnly) {
-      createInfo.frontInstructions.push(
-        Spl.makeCreateAssociatedTokenAccountInstruction({
-          mint,
-          associatedAccount: ata,
-          owner,
-          payer: createInfo.payer,
-          instructionsType: createInfo.frontInstructionsType,
-        }),
-      );
+      const _createATAIns = Spl.makeCreateAssociatedTokenAccountInstruction({
+        mint,
+        associatedAccount: ata,
+        owner,
+        payer: createInfo.payer,
+        instructionsType: createInfo.frontInstructionsType,
+      })
+      if (checkCreateATAOwner) {
+        const ataInfo = await createInfo.connection.getAccountInfo(ata)
+        if (ataInfo === null) {
+          createInfo.frontInstructions.push(_createATAIns);
+        } else if (ataInfo.owner.equals(TOKEN_PROGRAM_ID) && AccountLayout.decode(ataInfo.data).mint.equals(mint) && AccountLayout.decode(ataInfo.data).owner.equals(owner)) { 
+          /* empty */ 
+        } else {
+          throw Error(`create ata check error -> mint: ${mint.toString()}, ata: ${ata.toString()}`)
+        }
+      } else {
+        createInfo.frontInstructions.push(_createATAIns);
+      }
 
       if (mint.equals(Token.WSOL.mint) && createInfo.amount) {
         const newTokenAccount = await Spl.insertCreateWrappedNativeAccount({
