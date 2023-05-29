@@ -354,7 +354,7 @@ export class TradeV2 extends Base {
       feeAccount: PublicKey
     }
   }): ReturnTypeGetAllRouteComputeAmountOut {
-    const _amoutIn = inputTokenAmount.raw.mul(new BN(10000 - feeConfig.feeBps.toNumber())).div(new BN(10000))
+    const _amoutIn = feeConfig === undefined ? new BN(0) : inputTokenAmount.raw.mul(new BN(10000 - feeConfig.feeBps.toNumber())).div(new BN(10000))
     const amountIn = feeConfig === undefined ? inputTokenAmount : inputTokenAmount instanceof TokenAmount ? new TokenAmount(inputTokenAmount.token, _amoutIn) : new CurrencyAmount(inputTokenAmount.currency, _amoutIn)
     const _inFeeConfig = feeConfig === undefined ? undefined : {
       feeAmount: _amoutIn,
