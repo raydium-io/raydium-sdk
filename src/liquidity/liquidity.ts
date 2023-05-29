@@ -628,9 +628,9 @@ export class Liquidity extends Base {
       },
     );
 
-    const { bypassAssociatedCheck } = {
+    const { bypassAssociatedCheck, checkCreateATAOwner } = {
       // default
-      ...{ bypassAssociatedCheck: false },
+      ...{ bypassAssociatedCheck: false, checkCreateATAOwner: false },
       // custom
       ...config,
     };
@@ -709,7 +709,7 @@ export class Liquidity extends Base {
       bypassAssociatedCheck,
       frontInstructionsType,
       endInstructionsType,
-      checkCreateATAOwner: config.checkCreateATAOwner,
+      checkCreateATAOwner,
     });
     const _quoteTokenAccount = await this._handleTokenAccount({
       connection,
@@ -725,7 +725,7 @@ export class Liquidity extends Base {
       bypassAssociatedCheck,
       frontInstructionsType,
       endInstructionsType,
-      checkCreateATAOwner: config.checkCreateATAOwner,
+      checkCreateATAOwner,
     });
     const _lpTokenAccount = await this._handleTokenAccount({
       connection,
@@ -741,7 +741,7 @@ export class Liquidity extends Base {
       bypassAssociatedCheck,
       frontInstructionsType,
       endInstructionsType,
-      checkCreateATAOwner: config.checkCreateATAOwner,
+      checkCreateATAOwner,
     });
 
     const ins = this.makeAddLiquidityInstruction({
@@ -889,9 +889,9 @@ export class Liquidity extends Base {
       owner,
     });
 
-    const { bypassAssociatedCheck } = {
+    const { bypassAssociatedCheck, checkCreateATAOwner } = {
       // default
-      ...{ bypassAssociatedCheck: false },
+      ...{ bypassAssociatedCheck: false, checkCreateATAOwner: false },
       // custom
       ...config,
     };
@@ -916,7 +916,7 @@ export class Liquidity extends Base {
       signers,
       bypassAssociatedCheck,
       frontInstructionsType,
-      checkCreateATAOwner: config.checkCreateATAOwner,
+      checkCreateATAOwner,
     });
     const _quoteTokenAccount = await this._handleTokenAccount({
       connection,
@@ -931,7 +931,7 @@ export class Liquidity extends Base {
       signers,
       bypassAssociatedCheck,
       frontInstructionsType,
-      checkCreateATAOwner: config.checkCreateATAOwner,
+      checkCreateATAOwner,
     });
 
     frontInstructions.push(
@@ -1159,9 +1159,9 @@ export class Liquidity extends Base {
       },
     );
 
-    const { bypassAssociatedCheck } = {
+    const { bypassAssociatedCheck, checkCreateATAOwner } = {
       // default
-      ...{ bypassAssociatedCheck: false },
+      ...{ bypassAssociatedCheck: false, checkCreateATAOwner: false },
       // custom
       ...config,
     };
@@ -1203,7 +1203,7 @@ export class Liquidity extends Base {
       signers,
       bypassAssociatedCheck,
       frontInstructionsType,
-      checkCreateATAOwner: config.checkCreateATAOwner,
+      checkCreateATAOwner,
     });
     const _tokenAccountOut = await this._handleTokenAccount({
       connection,
@@ -1218,7 +1218,7 @@ export class Liquidity extends Base {
       signers,
       bypassAssociatedCheck,
       frontInstructionsType,
-      checkCreateATAOwner: config.checkCreateATAOwner,
+      checkCreateATAOwner,
     });
 
     const ins = this.makeSwapInstruction({
@@ -1392,9 +1392,9 @@ export class Liquidity extends Base {
     const { baseMint, quoteMint, lpMint, baseVault, quoteVault } = poolKeys;
     const { tokenAccounts, owner, payer = owner } = userKeys;
 
-    const { bypassAssociatedCheck } = {
+    const { bypassAssociatedCheck, checkCreateATAOwner } = {
       // default
-      ...{ bypassAssociatedCheck: false },
+      ...{ bypassAssociatedCheck: false, checkCreateATAOwner: false },
       // custom
       ...config,
     };
@@ -1442,7 +1442,7 @@ export class Liquidity extends Base {
       signers,
       bypassAssociatedCheck,
       frontInstructionsType,
-      checkCreateATAOwner: config.checkCreateATAOwner,
+      checkCreateATAOwner,
     });
     const _quoteTokenAccount = await this._handleTokenAccount({
       connection,
@@ -1457,7 +1457,7 @@ export class Liquidity extends Base {
       signers,
       bypassAssociatedCheck,
       frontInstructionsType,
-      checkCreateATAOwner: config.checkCreateATAOwner,
+      checkCreateATAOwner,
     });
     const _lpTokenAccount = await this._handleTokenAccount({
       connection,
@@ -1472,7 +1472,7 @@ export class Liquidity extends Base {
       signers,
       bypassAssociatedCheck,
       frontInstructionsType,
-      checkCreateATAOwner: config.checkCreateATAOwner,
+      checkCreateATAOwner,
     });
 
     frontInstructions.push(
