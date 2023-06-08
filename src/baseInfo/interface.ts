@@ -117,7 +117,7 @@ export interface ApiTokenInfoItem {
   name: string,
   mint: string,
   decimals: number,
-  extensions: { coingeckoId?: string },
+  extensions: { coingeckoId?: string, version?: 'TOKEN2022' },
   icon: string,
   hasFreeze: 0 | 1,
 }
@@ -125,7 +125,7 @@ export interface ApiTokenInfoItem {
 export interface ApiTokenInfo {
   official: ApiTokenInfoItem[]
   unOfficial: ApiTokenInfoItem[]
-  unNamed: { mint: string, decimals: number, hasFreeze: 0 | 1, }[]
+  unNamed: { mint: string, decimals: number, hasFreeze: 0 | 1, extensions: {version?: 'TOKEN2022'} }[]
   blacklist: string[]
 }
 
