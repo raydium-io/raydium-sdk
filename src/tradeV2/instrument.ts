@@ -1,4 +1,4 @@
-import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import { TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { PublicKey, TransactionInstruction } from '@solana/web3.js';
 import BN from 'bn.js';
 
@@ -342,6 +342,9 @@ function makeInnerInsKey(itemPool: PoolType, inMint: string, userInAccount: Publ
       { pubkey: baseIn ? itemPool.mintA.vault : itemPool.mintB.vault, isSigner: false, isWritable: true },
       { pubkey: baseIn ? itemPool.mintB.vault : itemPool.mintA.vault, isSigner: false, isWritable: true },
       { pubkey: itemPool.observationId, isSigner: false, isWritable: true },
+      { pubkey: TOKEN_2022_PROGRAM_ID, isSigner: false, isWritable: false },
+      { pubkey: baseIn ? itemPool.mintA.mint : itemPool.mintB.mint, isSigner: false, isWritable: true },
+      { pubkey: baseIn ? itemPool.mintB.mint : itemPool.mintA.mint, isSigner: false, isWritable: true },
       ...remainingAccount.map(i => ({ pubkey: i, isSigner: false, isWritable: true }))
     ]
   } else {

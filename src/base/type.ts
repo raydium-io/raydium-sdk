@@ -1,8 +1,5 @@
-import {
-  ComputeBudgetProgram, PublicKey, Signer, TransactionInstruction,
-} from '@solana/web3.js';
+import { PublicKey, Signer, TransactionInstruction } from '@solana/web3.js';
 
-ComputeBudgetProgram.setComputeUnitPrice
 export interface ComputeBudgetConfig {
   units?: number
   microLamports?: number

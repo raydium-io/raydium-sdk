@@ -1,12 +1,22 @@
-import { Connection, PublicKey, Transaction, TransactionMessage, VersionedTransaction } from "@solana/web3.js";
-import { BN } from "bn.js";
+import {
+  getTransferFeeConfig, Mint, TransferFee, TransferFeeConfig, unpackMint,
+} from '@solana/spl-token';
+import {
+  Connection, EpochInfo, PublicKey, Transaction, TransactionMessage,
+  VersionedTransaction,
+} from '@solana/web3.js';
+import BN from 'bn.js';
 
-import { getMultipleLookupTableInfo, splitTxAndSigners } from "../common";
-import { Spl } from "../spl";
-import { WSOL } from "../token";
+import {
+  getMultipleAccountsInfoWithCustomFlags, getMultipleLookupTableInfo,
+  splitTxAndSigners, TOKEN_PROGRAM_ID,
+} from '../common';
+import { CurrencyAmount, TokenAmount } from '../entity';
+import { Spl } from '../spl';
+import { WSOL } from '../token';
 
-import { TokenAccount } from "./base";
-import { InnerTransaction, MakeInstructionSimpleOutType, TxVersion } from "./type";
+import { TokenAccount } from './base';
+import { InnerTransaction, TxVersion } from './type';
 
 export function getWSOLAmount({tokenAccounts}: {tokenAccounts: TokenAccount[]}) {
   const WSOL_MINT = new PublicKey(WSOL.mint)
@@ -25,7 +35,7 @@ export function unwarpSol({ ownerInfo, tokenAccounts }: {
   const WSOL_MINT = new PublicKey(WSOL.mint)
   const instructionsInfo = tokenAccounts.filter(i => i.accountInfo.mint.equals(WSOL_MINT)).map(i => ({
     amount: i.accountInfo.amount,
-    tx: Spl.makeCloseAccountInstruction({ tokenAccount: i.pubkey, owner: ownerInfo.wallet, payer: ownerInfo.payer, instructionsType: [] })
+    tx: Spl.makeCloseAccountInstruction({ programId: TOKEN_PROGRAM_ID, tokenAccount: i.pubkey, owner: ownerInfo.wallet, payer: ownerInfo.payer, instructionsType: [] })
   }))
   const transactions = splitTxAndSigners({ instructions: instructionsInfo.map(i => i.tx), signers: [], payer: ownerInfo.wallet })
 
@@ -99,4 +109,68 @@ export async function buildTransaction({connection, txType, payer, innerTransact
       return t
     })
   }
+}
+
+export interface TransferAmountFee {amount: TokenAmount | CurrencyAmount, fee: TokenAmount | CurrencyAmount | undefined, expirationTime: number | undefined}
+export interface GetTransferAmountFee {amount: BN, fee: BN | undefined, expirationTime: number | undefined}
+const POINT = 10_000
+export function getTransferAmountFee(amount: BN, feeConfig: TransferFeeConfig | undefined, epochInfo: EpochInfo, addFee: boolean): GetTransferAmountFee {
+  if (feeConfig === undefined) {
+    return {
+      amount,
+      fee: undefined,
+      expirationTime: undefined
+    }
+  }
+
+  const nowFeeConfig: TransferFee = epochInfo.epoch < feeConfig.newerTransferFee.epoch ? feeConfig.olderTransferFee : feeConfig.newerTransferFee
+  const maxFee = new BN(nowFeeConfig.maximumFee.toString())
+  const expirationTime: number | undefined = epochInfo.epoch < feeConfig.newerTransferFee.epoch ? (Number(feeConfig.newerTransferFee.epoch) * epochInfo.slotsInEpoch - epochInfo.absoluteSlot) * 400 / 1000 : undefined
+
+  if (addFee) {
+    const TAmount = amount.div(new BN(POINT - nowFeeConfig.transferFeeBasisPoints))
+
+    const _fee = TAmount.mul(new BN(nowFeeConfig.transferFeeBasisPoints)).div(new BN(POINT))
+    const fee = _fee.gt(maxFee) ? maxFee : _fee
+    return {
+      amount: TAmount,
+      fee,
+      expirationTime,
+    }
+  } else {
+    const _fee = amount.mul(new BN(nowFeeConfig.transferFeeBasisPoints)).div(new BN(POINT))
+    const fee = _fee.gt(maxFee) ? maxFee : _fee
+
+    return {
+      amount: amount.sub(fee),
+      fee,
+      expirationTime,
+    }
+  }
+}
+
+export function minExpirationTime(expirationTime1: number | undefined, expirationTime2: number | undefined): number | undefined {
+  if (expirationTime1 === undefined) return expirationTime2
+  if (expirationTime2 === undefined) return expirationTime1
+
+  return Math.min(expirationTime1, expirationTime2)
+}
+
+export type ReturnTypeFetchMultipleMintInfo = Mint & { feeConfig: TransferFeeConfig | undefined; }
+export interface ReturnTypeFetchMultipleMintInfos { [mint: string]: ReturnTypeFetchMultipleMintInfo; }
+
+export async function fetchMultipleMintInfos({ connection, mints, }: { connection: Connection, mints: PublicKey[]}) {
+  if (mints.length === 0) return {}
+  const mintInfos = await getMultipleAccountsInfoWithCustomFlags(connection, mints.map(i => ({ pubkey: i})))
+
+  const mintK: ReturnTypeFetchMultipleMintInfos = {}
+  for (const i of mintInfos) {
+    const t = unpackMint(i.pubkey, i.accountInfo, i.accountInfo.owner ?? TOKEN_PROGRAM_ID)
+    mintK[i.pubkey.toString()] = {
+      ...t,
+      feeConfig: getTransferFeeConfig(t) ?? undefined
+    }
+  }
+
+  return mintK
 }

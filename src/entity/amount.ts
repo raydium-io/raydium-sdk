@@ -1,13 +1,13 @@
-import _Big from "big.js";
-import BN from "bn.js";
+import _Big from 'big.js';
+import BN from 'bn.js';
 
-import { Logger } from "../common";
+import { Logger } from '../common';
 
-import { BigNumberish, parseBigNumberish } from "./bignumber";
-import { Rounding, TEN } from "./constant";
-import { Currency, currencyEquals, Token } from "./currency";
-import { Fraction } from "./fraction";
-import toFormat, { WrappedBig } from "./to-format";
+import { BigNumberish, parseBigNumberish } from './bignumber';
+import { Rounding, TEN } from './constant';
+import { Currency, currencyEquals, Token } from './currency';
+import { Fraction } from './fraction';
+import toFormat, { WrappedBig } from './to-format';
 
 const logger = Logger.from("entity/amount");
 
@@ -168,3 +168,5 @@ export class TokenAmount extends CurrencyAmount {
     return new TokenAmount(this.token, this.raw.sub(other.raw));
   }
 }
+
+export type TokenAmountType = CurrencyAmount | TokenAmount

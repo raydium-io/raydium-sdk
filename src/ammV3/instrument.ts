@@ -1,3 +1,4 @@
+import { TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
 import { PublicKey, TransactionInstruction } from '@solana/web3.js';
 import BN from 'bn.js';
 
@@ -16,7 +17,7 @@ const anchorDataBuf = {
   closePosition: [123, 134, 81, 0, 49, 68, 98, 98],
   increaseLiquidity: [46, 156, 243, 118, 13, 205, 251, 178],
   decreaseLiquidity: [160, 38, 208, 111, 104, 91, 44, 1],
-  swap: [248, 198, 158, 145, 225, 117, 135, 200],
+  swap: [43, 4, 237, 11, 26, 201, 30, 98],  // [248, 198, 158, 145, 225, 117, 135, 200],
   collectReward: [18, 237, 166, 197, 34, 16, 213, 144],
 };
 
@@ -28,8 +29,10 @@ export function createPoolInstruction(
   observationId: PublicKey,
   mintA: PublicKey,
   mintVaultA: PublicKey,
+  mintProgramIdA: PublicKey,
   mintB: PublicKey,
   mintVaultB: PublicKey,
+  mintProgramIdB: PublicKey,
   sqrtPriceX64: BN,
   startTime: BN,
 ) {
@@ -44,7 +47,8 @@ export function createPoolInstruction(
     { pubkey: mintVaultA, isSigner: false, isWritable: true },
     { pubkey: mintVaultB, isSigner: false, isWritable: true },
     { pubkey: observationId, isSigner: false, isWritable: false },
-    { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+    { pubkey: mintProgramIdA, isSigner: false, isWritable: false },
+    { pubkey: mintProgramIdB, isSigner: false, isWritable: false },
     { pubkey: SYSTEM_PROGRAM_ID, isSigner: false, isWritable: false },
     { pubkey: RENT_PROGRAM_ID, isSigner: false, isWritable: false },
   ];
@@ -82,6 +86,8 @@ export function openPositionInstruction(
   ownerTokenAccountB: PublicKey,
   tokenVaultA: PublicKey,
   tokenVaultB: PublicKey,
+  tokenMintA: PublicKey,
+  tokenMintB: PublicKey,
 
   tickLowerIndex: number,
   tickUpperIndex: number,
@@ -116,12 +122,15 @@ export function openPositionInstruction(
     { pubkey: ownerTokenAccountB, isSigner: false, isWritable: true },
     { pubkey: tokenVaultA, isSigner: false, isWritable: true },
     { pubkey: tokenVaultB, isSigner: false, isWritable: true },
+    { pubkey: tokenMintA, isSigner: false, isWritable: false },
+    { pubkey: tokenMintB, isSigner: false, isWritable: false },
 
     { pubkey: RENT_PROGRAM_ID, isSigner: false, isWritable: false },
     { pubkey: SYSTEM_PROGRAM_ID, isSigner: false, isWritable: false },
     { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
     { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
     { pubkey: METADATA_PROGRAM_ID, isSigner: false, isWritable: false },
+    { pubkey: TOKEN_2022_PROGRAM_ID, isSigner: false, isWritable: false },
   ];
 
   const data = Buffer.alloc(dataLayout.span);
@@ -164,6 +173,7 @@ export function closePositionInstruction(
 
     { pubkey: SYSTEM_PROGRAM_ID, isSigner: false, isWritable: false },
     { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+    { pubkey: TOKEN_2022_PROGRAM_ID, isSigner: false, isWritable: false },
   ];
 
   const data = Buffer.alloc(dataLayout.span);
@@ -192,6 +202,8 @@ export function increaseLiquidityInstruction(
   ownerTokenAccountB: PublicKey,
   mintVaultA: PublicKey,
   mintVaultB: PublicKey,
+  mintMintA: PublicKey,
+  mintMintB: PublicKey,
 
   liquidity: BN,
   amountMaxA: BN,
@@ -215,8 +227,11 @@ export function increaseLiquidityInstruction(
     { pubkey: ownerTokenAccountB, isSigner: false, isWritable: true },
     { pubkey: mintVaultA, isSigner: false, isWritable: true },
     { pubkey: mintVaultB, isSigner: false, isWritable: true },
+    { pubkey: mintMintA, isSigner: false, isWritable: false },
+    { pubkey: mintMintB, isSigner: false, isWritable: false },
 
     { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+    { pubkey: TOKEN_2022_PROGRAM_ID, isSigner: false, isWritable: false },
   ];
 
   const data = Buffer.alloc(dataLayout.span);
@@ -252,9 +267,12 @@ export function decreaseLiquidityInstruction(
   ownerTokenAccountB: PublicKey,
   mintVaultA: PublicKey,
   mintVaultB: PublicKey,
+  mintMintA: PublicKey,
+  mintMintB: PublicKey,
   rewardAccounts: {
     poolRewardVault: PublicKey,
-    ownerRewardVault: PublicKey
+    ownerRewardVault: PublicKey,
+    rewardMint: PublicKey,
   }[],
 
   liquidity: BN,
@@ -275,6 +293,8 @@ export function decreaseLiquidityInstruction(
     { pubkey: protocolPosition, isSigner: false, isWritable: true },
     { pubkey: mintVaultA, isSigner: false, isWritable: true },
     { pubkey: mintVaultB, isSigner: false, isWritable: true },
+    { pubkey: mintMintA, isSigner: false, isWritable: false },
+    { pubkey: mintMintB, isSigner: false, isWritable: false },
     { pubkey: tickArrayLower, isSigner: false, isWritable: true },
     { pubkey: tickArrayUpper, isSigner: false, isWritable: true },
 
@@ -282,10 +302,12 @@ export function decreaseLiquidityInstruction(
     { pubkey: ownerTokenAccountB, isSigner: false, isWritable: true },
 
     { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+    { pubkey: TOKEN_2022_PROGRAM_ID, isSigner: false, isWritable: false },
 
     ...rewardAccounts.map(i => ([
       { pubkey: i.poolRewardVault, isSigner: false, isWritable: true },
-      { pubkey: i.ownerRewardVault, isSigner: false, isWritable: true }
+      { pubkey: i.ownerRewardVault, isSigner: false, isWritable: true },
+      { pubkey: i.rewardMint, isSigner: false, isWritable: false },
     ])).flat()
   ];
 
@@ -317,6 +339,8 @@ export function swapInstruction(
   outputTokenAccount: PublicKey,
   inputVault: PublicKey,
   outputVault: PublicKey,
+  inputMint: PublicKey,
+  outputMint: PublicKey,
   tickArray: PublicKey[],
   observationId: PublicKey,
 
@@ -345,6 +369,10 @@ export function swapInstruction(
     { pubkey: observationId, isSigner: false, isWritable: true },
 
     { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+    { pubkey: TOKEN_2022_PROGRAM_ID, isSigner: false, isWritable: false },
+
+    { pubkey: inputMint, isSigner: false, isWritable: false },
+    { pubkey: outputMint, isSigner: false, isWritable: false },
 
     ...tickArray
       .map((i) => ({ pubkey: i, isSigner: false, isWritable: true })),
@@ -404,6 +432,7 @@ export function initRewardInstruction(
     { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
     { pubkey: SYSTEM_PROGRAM_ID, isSigner: false, isWritable: false },
     { pubkey: RENT_PROGRAM_ID, isSigner: false, isWritable: false },
+    { pubkey: TOKEN_2022_PROGRAM_ID, isSigner: false, isWritable: false },
   ];
 
   const data = Buffer.alloc(dataLayout.span);
@@ -453,10 +482,11 @@ export function setRewardInstruction(
     { pubkey: poolId, isSigner: false, isWritable: true },
     { pubkey: operationId, isSigner: false, isWritable: true },
 
+    { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+    { pubkey: TOKEN_2022_PROGRAM_ID, isSigner: false, isWritable: false },
+
     { pubkey: rewardVault, isSigner: false, isWritable: true },
     { pubkey: ownerTokenAccount, isSigner: false, isWritable: true },
-
-    { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
   ];
 
   const data = Buffer.alloc(dataLayout.span);
@@ -486,6 +516,7 @@ export function collectRewardInstruction(
 
   ownerTokenAccount: PublicKey,
   rewardVault: PublicKey,
+  rewardMint: PublicKey,
 
   rewardIndex: number,
 ) {
@@ -498,7 +529,9 @@ export function collectRewardInstruction(
     { pubkey: ownerTokenAccount, isSigner: false, isWritable: true },
     { pubkey: poolId, isSigner: false, isWritable: true },
     { pubkey: rewardVault, isSigner: false, isWritable: true },
+    { pubkey: rewardMint, isSigner: false, isWritable: false },
     { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+    { pubkey: TOKEN_2022_PROGRAM_ID, isSigner: false, isWritable: false },
   ];
 
   const data = Buffer.alloc(dataLayout.span);
