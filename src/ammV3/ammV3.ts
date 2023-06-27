@@ -2724,7 +2724,7 @@ export class AmmV3 extends Base {
   }
 
   // fetch data
-  static async fetchMultiplePoolInfos({ connection, poolKeys, ownerInfo, chainTime, batchRequest = false }: { connection: Connection, poolKeys: ApiAmmV3PoolsItem[], ownerInfo?: { wallet: PublicKey, tokenAccounts: TokenAccount[] }, chainTime: number, batchRequest?: boolean }): Promise<ReturnTypeFetchMultiplePoolInfos> {
+  static async fetchMultiplePoolInfos({ connection, poolKeys, ownerInfo, chainTime, batchRequest = false, updateOwnerRewardAndFee = true }: { connection: Connection, poolKeys: ApiAmmV3PoolsItem[], ownerInfo?: { wallet: PublicKey, tokenAccounts: TokenAccount[] }, chainTime: number, batchRequest?: boolean, updateOwnerRewardAndFee?: boolean }): Promise<ReturnTypeFetchMultiplePoolInfos> {
     const poolAccountInfos = await getMultipleAccountsInfo(connection, poolKeys.map(i => new PublicKey(i.id)), { batchRequest })
 
     const programIds: PublicKey[] = []
@@ -2880,37 +2880,39 @@ export class AmmV3 extends Base {
         keyToTickArrayAddress[`${poolsInfo[itemPoolId].state.programId.toString()}-${position.poolId.toString()}-${position.tickUpper}`] = tickArrayUpperAddress
       }
 
-      const tickArrayKeys = Object.values(keyToTickArrayAddress)
-      const tickArrayDatas = await getMultipleAccountsInfo(connection, tickArrayKeys, { batchRequest })
-      const tickArrayLayout = {}
-      for (let index = 0; index < tickArrayKeys.length; index++) {
-        const tickArrayData = tickArrayDatas[index]
-        if (tickArrayData === null) continue
-        const key = tickArrayKeys[index].toString()
-        tickArrayLayout[key] = TickArrayLayout.decode(tickArrayData.data)
-      }
-
-      for (const { state, positionAccount } of Object.values(poolsInfo)) {
-        if (!positionAccount) continue
-        for (const itemPA of positionAccount) {
-          const keyLower = `${state.programId.toString()}-${state.id.toString()}-${itemPA.tickLower}`
-          const keyUpper = `${state.programId.toString()}-${state.id.toString()}-${itemPA.tickUpper}`
-          const tickArrayLower = tickArrayLayout[keyToTickArrayAddress[keyLower].toString()]
-          const tickArrayUpper = tickArrayLayout[keyToTickArrayAddress[keyUpper].toString()]
-          const tickLowerState: Tick = tickArrayLower.ticks[TickUtils.getTickOffsetInArray(
-            itemPA.tickLower,
-            state.tickSpacing
-          )]
-          const tickUpperState: Tick = tickArrayUpper.ticks[TickUtils.getTickOffsetInArray(
-            itemPA.tickUpper,
-            state.tickSpacing
-          )]
-          const { tokenFeeAmountA, tokenFeeAmountB } = PositionUtils.GetPositionFees(state, itemPA, tickLowerState, tickUpperState)
-          const rewardInfos = PositionUtils.GetPositionRewards(state, itemPA, tickLowerState, tickUpperState)
-          itemPA.tokenFeeAmountA = tokenFeeAmountA.gte(ZERO) ? tokenFeeAmountA : ZERO
-          itemPA.tokenFeeAmountB = tokenFeeAmountB.gte(ZERO) ? tokenFeeAmountB : ZERO
-          for (let i = 0; i < rewardInfos.length; i++) {
-            itemPA.rewardInfos[i].pendingReward = rewardInfos[i].gte(ZERO) ? rewardInfos[i] : ZERO
+      if (updateOwnerRewardAndFee) {
+        const tickArrayKeys = Object.values(keyToTickArrayAddress)
+        const tickArrayDatas = await getMultipleAccountsInfo(connection, tickArrayKeys, { batchRequest })
+        const tickArrayLayout = {}
+        for (let index = 0; index < tickArrayKeys.length; index++) {
+          const tickArrayData = tickArrayDatas[index]
+          if (tickArrayData === null) continue
+          const key = tickArrayKeys[index].toString()
+          tickArrayLayout[key] = TickArrayLayout.decode(tickArrayData.data)
+        }
+  
+        for (const { state, positionAccount } of Object.values(poolsInfo)) {
+          if (!positionAccount) continue
+          for (const itemPA of positionAccount) {
+            const keyLower = `${state.programId.toString()}-${state.id.toString()}-${itemPA.tickLower}`
+            const keyUpper = `${state.programId.toString()}-${state.id.toString()}-${itemPA.tickUpper}`
+            const tickArrayLower = tickArrayLayout[keyToTickArrayAddress[keyLower].toString()]
+            const tickArrayUpper = tickArrayLayout[keyToTickArrayAddress[keyUpper].toString()]
+            const tickLowerState: Tick = tickArrayLower.ticks[TickUtils.getTickOffsetInArray(
+              itemPA.tickLower,
+              state.tickSpacing
+            )]
+            const tickUpperState: Tick = tickArrayUpper.ticks[TickUtils.getTickOffsetInArray(
+              itemPA.tickUpper,
+              state.tickSpacing
+            )]
+            const { tokenFeeAmountA, tokenFeeAmountB } = PositionUtils.GetPositionFees(state, itemPA, tickLowerState, tickUpperState)
+            const rewardInfos = PositionUtils.GetPositionRewards(state, itemPA, tickLowerState, tickUpperState)
+            itemPA.tokenFeeAmountA = tokenFeeAmountA.gte(ZERO) ? tokenFeeAmountA : ZERO
+            itemPA.tokenFeeAmountB = tokenFeeAmountB.gte(ZERO) ? tokenFeeAmountB : ZERO
+            for (let i = 0; i < rewardInfos.length; i++) {
+              itemPA.rewardInfos[i].pendingReward = rewardInfos[i].gte(ZERO) ? rewardInfos[i] : ZERO
+            }
           }
         }
       }
