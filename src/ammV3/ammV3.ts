@@ -1120,6 +1120,7 @@ export class AmmV3 extends Base {
         tokenAccount: ownerRewardAccount
       },
       rewardInfo: {
+        programId: rewardInfo.programId,
         mint: rewardInfo.mint,
         openTime: rewardInfo.openTime,
         endTime: rewardInfo.endTime,
@@ -1217,6 +1218,7 @@ export class AmmV3 extends Base {
           tokenAccount: ownerRewardAccount
         },
         rewardInfo: {
+          programId: rewardInfo.programId,
           mint: rewardInfo.mint,
           openTime: rewardInfo.openTime,
           endTime: rewardInfo.endTime,
@@ -2279,6 +2281,7 @@ export class AmmV3 extends Base {
       tokenAccount: PublicKey,
     },
     rewardInfo: {
+      programId: PublicKey,
       mint: PublicKey,
       openTime: number,
       endTime: number,
@@ -2299,6 +2302,7 @@ export class AmmV3 extends Base {
             poolInfo.ammConfig.id,
 
             ownerInfo.tokenAccount,
+            rewardInfo.programId,
             rewardInfo.mint,
             poolRewardVault,
 
@@ -2435,7 +2439,7 @@ export class AmmV3 extends Base {
     const coefficient = add ? 1 - slippage : 1 + slippage;
 
     const addFeeAmount = getTransferAmountFee(amount, token2022Infos[inputA ? poolInfo.mintA.mint.toString() : poolInfo.mintB.mint.toString()]?.feeConfig, epochInfo, !add)
-    const _amount = addFeeAmount.amount.muln(coefficient)
+    const _amount = addFeeAmount.amount.sub(addFeeAmount.fee).muln(coefficient)
 
     let liquidity: BN
     if (sqrtPriceX64.lte(sqrtPriceX64A)) {
@@ -2483,14 +2487,14 @@ export class AmmV3 extends Base {
 
     const coefficientRe = add ? 1 + slippage : 1 - slippage;
 
-    const amounts = LiquidityMath.getAmountsFromLiquidity(poolInfo.sqrtPriceX64, sqrtPriceX64A, sqrtPriceX64B, liquidity, !add)
+    const amounts = LiquidityMath.getAmountsFromLiquidity(poolInfo.sqrtPriceX64, sqrtPriceX64A, sqrtPriceX64B, liquidity, add)
     const [amountA, amountB] = [
-      getTransferAmountFee(amounts.amountA, token2022Infos[poolInfo.mintA.mint.toString()]?.feeConfig, epochInfo, !add),
-      getTransferAmountFee(amounts.amountB, token2022Infos[poolInfo.mintB.mint.toString()]?.feeConfig, epochInfo, !add),
+      getTransferAmountFee(amounts.amountA, token2022Infos[poolInfo.mintA.mint.toString()]?.feeConfig, epochInfo, add),
+      getTransferAmountFee(amounts.amountB, token2022Infos[poolInfo.mintB.mint.toString()]?.feeConfig, epochInfo, add),
     ]
     const [amountSlippageA, amountSlippageB] = [
-      getTransferAmountFee(amounts.amountA.muln(coefficientRe), token2022Infos[poolInfo.mintA.mint.toString()]?.feeConfig, epochInfo, !add),
-      getTransferAmountFee(amounts.amountB.muln(coefficientRe), token2022Infos[poolInfo.mintB.mint.toString()]?.feeConfig, epochInfo, !add),
+      getTransferAmountFee(amounts.amountA.muln(coefficientRe), token2022Infos[poolInfo.mintA.mint.toString()]?.feeConfig, epochInfo, add),
+      getTransferAmountFee(amounts.amountB.muln(coefficientRe), token2022Infos[poolInfo.mintB.mint.toString()]?.feeConfig, epochInfo, add),
     ]
 
     return { liquidity, amountA, amountB, amountSlippageA, amountSlippageB, expirationTime: minExpirationTime(amountA.expirationTime, amountB.expirationTime) }
@@ -2634,7 +2638,7 @@ export class AmmV3 extends Base {
       poolInfo,
       tickArrayCache,
       baseMint,
-      realAmountIn.amount,
+      realAmountIn.amount.sub(realAmountIn.fee),
       sqrtPriceLimitX64
     );
 
@@ -2721,7 +2725,7 @@ export class AmmV3 extends Base {
       poolInfo,
       tickArrayCache,
       baseMint,
-      realAmountOut.amount,
+      realAmountOut.amount.sub(realAmountOut.fee),
       sqrtPriceLimitX64
     );
 
@@ -2847,7 +2851,7 @@ export class AmmV3 extends Base {
   }
 
   // fetch data
-  static async fetchMultiplePoolInfos({ connection, poolKeys, ownerInfo, chainTime, batchRequest = false }: { connection: Connection, poolKeys: ApiAmmV3PoolsItem[], ownerInfo?: { wallet: PublicKey, tokenAccounts: TokenAccount[] }, chainTime: number, batchRequest?: boolean }): Promise<ReturnTypeFetchMultiplePoolInfos> {
+  static async fetchMultiplePoolInfos({ connection, poolKeys, ownerInfo, chainTime, batchRequest = false, updateOwnerRewardAndFee = true }: { connection: Connection, poolKeys: ApiAmmV3PoolsItem[], ownerInfo?: { wallet: PublicKey, tokenAccounts: TokenAccount[] }, chainTime: number, batchRequest?: boolean, updateOwnerRewardAndFee?: boolean }): Promise<ReturnTypeFetchMultiplePoolInfos> {
     const poolAccountInfos = await getMultipleAccountsInfo(connection, poolKeys.map(i => new PublicKey(i.id)), { batchRequest })
 
     const programIds: PublicKey[] = []
@@ -3007,37 +3011,39 @@ export class AmmV3 extends Base {
         keyToTickArrayAddress[`${poolsInfo[itemPoolId].state.programId.toString()}-${position.poolId.toString()}-${position.tickUpper}`] = tickArrayUpperAddress
       }
 
-      const tickArrayKeys = Object.values(keyToTickArrayAddress)
-      const tickArrayDatas = await getMultipleAccountsInfo(connection, tickArrayKeys, { batchRequest })
-      const tickArrayLayout = {}
-      for (let index = 0; index < tickArrayKeys.length; index++) {
-        const tickArrayData = tickArrayDatas[index]
-        if (tickArrayData === null) continue
-        const key = tickArrayKeys[index].toString()
-        tickArrayLayout[key] = TickArrayLayout.decode(tickArrayData.data)
-      }
-
-      for (const { state, positionAccount } of Object.values(poolsInfo)) {
-        if (!positionAccount) continue
-        for (const itemPA of positionAccount) {
-          const keyLower = `${state.programId.toString()}-${state.id.toString()}-${itemPA.tickLower}`
-          const keyUpper = `${state.programId.toString()}-${state.id.toString()}-${itemPA.tickUpper}`
-          const tickArrayLower = tickArrayLayout[keyToTickArrayAddress[keyLower].toString()]
-          const tickArrayUpper = tickArrayLayout[keyToTickArrayAddress[keyUpper].toString()]
-          const tickLowerState: Tick = tickArrayLower.ticks[TickUtils.getTickOffsetInArray(
-            itemPA.tickLower,
-            state.tickSpacing
-          )]
-          const tickUpperState: Tick = tickArrayUpper.ticks[TickUtils.getTickOffsetInArray(
-            itemPA.tickUpper,
-            state.tickSpacing
-          )]
-          const { tokenFeeAmountA, tokenFeeAmountB } = PositionUtils.GetPositionFees(state, itemPA, tickLowerState, tickUpperState)
-          const rewardInfos = PositionUtils.GetPositionRewards(state, itemPA, tickLowerState, tickUpperState)
-          itemPA.tokenFeeAmountA = tokenFeeAmountA.gte(ZERO) ? tokenFeeAmountA : ZERO
-          itemPA.tokenFeeAmountB = tokenFeeAmountB.gte(ZERO) ? tokenFeeAmountB : ZERO
-          for (let i = 0; i < rewardInfos.length; i++) {
-            itemPA.rewardInfos[i].pendingReward = rewardInfos[i].gte(ZERO) ? rewardInfos[i] : ZERO
+      if (updateOwnerRewardAndFee) {
+        const tickArrayKeys = Object.values(keyToTickArrayAddress)
+        const tickArrayDatas = await getMultipleAccountsInfo(connection, tickArrayKeys, { batchRequest })
+        const tickArrayLayout = {}
+        for (let index = 0; index < tickArrayKeys.length; index++) {
+          const tickArrayData = tickArrayDatas[index]
+          if (tickArrayData === null) continue
+          const key = tickArrayKeys[index].toString()
+          tickArrayLayout[key] = TickArrayLayout.decode(tickArrayData.data)
+        }
+  
+        for (const { state, positionAccount } of Object.values(poolsInfo)) {
+          if (!positionAccount) continue
+          for (const itemPA of positionAccount) {
+            const keyLower = `${state.programId.toString()}-${state.id.toString()}-${itemPA.tickLower}`
+            const keyUpper = `${state.programId.toString()}-${state.id.toString()}-${itemPA.tickUpper}`
+            const tickArrayLower = tickArrayLayout[keyToTickArrayAddress[keyLower].toString()]
+            const tickArrayUpper = tickArrayLayout[keyToTickArrayAddress[keyUpper].toString()]
+            const tickLowerState: Tick = tickArrayLower.ticks[TickUtils.getTickOffsetInArray(
+              itemPA.tickLower,
+              state.tickSpacing
+            )]
+            const tickUpperState: Tick = tickArrayUpper.ticks[TickUtils.getTickOffsetInArray(
+              itemPA.tickUpper,
+              state.tickSpacing
+            )]
+            const { tokenFeeAmountA, tokenFeeAmountB } = PositionUtils.GetPositionFees(state, itemPA, tickLowerState, tickUpperState)
+            const rewardInfos = PositionUtils.GetPositionRewards(state, itemPA, tickLowerState, tickUpperState)
+            itemPA.tokenFeeAmountA = tokenFeeAmountA.gte(ZERO) ? tokenFeeAmountA : ZERO
+            itemPA.tokenFeeAmountB = tokenFeeAmountB.gte(ZERO) ? tokenFeeAmountB : ZERO
+            for (let i = 0; i < rewardInfos.length; i++) {
+              itemPA.rewardInfos[i].pendingReward = rewardInfos[i].gte(ZERO) ? rewardInfos[i] : ZERO
+            }
           }
         }
       }
@@ -3056,7 +3062,7 @@ export class AmmV3 extends Base {
       }
       for (const item of updateRewardInfos) {
         const vaultAmount = rewardVaultAmount[item.tokenVault.toString()]
-        item.remainingRewards = vaultAmount !== undefined ? vaultAmount.sub(item.rewardTotalEmissioned) : ZERO
+        item.remainingRewards = vaultAmount !== undefined ? vaultAmount.sub(item.rewardTotalEmissioned.sub(item.rewardClaimed)) : ZERO
       }
     }
 

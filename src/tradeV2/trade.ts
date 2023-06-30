@@ -589,7 +589,7 @@ export class TradeV2 extends Base {
       } = AmmV3.computeAmountOutFormat({
         poolInfo: toPool as AmmV3PoolInfo,
         tickArrayCache: tickCache[toPool.id.toString()],
-        amountIn: minMiddleAmountOut.amount,
+        amountIn: new TokenAmount((minMiddleAmountOut.amount as TokenAmount).token, minMiddleAmountOut.amount.raw.sub(minMiddleAmountOut.fee === undefined ? ZERO : minMiddleAmountOut.fee.raw)),
         currencyOut,
         slippage,
 
@@ -612,7 +612,7 @@ export class TradeV2 extends Base {
       } = Liquidity.computeAmountOut({
         poolKeys: jsonInfo2PoolKeys(toPool) as LiquidityPoolKeys,
         poolInfo: simulateCache[toPool.id as string],
-        amountIn: minMiddleAmountOut.amount,
+        amountIn: new TokenAmount((minMiddleAmountOut.amount as TokenAmount).token, minMiddleAmountOut.amount.raw.sub(minMiddleAmountOut.fee === undefined ? ZERO : minMiddleAmountOut.fee.raw)),
         currencyOut,
         slippage,
       });

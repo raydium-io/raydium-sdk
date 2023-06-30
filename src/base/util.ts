@@ -11,7 +11,7 @@ import {
   getMultipleAccountsInfoWithCustomFlags, getMultipleLookupTableInfo,
   splitTxAndSigners, TOKEN_PROGRAM_ID,
 } from '../common';
-import { CurrencyAmount, TokenAmount } from '../entity';
+import { CurrencyAmount, ONE, TokenAmount, ZERO } from '../entity';
 import { Spl } from '../spl';
 import { WSOL } from '../token';
 
@@ -128,9 +128,9 @@ export function getTransferAmountFee(amount: BN, feeConfig: TransferFeeConfig | 
   const expirationTime: number | undefined = epochInfo.epoch < feeConfig.newerTransferFee.epoch ? (Number(feeConfig.newerTransferFee.epoch) * epochInfo.slotsInEpoch - epochInfo.absoluteSlot) * 400 / 1000 : undefined
 
   if (addFee) {
-    const TAmount = amount.div(new BN(POINT - nowFeeConfig.transferFeeBasisPoints))
+    const TAmount = BNDivCeil(amount.mul(new BN(POINT)), new BN(POINT - nowFeeConfig.transferFeeBasisPoints))
 
-    const _fee = TAmount.mul(new BN(nowFeeConfig.transferFeeBasisPoints)).div(new BN(POINT))
+    const _fee = BNDivCeil(TAmount.mul(new BN(nowFeeConfig.transferFeeBasisPoints)), new BN(POINT))
     const fee = _fee.gt(maxFee) ? maxFee : _fee
     return {
       amount: TAmount,
@@ -138,11 +138,11 @@ export function getTransferAmountFee(amount: BN, feeConfig: TransferFeeConfig | 
       expirationTime,
     }
   } else {
-    const _fee = amount.mul(new BN(nowFeeConfig.transferFeeBasisPoints)).div(new BN(POINT))
+    const _fee = BNDivCeil(amount.mul(new BN(nowFeeConfig.transferFeeBasisPoints)), new BN(POINT))
     const fee = _fee.gt(maxFee) ? maxFee : _fee
 
     return {
-      amount: amount.sub(fee),
+      amount,
       fee,
       expirationTime,
     }
@@ -173,4 +173,15 @@ export async function fetchMultipleMintInfos({ connection, mints, }: { connectio
   }
 
   return mintK
+}
+
+
+export function BNDivCeil(bn1: BN, bn2: BN) {
+  const {div, mod} = bn1.divmod(bn2)
+
+  if (mod.gt(ZERO)) {
+    return div.add(ONE)
+  } else {
+    return div
+  }
 }

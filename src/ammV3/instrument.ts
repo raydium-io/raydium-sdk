@@ -406,6 +406,7 @@ export function initRewardInstruction(
   ammConfigId: PublicKey,
 
   ownerTokenAccount: PublicKey,
+  rewardProgramId: PublicKey,
   rewardMint: PublicKey,
   rewardVault: PublicKey,
 
@@ -429,10 +430,9 @@ export function initRewardInstruction(
     { pubkey: rewardMint, isSigner: false, isWritable: false },
     { pubkey: rewardVault, isSigner: false, isWritable: true },
 
-    { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+    { pubkey: rewardProgramId, isSigner: false, isWritable: false },
     { pubkey: SYSTEM_PROGRAM_ID, isSigner: false, isWritable: false },
     { pubkey: RENT_PROGRAM_ID, isSigner: false, isWritable: false },
-    { pubkey: TOKEN_2022_PROGRAM_ID, isSigner: false, isWritable: false },
   ];
 
   const data = Buffer.alloc(dataLayout.span);

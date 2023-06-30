@@ -192,7 +192,7 @@ export class Base {
         const ataInfo = await createInfo.connection.getAccountInfo(ata)
         if (ataInfo === null) {
           createInfo.frontInstructions.push(_createATAIns);
-        } else if (ataInfo.owner.equals(TOKEN_PROGRAM_ID) && AccountLayout.decode(ataInfo.data).mint.equals(mint) && AccountLayout.decode(ataInfo.data).owner.equals(owner)) { 
+        } else if (ataInfo.owner.equals(programId) && AccountLayout.decode(ataInfo.data).mint.equals(mint) && AccountLayout.decode(ataInfo.data).owner.equals(owner)) { 
           /* empty */ 
         } else {
           throw Error(`create ata check error -> mint: ${mint.toString()}, ata: ${ata.toString()}`)
