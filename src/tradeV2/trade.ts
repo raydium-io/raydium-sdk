@@ -746,12 +746,12 @@ export class TradeV2 extends Base {
 
     const amountIn = swapInfo.amountIn
     const amountOut = swapInfo.amountOut
-    const useSolBalance = !(amountIn instanceof TokenAmount)
-    const outSolBalance = !(amountOut instanceof TokenAmount)
-    const inputMint = amountIn instanceof TokenAmount ? amountIn.token.mint : Token.WSOL.mint
-    const inputProgramId = amountIn instanceof TokenAmount ? amountIn.token.programId : Token.WSOL.programId
-    const outputMint = amountOut instanceof TokenAmount ? amountOut.token.mint : Token.WSOL.mint
-    const outputProgramId = amountOut instanceof TokenAmount ? amountOut.token.programId : Token.WSOL.programId
+    const useSolBalance = !(amountIn.amount instanceof TokenAmount)
+    const outSolBalance = !(amountOut.amount instanceof TokenAmount)
+    const inputMint = amountIn.amount instanceof TokenAmount ? amountIn.amount.token.mint : Token.WSOL.mint
+    const inputProgramId = amountIn.amount instanceof TokenAmount ? amountIn.amount.token.programId : Token.WSOL.programId
+    const outputMint = amountOut.amount instanceof TokenAmount ? amountOut.amount.token.mint : Token.WSOL.mint
+    const outputProgramId = amountOut.amount instanceof TokenAmount ? amountOut.amount.token.programId : Token.WSOL.programId
 
     const routeProgram = new PublicKey('routeUGWgWzqBWFcrCfv8tritsqukccJPu3q5GPP3xS')
 
