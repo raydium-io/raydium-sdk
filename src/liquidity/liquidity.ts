@@ -1,5 +1,5 @@
 import {
-  AccountInfo, ComputeBudgetProgram, Connection, PublicKey, Signer, Transaction,
+  ComputeBudgetProgram, Connection, PublicKey, Signer, Transaction,
   TransactionInstruction,
 } from '@solana/web3.js';
 import BN from 'bn.js';
@@ -2007,7 +2007,7 @@ export class Liquidity extends Base {
       Object.entries(LIQUIDITY_VERSION_TO_STATE_LAYOUT).map(([version, layout]) => {
         try {
           return connection
-          .getProgramAccounts(programId[version], {
+          .getProgramAccounts(programId[Number(version) as 4 | 5], {
             filters: [{ dataSize: layout.span }],
           })
           .then((accounts) => {
@@ -2015,7 +2015,7 @@ export class Liquidity extends Base {
               return {
                 id: info.pubkey,
                 version: Number(version) as 4 | 5,
-                programId: programId[version],
+                programId: programId[Number(version) as 4 | 5],
                 ...layout.decode(info.account.data)
               };
             });
@@ -2048,7 +2048,7 @@ export class Liquidity extends Base {
       }
     }
 
-    const authority = {}
+    const authority: {[key:string]: PublicKey} = {}
     for (const [version, _programId] of Object.entries(programId)) authority[version] = this.getAssociatedAuthority({programId: _programId}).publicKey
 
     const formatPoolInfos: LiquidityPoolKeys[] = []

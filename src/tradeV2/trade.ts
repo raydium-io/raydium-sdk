@@ -559,7 +559,7 @@ export class TradeV2 extends Base {
       executionPrice,
       priceImpact: firstPriceImpact.add(secondPriceImpact),
       fee: [firstFee, secondFee],
-      remainingAccounts: [firstRemainingAccounts, secondRemainingAccounts]
+      remainingAccounts: [firstRemainingAccounts as PublicKey[], secondRemainingAccounts as PublicKey[]]
     };
   }
 
@@ -611,11 +611,11 @@ export class TradeV2 extends Base {
               routeProgram,
               ownerInfo.wallet,
               ownerInfo.sourceToken,
-              ownerInfo.routeToken,
+              ownerInfo.routeToken as PublicKey,
               ownerInfo.destinationToken,
 
               inputMint.toString(),
-              swapInfo.middleMint.toString(),
+              swapInfo.middleMint!.toString(),
 
               poolKey1,
               poolKey2,

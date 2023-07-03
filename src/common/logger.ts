@@ -132,7 +132,7 @@ function perfectDisplay(value: any, deeping = false) {
     } else if (value instanceof PublicKey) {
       _value = `PublicKey(${value.toBase58()})`;
     } else if (value instanceof Object && !deeping) {
-      const obj = {};
+      const obj: { [key: string]: string } = {};
       Object.entries(value).forEach(([k, v]) => {
         obj[k] = perfectDisplay(v, true);
       });

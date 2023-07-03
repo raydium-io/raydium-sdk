@@ -1,4 +1,3 @@
-import { createAssociatedTokenAccountInstruction } from '@solana/spl-token';
 import {
   Connection, Keypair, PublicKey, Signer, SystemProgram, TransactionInstruction,
 } from '@solana/web3.js';
@@ -30,6 +29,7 @@ import {
   FARM_LEDGER_LAYOUT_V5_2, FARM_STATE_LAYOUT_V6, FARM_VERSION_TO_LEDGER_LAYOUT,
   FARM_VERSION_TO_STATE_LAYOUT, FarmLedger, FarmState,
   REAL_FARM_STATE_LAYOUT_V3, REAL_FARM_STATE_LAYOUT_V5, Voter, VoterRegistrar,
+  FarmStructReward, FarmV6Reward
 } from './layout';
 import {
   getRegistrarAddress, getTokenOwnerRecordAddress, getVoterAddress,
@@ -859,7 +859,7 @@ export class Farm extends Base {
         rewardInfo.rewardType,
       );
       logger.assertArgument(
-        rewardInfo.rewardPerSecond > 0,
+        Number(rewardInfo.rewardPerSecond) > 0,
         "rewardPerSecond error",
         "rewardInfo.rewardPerSecond",
         rewardInfo.rewardPerSecond,
@@ -920,7 +920,7 @@ export class Farm extends Base {
           mint: rewardMint,
           type: "rewardVault",
         }),
-        userRewardToken,
+        userRewardToken: userRewardToken!,
       });
     }
 
@@ -1163,7 +1163,7 @@ export class Farm extends Base {
         const pendingRewards = state.rewardInfos.map((rewardInfo, index) => {
           const rewardDebt = ledger.rewardDebts[index];
           const pendingReward = ledger.deposited
-            .mul(state.version === 6 ? rewardInfo.accRewardPerShare : rewardInfo.perShareReward)
+            .mul(state.version === 6 ? (rewardInfo as FarmV6Reward).accRewardPerShare : (rewardInfo as FarmStructReward).perShareReward)
             .div(multiplier)
             .sub(rewardDebt);
 
@@ -1377,7 +1377,7 @@ export class Farm extends Base {
         rewardInfo.rewardType,
       );
       logger.assertArgument(
-        rewardInfo.rewardPerSecond > 0,
+        Number(rewardInfo.rewardPerSecond) > 0,
         "rewardPerSecond error",
         "rewardInfo.rewardPerSecond",
         rewardInfo.rewardPerSecond,
@@ -1438,7 +1438,7 @@ export class Farm extends Base {
           mint: rewardMint,
           type: "rewardVault",
         }),
-        userRewardToken,
+        userRewardToken: userRewardToken!,
       });
     }
 
@@ -1599,7 +1599,7 @@ export class Farm extends Base {
       AccountMeta(poolKeys.id, false),
       AccountMetaReadonly(poolKeys.lpVault, false),
       AccountMeta(rewardVault, false),
-      AccountMeta(userRewardToken, false),
+      AccountMeta(userRewardToken!, false),
       AccountMetaReadonly(userKeys.owner, true),
     ];
 
@@ -1721,7 +1721,7 @@ export class Farm extends Base {
       AccountMetaReadonly(poolKeys.authority, false),
       AccountMetaReadonly(rewardMint, false),
       AccountMeta(rewardVault, false),
-      AccountMeta(userRewardToken, false),
+      AccountMeta(userRewardToken!, false),
       AccountMetaReadonly(userKeys.owner, true),
     ];
 
@@ -2198,8 +2198,8 @@ export class Farm extends Base {
       const poolInfo = REAL_FARM_STATE_LAYOUT_V3.decode(poolIdToInfo[poolId])
 
       const [_lpInfo, _rewardInfo] = await connection.getMultipleAccountsInfo([poolInfo.lpVault, poolInfo.rewardVault])
-      const lpInfo = SPL_ACCOUNT_LAYOUT.decode(_lpInfo.data)
-      const rewardInfo = SPL_ACCOUNT_LAYOUT.decode(_rewardInfo.data)
+      const lpInfo = SPL_ACCOUNT_LAYOUT.decode(_lpInfo!.data)
+      const rewardInfo = SPL_ACCOUNT_LAYOUT.decode(_rewardInfo!.data)
 
       let lpAccount = mintToAccount[lpInfo.mint.toString()]
       if (lpAccount === undefined) {
@@ -2282,9 +2282,9 @@ export class Farm extends Base {
       const poolInfo = REAL_FARM_STATE_LAYOUT_V5.decode(poolIdToInfo[poolId])
 
       const [_lpInfo, _rewardInfoA, _rewardInfoB] = await connection.getMultipleAccountsInfo([poolInfo.lpVault, poolInfo.rewardVaultA, poolInfo.rewardVaultB])
-      const lpInfo = SPL_ACCOUNT_LAYOUT.decode(_lpInfo.data)
-      const rewardInfoA = SPL_ACCOUNT_LAYOUT.decode(_rewardInfoA.data)
-      const rewardInfoB = SPL_ACCOUNT_LAYOUT.decode(_rewardInfoB.data)
+      const lpInfo = SPL_ACCOUNT_LAYOUT.decode(_lpInfo!.data)
+      const rewardInfoA = SPL_ACCOUNT_LAYOUT.decode(_rewardInfoA!.data)
+      const rewardInfoB = SPL_ACCOUNT_LAYOUT.decode(_rewardInfoB!.data)
 
       let lpAccount = mintToAccount[lpInfo.mint.toString()]
       if (lpAccount === undefined) {

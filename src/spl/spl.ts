@@ -248,7 +248,7 @@ export class Spl {
     return createCloseAccountInstruction(tokenAccount, payer, owner, multiSigners);
   }
 
-  static createInitAccountInstruction(programId, mint, account, owner) {
+  static createInitAccountInstruction(programId: PublicKey, mint: PublicKey, account: PublicKey, owner: PublicKey) {
     const keys = [{
       pubkey: account,
       isSigner: false,
