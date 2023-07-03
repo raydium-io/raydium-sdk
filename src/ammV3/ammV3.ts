@@ -1449,7 +1449,7 @@ export class AmmV3 extends Base {
           endTime: rewardInfo.endTime,
           emissionsPerSecondX64: MathUtil.decimalToX64(rewardInfo.perSecond)
         }
-      }))
+      }) as MakeInstructionOutType)
     }
 
     let address = {}
@@ -1512,7 +1512,7 @@ export class AmmV3 extends Base {
 
     const rewardMintUseSOLBalance = ownerInfo.useSOLBalance && rewardMint.equals(Token.WSOL.mint)
     const ownerRewardAccount = await this._selectOrCreateTokenAccount({
-      programId: rewardInfo.tokenProgramId,
+      programId: rewardInfo!.tokenProgramId,
       mint: rewardMint,
       tokenAccounts: rewardMintUseSOLBalance ? [] : ownerInfo.tokenAccounts,
       owner: ownerInfo.wallet,
@@ -1608,7 +1608,7 @@ export class AmmV3 extends Base {
       
       const rewardMintUseSOLBalance = ownerInfo.useSOLBalance && rewardMint.equals(Token.WSOL.mint)
       const ownerRewardAccount = await this._selectOrCreateTokenAccount({
-        programId: rewardInfo.tokenProgramId,
+        programId: rewardInfo!.tokenProgramId,
         mint: rewardMint,
         tokenAccounts: rewardMintUseSOLBalance ? [] : ownerInfo.tokenAccounts,
         owner: ownerInfo.wallet,
@@ -1644,7 +1644,7 @@ export class AmmV3 extends Base {
         },
 
         rewardMint
-      }))
+      }) as MakeInstructionOutType)
     }
 
     let address = {}
@@ -2362,9 +2362,9 @@ export class AmmV3 extends Base {
             poolInfo.ammConfig.id,
 
             ownerInfo.tokenAccount,
-            rewardVault,
+            rewardVault as PublicKey,
 
-            rewardIndex,
+            rewardIndex ?? 0,
             rewardInfo.openTime,
             rewardInfo.endTime,
             rewardInfo.emissionsPerSecondX64
@@ -2412,10 +2412,10 @@ export class AmmV3 extends Base {
             poolInfo.id,
 
             ownerInfo.tokenAccount,
-            rewardVault,
+            rewardVault as PublicKey,
             rewardMint,
 
-            rewardIndex,
+            rewardIndex ?? 0,
           )
         ],
         signers: [],
@@ -2439,7 +2439,7 @@ export class AmmV3 extends Base {
     const coefficient = add ? 1 - slippage : 1 + slippage;
 
     const addFeeAmount = getTransferAmountFee(amount, token2022Infos[inputA ? poolInfo.mintA.mint.toString() : poolInfo.mintB.mint.toString()]?.feeConfig, epochInfo, !add)
-    const _amount = addFeeAmount.amount.sub(addFeeAmount.fee).muln(coefficient)
+    const _amount = addFeeAmount.amount.sub(addFeeAmount.fee!).muln(coefficient)
 
     let liquidity: BN
     if (sqrtPriceX64.lte(sqrtPriceX64A)) {
@@ -2497,7 +2497,7 @@ export class AmmV3 extends Base {
       getTransferAmountFee(amounts.amountB.muln(coefficientRe), token2022Infos[poolInfo.mintB.mint.toString()]?.feeConfig, epochInfo, add),
     ]
 
-    return { liquidity, amountA, amountB, amountSlippageA, amountSlippageB, expirationTime: minExpirationTime(amountA.expirationTime, amountB.expirationTime) }
+    return { liquidity, amountA, amountB, amountSlippageA, amountSlippageB, expirationTime: minExpirationTime(amountA.expirationTime, amountB.expirationTime)! }
   }
 
   static getPriceAndTick({ poolInfo, price, baseIn }: { poolInfo: AmmV3PoolInfo, price: Decimal, baseIn: boolean }): ReturnTypeGetPriceAndTick {
@@ -2638,7 +2638,7 @@ export class AmmV3 extends Base {
       poolInfo,
       tickArrayCache,
       baseMint,
-      realAmountIn.amount.sub(realAmountIn.fee),
+      realAmountIn.amount.sub(realAmountIn.fee!),
       sqrtPriceLimitX64
     );
 
@@ -2725,7 +2725,7 @@ export class AmmV3 extends Base {
       poolInfo,
       tickArrayCache,
       baseMint,
-      realAmountOut.amount.sub(realAmountOut.fee),
+      realAmountOut.amount.sub(realAmountOut.fee!),
       sqrtPriceLimitX64
     );
 
@@ -3014,7 +3014,7 @@ export class AmmV3 extends Base {
       if (updateOwnerRewardAndFee) {
         const tickArrayKeys = Object.values(keyToTickArrayAddress)
         const tickArrayDatas = await getMultipleAccountsInfo(connection, tickArrayKeys, { batchRequest })
-        const tickArrayLayout = {}
+        const tickArrayLayout: {[key:string]:any} = {}
         for (let index = 0; index < tickArrayKeys.length; index++) {
           const tickArrayData = tickArrayDatas[index]
           if (tickArrayData === null) continue
@@ -3070,7 +3070,7 @@ export class AmmV3 extends Base {
   }
 
   static async fetchMultiplePoolTickArrays({ connection, poolKeys, batchRequest }: { connection: Connection, poolKeys: AmmV3PoolInfo[], batchRequest?: boolean }): Promise<ReturnTypeFetchMultiplePoolTickArrays> {
-    const tickArraysToPoolId = {}
+    const tickArraysToPoolId: {[key:string]:PublicKey} = {}
     const tickArrays: { pubkey: PublicKey }[] = []
     for (const itemPoolInfo of poolKeys) {
       const tickArrayBitmap = TickUtils.mergeTickArrayBitmap(itemPoolInfo.tickArrayBitmap);
@@ -3096,11 +3096,11 @@ export class AmmV3 extends Base {
       if (!itemAccountInfo.accountInfo) continue
       const poolId = tickArraysToPoolId[itemAccountInfo.pubkey.toString()]
       if (!poolId) continue
-      if (tickArrayCache[poolId] === undefined) tickArrayCache[poolId] = {}
+      if (tickArrayCache[poolId.toString()] === undefined) tickArrayCache[poolId.toString()] = {}
 
       const accountLayoutData = TickArrayLayout.decode(itemAccountInfo.accountInfo.data)
 
-      tickArrayCache[poolId][accountLayoutData.startTickIndex] = {
+      tickArrayCache[poolId.toString()][accountLayoutData.startTickIndex] = {
         ...accountLayoutData,
         address: itemAccountInfo.pubkey
       }

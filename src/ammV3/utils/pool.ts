@@ -215,7 +215,7 @@ export class PoolUtils {
     const nRewardInfo: AmmV3PoolRewardInfo[] = []
     for (let i = 0 ; i < rewardInfos.length; i++) {
       const _itemReward = rewardInfos[i]
-      const apiRewardProgram = apiPoolInfo.rewardInfos[i]?.programId ?? (await connection.getAccountInfo(_itemReward.tokenMint)).owner
+      const apiRewardProgram = apiPoolInfo.rewardInfos[i]?.programId ?? (await connection.getAccountInfo(_itemReward.tokenMint))!.owner
 
       const itemReward: AmmV3PoolRewardInfo = {
         ..._itemReward,

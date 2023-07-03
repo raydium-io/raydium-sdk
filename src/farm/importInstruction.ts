@@ -124,7 +124,7 @@ export function voterStakeRegistryCreateDepositEntry(
     depositEntryIndex,
     kind,
     option: startTs === undefined ? 0 : 1,
-    startTs,
+    startTs: startTs!,
     periods,
     allowClawback
   },data);

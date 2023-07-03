@@ -506,7 +506,7 @@ export class TradeV2 extends Base {
     executionPrice: Price | null,
     priceImpact: Percent,
     fee: [TokenAmountType, TokenAmountType],
-    remainingAccounts: [PublicKey[] | undefined, PublicKey[] | undefined],
+    remainingAccounts: [PublicKey[], PublicKey[]],
     expirationTime: number | undefined,
   } {
     const middleToken = new Token(middleMintInfo.programId, middleMintInfo.mint, middleMintInfo.decimals);
@@ -646,9 +646,9 @@ export class TradeV2 extends Base {
       executionPrice,
       priceImpact: firstPriceImpact.add(secondPriceImpact),
       fee: [firstFee, secondFee],
-      remainingAccounts: [firstRemainingAccounts, secondRemainingAccounts],
+      remainingAccounts: [firstRemainingAccounts as PublicKey[], secondRemainingAccounts  as PublicKey[] ],
       expirationTime: minExpirationTime(firstExpirationTime, secondExpirationTime),
-    }
+    };
   }
 
   static makeSwapInstruction({ routeProgram, ownerInfo, inputMint, swapInfo }: makeSwapInstructionParam) {
@@ -699,7 +699,7 @@ export class TradeV2 extends Base {
               routeProgram,
               ownerInfo.wallet,
               ownerInfo.sourceToken,
-              ownerInfo.routeToken,
+              ownerInfo.routeToken as PublicKey,
               ownerInfo.destinationToken,
 
               inputMint.toString(),

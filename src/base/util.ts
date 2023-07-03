@@ -165,7 +165,7 @@ export async function fetchMultipleMintInfos({ connection, mints, }: { connectio
 
   const mintK: ReturnTypeFetchMultipleMintInfos = {}
   for (const i of mintInfos) {
-    const t = unpackMint(i.pubkey, i.accountInfo, i.accountInfo.owner ?? TOKEN_PROGRAM_ID)
+    const t = unpackMint(i.pubkey, i.accountInfo, i.accountInfo!.owner ?? TOKEN_PROGRAM_ID)
     mintK[i.pubkey.toString()] = {
       ...t,
       feeConfig: getTransferFeeConfig(t) ?? undefined
