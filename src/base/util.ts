@@ -128,7 +128,10 @@ export function getTransferAmountFee(amount: BN, feeConfig: TransferFeeConfig | 
   const expirationTime: number | undefined = epochInfo.epoch < feeConfig.newerTransferFee.epoch ? (Number(feeConfig.newerTransferFee.epoch) * epochInfo.slotsInEpoch - epochInfo.absoluteSlot) * 400 / 1000 : undefined
 
   if (addFee) {
-    const TAmount = BNDivCeil(amount.mul(new BN(POINT)), new BN(POINT - nowFeeConfig.transferFeeBasisPoints))
+    const _TAmount = BNDivCeil(amount.mul(new BN(POINT)), new BN(POINT - nowFeeConfig.transferFeeBasisPoints))
+
+    const nowMaxFee = new BN(nowFeeConfig.maximumFee.toString())
+    const TAmount = _TAmount.sub(amount).gt(nowMaxFee) ? amount.add(nowMaxFee) : _TAmount
 
     const _fee = BNDivCeil(TAmount.mul(new BN(nowFeeConfig.transferFeeBasisPoints)), new BN(POINT))
     const fee = _fee.gt(maxFee) ? maxFee : _fee
@@ -165,7 +168,7 @@ export async function fetchMultipleMintInfos({ connection, mints, }: { connectio
 
   const mintK: ReturnTypeFetchMultipleMintInfos = {}
   for (const i of mintInfos) {
-    const t = unpackMint(i.pubkey, i.accountInfo, i.accountInfo!.owner ?? TOKEN_PROGRAM_ID)
+    const t = unpackMint(i.pubkey, i.accountInfo, i.accountInfo?.owner)
     mintK[i.pubkey.toString()] = {
       ...t,
       feeConfig: getTransferFeeConfig(t) ?? undefined

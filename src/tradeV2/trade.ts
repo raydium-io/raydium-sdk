@@ -88,7 +88,7 @@ export interface ComputeAmountOutRouteLayout {
   fee: TokenAmountType[],
   routeType: 'route',
   poolKey: PoolType[],
-  remainingAccounts: PublicKey[][]
+  remainingAccounts: (PublicKey[] | undefined)[]
   minMiddleAmountFee: TokenAmount,
   poolReady: boolean
   poolType: ('CLMM' | 'STABLE' | undefined)[]
@@ -506,7 +506,7 @@ export class TradeV2 extends Base {
     executionPrice: Price | null,
     priceImpact: Percent,
     fee: [TokenAmountType, TokenAmountType],
-    remainingAccounts: [PublicKey[], PublicKey[]],
+    remainingAccounts: [PublicKey[] | undefined, PublicKey[] | undefined],
     expirationTime: number | undefined,
   } {
     const middleToken = new Token(middleMintInfo.programId, middleMintInfo.mint, middleMintInfo.decimals);
@@ -646,9 +646,9 @@ export class TradeV2 extends Base {
       executionPrice,
       priceImpact: firstPriceImpact.add(secondPriceImpact),
       fee: [firstFee, secondFee],
-      remainingAccounts: [firstRemainingAccounts as PublicKey[], secondRemainingAccounts  as PublicKey[] ],
+      remainingAccounts: [firstRemainingAccounts, secondRemainingAccounts],
       expirationTime: minExpirationTime(firstExpirationTime, secondExpirationTime),
-    };
+    }
   }
 
   static makeSwapInstruction({ routeProgram, ownerInfo, inputMint, swapInfo }: makeSwapInstructionParam) {
@@ -691,6 +691,8 @@ export class TradeV2 extends Base {
       const poolKey1 = swapInfo.poolKey[0]
       const poolKey2 = swapInfo.poolKey[1]
 
+      if (ownerInfo.routeToken === undefined) throw Error('owner route token account check error')
+
       return {
         address: {},
         innerTransaction: {
@@ -699,7 +701,7 @@ export class TradeV2 extends Base {
               routeProgram,
               ownerInfo.wallet,
               ownerInfo.sourceToken,
-              ownerInfo.routeToken as PublicKey,
+              ownerInfo.routeToken,
               ownerInfo.destinationToken,
 
               inputMint.toString(),
@@ -715,7 +717,7 @@ export class TradeV2 extends Base {
             )
           ],
           signers: [],
-          lookupTableAddress: [],
+          lookupTableAddress: [new PublicKey(poolKey1.lookupTableAccount), new PublicKey(poolKey2.lookupTableAccount)],
           instructionTypes: [InstructionType.routeSwap],
           supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
         }
@@ -725,7 +727,7 @@ export class TradeV2 extends Base {
     }
   }
 
-  static async makeSwapInstructionSimple({ connection, swapInfo, ownerInfo, checkTransaction, computeBudgetConfig }: {
+  static async makeSwapInstructionSimple({ connection, swapInfo, ownerInfo, checkTransaction, computeBudgetConfig, routeProgram }: {
     connection: Connection
     swapInfo: ComputeAmountOutLayout,
     ownerInfo: {
@@ -734,6 +736,7 @@ export class TradeV2 extends Base {
       associatedOnly: boolean,
       checkCreateATAOwner: boolean,
     }
+    routeProgram: PublicKey
     checkTransaction: boolean
     computeBudgetConfig?: ComputeBudgetConfig
   }) {
@@ -752,8 +755,6 @@ export class TradeV2 extends Base {
     const inputProgramId = amountIn.amount instanceof TokenAmount ? amountIn.amount.token.programId : Token.WSOL.programId
     const outputMint = amountOut.amount instanceof TokenAmount ? amountOut.amount.token.mint : Token.WSOL.mint
     const outputProgramId = amountOut.amount instanceof TokenAmount ? amountOut.amount.token.programId : Token.WSOL.programId
-
-    const routeProgram = new PublicKey('routeUGWgWzqBWFcrCfv8tritsqukccJPu3q5GPP3xS')
 
     const sourceToken = await this._selectOrCreateTokenAccount({
       programId: inputProgramId,

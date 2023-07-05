@@ -155,6 +155,7 @@ export interface ApiPoolInfoV4 {
   marketBids: string,
   marketAsks: string,
   marketEventQueue: string,
+  lookupTableAccount: string,
 }
 
 export interface ApiPoolInfoV5 {
@@ -184,6 +185,7 @@ export interface ApiPoolInfoV5 {
   marketAsks: string,
   marketEventQueue: string,
   modelDataAccount: string,
+  lookupTableAccount: string,
 }
 export type ApiPoolInfoItem = ApiPoolInfoV4 | ApiPoolInfoV5
 

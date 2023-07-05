@@ -1,12 +1,14 @@
-import { Connection, PublicKey } from "@solana/web3.js";
-import BN from "bn.js";
+import { Connection, PublicKey } from '@solana/web3.js';
+import BN from 'bn.js';
 
-import { getMultipleAccountsInfo } from "../../common";
-import { TickArrayLayout } from "../layout";
+import { getMultipleAccountsInfo } from '../../common';
+import { TickArrayLayout } from '../layout';
 
-import { MAX_TICK_ARRAY_START_INDEX, MIN_TICK_ARRAY_START_INDEX } from "./constants";
-import { getPdaTickArrayAddress } from "./pda";
-import { Tick, TICK_ARRAY_SIZE, TickArray, TickUtils } from "./tick";
+import {
+  MAX_TICK_ARRAY_START_INDEX, MIN_TICK_ARRAY_START_INDEX,
+} from './constants';
+import { getPdaTickArrayAddress } from './pda';
+import { Tick, TICK_ARRAY_SIZE, TickArray, TickUtils } from './tick';
 
 export const FETCH_TICKARRAY_COUNT = 15;
 
@@ -24,36 +26,33 @@ export class TickQuery {
     poolId: PublicKey,
     tickCurrent: number,
     tickSpacing: number,
-    tickArrayBitmapArray: BN[],
+    tickArrayBitmapArray: BN[]
   ) {
     const tickArrayBitmap = TickUtils.mergeTickArrayBitmap(tickArrayBitmapArray);
     const tickArraysToFetch: PublicKey[] = [];
     const currentTickArrayStartIndex = TickUtils.getTickArrayStartIndexByTick(tickCurrent, tickSpacing);
 
-    const startIndexArray = TickUtils.getInitializedTickArrayInRange(
-      tickArrayBitmap,
-      tickSpacing,
-      currentTickArrayStartIndex,
-      Math.floor(FETCH_TICKARRAY_COUNT / 2),
-    );
+    const startIndexArray = TickUtils.getInitializedTickArrayInRange(tickArrayBitmap, tickSpacing, currentTickArrayStartIndex, Math.floor(FETCH_TICKARRAY_COUNT / 2));
     for (let i = 0; i < startIndexArray.length; i++) {
-      const { publicKey: tickArrayAddress } = getPdaTickArrayAddress(programId, poolId, startIndexArray[i]);
+      const { publicKey: tickArrayAddress } = getPdaTickArrayAddress(
+        programId,
+        poolId,
+        startIndexArray[i]
+      );
       tickArraysToFetch.push(tickArrayAddress);
     }
 
-    const fetchedTickArrays = (await getMultipleAccountsInfo(connection, tickArraysToFetch)).map((i) =>
-      i !== null ? TickArrayLayout.decode(i.data) : null,
-    );
+    const fetchedTickArrays = (await getMultipleAccountsInfo(connection, tickArraysToFetch)).map(i => i !== null ? TickArrayLayout.decode(i.data) : null)
 
     const tickArrayCache: { [key: string]: TickArray } = {};
     for (let i = 0; i < tickArraysToFetch.length; i++) {
-      const _info = fetchedTickArrays[i];
-      if (_info === null) continue;
+      const _info = fetchedTickArrays[i]
+      if (_info === null) continue
 
       tickArrayCache[_info.startTickIndex] = {
         ..._info,
         address: tickArraysToFetch[i],
-      };
+      }
     }
     return tickArrayCache;
   }
@@ -64,15 +63,26 @@ export class TickQuery {
     tickArrayCache: { [key: string]: TickArray },
     tickIndex: number,
     tickSpacing: number,
-    zeroForOne: boolean,
+    zeroForOne: boolean
   ) {
     let {
       initializedTick: nextTick,
       tickArrayAddress,
       tickArrayStartTickIndex,
-    } = this.nextInitializedTickInOneArray(programId, poolId, tickArrayCache, tickIndex, tickSpacing, zeroForOne);
+    } = this.nextInitializedTickInOneArray(
+      programId,
+      poolId,
+      tickArrayCache,
+      tickIndex,
+      tickSpacing,
+      zeroForOne
+    );
     while (nextTick == undefined || nextTick.liquidityGross.lten(0)) {
-      tickArrayStartTickIndex = TickUtils.getNextTickArrayStartIndex(tickArrayStartTickIndex, tickSpacing, zeroForOne);
+      tickArrayStartTickIndex = TickUtils.getNextTickArrayStartIndex(
+        tickArrayStartTickIndex,
+        tickSpacing,
+        zeroForOne
+      );
       if (
         tickArrayStartTickIndex < MIN_TICK_ARRAY_START_INDEX ||
         tickArrayStartTickIndex > MAX_TICK_ARRAY_START_INDEX
@@ -81,14 +91,15 @@ export class TickQuery {
       }
       const cachedTickArray = tickArrayCache[tickArrayStartTickIndex];
 
-      if (cachedTickArray === undefined) continue;
+      if (cachedTickArray === undefined) continue
 
-      const {
-        nextTick: _nextTick,
-        tickArrayAddress: _tickArrayAddress,
-        tickArrayStartTickIndex: _tickArrayStartTickIndex,
-      } = this.firstInitializedTickInOneArray(programId, poolId, cachedTickArray, zeroForOne);
-      [nextTick, tickArrayAddress, tickArrayStartTickIndex] = [_nextTick, _tickArrayAddress, _tickArrayStartTickIndex];
+      const { nextTick: _nextTick, tickArrayAddress: _tickArrayAddress, tickArrayStartTickIndex: _tickArrayStartTickIndex } = this.firstInitializedTickInOneArray(
+        programId,
+        poolId,
+        cachedTickArray,
+        zeroForOne
+      );
+      [nextTick, tickArrayAddress, tickArrayStartTickIndex] = [_nextTick, _tickArrayAddress, _tickArrayStartTickIndex]
     }
     if (nextTick == undefined) {
       throw new Error("No invaild tickArray cache");
@@ -102,15 +113,26 @@ export class TickQuery {
     tickArrayCache: { [key: string]: TickArray },
     tickIndex: number,
     tickSpacing: number,
-    zeroForOne: boolean,
-  ): { nextTick: Tick; tickArrayAddress: PublicKey; tickArrayStartTickIndex: number } {
+    zeroForOne: boolean
+  ) {
     let {
       initializedTick: nextTick,
       tickArrayAddress,
       tickArrayStartTickIndex,
-    } = this.nextInitializedTickInOneArray(programId, poolId, tickArrayCache, tickIndex, tickSpacing, zeroForOne);
+    } = this.nextInitializedTickInOneArray(
+      programId,
+      poolId,
+      tickArrayCache,
+      tickIndex,
+      tickSpacing,
+      zeroForOne
+    );
     do {
-      tickArrayStartTickIndex = TickUtils.getNextTickArrayStartIndex(tickArrayStartTickIndex, tickSpacing, zeroForOne);
+      tickArrayStartTickIndex = TickUtils.getNextTickArrayStartIndex(
+        tickArrayStartTickIndex,
+        tickSpacing,
+        zeroForOne
+      );
       if (
         tickArrayStartTickIndex < MIN_TICK_ARRAY_START_INDEX ||
         tickArrayStartTickIndex > MAX_TICK_ARRAY_START_INDEX
@@ -121,13 +143,14 @@ export class TickQuery {
 
       if (cachedTickArray === undefined) throw new Error("CachedTickArray undefined");
 
-      const {
-        nextTick: _nextTick,
-        tickArrayAddress: _tickArrayAddress,
-        tickArrayStartTickIndex: _tickArrayStartTickIndex,
-      } = this.firstInitializedTickInOneArray(programId, poolId, cachedTickArray, zeroForOne);
-      [nextTick, tickArrayAddress, tickArrayStartTickIndex] = [_nextTick, _tickArrayAddress, _tickArrayStartTickIndex];
-    } while (nextTick == undefined || nextTick.liquidityGross.lten(0));
+      const { nextTick: _nextTick, tickArrayAddress: _tickArrayAddress, tickArrayStartTickIndex: _tickArrayStartTickIndex } = this.firstInitializedTickInOneArray(
+        programId,
+        poolId,
+        cachedTickArray,
+        zeroForOne
+      );
+      [nextTick, tickArrayAddress, tickArrayStartTickIndex] = [_nextTick, _tickArrayAddress, _tickArrayStartTickIndex]
+    } while (nextTick == undefined || nextTick.liquidityGross.lten(0))
 
     if (nextTick == undefined) {
       throw new Error("No invaild tickArray cache");
@@ -139,7 +162,7 @@ export class TickQuery {
     programId: PublicKey,
     poolId: PublicKey,
     tickArray: TickArray,
-    zeroForOne: boolean,
+    zeroForOne: boolean
   ) {
     let nextInitializedTick: Tick | undefined = undefined;
     if (zeroForOne) {
@@ -163,7 +186,11 @@ export class TickQuery {
         i = i + 1;
       }
     }
-    const { publicKey: tickArrayAddress } = getPdaTickArrayAddress(programId, poolId, tickArray.startTickIndex);
+    const { publicKey: tickArrayAddress } = getPdaTickArrayAddress(
+      programId,
+      poolId,
+      tickArray.startTickIndex
+    );
     return { nextTick: nextInitializedTick, tickArrayAddress, tickArrayStartTickIndex: tickArray.startTickIndex };
   }
 
@@ -173,14 +200,19 @@ export class TickQuery {
     tickArrayCache: { [key: string]: TickArray },
     tickIndex: number,
     tickSpacing: number,
-    zeroForOne: boolean,
+    zeroForOne: boolean
   ): {
     initializedTick: Tick | undefined;
     tickArrayAddress: PublicKey | undefined;
     tickArrayStartTickIndex: number;
   } {
-    const startIndex = TickUtils.getTickArrayStartIndexByTick(tickIndex, tickSpacing);
-    let tickPositionInArray = Math.floor((tickIndex - startIndex) / tickSpacing);
+    const startIndex = TickUtils.getTickArrayStartIndexByTick(
+      tickIndex,
+      tickSpacing
+    );
+    let tickPositionInArray = Math.floor(
+      (tickIndex - startIndex) / tickSpacing
+    );
     const cachedTickArray = tickArrayCache[startIndex];
     if (cachedTickArray == undefined) {
       return {
@@ -210,7 +242,11 @@ export class TickQuery {
         tickPositionInArray = tickPositionInArray + 1;
       }
     }
-    const { publicKey: tickArrayAddress } = getPdaTickArrayAddress(programId, poolId, startIndex);
+    const { publicKey: tickArrayAddress } = getPdaTickArrayAddress(
+      programId,
+      poolId,
+      startIndex
+    );
     return {
       initializedTick: nextInitializedTick,
       tickArrayAddress,

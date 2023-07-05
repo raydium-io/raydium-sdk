@@ -1,6 +1,6 @@
-import { PublicKey } from "@solana/web3.js";
+import { PublicKey } from '@solana/web3.js';
 
-import { version } from "../version";
+import { version } from '../version';
 
 let _permanentCensorErrors = false;
 let _censorErrors = false;

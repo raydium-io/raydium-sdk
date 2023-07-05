@@ -1,3 +1,4 @@
+import { createAssociatedTokenAccountInstruction } from '@solana/spl-token';
 import {
   Connection, Keypair, PublicKey, Signer, SystemProgram, TransactionInstruction,
 } from '@solana/web3.js';
@@ -8,9 +9,9 @@ import {
 } from '../base';
 import { getATAAddress } from '../base/pda';
 import {
-  AccountMeta, AccountMetaReadonly,
+  AccountMeta, AccountMetaReadonly, ASSOCIATED_TOKEN_PROGRAM_ID,
   findProgramAddress, GetMultipleAccountsInfoConfig,
-  getMultipleAccountsInfoWithCustomFlags, Logger,
+  getMultipleAccountsInfoWithCustomFlags, Logger, RENT_PROGRAM_ID,
   splitTxAndSigners, SYSTEM_PROGRAM_ID, SYSVAR_CLOCK_PUBKEY, SYSVAR_RENT_PUBKEY,
   TOKEN_PROGRAM_ID,
 } from '../common';
@@ -29,7 +30,6 @@ import {
   FARM_LEDGER_LAYOUT_V5_2, FARM_STATE_LAYOUT_V6, FARM_VERSION_TO_LEDGER_LAYOUT,
   FARM_VERSION_TO_STATE_LAYOUT, FarmLedger, FarmState,
   REAL_FARM_STATE_LAYOUT_V3, REAL_FARM_STATE_LAYOUT_V5, Voter, VoterRegistrar,
-  FarmStructReward, FarmV6Reward
 } from './layout';
 import {
   getRegistrarAddress, getTokenOwnerRecordAddress, getVoterAddress,
@@ -1166,7 +1166,9 @@ export class Farm extends Base {
         const pendingRewards = state.rewardInfos.map((rewardInfo, index) => {
           const rewardDebt = ledger.rewardDebts[index];
           const pendingReward = ledger.deposited
-            .mul(state.version === 6 ? (rewardInfo as FarmV6Reward).accRewardPerShare : (rewardInfo as FarmStructReward).perShareReward)
+            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+            // @ts-ignore
+            .mul(state.version === 6 ? rewardInfo.accRewardPerShare : rewardInfo.perShareReward)
             .div(multiplier)
             .sub(rewardDebt);
 
@@ -1436,6 +1438,7 @@ export class Farm extends Base {
         "tokenAccounts",
         userKeys.tokenAccounts,
       );
+      if (userRewardToken === null) throw Error('cannot found target token accounts')
 
       const rewardMint = rewardInfo.rewardMint.equals(PublicKey.default) ? Token.WSOL.mint : rewardInfo.rewardMint;
       rewardInfoKey.push({
@@ -1446,7 +1449,7 @@ export class Farm extends Base {
           mint: rewardMint,
           type: "rewardVault",
         }),
-        userRewardToken: userRewardToken!,
+        userRewardToken,
       });
     }
 
@@ -1591,6 +1594,7 @@ export class Farm extends Base {
       "tokenAccounts",
       userKeys.tokenAccounts,
     );
+    if (userRewardToken === null) throw Error('cannot found target token accounts')
 
     const LAYOUT = struct([u8("instruction"), u64("rewardReopenTime"), u64("rewardEndTime"), u64("rewardPerSecond")]);
     const data = Buffer.alloc(LAYOUT.span);
@@ -1610,7 +1614,7 @@ export class Farm extends Base {
       AccountMeta(poolKeys.id, false),
       AccountMetaReadonly(poolKeys.lpVault, false),
       AccountMeta(rewardVault, false),
-      AccountMeta(userRewardToken!, false),
+      AccountMeta(userRewardToken, false),
       AccountMetaReadonly(userKeys.owner, true),
     ];
 
@@ -1701,6 +1705,7 @@ export class Farm extends Base {
       "tokenAccounts",
       userKeys.tokenAccounts,
     );
+    if (userRewardToken === null) throw Error('cannot found target token accounts')
 
     const rewardMint = newRewardInfo.rewardMint.equals(PublicKey.default) ? Token.WSOL.mint : newRewardInfo.rewardMint;
 
@@ -1734,7 +1739,7 @@ export class Farm extends Base {
       AccountMetaReadonly(poolKeys.authority, false),
       AccountMetaReadonly(rewardMint, false),
       AccountMeta(rewardVault, false),
-      AccountMeta(userRewardToken!, false),
+      AccountMeta(userRewardToken, false),
       AccountMetaReadonly(userKeys.owner, true),
     ];
 
@@ -2216,13 +2221,14 @@ export class Farm extends Base {
       const poolInfo = REAL_FARM_STATE_LAYOUT_V3.decode(poolIdToInfo[poolId])
 
       const [_lpInfo, _rewardInfo] = await connection.getMultipleAccountsInfo([poolInfo.lpVault, poolInfo.rewardVault])
-      const lpInfo = SPL_ACCOUNT_LAYOUT.decode(_lpInfo!.data)
-      const rewardInfo = SPL_ACCOUNT_LAYOUT.decode(_rewardInfo!.data)
+      if (_lpInfo === null || _rewardInfo === null) throw Error('get lp and reward info error')
+      const lpInfo = SPL_ACCOUNT_LAYOUT.decode(_lpInfo.data)
+      const rewardInfo = SPL_ACCOUNT_LAYOUT.decode(_rewardInfo.data)
 
       let lpAccount = mintToAccount[lpInfo.mint.toString()]
       if (lpAccount === undefined) {
         lpAccount = await this._selectOrCreateTokenAccount({
-          programId: _lpInfo!.owner,
+          programId: _lpInfo.owner,
           mint: lpInfo.mint,
           tokenAccounts: [],
           owner: wallet,
@@ -2236,7 +2242,7 @@ export class Farm extends Base {
       let rewardAccount = mintToAccount[rewardInfo.mint.toString()]
       if (rewardAccount === undefined) {
         rewardAccount = await this._selectOrCreateTokenAccount({
-          programId: _rewardInfo!.owner,
+          programId: _rewardInfo.owner,
           mint: rewardInfo.mint,
           tokenAccounts: [],
           owner: wallet,
@@ -2302,14 +2308,15 @@ export class Farm extends Base {
       const poolInfo = REAL_FARM_STATE_LAYOUT_V5.decode(poolIdToInfo[poolId])
 
       const [_lpInfo, _rewardInfoA, _rewardInfoB] = await connection.getMultipleAccountsInfo([poolInfo.lpVault, poolInfo.rewardVaultA, poolInfo.rewardVaultB])
-      const lpInfo = SPL_ACCOUNT_LAYOUT.decode(_lpInfo!.data)
-      const rewardInfoA = SPL_ACCOUNT_LAYOUT.decode(_rewardInfoA!.data)
-      const rewardInfoB = SPL_ACCOUNT_LAYOUT.decode(_rewardInfoB!.data)
+      if (_lpInfo === null || _rewardInfoA === null || _rewardInfoB === null) throw Error('get lp and reward A / B info error')
+      const lpInfo = SPL_ACCOUNT_LAYOUT.decode(_lpInfo.data)
+      const rewardInfoA = SPL_ACCOUNT_LAYOUT.decode(_rewardInfoA.data)
+      const rewardInfoB = SPL_ACCOUNT_LAYOUT.decode(_rewardInfoB.data)
 
       let lpAccount = mintToAccount[lpInfo.mint.toString()]
       if (lpAccount === undefined) {
         lpAccount = await this._selectOrCreateTokenAccount({
-          programId: _lpInfo!.owner,
+          programId: _lpInfo.owner,
           mint: lpInfo.mint,
           tokenAccounts: [],
           owner: wallet,
@@ -2323,7 +2330,7 @@ export class Farm extends Base {
       let rewardAccountA = mintToAccount[rewardInfoA.mint.toString()]
       if (rewardAccountA === undefined) {
         rewardAccountA = await this._selectOrCreateTokenAccount({
-          programId: _rewardInfoA!.owner,
+          programId: _rewardInfoA.owner,
           mint: rewardInfoA.mint,
           tokenAccounts: [],
           owner: wallet,
@@ -2337,7 +2344,7 @@ export class Farm extends Base {
       let rewardAccountB = mintToAccount[rewardInfoB.mint.toString()]
       if (rewardAccountB === undefined) {
         rewardAccountB = await this._selectOrCreateTokenAccount({
-          programId: _rewardInfoB!.owner,
+          programId: _rewardInfoB.owner,
           mint: rewardInfoB.mint,
           tokenAccounts: [],
           owner: wallet,

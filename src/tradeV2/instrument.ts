@@ -229,7 +229,7 @@ export function routeInstruction(
   amountIn: BN,
   amountOut: BN,
   
-  remainingAccounts: PublicKey[][]
+  remainingAccounts: (PublicKey[] | undefined)[]
 ) {
   const dataLayout = struct([
     u8("instruction"),
@@ -279,7 +279,7 @@ export function routeInstruction(
   });
 }
 
-function makeInnerInsKey(itemPool: PoolType, inMint: string, userInAccount: PublicKey, userOutAccount: PublicKey, remainingAccount: PublicKey[]) {
+function makeInnerInsKey(itemPool: PoolType, inMint: string, userInAccount: PublicKey, userOutAccount: PublicKey, remainingAccount: PublicKey[] | undefined) {
   if (itemPool.version === 4) {
     const poolKey = jsonInfo2PoolKeys(itemPool) as LiquidityPoolKeysV4
 
@@ -345,7 +345,7 @@ function makeInnerInsKey(itemPool: PoolType, inMint: string, userInAccount: Publ
       { pubkey: TOKEN_2022_PROGRAM_ID, isSigner: false, isWritable: false },
       { pubkey: baseIn ? itemPool.mintA.mint : itemPool.mintB.mint, isSigner: false, isWritable: true },
       { pubkey: baseIn ? itemPool.mintB.mint : itemPool.mintA.mint, isSigner: false, isWritable: true },
-      ...remainingAccount.map(i => ({ pubkey: i, isSigner: false, isWritable: true }))
+      ...(remainingAccount ?? []).map(i => ({ pubkey: i, isSigner: false, isWritable: true }))
     ]
   } else {
     throw Error('make swap ins error')

@@ -1,5 +1,5 @@
 import {
-  ComputeBudgetProgram, Connection, PublicKey, Signer, Transaction,
+  AccountInfo, ComputeBudgetProgram, Connection, PublicKey, Signer, Transaction,
   TransactionInstruction,
 } from '@solana/web3.js';
 import BN from 'bn.js';
@@ -543,6 +543,7 @@ export class Liquidity extends Base {
       // market keys
       marketId,
       marketAuthority,
+      lookupTableAccount: PublicKey.default,
     };
   }
 
@@ -601,7 +602,7 @@ export class Liquidity extends Base {
             data,
           })],
           signers: [],
-          lookupTableAddress: [],
+          lookupTableAddress: [poolKeys.lookupTableAccount].filter(i => !i.equals(PublicKey.default)),
           instructionTypes: [version === 4 ? InstructionType.ammV4AddLiquidity : InstructionType.ammV5AddLiquidity],
           supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
         }
@@ -852,7 +853,7 @@ export class Liquidity extends Base {
             })
           ],
           signers: [],
-          lookupTableAddress: [],
+          lookupTableAddress: [poolKeys.lookupTableAccount].filter(i => !i.equals(PublicKey.default)),
           instructionTypes: [version === 4 ? InstructionType.ammV4RemoveLiquidity : InstructionType.ammV5RemoveLiquidity],
           supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
         }
@@ -1082,7 +1083,7 @@ export class Liquidity extends Base {
           })
         ],
         signers: [],
-        lookupTableAddress: [],
+        lookupTableAddress: [poolKeys.lookupTableAccount].filter(i => !i.equals(PublicKey.default)),
         instructionTypes: [version === 4 ? InstructionType.ammV4SwapBaseIn : InstructionType.ammV5SwapBaseIn],
         supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
       }
@@ -1147,7 +1148,7 @@ export class Liquidity extends Base {
           })
         ],
         signers: [],
-        lookupTableAddress: [],
+        lookupTableAddress: [poolKeys.lookupTableAccount].filter(i => !i.equals(PublicKey.default)),
         instructionTypes: [version === 4 ? InstructionType.ammV4SwapBaseOut : InstructionType.ammV5SwapBaseOut],
         supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
       }
@@ -1323,7 +1324,7 @@ export class Liquidity extends Base {
           data,
         })],
         signers: [],
-        lookupTableAddress: [],
+        lookupTableAddress: [poolKeys.lookupTableAccount].filter(i => !i.equals(PublicKey.default)),
         instructionTypes: [InstructionType.ammV4CreatePool],
         supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
       }
@@ -1395,7 +1396,7 @@ export class Liquidity extends Base {
           data,
         })],
         signers: [],
-        lookupTableAddress: [],
+        lookupTableAddress: [poolKeys.lookupTableAccount].filter(i => !i.equals(PublicKey.default)),
         instructionTypes: [InstructionType.ammV4InitPool],
         supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
       }
@@ -1589,7 +1590,7 @@ export class Liquidity extends Base {
           })
         ],
         signers: [],
-        lookupTableAddress: [],
+        lookupTableAddress: [poolKeys.lookupTableAccount].filter(i => !i.equals(PublicKey.default)),
         instructionTypes: [poolKeys.version === 4 ? InstructionType.ammV4SimulatePoolInfo : InstructionType.ammV5SimulatePoolInfo],
         supportedVersion: [TxVersion.LEGACY, TxVersion.V0],
       }
@@ -1747,7 +1748,7 @@ export class Liquidity extends Base {
       innerTransactions: [{
         instructions: [...instructions, ...frontInstructions, ...ins.instructions, ...endInstructions],
         signers,
-        lookupTableAddress: [],
+        lookupTableAddress: ins.lookupTableAddress,
         instructionTypes: [...instructionTypes, ...frontInstructionsType, ...ins.instructionTypes, ...endInstructionsType],
         supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
       }]
@@ -1757,7 +1758,7 @@ export class Liquidity extends Base {
   static makeCreatePoolV4InstructionV2({
     programId, ammId, ammAuthority, ammOpenOrders, lpMint, coinMint, pcMint, coinVault, pcVault, withdrawQueue, 
     ammTargetOrders, poolTempLp, marketProgramId, marketId, userWallet, userCoinVault, userPcVault, userLpVault, 
-    nonce, openTime, coinAmount, pcAmount,
+    nonce, openTime, coinAmount, pcAmount, lookupTableAddress,
   }: {
     programId: PublicKey,
     ammId: PublicKey,
@@ -1777,6 +1778,8 @@ export class Liquidity extends Base {
     userCoinVault: PublicKey,
     userPcVault: PublicKey,
     userLpVault: PublicKey,
+
+    lookupTableAddress?: PublicKey,
 
     nonce: number,
     openTime: BN,
@@ -1822,7 +1825,7 @@ export class Liquidity extends Base {
       innerTransaction: {
         instructions: [ins],
         signers: [],
-        lookupTableAddress: [],
+        lookupTableAddress: lookupTableAddress ? [lookupTableAddress] : undefined,
         instructionTypes: [InstructionType.ammV4CreatePoolV2],
         supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
       }
@@ -1840,8 +1843,8 @@ export class Liquidity extends Base {
       tickLower: number,
       tickUpper: number,
       liquidity: BN,
-      amountSlippageA: BN,
-      amountSlippageB: BN,
+      amountMaxA: BN,
+      amountMaxB: BN,
     },
     userKeys: {
       tokenAccounts: TokenAccount[];
@@ -1937,7 +1940,7 @@ export class Liquidity extends Base {
     })
 
     const [tokenAccountA, tokenAccountB] = poolKeys.baseMint.equals(clmmPoolKeys.mintA.mint) ? [baseTokenAccount, quoteTokenAccount] : [quoteTokenAccount, baseTokenAccount]
-    const createPositionIns = AmmV3.makeOpenPositionInstructions({
+    const createPositionIns = AmmV3.makeOpenPositionFromLiquidityInstructions({
       poolInfo: clmmPoolKeys,
       ownerInfo: {
         feePayer: userKeys.payer ?? userKeys.owner,
@@ -2006,14 +2009,16 @@ export class Liquidity extends Base {
       instructions: [...withdrawFarmIns.instructions, ...removeIns.innerTransaction.instructions],
       signers: [...withdrawFarmIns.signers, ...removeIns.innerTransaction.signers],
       instructionTypes: [...withdrawFarmIns.instructionTypes, ...removeIns.innerTransaction.instructionTypes],
-      supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
+      supportedVersion: [TxVersion.LEGACY, TxVersion.V0],
+      lookupTableAddress: removeIns.innerTransaction.lookupTableAddress,
     })
 
     innerTransactions.push({
       instructions: [...instructions, ...createPositionIns.innerTransaction.instructions, ...endInstructions],
       signers: createPositionIns.innerTransaction.signers,
       instructionTypes: [...instructionTypes, ...createPositionIns.innerTransaction.instructionTypes, ...endInstructionsType],
-      supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
+      supportedVersion: [TxVersion.LEGACY, TxVersion.V0],
+      lookupTableAddress: createPositionIns.innerTransaction.lookupTableAddress,
     })
 
     return {
@@ -2123,7 +2128,8 @@ export class Liquidity extends Base {
         } : {
           withdrawQueue: (pool as LiquidityStateV4).withdrawQueue,
           lpVault: (pool as LiquidityStateV4).lpVault
-        })
+        }),
+        lookupTableAccount: PublicKey.default,
       })
     }
     return formatPoolInfos
