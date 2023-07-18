@@ -3,7 +3,9 @@ import { PublicKey, TransactionInstruction } from '@solana/web3.js';
 import BN from 'bn.js';
 
 import { AmmV3PoolInfo } from '../ammV3';
-import { jsonInfo2PoolKeys, SYSTEM_PROGRAM_ID } from '../common';
+import {
+  jsonInfo2PoolKeys, MEMO_PROGRAM_ID, SYSTEM_PROGRAM_ID,
+} from '../common';
 import { LiquidityPoolKeysV4 } from '../liquidity';
 import { struct, u64, u8 } from '../marshmallow';
 
@@ -343,8 +345,9 @@ function makeInnerInsKey(itemPool: PoolType, inMint: string, userInAccount: Publ
       { pubkey: baseIn ? itemPool.mintB.vault : itemPool.mintA.vault, isSigner: false, isWritable: true },
       { pubkey: itemPool.observationId, isSigner: false, isWritable: true },
       { pubkey: TOKEN_2022_PROGRAM_ID, isSigner: false, isWritable: false },
-      { pubkey: baseIn ? itemPool.mintA.mint : itemPool.mintB.mint, isSigner: false, isWritable: true },
-      { pubkey: baseIn ? itemPool.mintB.mint : itemPool.mintA.mint, isSigner: false, isWritable: true },
+      { pubkey: MEMO_PROGRAM_ID, isSigner: false, isWritable: false },
+      { pubkey: baseIn ? itemPool.mintA.mint : itemPool.mintB.mint, isSigner: false, isWritable: false },
+      { pubkey: baseIn ? itemPool.mintB.mint : itemPool.mintA.mint, isSigner: false, isWritable: false },
       ...(remainingAccount ?? []).map(i => ({ pubkey: i, isSigner: false, isWritable: true }))
     ]
   } else {

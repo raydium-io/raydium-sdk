@@ -668,7 +668,7 @@ export class TradeV2 extends Base {
           },
           inputMint,
           amountIn: swapInfo.amountIn.amount.raw,
-          amountOutMin: swapInfo.minAmountOut.amount.raw,
+          amountOutMin: swapInfo.minAmountOut.amount.raw.sub(swapInfo.minAmountOut.fee?.raw ?? ZERO),
           sqrtPriceLimitX64,
           remainingAccounts: swapInfo.remainingAccounts[0]
         })
@@ -683,7 +683,7 @@ export class TradeV2 extends Base {
             owner: ownerInfo.wallet,
           },
           amountIn: swapInfo.amountIn.amount.raw,
-          amountOut: swapInfo.minAmountOut.amount.raw,
+          amountOut: swapInfo.minAmountOut.amount.raw.sub(swapInfo.minAmountOut.fee?.raw ?? ZERO),
           fixedSide: "in",
         })
       }
@@ -711,7 +711,7 @@ export class TradeV2 extends Base {
               poolKey2,
 
               swapInfo.amountIn.amount.raw,
-              swapInfo.minAmountOut.amount.raw,
+              swapInfo.minAmountOut.amount.raw.sub(swapInfo.minAmountOut.fee?.raw ?? ZERO),
 
               swapInfo.remainingAccounts
             )
