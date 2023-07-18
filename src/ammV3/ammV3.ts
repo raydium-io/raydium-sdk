@@ -1678,7 +1678,7 @@ export class AmmV3 extends Base {
           endTime: rewardInfo.endTime,
           emissionsPerSecondX64: MathUtil.decimalToX64(rewardInfo.perSecond)
         }
-      }))
+      }) as MakeInstructionOutType)
     }
 
     let address = {}
@@ -1876,7 +1876,7 @@ export class AmmV3 extends Base {
         },
 
         rewardMint
-      }))
+      }) as MakeInstructionOutType)
     }
 
     let address = {}
@@ -2758,7 +2758,7 @@ export class AmmV3 extends Base {
             rewardVault,
             rewardMint,
 
-            rewardIndex,
+            rewardIndex ?? 0,
             rewardInfo.openTime,
             rewardInfo.endTime,
             rewardInfo.emissionsPerSecondX64
@@ -2805,7 +2805,7 @@ export class AmmV3 extends Base {
             rewardVault,
             rewardMint,
 
-            rewardIndex,
+            rewardIndex ?? 0,
           )
         ],
         signers: [],

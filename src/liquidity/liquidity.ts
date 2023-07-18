@@ -1,5 +1,5 @@
 import {
-  AccountInfo, ComputeBudgetProgram, Connection, PublicKey, Signer, Transaction,
+  ComputeBudgetProgram, Connection, PublicKey, Signer, Transaction,
   TransactionInstruction,
 } from '@solana/web3.js';
 import BN from 'bn.js';

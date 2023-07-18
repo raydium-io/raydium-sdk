@@ -701,7 +701,7 @@ export class TradeV2 extends Base {
               routeProgram,
               ownerInfo.wallet,
               ownerInfo.sourceToken,
-              ownerInfo.routeToken,
+              ownerInfo.routeToken as PublicKey,
               ownerInfo.destinationToken,
 
               inputMint.toString(),
