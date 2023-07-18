@@ -155,6 +155,7 @@ export interface ApiPoolInfoV4 {
   marketBids: string,
   marketAsks: string,
   marketEventQueue: string,
+  lookupTableAccount: string,
 }
 
 export interface ApiPoolInfoV5 {
@@ -184,6 +185,7 @@ export interface ApiPoolInfoV5 {
   marketAsks: string,
   marketEventQueue: string,
   modelDataAccount: string,
+  lookupTableAccount: string,
 }
 export type ApiPoolInfoItem = ApiPoolInfoV4 | ApiPoolInfoV5
 
@@ -346,6 +348,8 @@ export interface ApiAmmV3PoolsItemStatistics {
 }
 export interface ApiAmmV3PoolsItem {
   id: string,
+  mintProgramIdA: string,
+  mintProgramIdB: string,
   mintA: string,
   mintB: string,
   vaultA: string,
@@ -353,6 +357,10 @@ export interface ApiAmmV3PoolsItem {
   mintDecimalsA: number,
   mintDecimalsB: number,
   ammConfig: ApiAmmV3ConfigItem,
+  rewardInfos: {
+    mint: string,
+    programId: string
+  }[],
   tvl: number,
   day: ApiAmmV3PoolsItemStatistics,
   week: ApiAmmV3PoolsItemStatistics,

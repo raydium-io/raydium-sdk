@@ -1,19 +1,23 @@
+import { TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
 import {
-  Connection, Keypair, PublicKey, Signer, SystemProgram, TransactionInstruction,
+  Connection, EpochInfo, Keypair, PublicKey, Signer, SystemProgram,
+  TransactionInstruction,
 } from '@solana/web3.js';
 import BN from 'bn.js';
 import Decimal from 'decimal.js';
 
 import {
-  Base, ComputeBudgetConfig, InnerTransaction, InstructionType,
-  MakeInstructionOutType, TokenAccount, TxVersion,
+  Base, ComputeBudgetConfig, fetchMultipleMintInfos, getTransferAmountFee,
+  GetTransferAmountFee, InnerTransaction, InstructionType,
+  MakeInstructionOutType, minExpirationTime, ReturnTypeFetchMultipleMintInfos,
+  TokenAccount, TransferAmountFee, TxVersion,
 } from '../base';
 import { addComputeBudget } from '../base/instrument';
 import { getATAAddress } from '../base/pda';
 import { ApiAmmV3PoolsItem, ApiAmmV3PoolsItemStatistics } from '../baseInfo';
 import {
   getMultipleAccountsInfo, getMultipleAccountsInfoWithCustomFlags, Logger,
-  splitTxAndSigners,
+  splitTxAndSigners, TOKEN_PROGRAM_ID,
 } from '../common';
 import {
   Currency, CurrencyAmount, ONE, Percent, Price, Token, TokenAmount, ZERO,
@@ -22,9 +26,10 @@ import { SPL_ACCOUNT_LAYOUT } from '../spl';
 
 import {
   closePositionInstruction, collectRewardInstruction, createPoolInstruction,
-  decreaseLiquidityInstruction, increaseLiquidityInstruction,
-  initRewardInstruction, openPositionInstruction, setRewardInstruction,
-  swapInstruction,
+  decreaseLiquidityInstruction, increasePositionFromBaseInstruction,
+  increasePositionFromLiquidityInstruction, initRewardInstruction,
+  openPositionFromBaseInstruction, openPositionFromLiquidityInstruction,
+  setRewardInstruction, swapInstruction,
 } from './instrument';
 import {
   ObservationInfoLayout, OperationLayout, PoolInfoLayout, PositionInfoLayout,
@@ -77,6 +82,7 @@ export interface AmmV3PoolRewardInfo {
   emissionsPerSecondX64: BN;
   rewardTotalEmissioned: BN;
   rewardClaimed: BN;
+  tokenProgramId: PublicKey;
   tokenMint: PublicKey;
   tokenVault: PublicKey;
   creator: PublicKey;
@@ -87,11 +93,13 @@ export interface AmmV3PoolRewardInfo {
 export interface AmmV3PoolInfo {
   id: PublicKey,
   mintA: {
+    programId: PublicKey,
     mint: PublicKey,
     vault: PublicKey,
     decimals: number
   },
   mintB: {
+    programId: PublicKey,
     mint: PublicKey,
     vault: PublicKey,
     decimals: number
@@ -160,20 +168,19 @@ export interface AmmV3PoolPersonalPosition {
 
 export interface MintInfo {
   mint: PublicKey,
-  decimals: number
+  decimals: number,
+  programId: PublicKey,
 }
 
-export interface ReturnTypeGetLiquidityAmountOutFromAmountIn {
+export interface ReturnTypeGetLiquidityAmountOut {
   liquidity: BN,
-  amountSlippageA: BN,
-  amountSlippageB: BN,
-  amountA: BN,
-  amountB: BN
+  amountSlippageA: GetTransferAmountFee,
+  amountSlippageB: GetTransferAmountFee,
+  amountA: GetTransferAmountFee,
+  amountB: GetTransferAmountFee,
+  expirationTime: number | undefined,
 }
-export interface ReturnTypeGetAmountsFromLiquidity {
-  amountSlippageA: BN;
-  amountSlippageB: BN;
-}
+
 export interface ReturnTypeGetPriceAndTick {
   tick: number,
   price: Decimal
@@ -184,8 +191,10 @@ export interface ReturnTypeGetTickPrice {
   tickSqrtPriceX64: BN
 }
 export interface ReturnTypeComputeAmountOutFormat {
-  amountOut: CurrencyAmount,
-  minAmountOut: CurrencyAmount,
+  realAmountIn: TransferAmountFee,
+  amountOut: TransferAmountFee,
+  minAmountOut: TransferAmountFee,
+  expirationTime: number | undefined,
   currentPrice: Price,
   executionPrice: Price,
   priceImpact: Percent,
@@ -193,8 +202,10 @@ export interface ReturnTypeComputeAmountOutFormat {
   remainingAccounts: PublicKey[]
 }
 export interface ReturnTypeComputeAmountOut {
-  amountOut: BN,
-  minAmountOut: BN,
+  realAmountIn: GetTransferAmountFee,
+  amountOut: GetTransferAmountFee,
+  minAmountOut: GetTransferAmountFee,
+  expirationTime: number | undefined,
   currentPrice: Decimal,
   executionPrice: Decimal,
   priceImpact: Percent,
@@ -202,8 +213,10 @@ export interface ReturnTypeComputeAmountOut {
   remainingAccounts: PublicKey[]
 }
 export interface ReturnTypeComputeAmountOutBaseOut {
-  amountIn: BN,
-  maxAmountIn: BN,
+  amountIn: GetTransferAmountFee,
+  maxAmountIn: GetTransferAmountFee,
+  realAmountOut: GetTransferAmountFee,
+  expirationTime: number | undefined,
   currentPrice: Decimal,
   executionPrice: Decimal,
   priceImpact: Percent,
@@ -241,6 +254,8 @@ export class AmmV3 extends Base {
       mintBVault: PublicKey,
       mintA: PublicKey,
       mintB: PublicKey
+      mintProgramIdA: PublicKey,
+      mintProgramIdB: PublicKey
     },
     initialPrice: Decimal,
     startTime: BN,
@@ -255,11 +270,13 @@ export class AmmV3 extends Base {
     return {
       id: createPoolInstructionSimpleAddress.poolId,
       mintA: {
+        programId: createPoolInstructionSimpleAddress.mintProgramIdA,
         mint: createPoolInstructionSimpleAddress.mintA,
         vault: createPoolInstructionSimpleAddress.mintAVault,
         decimals: mintA.decimals
       },
       mintB: {
+        programId: createPoolInstructionSimpleAddress.mintProgramIdB,
         mint: createPoolInstructionSimpleAddress.mintB,
         vault: createPoolInstructionSimpleAddress.mintBVault,
         decimals: mintB.decimals
@@ -344,7 +361,7 @@ export class AmmV3 extends Base {
     })
 
     return {
-      address: { ...makeCreatePoolInstructions.address, mintA: mintA.mint, mintB: mintB.mint },
+      address: { ...makeCreatePoolInstructions.address, mintA: mintA.mint, mintB: mintB.mint, mintProgramIdA: mintA.programId, mintProgramIdB: mintB.programId },
       innerTransactions: [{
         instructions: [...instructions, ...makeCreatePoolInstructions.innerTransaction.instructions],
         signers: makeCreatePoolInstructions.innerTransaction.signers,
@@ -354,8 +371,8 @@ export class AmmV3 extends Base {
     }
   }
 
-  static async makeOpenPositionInstructionSimple(
-    { connection, poolInfo, ownerInfo, tickLower, tickUpper, liquidity, slippage, associatedOnly = true, checkCreateATAOwner = false, computeBudgetConfig }: {
+  static async makeOpenPositionFromLiquidityInstructionSimple(
+    { connection, poolInfo, ownerInfo, amountMaxA, amountMaxB, tickLower, tickUpper, liquidity, associatedOnly = true, checkCreateATAOwner = false, computeBudgetConfig }: {
       connection: Connection,
       poolInfo: AmmV3PoolInfo,
 
@@ -366,8 +383,8 @@ export class AmmV3 extends Base {
         useSOLBalance?: boolean  // if has WSOL mint (default: true)
       },
 
-      // priceLower: Decimal,
-      // priceUpper: Decimal,
+      amountMaxA: BN,
+      amountMaxB: BN,
 
       tickLower: number,
       tickUpper: number,
@@ -376,7 +393,7 @@ export class AmmV3 extends Base {
       slippage: number
       associatedOnly?: boolean,
       checkCreateATAOwner?: boolean,
-      computeBudgetConfig?: ComputeBudgetConfig
+      computeBudgetConfig?: ComputeBudgetConfig,
     }) {
     const { instructions, instructionTypes } = computeBudgetConfig ? addComputeBudget(computeBudgetConfig).innerTransaction : { instructions: [], instructionTypes: [] }
     const frontInstructions: TransactionInstruction[] = [];
@@ -386,33 +403,10 @@ export class AmmV3 extends Base {
 
     const signers: Signer[] = []
 
-    // const tickLower = TickMath.getTickWithPriceAndTickspacing(
-    //   priceLower,
-    //   poolInfo.ammConfig.tickSpacing,
-    //   poolInfo.mintA.decimals,
-    //   poolInfo.mintB.decimals
-    // );
-    // const tickUpper = TickMath.getTickWithPriceAndTickspacing(
-    //   priceUpper,
-    //   poolInfo.ammConfig.tickSpacing,
-    //   poolInfo.mintA.decimals,
-    //   poolInfo.mintB.decimals
-    // );
-
-    const { amountSlippageA, amountSlippageB } =
-      LiquidityMath.getAmountsFromLiquidityWithSlippage(
-        poolInfo.sqrtPriceX64,
-        SqrtPriceMath.getSqrtPriceX64FromTick(tickLower),
-        SqrtPriceMath.getSqrtPriceX64FromTick(tickUpper),
-        liquidity,
-        true,
-        true,
-        slippage
-      );
-
     const mintAUseSOLBalance = ownerInfo.useSOLBalance && poolInfo.mintA.mint.equals(Token.WSOL.mint)
     const mintBUseSOLBalance = ownerInfo.useSOLBalance && poolInfo.mintB.mint.equals(Token.WSOL.mint)
     const ownerTokenAccountA = await this._selectOrCreateTokenAccount({
+      programId: poolInfo.mintA.programId,
       mint: poolInfo.mintA.mint,
       tokenAccounts: mintAUseSOLBalance ? [] : ownerInfo.tokenAccounts,
       owner: ownerInfo.wallet,
@@ -420,7 +414,7 @@ export class AmmV3 extends Base {
       createInfo: mintAUseSOLBalance ? {
         connection,
         payer: ownerInfo.feePayer,
-        amount: amountSlippageA,
+        amount: amountMaxA,
 
         frontInstructions,
         endInstructions,
@@ -434,6 +428,7 @@ export class AmmV3 extends Base {
     })
 
     const ownerTokenAccountB = await this._selectOrCreateTokenAccount({
+      programId: poolInfo.mintB.programId,
       mint: poolInfo.mintB.mint,
       tokenAccounts: mintBUseSOLBalance ? [] : ownerInfo.tokenAccounts,
       owner: ownerInfo.wallet,
@@ -441,7 +436,7 @@ export class AmmV3 extends Base {
       createInfo: mintBUseSOLBalance ? {
         connection,
         payer: ownerInfo.feePayer,
-        amount: amountSlippageB,
+        amount: amountMaxB,
 
         frontInstructions,
         endInstructions,
@@ -461,7 +456,7 @@ export class AmmV3 extends Base {
       ownerInfo.tokenAccounts,
     );
 
-    const makeOpenPositionInstructions = this.makeOpenPositionInstructions({
+    const makeOpenPositionInstructions = this.makeOpenPositionFromLiquidityInstructions({
       poolInfo,
       ownerInfo: {
         ...ownerInfo,
@@ -471,8 +466,8 @@ export class AmmV3 extends Base {
       tickLower,
       tickUpper,
       liquidity,
-      amountSlippageA,
-      amountSlippageB,
+      amountMaxA,
+      amountMaxB,
     })
 
     return {
@@ -489,25 +484,29 @@ export class AmmV3 extends Base {
     }
   }
 
-  static async makeIncreaseLiquidityInstructionSimple({
-    connection, poolInfo, ownerPosition, ownerInfo, liquidity, slippage, associatedOnly = true, checkCreateATAOwner = false, computeBudgetConfig
-  }: {
-    connection: Connection
-    poolInfo: AmmV3PoolInfo,
-    ownerPosition: AmmV3PoolPersonalPosition,
-    ownerInfo: {
-      feePayer: PublicKey,
-      wallet: PublicKey,
-      tokenAccounts: TokenAccount[],
-      useSOLBalance?: boolean  // if has WSOL mint
-    },
+  static async makeOpenPositionFromBaseInstructionSimple(
+    { connection, poolInfo, ownerInfo, tickLower, tickUpper, base, baseAmount, otherAmountMax, associatedOnly = true, checkCreateATAOwner = false, computeBudgetConfig }: {
+      connection: Connection,
+      poolInfo: AmmV3PoolInfo,
 
-    liquidity: BN,
-    slippage: number,
-    associatedOnly?: boolean,
-    checkCreateATAOwner?: boolean,
-    computeBudgetConfig?: ComputeBudgetConfig
-  }) {
+      ownerInfo: {
+        feePayer: PublicKey,
+        wallet: PublicKey,
+        tokenAccounts: TokenAccount[],
+        useSOLBalance?: boolean  // if has WSOL mint (default: true)
+      },
+      
+      tickLower: number,
+      tickUpper: number,
+
+      base: 'MintA' | 'MintB',
+      baseAmount: BN,
+      otherAmountMax: BN,
+
+      associatedOnly?: boolean,
+      checkCreateATAOwner?: boolean,
+      computeBudgetConfig?: ComputeBudgetConfig,
+    }) {
     const { instructions, instructionTypes } = computeBudgetConfig ? addComputeBudget(computeBudgetConfig).innerTransaction : { instructions: [], instructionTypes: [] }
     const frontInstructions: TransactionInstruction[] = [];
     const endInstructions: TransactionInstruction[] = [];
@@ -516,20 +515,10 @@ export class AmmV3 extends Base {
 
     const signers: Signer[] = []
 
-    const { amountSlippageA, amountSlippageB } =
-      LiquidityMath.getAmountsFromLiquidityWithSlippage(
-        poolInfo.sqrtPriceX64,
-        SqrtPriceMath.getSqrtPriceX64FromTick(ownerPosition.tickLower),
-        SqrtPriceMath.getSqrtPriceX64FromTick(ownerPosition.tickUpper),
-        liquidity,
-        true,
-        true,
-        slippage
-      );
-
     const mintAUseSOLBalance = ownerInfo.useSOLBalance && poolInfo.mintA.mint.equals(Token.WSOL.mint)
     const mintBUseSOLBalance = ownerInfo.useSOLBalance && poolInfo.mintB.mint.equals(Token.WSOL.mint)
     const ownerTokenAccountA = await this._selectOrCreateTokenAccount({
+      programId: poolInfo.mintA.programId,
       mint: poolInfo.mintA.mint,
       tokenAccounts: mintAUseSOLBalance ? [] : ownerInfo.tokenAccounts,
       owner: ownerInfo.wallet,
@@ -537,7 +526,7 @@ export class AmmV3 extends Base {
       createInfo: mintAUseSOLBalance ? {
         connection,
         payer: ownerInfo.feePayer,
-        amount: amountSlippageA,
+        amount: base === 'MintA'? baseAmount : otherAmountMax,
 
         frontInstructions,
         endInstructions,
@@ -551,6 +540,7 @@ export class AmmV3 extends Base {
     })
 
     const ownerTokenAccountB = await this._selectOrCreateTokenAccount({
+      programId: poolInfo.mintB.programId,
       mint: poolInfo.mintB.mint,
       tokenAccounts: mintBUseSOLBalance ? [] : ownerInfo.tokenAccounts,
       owner: ownerInfo.wallet,
@@ -558,7 +548,118 @@ export class AmmV3 extends Base {
       createInfo: mintBUseSOLBalance ? {
         connection,
         payer: ownerInfo.feePayer,
-        amount: amountSlippageB,
+        amount: base === 'MintA'? otherAmountMax : baseAmount,
+
+        frontInstructions,
+        endInstructions,
+        frontInstructionsType,
+        endInstructionsType,
+        signers
+      } : undefined,
+
+      associatedOnly: mintBUseSOLBalance ? false : associatedOnly,
+      checkCreateATAOwner,
+    })
+
+    logger.assertArgument(
+      ownerTokenAccountA !== undefined && ownerTokenAccountB !== undefined,
+      "cannot found target token accounts",
+      "tokenAccounts",
+      ownerInfo.tokenAccounts,
+    );
+
+    const makeOpenPositionInstructions = this.makeOpenPositionFromBaseInstructions({
+      poolInfo,
+      ownerInfo: {
+        ...ownerInfo,
+        tokenAccountA: ownerTokenAccountA,
+        tokenAccountB: ownerTokenAccountB
+      },
+      tickLower,
+      tickUpper,
+
+      base,
+      baseAmount,
+      otherAmountMax,
+    })
+
+    return {
+      address: makeOpenPositionInstructions.address,
+      innerTransactions: [
+        {
+          instructions: [...instructions, ...frontInstructions, ...makeOpenPositionInstructions.innerTransaction.instructions, ...endInstructions],
+          signers: [...signers, ...makeOpenPositionInstructions.innerTransaction.signers],
+          lookupTableAddress: makeOpenPositionInstructions.innerTransaction.lookupTableAddress,
+          instructionTypes: [...instructionTypes, ...frontInstructionsType, ...makeOpenPositionInstructions.innerTransaction.instructionTypes, ...endInstructionsType],
+          supportedVersion: makeOpenPositionInstructions.innerTransaction.supportedVersion
+        }
+      ]
+    }
+  }
+
+  static async makeIncreasePositionFromLiquidityInstructionSimple({
+    connection, poolInfo, ownerPosition, ownerInfo, amountMaxA, amountMaxB, liquidity, associatedOnly = true, checkCreateATAOwner = false, computeBudgetConfig
+  }: {
+    connection: Connection
+    poolInfo: AmmV3PoolInfo,
+    ownerPosition: AmmV3PoolPersonalPosition,
+    ownerInfo: {
+      feePayer: PublicKey,
+      wallet: PublicKey,
+      tokenAccounts: TokenAccount[],
+      useSOLBalance?: boolean  // if has WSOL mint
+    },
+
+    amountMaxA: BN,
+    amountMaxB: BN,
+
+    liquidity: BN,
+    associatedOnly?: boolean,
+    checkCreateATAOwner?: boolean,
+    computeBudgetConfig?: ComputeBudgetConfig,
+  }) {
+    const { instructions, instructionTypes } = computeBudgetConfig ? addComputeBudget(computeBudgetConfig).innerTransaction : { instructions: [], instructionTypes: [] }
+    const frontInstructions: TransactionInstruction[] = [];
+    const endInstructions: TransactionInstruction[] = [];
+    const frontInstructionsType: InstructionType[] = [];
+    const endInstructionsType: InstructionType[] = [];
+
+    const signers: Signer[] = []
+
+    const mintAUseSOLBalance = ownerInfo.useSOLBalance && poolInfo.mintA.mint.equals(Token.WSOL.mint)
+    const mintBUseSOLBalance = ownerInfo.useSOLBalance && poolInfo.mintB.mint.equals(Token.WSOL.mint)
+    const ownerTokenAccountA = await this._selectOrCreateTokenAccount({
+      programId: poolInfo.mintA.programId,
+      mint: poolInfo.mintA.mint,
+      tokenAccounts: mintAUseSOLBalance ? [] : ownerInfo.tokenAccounts,
+      owner: ownerInfo.wallet,
+
+      createInfo: mintAUseSOLBalance ? {
+        connection,
+        payer: ownerInfo.feePayer,
+        amount: amountMaxA,
+
+        frontInstructions,
+        endInstructions,
+        frontInstructionsType,
+        endInstructionsType,
+        signers
+      } : undefined,
+
+      associatedOnly: mintAUseSOLBalance ? false : associatedOnly,
+      checkCreateATAOwner,
+    })
+
+    const ownerTokenAccountB = await this._selectOrCreateTokenAccount({
+      programId: poolInfo.mintB.programId,
+      mint: poolInfo.mintB.mint,
+      tokenAccounts: mintBUseSOLBalance ? [] : ownerInfo.tokenAccounts,
+      owner: ownerInfo.wallet,
+
+      createInfo: mintBUseSOLBalance ? {
+        connection,
+        payer: ownerInfo.feePayer,
+        amount: amountMaxB,
 
         frontInstructions,
         endInstructions,
@@ -578,7 +679,7 @@ export class AmmV3 extends Base {
       ownerInfo.tokenAccounts,
     );
 
-    const makeIncreaseLiquidityInstructions = this.makeIncreaseLiquidityInstructions({
+    const makeIncreaseLiquidityInstructions = this.makeIncreasePositionFromLiquidityInstructions({
       poolInfo,
       ownerPosition,
       ownerInfo: {
@@ -587,8 +688,118 @@ export class AmmV3 extends Base {
         tokenAccountB: ownerTokenAccountB
       },
       liquidity,
-      amountSlippageA,
-      amountSlippageB
+      amountMaxA,
+      amountMaxB,
+    })
+
+    return {
+      address: makeIncreaseLiquidityInstructions.address,
+      innerTransactions: [
+        {
+          instructions: [...instructions, ...frontInstructions, ...makeIncreaseLiquidityInstructions.innerTransaction.instructions, ...endInstructions],
+          signers: [...signers, ...makeIncreaseLiquidityInstructions.innerTransaction.signers],
+          lookupTableAddress: makeIncreaseLiquidityInstructions.innerTransaction.lookupTableAddress,
+          instructionTypes: [...instructionTypes, ...frontInstructionsType, ...makeIncreaseLiquidityInstructions.innerTransaction.instructionTypes, ...endInstructionsType],
+          supportedVersion: makeIncreaseLiquidityInstructions.innerTransaction.supportedVersion
+        }
+      ]
+    }
+  }
+
+  static async makeIncreasePositionFromBaseInstructionSimple({
+    connection, poolInfo, ownerPosition, ownerInfo, base, baseAmount, otherAmountMax, associatedOnly = true, checkCreateATAOwner = false, computeBudgetConfig
+  }: {
+    connection: Connection
+    poolInfo: AmmV3PoolInfo,
+    ownerPosition: AmmV3PoolPersonalPosition,
+    ownerInfo: {
+      feePayer: PublicKey,
+      wallet: PublicKey,
+      tokenAccounts: TokenAccount[],
+      useSOLBalance?: boolean  // if has WSOL mint
+    },
+
+    base: 'MintA' | 'MintB',
+    baseAmount: BN,
+    otherAmountMax: BN,
+
+    associatedOnly?: boolean,
+    checkCreateATAOwner?: boolean,
+    computeBudgetConfig?: ComputeBudgetConfig,
+  }) {
+    const { instructions, instructionTypes } = computeBudgetConfig ? addComputeBudget(computeBudgetConfig).innerTransaction : { instructions: [], instructionTypes: [] }
+    const frontInstructions: TransactionInstruction[] = [];
+    const endInstructions: TransactionInstruction[] = [];
+    const frontInstructionsType: InstructionType[] = [];
+    const endInstructionsType: InstructionType[] = [];
+
+    const signers: Signer[] = []
+
+    const mintAUseSOLBalance = ownerInfo.useSOLBalance && poolInfo.mintA.mint.equals(Token.WSOL.mint)
+    const mintBUseSOLBalance = ownerInfo.useSOLBalance && poolInfo.mintB.mint.equals(Token.WSOL.mint)
+    const ownerTokenAccountA = await this._selectOrCreateTokenAccount({
+      programId: poolInfo.mintA.programId,
+      mint: poolInfo.mintA.mint,
+      tokenAccounts: mintAUseSOLBalance ? [] : ownerInfo.tokenAccounts,
+      owner: ownerInfo.wallet,
+
+      createInfo: mintAUseSOLBalance ? {
+        connection,
+        payer: ownerInfo.feePayer,
+        amount: base === 'MintA'? baseAmount : otherAmountMax,
+
+        frontInstructions,
+        endInstructions,
+        frontInstructionsType,
+        endInstructionsType,
+        signers
+      } : undefined,
+
+      associatedOnly: mintAUseSOLBalance ? false : associatedOnly,
+      checkCreateATAOwner,
+    })
+
+    const ownerTokenAccountB = await this._selectOrCreateTokenAccount({
+      programId: poolInfo.mintB.programId,
+      mint: poolInfo.mintB.mint,
+      tokenAccounts: mintBUseSOLBalance ? [] : ownerInfo.tokenAccounts,
+      owner: ownerInfo.wallet,
+
+      createInfo: mintBUseSOLBalance ? {
+        connection,
+        payer: ownerInfo.feePayer,
+        amount: base === 'MintA'? otherAmountMax : baseAmount,
+
+        frontInstructions,
+        endInstructions,
+        frontInstructionsType,
+        endInstructionsType,
+        signers
+      } : undefined,
+
+      associatedOnly: mintBUseSOLBalance ? false : associatedOnly,
+      checkCreateATAOwner,
+    })
+
+    logger.assertArgument(
+      !!ownerTokenAccountA || !!ownerTokenAccountB,
+      "cannot found target token accounts",
+      "tokenAccounts",
+      ownerInfo.tokenAccounts,
+    );
+
+    const makeIncreaseLiquidityInstructions = this.makeIncreasePositionFromBaseInstructions({
+      poolInfo,
+      ownerPosition,
+      ownerInfo: {
+        wallet: ownerInfo.wallet,
+        tokenAccountA: ownerTokenAccountA,
+        tokenAccountB: ownerTokenAccountB
+      },
+
+      base,
+      baseAmount,
+      otherAmountMax,
     })
 
     return {
@@ -606,7 +817,7 @@ export class AmmV3 extends Base {
   }
 
   static async makeDecreaseLiquidityInstructionSimple({
-    connection, poolInfo, ownerPosition, ownerInfo, liquidity, amountMinA, amountMinB, slippage, associatedOnly = true, checkCreateATAOwner = false, computeBudgetConfig
+    connection, poolInfo, ownerPosition, ownerInfo, liquidity, amountMinA, amountMinB, associatedOnly = true, checkCreateATAOwner = false, computeBudgetConfig
   }: {
     connection: Connection
     poolInfo: AmmV3PoolInfo,
@@ -620,9 +831,9 @@ export class AmmV3 extends Base {
     },
 
     liquidity: BN,
-    amountMinA?: BN,
-    amountMinB?: BN,
-    slippage?: number
+    amountMinA: BN,
+    amountMinB: BN,
+
     associatedOnly?: boolean
     checkCreateATAOwner?: boolean
     computeBudgetConfig?: ComputeBudgetConfig
@@ -634,30 +845,11 @@ export class AmmV3 extends Base {
     const endInstructionsType: InstructionType[] = [];
     const signers: Signer[] = []
 
-    let _amountMinA: BN
-    let _amountMinB: BN
-    if (amountMinA !== undefined && amountMinB !== undefined) {
-      _amountMinA = amountMinA
-      _amountMinB = amountMinB
-    } else {
-      const { amountSlippageA, amountSlippageB } =
-        LiquidityMath.getAmountsFromLiquidityWithSlippage(
-          poolInfo.sqrtPriceX64,
-          SqrtPriceMath.getSqrtPriceX64FromTick(ownerPosition.tickLower),
-          SqrtPriceMath.getSqrtPriceX64FromTick(ownerPosition.tickUpper),
-          liquidity,
-          false,
-          true,
-          slippage ?? 0
-        );
-      _amountMinA = amountSlippageA
-      _amountMinB = amountSlippageB
-    }
-
     const mintAUseSOLBalance = ownerInfo.useSOLBalance && poolInfo.mintA.mint.equals(Token.WSOL.mint)
     const mintBUseSOLBalance = ownerInfo.useSOLBalance && poolInfo.mintB.mint.equals(Token.WSOL.mint)
 
     const ownerTokenAccountA = await this._selectOrCreateTokenAccount({
+      programId: poolInfo.mintA.programId,
       mint: poolInfo.mintA.mint,
       tokenAccounts: mintAUseSOLBalance ? [] : ownerInfo.tokenAccounts,
       owner: ownerInfo.wallet,
@@ -679,6 +871,7 @@ export class AmmV3 extends Base {
     })
 
     const ownerTokenAccountB = await this._selectOrCreateTokenAccount({
+      programId: poolInfo.mintB.programId,
       mint: poolInfo.mintB.mint,
       tokenAccounts: mintBUseSOLBalance ? [] : ownerInfo.tokenAccounts,
       owner: ownerInfo.wallet,
@@ -704,6 +897,7 @@ export class AmmV3 extends Base {
       const rewardUseSOLBalance = ownerInfo.useSOLBalance && itemReward.tokenMint.equals(Token.WSOL.mint)
 
       const ownerRewardAccount = await this._selectOrCreateTokenAccount({
+        programId: itemReward.tokenProgramId,
         mint: itemReward.tokenMint,
         tokenAccounts: rewardUseSOLBalance ? [] : ownerInfo.tokenAccounts,
         owner: ownerInfo.wallet,
@@ -743,8 +937,8 @@ export class AmmV3 extends Base {
         rewardAccounts
       },
       liquidity,
-      amountMinA: _amountMinA,
-      amountMinB: _amountMinB
+      amountMinA,
+      amountMinB,
     })
 
     const makeClosePositionInstructions: MakeInstructionOutType = ownerInfo.closePosition ? this.makeClosePositionInstructions({
@@ -825,6 +1019,7 @@ export class AmmV3 extends Base {
     const mintAUseSOLBalance = ownerInfo.useSOLBalance && poolInfo.mintA.mint.equals(Token.WSOL.mint)
     const mintBUseSOLBalance = ownerInfo.useSOLBalance && poolInfo.mintB.mint.equals(Token.WSOL.mint)
     const ownerTokenAccountA = await this._selectOrCreateTokenAccount({
+      programId: poolInfo.mintA.programId,
       mint: poolInfo.mintA.mint,
       tokenAccounts: mintAUseSOLBalance ? [] : ownerInfo.tokenAccounts,
       owner: ownerInfo.wallet,
@@ -846,6 +1041,7 @@ export class AmmV3 extends Base {
     })
 
     const ownerTokenAccountB = await this._selectOrCreateTokenAccount({
+      programId: poolInfo.mintB.programId,
       mint: poolInfo.mintB.mint,
       tokenAccounts: mintBUseSOLBalance ? [] : ownerInfo.tokenAccounts,
       owner: ownerInfo.wallet,
@@ -965,6 +1161,7 @@ export class AmmV3 extends Base {
     const mintBUseSOLBalance = ownerInfo.useSOLBalance && poolInfo.mintB.mint.equals(Token.WSOL.mint)
 
     const ownerTokenAccountA = await this._selectOrCreateTokenAccount({
+      programId: poolInfo.mintA.programId,
       mint: poolInfo.mintA.mint,
       tokenAccounts: mintAUseSOLBalance ? [] : ownerInfo.tokenAccounts,
       owner: ownerInfo.wallet,
@@ -985,6 +1182,7 @@ export class AmmV3 extends Base {
       checkCreateATAOwner,
     })
     const ownerTokenAccountB = await this._selectOrCreateTokenAccount({
+      programId: poolInfo.mintB.programId,
       mint: poolInfo.mintB.mint,
       tokenAccounts: mintBUseSOLBalance ? [] : ownerInfo.tokenAccounts,
       owner: ownerInfo.wallet,
@@ -1079,6 +1277,7 @@ export class AmmV3 extends Base {
     },
 
     rewardInfo: {
+      programId: PublicKey,
       mint: PublicKey,
       openTime: number,
       endTime: number,
@@ -1109,7 +1308,10 @@ export class AmmV3 extends Base {
     const signers: Signer[] = []
 
     const rewardMintUseSOLBalance = ownerInfo.useSOLBalance && rewardInfo.mint.equals(Token.WSOL.mint)
+
+    const _baseRewardAmount = rewardInfo.perSecond.mul(rewardInfo.endTime - rewardInfo.openTime)
     const ownerRewardAccount = await this._selectOrCreateTokenAccount({
+      programId: rewardInfo.programId,
       mint: rewardInfo.mint,
       tokenAccounts: rewardMintUseSOLBalance ? [] : ownerInfo.tokenAccounts,
       owner: ownerInfo.wallet,
@@ -1117,7 +1319,7 @@ export class AmmV3 extends Base {
       createInfo: rewardMintUseSOLBalance ? {
         connection,
         payer: ownerInfo.feePayer,
-        amount: new BN(new Decimal(rewardInfo.perSecond.sub(rewardInfo.endTime - rewardInfo.openTime).toFixed(0)).gte(rewardInfo.perSecond.sub(rewardInfo.endTime - rewardInfo.openTime)) ? rewardInfo.perSecond.sub(rewardInfo.endTime - rewardInfo.openTime).toFixed(0) : rewardInfo.perSecond.sub(rewardInfo.endTime - rewardInfo.openTime).add(1).toFixed(0)),
+        amount: new BN(new Decimal(_baseRewardAmount.toFixed(0)).gte(_baseRewardAmount) ? _baseRewardAmount.toFixed(0) : _baseRewardAmount.add(1).toFixed(0)),
 
         frontInstructions,
         endInstructions,
@@ -1144,6 +1346,7 @@ export class AmmV3 extends Base {
         tokenAccount: ownerRewardAccount
       },
       rewardInfo: {
+        programId: rewardInfo.programId,
         mint: rewardInfo.mint,
         openTime: rewardInfo.openTime,
         endTime: rewardInfo.endTime,
@@ -1184,6 +1387,7 @@ export class AmmV3 extends Base {
     },
 
     rewardInfos: {
+      programId: PublicKey,
       mint: PublicKey,
       openTime: number,
       endTime: number,
@@ -1205,14 +1409,17 @@ export class AmmV3 extends Base {
 
     for (const rewardInfo of rewardInfos) {
       const rewardMintUseSOLBalance = ownerInfo.useSOLBalance && rewardInfo.mint.equals(Token.WSOL.mint)
+
+      const _baseRewardAmount = rewardInfo.perSecond.mul(rewardInfo.endTime - rewardInfo.openTime)
       const ownerRewardAccount = await this._selectOrCreateTokenAccount({
+        programId: rewardInfo.programId,
         mint: rewardInfo.mint,
         tokenAccounts: rewardMintUseSOLBalance ? [] : ownerInfo.tokenAccounts,
         owner: ownerInfo.wallet,
         createInfo: rewardMintUseSOLBalance ? {
           connection,
           payer: ownerInfo.feePayer,
-          amount: new BN(new Decimal(rewardInfo.perSecond.sub(rewardInfo.endTime - rewardInfo.openTime).toFixed(0)).gte(rewardInfo.perSecond.sub(rewardInfo.endTime - rewardInfo.openTime)) ? rewardInfo.perSecond.sub(rewardInfo.endTime - rewardInfo.openTime).toFixed(0) : rewardInfo.perSecond.sub(rewardInfo.endTime - rewardInfo.openTime).add(1).toFixed(0)),
+          amount: new BN(new Decimal(_baseRewardAmount.toFixed(0)).gte(_baseRewardAmount) ? _baseRewardAmount.toFixed(0) : _baseRewardAmount.add(1).toFixed(0)),
 
           frontInstructions,
           endInstructions,
@@ -1239,6 +1446,7 @@ export class AmmV3 extends Base {
           tokenAccount: ownerRewardAccount
         },
         rewardInfo: {
+          programId: rewardInfo.programId,
           mint: rewardInfo.mint,
           openTime: rewardInfo.openTime,
           endTime: rewardInfo.endTime,
@@ -1259,7 +1467,8 @@ export class AmmV3 extends Base {
           instructions: [...instructions, ...frontInstructions, ...makeInitRewardInstructions.map(i => i.innerTransaction.instructions).flat(), ...endInstructions],
           signers: [...signers, ...makeInitRewardInstructions.map(i => i.innerTransaction.signers).flat()],
           instructionTypes: [...instructionTypes, ...frontInstructionsType, ...makeInitRewardInstructions.map(i => i.innerTransaction.instructionTypes).flat(), ...endInstructionsType],
-          supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
+          supportedVersion: [TxVersion.LEGACY, TxVersion.V0],
+          lookupTableAddress: [poolInfo.lookupTableAccount].filter(i => !i.equals(PublicKey.default)),
         }
       ]
     }
@@ -1284,6 +1493,7 @@ export class AmmV3 extends Base {
     },
 
     rewardInfo: {
+      programId: PublicKey,
       mint: PublicKey,
       openTime: number, // If the reward is being distributed, please give 0
       endTime: number, // If no modification is required, enter 0
@@ -1315,6 +1525,7 @@ export class AmmV3 extends Base {
 
     const rewardMintUseSOLBalance = ownerInfo.useSOLBalance && rewardInfo.mint.equals(Token.WSOL.mint)
     const ownerRewardAccount = await this._selectOrCreateTokenAccount({
+      programId: rewardInfo.programId,
       mint: rewardInfo.mint,
       tokenAccounts: rewardMintUseSOLBalance ? [] : ownerInfo.tokenAccounts,
       owner: ownerInfo.wallet,
@@ -1390,6 +1601,7 @@ export class AmmV3 extends Base {
     },
 
     rewardInfos: {
+      programId: PublicKey,
       mint: PublicKey,
       openTime: number, // If the reward is being distributed, please give 0
       endTime: number, // If no modification is required, enter 0
@@ -1426,6 +1638,7 @@ export class AmmV3 extends Base {
 
       const rewardMintUseSOLBalance = ownerInfo.useSOLBalance && rewardInfo.mint.equals(Token.WSOL.mint)
       const ownerRewardAccount = await this._selectOrCreateTokenAccount({
+        programId: rewardInfo.programId,
         mint: rewardInfo.mint,
         tokenAccounts: rewardMintUseSOLBalance ? [] : ownerInfo.tokenAccounts,
         owner: ownerInfo.wallet,
@@ -1480,7 +1693,8 @@ export class AmmV3 extends Base {
           instructions: [...instructions, ...frontInstructions, ...makeSetRewardInstructions.map(i => i.innerTransaction.instructions).flat(), ...endInstructions],
           signers: [...signers, ...makeSetRewardInstructions.map(i => i.innerTransaction.signers).flat()],
           instructionTypes: [...instructionTypes, ...frontInstructionsType, ...makeSetRewardInstructions.map(i => i.innerTransaction.instructionTypes).flat(), ...endInstructionsType],
-          supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
+          supportedVersion: [TxVersion.LEGACY, TxVersion.V0],
+          lookupTableAddress: [poolInfo.lookupTableAccount].filter(i => !i.equals(PublicKey.default)),
         }
       ]
     }
@@ -1517,8 +1731,19 @@ export class AmmV3 extends Base {
 
     const signers: Signer[] = []
 
+    const rewardInfo = poolInfo.rewardInfos.find(i => i.tokenMint.equals(rewardMint))
+    
+    logger.assertArgument(
+      rewardInfo !== undefined,
+      "reward mint error",
+      "not found reward mint",
+      rewardMint,
+    );
+    if (rewardInfo === undefined) throw Error("reward mint error")
+
     const rewardMintUseSOLBalance = ownerInfo.useSOLBalance && rewardMint.equals(Token.WSOL.mint)
     const ownerRewardAccount = await this._selectOrCreateTokenAccount({
+      programId: rewardInfo.tokenProgramId,
       mint: rewardMint,
       tokenAccounts: rewardMintUseSOLBalance ? [] : ownerInfo.tokenAccounts,
       owner: ownerInfo.wallet,
@@ -1603,8 +1828,19 @@ export class AmmV3 extends Base {
     const signers: Signer[] = []
 
     for (const rewardMint of rewardMints) {
+      const rewardInfo = poolInfo.rewardInfos.find(i => i.tokenMint.equals(rewardMint))
+    
+      logger.assertArgument(
+        rewardInfo !== undefined,
+        "reward mint error",
+        "not found reward mint",
+        rewardMint,
+      );
+      if (rewardInfo === undefined) throw Error("reward mint error")
+      
       const rewardMintUseSOLBalance = ownerInfo.useSOLBalance && rewardMint.equals(Token.WSOL.mint)
       const ownerRewardAccount = await this._selectOrCreateTokenAccount({
+        programId: rewardInfo.tokenProgramId,
         mint: rewardMint,
         tokenAccounts: rewardMintUseSOLBalance ? [] : ownerInfo.tokenAccounts,
         owner: ownerInfo.wallet,
@@ -1655,7 +1891,8 @@ export class AmmV3 extends Base {
           instructions: [...instructions, ...frontInstructions, ...makeCollectRewardInstructions.map(i => i.innerTransaction.instructions).flat(), ...endInstructions],
           signers: [...signers, ...makeCollectRewardInstructions.map(i => i.innerTransaction.signers).flat()],
           instructionTypes: [...instructionTypes, ...frontInstructionsType, ...makeCollectRewardInstructions.map(i => i.innerTransaction.instructionTypes).flat(), ...endInstructionsType],
-          supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
+          supportedVersion: [TxVersion.LEGACY, TxVersion.V0],
+          lookupTableAddress: [poolInfo.lookupTableAccount].filter(i => !i.equals(PublicKey.default)),
         }
       ]
     }
@@ -1678,7 +1915,7 @@ export class AmmV3 extends Base {
     const ownerMintToAccount: { [mint: string]: PublicKey } = {}
     for (const item of ownerInfo.tokenAccounts) {
       if (associatedOnly) {
-        const ata = getATAAddress(ownerInfo.wallet, item.accountInfo.mint).publicKey
+        const ata = getATAAddress(ownerInfo.wallet, item.accountInfo.mint, item.programId).publicKey
         if (ata.equals(item.pubkey)) ownerMintToAccount[item.accountInfo.mint.toString()] = item.pubkey
       } else {
         ownerMintToAccount[item.accountInfo.mint.toString()] = item.pubkey
@@ -1704,6 +1941,7 @@ export class AmmV3 extends Base {
       const mintBUseSOLBalance = ownerInfo.useSOLBalance && poolInfo.mintB.mint.equals(Token.WSOL.mint)
 
       const ownerTokenAccountA = ownerMintToAccount[poolInfo.mintA.mint.toString()] ?? await this._selectOrCreateTokenAccount({
+        programId: poolInfo.mintA.programId,
         mint: poolInfo.mintA.mint,
         tokenAccounts: mintAUseSOLBalance ? [] : ownerInfo.tokenAccounts,
         owner: ownerInfo.wallet,
@@ -1725,6 +1963,7 @@ export class AmmV3 extends Base {
       })
 
       const ownerTokenAccountB = ownerMintToAccount[poolInfo.mintB.mint.toString()] ?? await this._selectOrCreateTokenAccount({
+        programId: poolInfo.mintB.programId,
         mint: poolInfo.mintB.mint,
         tokenAccounts: mintBUseSOLBalance ? [] : ownerInfo.tokenAccounts,
         owner: ownerInfo.wallet,
@@ -1752,6 +1991,7 @@ export class AmmV3 extends Base {
         const rewardUseSOLBalance = ownerInfo.useSOLBalance && itemReward.tokenMint.equals(Token.WSOL.mint)
 
         const ownerRewardAccount = ownerMintToAccount[itemReward.tokenMint.toString()] ?? await this._selectOrCreateTokenAccount({
+          programId: itemReward.tokenProgramId,
           mint: itemReward.tokenMint,
           tokenAccounts: rewardUseSOLBalance ? [] : ownerInfo.tokenAccounts,
           owner: ownerInfo.wallet,
@@ -1865,8 +2105,10 @@ export class AmmV3 extends Base {
         observationId.publicKey,
         mintA.mint,
         mintAVault,
+        mintA.programId,
         mintB.mint,
         mintBVault,
+        mintB.programId,
         initialPriceX64,
         startTime
       )
@@ -1883,13 +2125,14 @@ export class AmmV3 extends Base {
         instructions,
         signers: [observationId],
         instructionTypes: [InstructionType.createAccount, InstructionType.clmmCreatePool],
-        supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
+        supportedVersion: [TxVersion.LEGACY, TxVersion.V0],
+        lookupTableAddress: [],
       }
     }
   }
 
-  static makeOpenPositionInstructions(
-    { poolInfo, ownerInfo, tickLower, tickUpper, liquidity, amountSlippageA, amountSlippageB }: {
+  static makeOpenPositionFromLiquidityInstructions(
+    { poolInfo, ownerInfo, tickLower, tickUpper, liquidity, amountMaxA, amountMaxB }: {
       poolInfo: AmmV3PoolInfo,
 
       ownerInfo: {
@@ -1902,8 +2145,8 @@ export class AmmV3 extends Base {
       tickLower: number,
       tickUpper: number,
       liquidity: BN,
-      amountSlippageA: BN,
-      amountSlippageB: BN,
+      amountMaxA: BN,
+      amountMaxB: BN,
     }
   ) {
     const nftMintAKeypair = new Keypair();
@@ -1914,12 +2157,12 @@ export class AmmV3 extends Base {
     const { publicKey: tickArrayLower } = getPdaTickArrayAddress(poolInfo.programId, poolInfo.id, tickArrayLowerStartIndex);
     const { publicKey: tickArrayUpper } = getPdaTickArrayAddress(poolInfo.programId, poolInfo.id, tickArrayUpperStartIndex);
 
-    const { publicKey: positionNftAccount } = getATAAddress(ownerInfo.wallet, nftMintAKeypair.publicKey);
+    const { publicKey: positionNftAccount } = getATAAddress(ownerInfo.wallet, nftMintAKeypair.publicKey, TOKEN_PROGRAM_ID);
     const { publicKey: metadataAccount } = getPdaMetadataKey(nftMintAKeypair.publicKey);
     const { publicKey: personalPosition } = getPdaPersonalPositionAddress(poolInfo.programId, nftMintAKeypair.publicKey)
     const { publicKey: protocolPosition } = getPdaProtocolPositionAddress(poolInfo.programId, poolInfo.id, tickLower, tickUpper)
 
-    const ins = openPositionInstruction(
+    const ins = openPositionFromLiquidityInstruction(
       poolInfo.programId,
       ownerInfo.feePayer,
       poolInfo.id,
@@ -1935,14 +2178,16 @@ export class AmmV3 extends Base {
       ownerInfo.tokenAccountB,
       poolInfo.mintA.vault,
       poolInfo.mintB.vault,
+      poolInfo.mintA.mint,
+      poolInfo.mintB.mint,
 
       tickLower,
       tickUpper,
       tickArrayLowerStartIndex,
       tickArrayUpperStartIndex,
       liquidity,
-      amountSlippageA,
-      amountSlippageB
+      amountMaxA,
+      amountMaxB
     )
 
     return {
@@ -1959,18 +2204,103 @@ export class AmmV3 extends Base {
         instructions: [ins],
         signers: [nftMintAKeypair],
         instructionTypes: [InstructionType.clmmOpenPosition],
-        supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
+        supportedVersion: [TxVersion.LEGACY, TxVersion.V0],
+        lookupTableAddress: [poolInfo.lookupTableAccount].filter(i => !i.equals(PublicKey.default)),
       } as InnerTransaction
     }
   }
 
-  static makeIncreaseLiquidityInstructions({
+  static makeOpenPositionFromBaseInstructions(
+    { poolInfo, ownerInfo, tickLower, tickUpper, base, baseAmount, otherAmountMax }: {
+      poolInfo: AmmV3PoolInfo,
+
+      ownerInfo: {
+        feePayer: PublicKey,
+        wallet: PublicKey,
+        tokenAccountA: PublicKey
+        tokenAccountB: PublicKey
+      },
+
+      tickLower: number,
+      tickUpper: number,
+
+      base: 'MintA' | 'MintB',
+      baseAmount: BN,
+
+      otherAmountMax: BN,
+    }
+  ) {
+    const nftMintAKeypair = new Keypair();
+
+    const tickArrayLowerStartIndex = TickUtils.getTickArrayStartIndexByTick(tickLower, poolInfo.ammConfig.tickSpacing);
+    const tickArrayUpperStartIndex = TickUtils.getTickArrayStartIndexByTick(tickUpper, poolInfo.ammConfig.tickSpacing);
+
+    const { publicKey: tickArrayLower } = getPdaTickArrayAddress(poolInfo.programId, poolInfo.id, tickArrayLowerStartIndex);
+    const { publicKey: tickArrayUpper } = getPdaTickArrayAddress(poolInfo.programId, poolInfo.id, tickArrayUpperStartIndex);
+
+    const { publicKey: positionNftAccount } = getATAAddress(ownerInfo.wallet, nftMintAKeypair.publicKey, TOKEN_PROGRAM_ID);
+    const { publicKey: metadataAccount } = getPdaMetadataKey(nftMintAKeypair.publicKey);
+    const { publicKey: personalPosition } = getPdaPersonalPositionAddress(poolInfo.programId, nftMintAKeypair.publicKey)
+    const { publicKey: protocolPosition } = getPdaProtocolPositionAddress(poolInfo.programId, poolInfo.id, tickLower, tickUpper)
+
+    const ins = openPositionFromBaseInstruction(
+      poolInfo.programId,
+      ownerInfo.feePayer,
+      poolInfo.id,
+      ownerInfo.wallet,
+      nftMintAKeypair.publicKey,
+      positionNftAccount,
+      metadataAccount,
+      protocolPosition,
+      tickArrayLower,
+      tickArrayUpper,
+      personalPosition,
+      ownerInfo.tokenAccountA,
+      ownerInfo.tokenAccountB,
+      poolInfo.mintA.vault,
+      poolInfo.mintB.vault,
+      poolInfo.mintA.mint,
+      poolInfo.mintB.mint,
+
+      tickLower,
+      tickUpper,
+      tickArrayLowerStartIndex,
+      tickArrayUpperStartIndex,
+
+      
+      base,
+      baseAmount,
+      
+      otherAmountMax,
+    )
+
+    return {
+      address: {
+        nftMint: nftMintAKeypair.publicKey,
+        tickArrayLower,
+        tickArrayUpper,
+        positionNftAccount,
+        metadataAccount,
+        personalPosition,
+        protocolPosition,
+      },
+      innerTransaction: {
+        instructions: [ins],
+        signers: [nftMintAKeypair],
+        instructionTypes: [InstructionType.clmmOpenPosition],
+        supportedVersion: [TxVersion.LEGACY, TxVersion.V0],
+        lookupTableAddress: [poolInfo.lookupTableAccount].filter(i => !i.equals(PublicKey.default)),
+      } as InnerTransaction
+    }
+  }
+
+  static makeIncreasePositionFromLiquidityInstructions({
     poolInfo,
     ownerPosition,
     ownerInfo,
     liquidity,
-    amountSlippageA,
-    amountSlippageB
+    amountMaxA,
+    amountMaxB,
   }: {
     poolInfo: AmmV3PoolInfo,
     ownerPosition: AmmV3PoolPersonalPosition,
@@ -1982,8 +2312,8 @@ export class AmmV3 extends Base {
     },
 
     liquidity: BN,
-    amountSlippageA: BN,
-    amountSlippageB: BN
+    amountMaxA: BN,
+    amountMaxB: BN
   }) {
     const tickArrayLowerStartIndex = TickUtils.getTickArrayStartIndexByTick(ownerPosition.tickLower, poolInfo.ammConfig.tickSpacing);
     const tickArrayUpperStartIndex = TickUtils.getTickArrayStartIndexByTick(ownerPosition.tickUpper, poolInfo.ammConfig.tickSpacing);
@@ -1991,7 +2321,7 @@ export class AmmV3 extends Base {
     const { publicKey: tickArrayLower } = getPdaTickArrayAddress(poolInfo.programId, poolInfo.id, tickArrayLowerStartIndex);
     const { publicKey: tickArrayUpper } = getPdaTickArrayAddress(poolInfo.programId, poolInfo.id, tickArrayUpperStartIndex);
 
-    const { publicKey: positionNftAccount } = getATAAddress(ownerInfo.wallet, ownerPosition.nftMint);
+    const { publicKey: positionNftAccount } = getATAAddress(ownerInfo.wallet, ownerPosition.nftMint, TOKEN_PROGRAM_ID);
 
     const { publicKey: personalPosition } = getPdaPersonalPositionAddress(poolInfo.programId, ownerPosition.nftMint);
     const { publicKey: protocolPosition } = getPdaProtocolPositionAddress(poolInfo.programId, poolInfo.id, ownerPosition.tickLower, ownerPosition.tickUpper);
@@ -2006,7 +2336,7 @@ export class AmmV3 extends Base {
       },
       innerTransaction: {
         instructions: [
-          increaseLiquidityInstruction(
+          increasePositionFromLiquidityInstruction(
             poolInfo.programId,
             ownerInfo.wallet,
             positionNftAccount,
@@ -2019,14 +2349,90 @@ export class AmmV3 extends Base {
             ownerInfo.tokenAccountB,
             poolInfo.mintA.vault,
             poolInfo.mintB.vault,
+            poolInfo.mintA.mint,
+            poolInfo.mintB.mint,
 
             liquidity,
-            amountSlippageA,
-            amountSlippageB
+            amountMaxA,
+            amountMaxB
           )],
         signers: [],
         instructionTypes: [InstructionType.clmmIncreasePosition],
-        supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
+        supportedVersion: [TxVersion.LEGACY, TxVersion.V0],
+        lookupTableAddress: [poolInfo.lookupTableAccount].filter(i => !i.equals(PublicKey.default)),
+      } as InnerTransaction
+    }
+  }
+
+
+  static makeIncreasePositionFromBaseInstructions({
+    poolInfo,
+    ownerPosition,
+    ownerInfo,
+    base,
+    baseAmount,
+    otherAmountMax,
+  }: {
+    poolInfo: AmmV3PoolInfo,
+    ownerPosition: AmmV3PoolPersonalPosition,
+
+    ownerInfo: {
+      wallet: PublicKey,
+      tokenAccountA: PublicKey
+      tokenAccountB: PublicKey
+    },
+
+    base: 'MintA' | 'MintB',
+    baseAmount: BN,
+
+    otherAmountMax: BN,
+  }) {
+    const tickArrayLowerStartIndex = TickUtils.getTickArrayStartIndexByTick(ownerPosition.tickLower, poolInfo.ammConfig.tickSpacing);
+    const tickArrayUpperStartIndex = TickUtils.getTickArrayStartIndexByTick(ownerPosition.tickUpper, poolInfo.ammConfig.tickSpacing);
+
+    const { publicKey: tickArrayLower } = getPdaTickArrayAddress(poolInfo.programId, poolInfo.id, tickArrayLowerStartIndex);
+    const { publicKey: tickArrayUpper } = getPdaTickArrayAddress(poolInfo.programId, poolInfo.id, tickArrayUpperStartIndex);
+
+    const { publicKey: positionNftAccount } = getATAAddress(ownerInfo.wallet, ownerPosition.nftMint, TOKEN_PROGRAM_ID);
+
+    const { publicKey: personalPosition } = getPdaPersonalPositionAddress(poolInfo.programId, ownerPosition.nftMint);
+    const { publicKey: protocolPosition } = getPdaProtocolPositionAddress(poolInfo.programId, poolInfo.id, ownerPosition.tickLower, ownerPosition.tickUpper);
+
+    return {
+      address: {
+        tickArrayLower,
+        tickArrayUpper,
+        positionNftAccount,
+        personalPosition,
+        protocolPosition,
+      },
+      innerTransaction: {
+        instructions: [
+          increasePositionFromBaseInstruction(
+            poolInfo.programId,
+            ownerInfo.wallet,
+            positionNftAccount,
+            personalPosition,
+            poolInfo.id,
+            protocolPosition,
+            tickArrayLower,
+            tickArrayUpper,
+            ownerInfo.tokenAccountA,
+            ownerInfo.tokenAccountB,
+            poolInfo.mintA.vault,
+            poolInfo.mintB.vault,
+            poolInfo.mintA.mint,
+            poolInfo.mintB.mint,
+
+            base,
+            baseAmount,
+
+            otherAmountMax,
+          )],
+        signers: [],
+        instructionTypes: [InstructionType.clmmIncreasePosition],
+        supportedVersion: [TxVersion.LEGACY, TxVersion.V0],
+        lookupTableAddress: [poolInfo.lookupTableAccount].filter(i => !i.equals(PublicKey.default)),
       } as InnerTransaction
     }
   }
@@ -2060,16 +2466,17 @@ export class AmmV3 extends Base {
 
     const { publicKey: tickArrayLower } = getPdaTickArrayAddress(poolInfo.programId, poolInfo.id, tickArrayLowerStartIndex);
     const { publicKey: tickArrayUpper } = getPdaTickArrayAddress(poolInfo.programId, poolInfo.id, tickArrayUpperStartIndex);
-    const { publicKey: positionNftAccount } = getATAAddress(ownerInfo.wallet, ownerPosition.nftMint);
+    const { publicKey: positionNftAccount } = getATAAddress(ownerInfo.wallet, ownerPosition.nftMint, TOKEN_PROGRAM_ID);
 
     const { publicKey: personalPosition } = getPdaPersonalPositionAddress(poolInfo.programId, ownerPosition.nftMint);
     const { publicKey: protocolPosition } = getPdaProtocolPositionAddress(poolInfo.programId, poolInfo.id, ownerPosition.tickLower, ownerPosition.tickUpper);
 
-    const rewardAccounts: { poolRewardVault: PublicKey, ownerRewardVault: PublicKey }[] = []
+    const rewardAccounts: { poolRewardVault: PublicKey, ownerRewardVault: PublicKey, rewardMint: PublicKey }[] = []
     for (let i = 0; i < poolInfo.rewardInfos.length; i++) {
       rewardAccounts.push({
         poolRewardVault: poolInfo.rewardInfos[i].tokenVault,
-        ownerRewardVault: ownerInfo.rewardAccounts[i]
+        ownerRewardVault: ownerInfo.rewardAccounts[i],
+        rewardMint: poolInfo.rewardInfos[i].tokenMint,
       })
     }
 
@@ -2096,6 +2503,8 @@ export class AmmV3 extends Base {
             ownerInfo.tokenAccountB,
             poolInfo.mintA.vault,
             poolInfo.mintB.vault,
+            poolInfo.mintA.mint,
+            poolInfo.mintB.mint,
             rewardAccounts,
 
             liquidity,
@@ -2105,7 +2514,8 @@ export class AmmV3 extends Base {
         ],
         signers: [],
         instructionTypes: [InstructionType.clmmDecreasePosition],
-        supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
+        supportedVersion: [TxVersion.LEGACY, TxVersion.V0],
+        lookupTableAddress: [poolInfo.lookupTableAccount].filter(i => !i.equals(PublicKey.default)),
       } as InnerTransaction
     }
   }
@@ -2120,7 +2530,7 @@ export class AmmV3 extends Base {
       wallet: PublicKey,
     },
   }) {
-    const { publicKey: positionNftAccount } = getATAAddress(ownerInfo.wallet, ownerPosition.nftMint);
+    const { publicKey: positionNftAccount } = getATAAddress(ownerInfo.wallet, ownerPosition.nftMint, TOKEN_PROGRAM_ID);
     const { publicKey: personalPosition } = getPdaPersonalPositionAddress(poolInfo.programId, ownerPosition.nftMint)
 
     return {
@@ -2141,7 +2551,8 @@ export class AmmV3 extends Base {
         ],
         signers: [],
         instructionTypes: [InstructionType.clmmClosePosition],
-        supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
+        supportedVersion: [TxVersion.LEGACY, TxVersion.V0],
+        lookupTableAddress: [poolInfo.lookupTableAccount].filter(i => !i.equals(PublicKey.default)),
       }
     }
   }
@@ -2182,6 +2593,9 @@ export class AmmV3 extends Base {
             isInputMintA ? poolInfo.mintA.vault : poolInfo.mintB.vault,
             isInputMintA ? poolInfo.mintB.vault : poolInfo.mintA.vault,
 
+            isInputMintA ? poolInfo.mintA.mint : poolInfo.mintB.mint,
+            isInputMintA ? poolInfo.mintB.mint : poolInfo.mintA.mint,
+
             remainingAccounts,
             poolInfo.observationId,
             amountIn,
@@ -2191,7 +2605,7 @@ export class AmmV3 extends Base {
           )
         ],
         signers: [],
-        lookupTableAddress: [poolInfo.lookupTableAccount],
+        lookupTableAddress: [poolInfo.lookupTableAccount].filter(i => !i.equals(PublicKey.default)),
         instructionTypes: [InstructionType.clmmSwapBaseIn],
         supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
       }
@@ -2234,6 +2648,9 @@ export class AmmV3 extends Base {
             isInputMintA ? poolInfo.mintB.vault : poolInfo.mintA.vault,
             isInputMintA ? poolInfo.mintA.vault : poolInfo.mintB.vault,
     
+            isInputMintA ? poolInfo.mintB.mint : poolInfo.mintA.mint,
+            isInputMintA ? poolInfo.mintA.mint : poolInfo.mintB.mint,
+    
             remainingAccounts,
             poolInfo.observationId,
             amountOut,
@@ -2243,7 +2660,7 @@ export class AmmV3 extends Base {
           ),
         ],
         signers: [],
-        lookupTableAddress: [poolInfo.lookupTableAccount],
+        lookupTableAddress: [poolInfo.lookupTableAccount].filter(i => !i.equals(PublicKey.default)),
         instructionTypes: [InstructionType.clmmSwapBaseOut],
         supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
       }
@@ -2259,6 +2676,7 @@ export class AmmV3 extends Base {
       tokenAccount: PublicKey,
     },
     rewardInfo: {
+      programId: PublicKey,
       mint: PublicKey,
       openTime: number,
       endTime: number,
@@ -2279,6 +2697,7 @@ export class AmmV3 extends Base {
             poolInfo.ammConfig.id,
 
             ownerInfo.tokenAccount,
+            rewardInfo.programId,
             rewardInfo.mint,
             poolRewardVault,
 
@@ -2289,7 +2708,8 @@ export class AmmV3 extends Base {
         ],
         signers: [],
         instructionTypes: [InstructionType.clmmInitReward],
-        supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
+        supportedVersion: [TxVersion.LEGACY, TxVersion.V0],
+        lookupTableAddress: [poolInfo.lookupTableAccount].filter(i => !i.equals(PublicKey.default)),
       } as InnerTransaction
     }
   }
@@ -2311,18 +2731,15 @@ export class AmmV3 extends Base {
   }) {
     let rewardIndex
     let rewardVault
+    let rewardMint
     for (let index = 0; index < poolInfo.rewardInfos.length; index++)
       if (poolInfo.rewardInfos[index].tokenMint.equals(rewardInfo.mint)) {
         rewardIndex = index
         rewardVault = poolInfo.rewardInfos[index].tokenVault
+        rewardMint = poolInfo.rewardInfos[index].tokenMint
       }
 
-    logger.assertArgument(
-      rewardIndex !== undefined && rewardVault !== undefined,
-      "reward mint check error",
-      "no reward mint",
-      poolInfo.rewardInfos,
-    );
+    if (rewardIndex === undefined || rewardVault === undefined || rewardMint === undefined) throw Error("reward mint check error")
 
     const operationId = getPdaOperationAccount(poolInfo.programId).publicKey
 
@@ -2338,7 +2755,8 @@ export class AmmV3 extends Base {
             poolInfo.ammConfig.id,
 
             ownerInfo.tokenAccount,
-            rewardVault as PublicKey,
+            rewardVault,
+            rewardMint,
 
             rewardIndex ?? 0,
             rewardInfo.openTime,
@@ -2348,7 +2766,8 @@ export class AmmV3 extends Base {
         ],
         signers: [],
         instructionTypes: [InstructionType.clmmInitReward],
-        supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
+        supportedVersion: [TxVersion.LEGACY, TxVersion.V0],
+        lookupTableAddress: [poolInfo.lookupTableAccount].filter(i => !i.equals(PublicKey.default)),
       } as InnerTransaction
     }
   }
@@ -2371,12 +2790,7 @@ export class AmmV3 extends Base {
         rewardVault = poolInfo.rewardInfos[index].tokenVault
       }
 
-    logger.assertArgument(
-      rewardIndex !== undefined && rewardVault !== undefined,
-      "reward mint check error",
-      "no reward mint",
-      poolInfo.rewardInfos,
-    );
+    if (rewardIndex === undefined || rewardVault === undefined) throw Error("reward mint check error")
 
     return {
       address: { rewardVault },
@@ -2388,27 +2802,36 @@ export class AmmV3 extends Base {
             poolInfo.id,
 
             ownerInfo.tokenAccount,
-            rewardVault as PublicKey,
+            rewardVault,
+            rewardMint,
 
             rewardIndex ?? 0,
           )
         ],
         signers: [],
         instructionTypes: [InstructionType.clmmInitReward],
-        supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
+        supportedVersion: [TxVersion.LEGACY, TxVersion.V0],
+        lookupTableAddress: [poolInfo.lookupTableAccount].filter(i => !i.equals(PublicKey.default)),
       } as InnerTransaction
     }
   }
 
   // calculate
-  static getLiquidityAmountOutFromAmountIn({ poolInfo, inputA, tickLower, tickUpper, amount, slippage, add }:
-    { poolInfo: AmmV3PoolInfo, inputA: boolean, tickLower: number, tickUpper: number, amount: BN, slippage: number, add: boolean }): ReturnTypeGetLiquidityAmountOutFromAmountIn {
+  static getLiquidityAmountOutFromAmountIn({ poolInfo, inputA, tickLower, tickUpper, amount, slippage, add, token2022Infos, epochInfo, amountHasFee }:
+    { poolInfo: AmmV3PoolInfo, inputA: boolean, tickLower: number, tickUpper: number, amount: BN, slippage: number, add: boolean,
+      amountHasFee: boolean,
+
+      token2022Infos: ReturnTypeFetchMultipleMintInfos,
+      epochInfo: EpochInfo,
+     }): ReturnTypeGetLiquidityAmountOut {
     const sqrtPriceX64 = poolInfo.sqrtPriceX64
     const sqrtPriceX64A = SqrtPriceMath.getSqrtPriceX64FromTick(tickLower)
     const sqrtPriceX64B = SqrtPriceMath.getSqrtPriceX64FromTick(tickUpper)
 
     const coefficient = add ? 1 - slippage : 1 + slippage;
-    const _amount = amount.mul(new BN(Math.floor(coefficient * 1000000))).div(new BN(1000000))
+
+    const addFeeAmount = getTransferAmountFee(amount, token2022Infos[inputA ? poolInfo.mintA.mint.toString() : poolInfo.mintB.mint.toString()]?.feeConfig, epochInfo, !amountHasFee)
+    const _amount = addFeeAmount.amount.sub(addFeeAmount.fee ?? ZERO).muln(coefficient)
 
     let liquidity: BN
     if (sqrtPriceX64.lte(sqrtPriceX64A)) {
@@ -2421,36 +2844,53 @@ export class AmmV3 extends Base {
       liquidity = inputA ? new BN(0) : LiquidityMath.getLiquidityFromTokenAmountB(sqrtPriceX64A, sqrtPriceX64B, _amount);
     }
 
-    const amountsSlippage = LiquidityMath.getAmountsFromLiquidityWithSlippage(poolInfo.sqrtPriceX64, sqrtPriceX64A, sqrtPriceX64B, liquidity, add, !add, slippage)
-    const amounts = LiquidityMath.getAmountsFromLiquidity(poolInfo.sqrtPriceX64, sqrtPriceX64A, sqrtPriceX64B, liquidity, !add)
-
-    return { liquidity, ...amountsSlippage, ...amounts }
+    return this.getAmountsFromLiquidity({ poolInfo, tickLower, tickUpper, liquidity, slippage, add, token2022Infos, epochInfo })
   }
 
-  static getLiquidityFromAmounts({ poolInfo, tickLower, tickUpper, amountA, amountB, slippage, add }:
-    { poolInfo: AmmV3PoolInfo, tickLower: number, tickUpper: number, amountA: BN, amountB: BN, slippage: number, add: boolean }): ReturnTypeGetLiquidityAmountOutFromAmountIn {
+  static getLiquidityFromAmounts({ poolInfo, tickLower, tickUpper, amountA, amountB, slippage, add, token2022Infos, epochInfo }:
+    { poolInfo: AmmV3PoolInfo, tickLower: number, tickUpper: number, amountA: BN, amountB: BN, slippage: number, add: boolean,
+
+      token2022Infos: ReturnTypeFetchMultipleMintInfos,
+      epochInfo: EpochInfo,
+    }): ReturnTypeGetLiquidityAmountOut {
     const [_tickLower, _tickUpper, _amountA, _amountB] = tickLower < tickUpper ? [tickLower, tickUpper, amountA, amountB] : [tickUpper, tickLower, amountB, amountA]
     const sqrtPriceX64 = poolInfo.sqrtPriceX64
     const sqrtPriceX64A = SqrtPriceMath.getSqrtPriceX64FromTick(_tickLower)
     const sqrtPriceX64B = SqrtPriceMath.getSqrtPriceX64FromTick(_tickUpper)
 
     const liquidity =  LiquidityMath.getLiquidityFromTokenAmounts(sqrtPriceX64, sqrtPriceX64A, sqrtPriceX64B, _amountA, _amountB)
-    const amountsSlippage = LiquidityMath.getAmountsFromLiquidityWithSlippage(sqrtPriceX64, sqrtPriceX64A, sqrtPriceX64B, liquidity, add, !add, slippage)
-    const amounts = LiquidityMath.getAmountsFromLiquidity(sqrtPriceX64, sqrtPriceX64A, sqrtPriceX64B, liquidity, !add)
-    
-    return { liquidity, ...amountsSlippage, ...amounts }
+
+    return this.getAmountsFromLiquidity({ poolInfo, tickLower, tickUpper, liquidity, slippage, add, token2022Infos, epochInfo })
   }
 
-  static getAmountsFromLiquidity({ poolInfo, ownerPosition, liquidity, slippage, add }: {
+  
+  static getAmountsFromLiquidity({ poolInfo, tickLower, tickUpper, liquidity, slippage, add, token2022Infos, epochInfo }: {
     poolInfo: AmmV3PoolInfo,
-    ownerPosition: AmmV3PoolPersonalPosition,
+    tickLower: number,
+    tickUpper: number,
     liquidity: BN
     slippage: number,
-    add: boolean
-  }): ReturnTypeGetAmountsFromLiquidity {
-    const sqrtPriceX64A = SqrtPriceMath.getSqrtPriceX64FromTick(ownerPosition.tickLower)
-    const sqrtPriceX64B = SqrtPriceMath.getSqrtPriceX64FromTick(ownerPosition.tickUpper)
-    return LiquidityMath.getAmountsFromLiquidityWithSlippage(poolInfo.sqrtPriceX64, sqrtPriceX64A, sqrtPriceX64B, liquidity, add, add, slippage)
+    add: boolean,
+
+    token2022Infos: ReturnTypeFetchMultipleMintInfos,
+    epochInfo: EpochInfo,
+  }): ReturnTypeGetLiquidityAmountOut {
+    const sqrtPriceX64A = SqrtPriceMath.getSqrtPriceX64FromTick(tickLower)
+    const sqrtPriceX64B = SqrtPriceMath.getSqrtPriceX64FromTick(tickUpper)
+
+    const coefficientRe = add ? 1 + slippage : 1 - slippage;
+
+    const amounts = LiquidityMath.getAmountsFromLiquidity(poolInfo.sqrtPriceX64, sqrtPriceX64A, sqrtPriceX64B, liquidity, add)
+    const [amountA, amountB] = [
+      getTransferAmountFee(amounts.amountA, token2022Infos[poolInfo.mintA.mint.toString()]?.feeConfig, epochInfo, true),
+      getTransferAmountFee(amounts.amountB, token2022Infos[poolInfo.mintB.mint.toString()]?.feeConfig, epochInfo, true),
+    ]
+    const [amountSlippageA, amountSlippageB] = [
+      getTransferAmountFee(amounts.amountA.muln(coefficientRe), token2022Infos[poolInfo.mintA.mint.toString()]?.feeConfig, epochInfo, true),
+      getTransferAmountFee(amounts.amountB.muln(coefficientRe), token2022Infos[poolInfo.mintB.mint.toString()]?.feeConfig, epochInfo, true),
+    ]
+
+    return { liquidity, amountA, amountB, amountSlippageA, amountSlippageB, expirationTime: minExpirationTime(amountA.expirationTime, amountB.expirationTime) }
   }
 
   static getPriceAndTick({ poolInfo, price, baseIn }: { poolInfo: AmmV3PoolInfo, price: Decimal, baseIn: boolean }): ReturnTypeGetPriceAndTick {
@@ -2470,9 +2910,12 @@ export class AmmV3 extends Base {
     return baseIn ? { tick, price: tickPrice, tickSqrtPriceX64 } : { tick, price: new Decimal(1).div(tickPrice), tickSqrtPriceX64 }
   }
 
-  static computeAmountOutFormat({ poolInfo, tickArrayCache, amountIn, currencyOut, slippage }: {
+  static computeAmountOutFormat({ poolInfo, tickArrayCache, token2022Infos, epochInfo, amountIn, currencyOut, slippage }: {
     poolInfo: AmmV3PoolInfo,
     tickArrayCache: { [key: string]: TickArray; },
+
+    token2022Infos: ReturnTypeFetchMultipleMintInfos,
+    epochInfo: EpochInfo,
 
     amountIn: CurrencyAmount | TokenAmount,
     currencyOut: Token | Currency,
@@ -2483,16 +2926,33 @@ export class AmmV3 extends Base {
     const _amountIn = amountIn.raw
     const _slippage = slippage.numerator.toNumber() / slippage.denominator.toNumber()
 
-    const { amountOut, minAmountOut, currentPrice, executionPrice, priceImpact, fee, remainingAccounts } = AmmV3.computeAmountOut({
+    const { realAmountIn: _realAmountIn, amountOut: _amountOut, minAmountOut: _minAmountOut, expirationTime, currentPrice, executionPrice, priceImpact, fee, remainingAccounts } = AmmV3.computeAmountOut({
       poolInfo,
       tickArrayCache,
       baseMint: inputMint,
       amountIn: _amountIn,
       slippage: _slippage,
+
+      token2022Infos,
+      epochInfo
     })
 
-    const _amountOut = currencyOut instanceof Token ? new TokenAmount(currencyOut, amountOut) : new CurrencyAmount(currencyOut, amountOut)
-    const _minAmountOut = currencyOut instanceof Token ? new TokenAmount(currencyOut, minAmountOut) : new CurrencyAmount(currencyOut, minAmountOut)
+    const realAmountIn = { 
+      ..._realAmountIn, 
+      amount: amountInIsTokenAmount ? new TokenAmount(amountIn.token, _realAmountIn.amount) : new CurrencyAmount(Currency.SOL, _realAmountIn.amount),
+      fee: _realAmountIn.fee === undefined ? undefined : amountInIsTokenAmount ? new TokenAmount(amountIn.token, _realAmountIn.fee) : new CurrencyAmount(Currency.SOL, _realAmountIn.fee)
+    }
+
+    const amountOut = { 
+      ..._amountOut, 
+      amount: currencyOut instanceof Token ? new TokenAmount(currencyOut, _amountOut.amount) : new CurrencyAmount(currencyOut, _amountOut.amount),
+      fee: _amountOut.fee === undefined ? undefined : currencyOut instanceof Token ? new TokenAmount(currencyOut, _amountOut.fee) : new CurrencyAmount(currencyOut, _amountOut.fee)
+    }
+    const minAmountOut = { 
+      ..._minAmountOut, 
+      amount: currencyOut instanceof Token ? new TokenAmount(currencyOut, _minAmountOut.amount) : new CurrencyAmount(currencyOut, _minAmountOut.amount),
+      fee: _minAmountOut.fee === undefined ? undefined : currencyOut instanceof Token ? new TokenAmount(currencyOut, _minAmountOut.fee) : new CurrencyAmount(currencyOut, _minAmountOut.fee)
+    }
     const _currentPrice = new Price(
       amountInIsTokenAmount ? amountIn.token : amountIn.currency,
       new BN(10).pow(new BN(20 + (amountInIsTokenAmount ? amountIn.token : amountIn.currency).decimals)),
@@ -2508,8 +2968,10 @@ export class AmmV3 extends Base {
     const _fee = amountInIsTokenAmount ? new TokenAmount(amountIn.token, fee) : new CurrencyAmount(amountIn.currency, fee);
 
     return {
-      amountOut: _amountOut,
-      minAmountOut: _minAmountOut,
+      realAmountIn,
+      amountOut,
+      minAmountOut,
+      expirationTime,
       currentPrice: _currentPrice,
       executionPrice: _executionPrice,
       priceImpact,
@@ -2518,11 +2980,32 @@ export class AmmV3 extends Base {
     }
   }
 
+  static async computeAmountOutAndCheckToken({ connection, poolInfo, tickArrayCache, baseMint, amountIn, slippage, priceLimit = new Decimal(0) }: {
+    connection: Connection
+    poolInfo: AmmV3PoolInfo,
+    tickArrayCache: { [key: string]: TickArray; },
+    baseMint: PublicKey,
+
+    amountIn: BN,
+    slippage: number,
+    priceLimit?: Decimal
+  }) {
+    const epochInfo = await connection.getEpochInfo()
+    const token2022Infos = await fetchMultipleMintInfos({ connection, mints: [ poolInfo.mintA, poolInfo.mintB ].filter(i => i.programId.equals(TOKEN_2022_PROGRAM_ID)).map(i => i.mint)})
+    return this.computeAmountOut({
+      poolInfo, tickArrayCache, baseMint, amountIn, slippage, priceLimit,
+      token2022Infos, epochInfo
+    })
+  }
+
   static computeAmountOut(
-    { poolInfo, tickArrayCache, baseMint, amountIn, slippage, priceLimit = new Decimal(0) }: {
+    { poolInfo, tickArrayCache, baseMint, token2022Infos, epochInfo, amountIn, slippage, priceLimit = new Decimal(0) }: {
       poolInfo: AmmV3PoolInfo,
       tickArrayCache: { [key: string]: TickArray; },
       baseMint: PublicKey,
+
+      token2022Infos: ReturnTypeFetchMultipleMintInfos,
+      epochInfo: EpochInfo,
 
       amountIn: BN,
       slippage: number,
@@ -2542,18 +3025,24 @@ export class AmmV3 extends Base {
       );
     }
 
-    const { expectedAmountOut, remainingAccounts, executionPrice: _executionPriceX64, feeAmount } = PoolUtils.getOutputAmountAndRemainAccounts(
+    const realAmountIn = getTransferAmountFee(amountIn, token2022Infos[baseMint.toString()]?.feeConfig, epochInfo, false)
+
+    const { expectedAmountOut: _expectedAmountOut, remainingAccounts, executionPrice: _executionPriceX64, feeAmount } = PoolUtils.getOutputAmountAndRemainAccounts(
       poolInfo,
       tickArrayCache,
       baseMint,
-      amountIn,
+      realAmountIn.amount.sub(realAmountIn.fee ?? ZERO),
       sqrtPriceLimitX64
     );
+
+    const outMint = poolInfo.mintA.mint.equals(baseMint) ? poolInfo.mintB.mint : poolInfo.mintA.mint
+    const amountOut = getTransferAmountFee(_expectedAmountOut, token2022Infos[outMint.toString()]?.feeConfig, epochInfo, false)
 
     const _executionPrice = SqrtPriceMath.sqrtPriceX64ToPrice(_executionPriceX64, poolInfo.mintA.decimals, poolInfo.mintB.decimals)
     const executionPrice = baseMint.equals(poolInfo.mintA.mint) ? _executionPrice : new Decimal(1).div(_executionPrice)
 
-    const minAmountOut = expectedAmountOut.mul(new BN(Math.floor((1 - slippage) * 10000000000))).div(new BN(10000000000));
+    const _minAmountOut = _expectedAmountOut.mul(new BN(Math.floor((1 - slippage) * 10000000000))).div(new BN(10000000000));
+    const minAmountOut = getTransferAmountFee(_minAmountOut, token2022Infos[outMint.toString()]?.feeConfig, epochInfo, false)
 
     const poolPrice = poolInfo.mintA.mint.equals(baseMint) ? poolInfo.currentPrice : new Decimal(1).div(poolInfo.currentPrice)
 
@@ -2565,8 +3054,10 @@ export class AmmV3 extends Base {
     );
 
     return {
-      amountOut: expectedAmountOut,
+      realAmountIn,
+      amountOut,
       minAmountOut,
+      expirationTime: minExpirationTime(realAmountIn.expirationTime, amountOut.expirationTime),
       currentPrice: poolInfo.currentPrice,
       executionPrice,
       priceImpact,
@@ -2576,11 +3067,32 @@ export class AmmV3 extends Base {
     }
   }
 
+  static async computeAmountInAndCheckToken({ connection, poolInfo, tickArrayCache, baseMint, amountOut, slippage, priceLimit = new Decimal(0) }: {
+    connection: Connection
+    poolInfo: AmmV3PoolInfo,
+    tickArrayCache: { [key: string]: TickArray; },
+    baseMint: PublicKey,
+
+    amountOut: BN,
+    slippage: number,
+    priceLimit?: Decimal
+  }) {
+    const epochInfo = await connection.getEpochInfo()
+    const token2022Infos = await fetchMultipleMintInfos({ connection, mints: [ poolInfo.mintA, poolInfo.mintB ].filter(i => i.programId.equals(TOKEN_2022_PROGRAM_ID)).map(i => i.mint)})
+    return this.computeAmountIn({
+      poolInfo, tickArrayCache, baseMint, amountOut, slippage, priceLimit,
+      token2022Infos, epochInfo
+    })
+  }
+
   static computeAmountIn(
-    { poolInfo, tickArrayCache, baseMint, amountOut, slippage, priceLimit = new Decimal(0) }: {
+    { poolInfo, tickArrayCache, baseMint, token2022Infos, epochInfo, amountOut, slippage, priceLimit = new Decimal(0) }: {
       poolInfo: AmmV3PoolInfo,
       tickArrayCache: { [key: string]: TickArray; },
       baseMint: PublicKey,
+
+      token2022Infos: ReturnTypeFetchMultipleMintInfos,
+      epochInfo: EpochInfo,
 
       amountOut: BN,
       slippage: number,
@@ -2600,18 +3112,24 @@ export class AmmV3 extends Base {
       );
     }
 
-    const { expectedAmountIn, remainingAccounts, executionPrice: _executionPriceX64, feeAmount } = PoolUtils.getInputAmountAndRemainAccounts(
+    const realAmountOut = getTransferAmountFee(amountOut, token2022Infos[baseMint.toString()]?.feeConfig, epochInfo, true)
+
+    const { expectedAmountIn: _expectedAmountIn, remainingAccounts, executionPrice: _executionPriceX64, feeAmount } = PoolUtils.getInputAmountAndRemainAccounts(
       poolInfo,
       tickArrayCache,
       baseMint,
-      amountOut,
+      realAmountOut.amount.sub(realAmountOut.fee ?? ZERO),
       sqrtPriceLimitX64
     );
+
+    const inMint = poolInfo.mintA.mint.equals(baseMint) ? poolInfo.mintB.mint : poolInfo.mintA.mint
+    const amountIn = getTransferAmountFee(_expectedAmountIn, token2022Infos[inMint.toString()]?.feeConfig, epochInfo, true)
 
     const _executionPrice = SqrtPriceMath.sqrtPriceX64ToPrice(_executionPriceX64, poolInfo.mintA.decimals, poolInfo.mintB.decimals)
     const executionPrice = baseMint.equals(poolInfo.mintA.mint) ? _executionPrice : new Decimal(1).div(_executionPrice)
 
-    const maxAmountIn = expectedAmountIn.mul(new BN(Math.floor((1 + slippage) * 10000000000))).div(new BN(10000000000));
+    const _maxAmountIn = _expectedAmountIn.mul(new BN(Math.floor((1 + slippage) * 10000000000))).div(new BN(10000000000));
+    const maxAmountIn = getTransferAmountFee(_maxAmountIn, token2022Infos[inMint.toString()]?.feeConfig, epochInfo, true)
 
     const poolPrice = poolInfo.mintA.mint.equals(baseMint) ? poolInfo.currentPrice : new Decimal(1).div(poolInfo.currentPrice)
 
@@ -2623,8 +3141,10 @@ export class AmmV3 extends Base {
     );
 
     return {
-      amountIn: expectedAmountIn,
+      amountIn,
       maxAmountIn,
+      realAmountOut,
+      expirationTime: minExpirationTime(amountIn.expirationTime, realAmountOut.expirationTime),
       currentPrice: poolInfo.currentPrice,
       executionPrice,
       priceImpact,
@@ -2745,11 +3265,13 @@ export class AmmV3 extends Base {
         state: {
           id: new PublicKey(apiPoolInfo.id),
           mintA: {
+            programId: new PublicKey(apiPoolInfo.mintProgramIdA),
             mint: layoutAccountInfo.mintA,
             vault: layoutAccountInfo.vaultA,
             decimals: layoutAccountInfo.mintDecimalsA,
           },
           mintB: {
+            programId: new PublicKey(apiPoolInfo.mintProgramIdB),
             mint: layoutAccountInfo.mintB,
             vault: layoutAccountInfo.vaultB,
             decimals: layoutAccountInfo.mintDecimalsB,
@@ -2781,7 +3303,9 @@ export class AmmV3 extends Base {
           swapOutAmountTokenA: layoutAccountInfo.swapOutAmountTokenA,
           tickArrayBitmap: layoutAccountInfo.tickArrayBitmap,
 
-          rewardInfos: PoolUtils.updatePoolRewardInfos({
+          rewardInfos: await PoolUtils.updatePoolRewardInfos({
+            connection,
+            apiPoolInfo,
             chainTime,
             poolLiquidity: layoutAccountInfo.liquidity,
             rewardInfos: layoutAccountInfo.rewardInfos.filter(i => !i.tokenMint.equals(PublicKey.default))
@@ -2812,7 +3336,6 @@ export class AmmV3 extends Base {
           allPositionKey.push(getPdaPersonalPositionAddress(itemProgramId, itemMint).publicKey)
         }
       }
-
       const positionAccountInfos = await getMultipleAccountsInfo(connection, allPositionKey, { batchRequest })
 
       const keyToTickArrayAddress: { [key: string]: PublicKey } = {}
@@ -2883,12 +3406,15 @@ export class AmmV3 extends Base {
       if (updateOwnerRewardAndFee) {
         const tickArrayKeys = Object.values(keyToTickArrayAddress)
         const tickArrayDatas = await getMultipleAccountsInfo(connection, tickArrayKeys, { batchRequest })
-        const tickArrayLayout: {[key:string]:any} = {}
+        const tickArrayLayout: {[key:string]: TickArray} = {}
         for (let index = 0; index < tickArrayKeys.length; index++) {
           const tickArrayData = tickArrayDatas[index]
           if (tickArrayData === null) continue
-          const key = tickArrayKeys[index].toString()
-          tickArrayLayout[key] = TickArrayLayout.decode(tickArrayData.data)
+          const key = tickArrayKeys[index]
+          tickArrayLayout[key.toString()] = {
+            address: key,
+            ...TickArrayLayout.decode(tickArrayData.data)
+          }
         }
   
         for (const { state, positionAccount } of Object.values(poolsInfo)) {
@@ -2931,7 +3457,7 @@ export class AmmV3 extends Base {
       }
       for (const item of updateRewardInfos) {
         const vaultAmount = rewardVaultAmount[item.tokenVault.toString()]
-        item.remainingRewards = vaultAmount !== undefined ? vaultAmount.sub(item.rewardTotalEmissioned) : ZERO
+        item.remainingRewards = vaultAmount !== undefined ? vaultAmount.sub(item.rewardTotalEmissioned.sub(item.rewardClaimed)) : ZERO
       }
     }
 
@@ -2939,7 +3465,7 @@ export class AmmV3 extends Base {
   }
 
   static async fetchMultiplePoolTickArrays({ connection, poolKeys, batchRequest }: { connection: Connection, poolKeys: AmmV3PoolInfo[], batchRequest?: boolean }): Promise<ReturnTypeFetchMultiplePoolTickArrays> {
-    const tickArraysToPoolId: {[key:string]:PublicKey} = {}
+    const tickArraysToPoolId: {[key: string]: PublicKey} = {}
     const tickArrays: { pubkey: PublicKey }[] = []
     for (const itemPoolInfo of poolKeys) {
       const tickArrayBitmap = TickUtils.mergeTickArrayBitmap(itemPoolInfo.tickArrayBitmap);

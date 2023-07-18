@@ -543,6 +543,7 @@ export class Liquidity extends Base {
       // market keys
       marketId,
       marketAuthority,
+      lookupTableAccount: PublicKey.default,
     };
   }
 
@@ -601,7 +602,7 @@ export class Liquidity extends Base {
             data,
           })],
           signers: [],
-          lookupTableAddress: [],
+          lookupTableAddress: [poolKeys.lookupTableAccount].filter(i => !i.equals(PublicKey.default)),
           instructionTypes: [version === 4 ? InstructionType.ammV4AddLiquidity : InstructionType.ammV5AddLiquidity],
           supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
         }
@@ -640,12 +641,14 @@ export class Liquidity extends Base {
     const tokenB = amountInB instanceof TokenAmount ? amountInB.token : Token.WSOL;
 
     const tokenAccountA = this._selectTokenAccount({
+      programId: TOKEN_PROGRAM_ID,
       tokenAccounts,
       mint: tokenA.mint,
       owner,
       config: { associatedOnly: false },
     });
     const tokenAccountB = this._selectTokenAccount({
+      programId: TOKEN_PROGRAM_ID,
       tokenAccounts,
       mint: tokenB.mint,
       owner,
@@ -658,6 +661,7 @@ export class Liquidity extends Base {
       tokenAccounts,
     );
     const lpTokenAccount = this._selectTokenAccount({
+      programId: TOKEN_PROGRAM_ID,
       tokenAccounts,
       mint: lpMint,
       owner,
@@ -696,6 +700,7 @@ export class Liquidity extends Base {
     const signers: Signer[] = [];
 
     const _baseTokenAccount = await this._handleTokenAccount({
+      programId: TOKEN_PROGRAM_ID,
       connection,
       side: "in",
       amount: baseAmountRaw,
@@ -712,6 +717,7 @@ export class Liquidity extends Base {
       checkCreateATAOwner,
     });
     const _quoteTokenAccount = await this._handleTokenAccount({
+      programId: TOKEN_PROGRAM_ID,
       connection,
       side: "in",
       amount: quoteAmountRaw,
@@ -728,6 +734,7 @@ export class Liquidity extends Base {
       checkCreateATAOwner,
     });
     const _lpTokenAccount = await this._handleTokenAccount({
+      programId: TOKEN_PROGRAM_ID,
       connection,
       side: "out",
       amount: 0,
@@ -846,7 +853,7 @@ export class Liquidity extends Base {
             })
           ],
           signers: [],
-          lookupTableAddress: [],
+          lookupTableAddress: [poolKeys.lookupTableAccount].filter(i => !i.equals(PublicKey.default)),
           instructionTypes: [version === 4 ? InstructionType.ammV4RemoveLiquidity : InstructionType.ammV5RemoveLiquidity],
           supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
         }
@@ -870,6 +877,7 @@ export class Liquidity extends Base {
       amountIn,
     );
     const lpTokenAccount = this._selectTokenAccount({
+      programId: TOKEN_PROGRAM_ID,
       tokenAccounts,
       mint: lpMint,
       owner,
@@ -879,11 +887,13 @@ export class Liquidity extends Base {
       return logger.throwArgumentError("cannot found lpTokenAccount", "tokenAccounts", tokenAccounts);
 
     const baseTokenAccount = this._selectTokenAccount({
+      programId: TOKEN_PROGRAM_ID,
       tokenAccounts,
       mint: baseMint,
       owner,
     });
     const quoteTokenAccount = this._selectTokenAccount({
+      programId: TOKEN_PROGRAM_ID,
       tokenAccounts,
       mint: quoteMint,
       owner,
@@ -904,6 +914,7 @@ export class Liquidity extends Base {
 
     const _lpTokenAccount = lpTokenAccount;
     const _baseTokenAccount = await this._handleTokenAccount({
+      programId: TOKEN_PROGRAM_ID,
       connection,
       side: "out",
       amount: 0,
@@ -919,6 +930,7 @@ export class Liquidity extends Base {
       checkCreateATAOwner,
     });
     const _quoteTokenAccount = await this._handleTokenAccount({
+      programId: TOKEN_PROGRAM_ID,
       connection,
       side: "out",
       amount: 0,
@@ -1071,7 +1083,7 @@ export class Liquidity extends Base {
           })
         ],
         signers: [],
-        lookupTableAddress: [],
+        lookupTableAddress: [poolKeys.lookupTableAccount].filter(i => !i.equals(PublicKey.default)),
         instructionTypes: [version === 4 ? InstructionType.ammV4SwapBaseIn : InstructionType.ammV5SwapBaseIn],
         supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
       }
@@ -1136,7 +1148,7 @@ export class Liquidity extends Base {
           })
         ],
         signers: [],
-        lookupTableAddress: [],
+        lookupTableAddress: [poolKeys.lookupTableAccount].filter(i => !i.equals(PublicKey.default)),
         instructionTypes: [version === 4 ? InstructionType.ammV4SwapBaseOut : InstructionType.ammV5SwapBaseOut],
         supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
       }
@@ -1171,12 +1183,14 @@ export class Liquidity extends Base {
     const tokenOut = amountOut instanceof TokenAmount ? amountOut.token : Token.WSOL;
 
     const tokenAccountIn = this._selectTokenAccount({
+      programId: TOKEN_PROGRAM_ID,
       tokenAccounts,
       mint: tokenIn.mint,
       owner,
       config: { associatedOnly: false },
     });
     const tokenAccountOut = this._selectTokenAccount({
+      programId: TOKEN_PROGRAM_ID,
       tokenAccounts,
       mint: tokenOut.mint,
       owner,
@@ -1191,6 +1205,7 @@ export class Liquidity extends Base {
     const signers: Signer[] = [];
 
     const _tokenAccountIn = await this._handleTokenAccount({
+      programId: TOKEN_PROGRAM_ID,
       connection,
       side: "in",
       amount: amountInRaw,
@@ -1206,6 +1221,7 @@ export class Liquidity extends Base {
       checkCreateATAOwner,
     });
     const _tokenAccountOut = await this._handleTokenAccount({
+      programId: TOKEN_PROGRAM_ID,
       connection,
       side: "out",
       amount: 0,
@@ -1308,7 +1324,7 @@ export class Liquidity extends Base {
           data,
         })],
         signers: [],
-        lookupTableAddress: [],
+        lookupTableAddress: [poolKeys.lookupTableAccount].filter(i => !i.equals(PublicKey.default)),
         instructionTypes: [InstructionType.ammV4CreatePool],
         supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
       }
@@ -1380,7 +1396,7 @@ export class Liquidity extends Base {
           data,
         })],
         signers: [],
-        lookupTableAddress: [],
+        lookupTableAddress: [poolKeys.lookupTableAccount].filter(i => !i.equals(PublicKey.default)),
         instructionTypes: [InstructionType.ammV4InitPool],
         supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
       }
@@ -1400,12 +1416,14 @@ export class Liquidity extends Base {
     };
 
     const baseTokenAccount = this._selectTokenAccount({
+      programId: TOKEN_PROGRAM_ID,
       tokenAccounts,
       mint: baseMint,
       owner,
       config: { associatedOnly: false },
     });
     const quoteTokenAccount = this._selectTokenAccount({
+      programId: TOKEN_PROGRAM_ID,
       tokenAccounts,
       mint: quoteMint,
       owner,
@@ -1418,6 +1436,7 @@ export class Liquidity extends Base {
       tokenAccounts,
     );
     const lpTokenAccount = this._selectTokenAccount({
+      programId: TOKEN_PROGRAM_ID,
       tokenAccounts,
       mint: lpMint,
       owner,
@@ -1430,6 +1449,7 @@ export class Liquidity extends Base {
     const signers: Signer[] = [];
 
     const _baseTokenAccount = await this._handleTokenAccount({
+      programId: TOKEN_PROGRAM_ID,
       connection,
       side: "in",
       amount: baseAmount.raw,
@@ -1445,6 +1465,7 @@ export class Liquidity extends Base {
       checkCreateATAOwner,
     });
     const _quoteTokenAccount = await this._handleTokenAccount({
+      programId: TOKEN_PROGRAM_ID,
       connection,
       side: "in",
       amount: quoteAmount.raw,
@@ -1460,6 +1481,7 @@ export class Liquidity extends Base {
       checkCreateATAOwner,
     });
     const _lpTokenAccount = await this._handleTokenAccount({
+      programId: TOKEN_PROGRAM_ID,
       connection,
       side: "out",
       amount: 0,
@@ -1477,6 +1499,7 @@ export class Liquidity extends Base {
 
     frontInstructions.push(
       Spl.makeTransferInstruction({
+        programId: TOKEN_PROGRAM_ID,
         source: _baseTokenAccount,
         destination: baseVault,
         owner,
@@ -1486,6 +1509,7 @@ export class Liquidity extends Base {
     );
     frontInstructions.push(
       Spl.makeTransferInstruction({
+        programId: TOKEN_PROGRAM_ID,
         source: _quoteTokenAccount,
         destination: quoteVault,
         owner,
@@ -1566,7 +1590,7 @@ export class Liquidity extends Base {
           })
         ],
         signers: [],
-        lookupTableAddress: [],
+        lookupTableAddress: [poolKeys.lookupTableAccount].filter(i => !i.equals(PublicKey.default)),
         instructionTypes: [poolKeys.version === 4 ? InstructionType.ammV4SimulatePoolInfo : InstructionType.ammV5SimulatePoolInfo],
         supportedVersion: [TxVersion.LEGACY, TxVersion.V0],
       }
@@ -1619,6 +1643,7 @@ export class Liquidity extends Base {
     const mintBUseSOLBalance = ownerInfo.useSOLBalance && quoteMintInfo.mint.equals(Token.WSOL.mint)
 
     const ownerTokenAccountBase = await this._selectOrCreateTokenAccount({
+      programId: TOKEN_PROGRAM_ID,
       mint: baseMintInfo.mint,
       tokenAccounts: mintAUseSOLBalance ? [] : ownerInfo.tokenAccounts,
       owner: ownerInfo.wallet,
@@ -1640,6 +1665,7 @@ export class Liquidity extends Base {
     })
 
     const ownerTokenAccountQuote = await this._selectOrCreateTokenAccount({
+      programId: TOKEN_PROGRAM_ID,
       mint: quoteMintInfo.mint,
       tokenAccounts: mintBUseSOLBalance ? [] : ownerInfo.tokenAccounts,
       owner: ownerInfo.wallet,
@@ -1692,7 +1718,7 @@ export class Liquidity extends Base {
       userWallet: ownerInfo.wallet,
       userCoinVault: ownerTokenAccountBase,
       userPcVault: ownerTokenAccountQuote,
-      userLpVault: getATAAddress(ownerInfo.wallet, poolInfo.lpMint).publicKey,
+      userLpVault: getATAAddress(ownerInfo.wallet, poolInfo.lpMint, TOKEN_PROGRAM_ID).publicKey,
 
       nonce: poolInfo.nonce,
       openTime: startTime,
@@ -1722,7 +1748,7 @@ export class Liquidity extends Base {
       innerTransactions: [{
         instructions: [...instructions, ...frontInstructions, ...ins.instructions, ...endInstructions],
         signers,
-        lookupTableAddress: [],
+        lookupTableAddress: ins.lookupTableAddress,
         instructionTypes: [...instructionTypes, ...frontInstructionsType, ...ins.instructionTypes, ...endInstructionsType],
         supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
       }]
@@ -1732,7 +1758,7 @@ export class Liquidity extends Base {
   static makeCreatePoolV4InstructionV2({
     programId, ammId, ammAuthority, ammOpenOrders, lpMint, coinMint, pcMint, coinVault, pcVault, withdrawQueue, 
     ammTargetOrders, poolTempLp, marketProgramId, marketId, userWallet, userCoinVault, userPcVault, userLpVault, 
-    nonce, openTime, coinAmount, pcAmount,
+    nonce, openTime, coinAmount, pcAmount, lookupTableAddress,
   }: {
     programId: PublicKey,
     ammId: PublicKey,
@@ -1752,6 +1778,8 @@ export class Liquidity extends Base {
     userCoinVault: PublicKey,
     userPcVault: PublicKey,
     userLpVault: PublicKey,
+
+    lookupTableAddress?: PublicKey,
 
     nonce: number,
     openTime: BN,
@@ -1797,7 +1825,7 @@ export class Liquidity extends Base {
       innerTransaction: {
         instructions: [ins],
         signers: [],
-        lookupTableAddress: [],
+        lookupTableAddress: lookupTableAddress ? [lookupTableAddress] : undefined,
         instructionTypes: [InstructionType.ammV4CreatePoolV2],
         supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
       }
@@ -1815,8 +1843,8 @@ export class Liquidity extends Base {
       tickLower: number,
       tickUpper: number,
       liquidity: BN,
-      amountSlippageA: BN,
-      amountSlippageB: BN,
+      amountMaxA: BN,
+      amountMaxB: BN,
     },
     userKeys: {
       tokenAccounts: TokenAccount[];
@@ -1843,7 +1871,7 @@ export class Liquidity extends Base {
 
     const mintToAccount: {[mint: string]: PublicKey} = {}
     for (const item of userKeys.tokenAccounts) {
-      if (mintToAccount[item.accountInfo.mint.toString()] === undefined || getATAAddress(userKeys.owner, item.accountInfo.mint).publicKey.equals(item.pubkey)) {
+      if (mintToAccount[item.accountInfo.mint.toString()] === undefined || getATAAddress(userKeys.owner, item.accountInfo.mint, TOKEN_PROGRAM_ID).publicKey.equals(item.pubkey)) {
         mintToAccount[item.accountInfo.mint.toString()] = item.pubkey
       }
     }
@@ -1857,6 +1885,7 @@ export class Liquidity extends Base {
     const mintQuoteUseSOLBalance = poolKeys.quoteMint.equals(Token.WSOL.mint)
 
     const baseTokenAccount = await this._selectOrCreateTokenAccount({
+      programId: TOKEN_PROGRAM_ID,
       mint: poolKeys.baseMint,
       tokenAccounts: userKeys.tokenAccounts,
       owner: userKeys.owner,
@@ -1875,6 +1904,7 @@ export class Liquidity extends Base {
     })
 
     const quoteTokenAccount = await this._selectOrCreateTokenAccount({
+      programId: TOKEN_PROGRAM_ID,
       mint: poolKeys.quoteMint,
       tokenAccounts: userKeys.tokenAccounts,
       owner: userKeys.owner,
@@ -1910,7 +1940,7 @@ export class Liquidity extends Base {
     })
 
     const [tokenAccountA, tokenAccountB] = poolKeys.baseMint.equals(clmmPoolKeys.mintA.mint) ? [baseTokenAccount, quoteTokenAccount] : [quoteTokenAccount, baseTokenAccount]
-    const createPositionIns = AmmV3.makeOpenPositionInstructions({
+    const createPositionIns = AmmV3.makeOpenPositionFromLiquidityInstructions({
       poolInfo: clmmPoolKeys,
       ownerInfo: {
         feePayer: userKeys.payer ?? userKeys.owner,
@@ -1931,6 +1961,7 @@ export class Liquidity extends Base {
       for (const item of farmInfo.poolKeys.rewardInfos) {
         const rewardIsWsol = item.rewardMint.equals(Token.WSOL.mint)
         rewardTokenAccounts.push(mintToAccount[item.rewardMint.toString()] ?? await this._selectOrCreateTokenAccount({
+          programId: TOKEN_PROGRAM_ID,
           mint: item.rewardMint,
           tokenAccounts: userKeys.tokenAccounts,
           owner: userKeys.owner,
@@ -1978,14 +2009,16 @@ export class Liquidity extends Base {
       instructions: [...withdrawFarmIns.instructions, ...removeIns.innerTransaction.instructions],
       signers: [...withdrawFarmIns.signers, ...removeIns.innerTransaction.signers],
       instructionTypes: [...withdrawFarmIns.instructionTypes, ...removeIns.innerTransaction.instructionTypes],
-      supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
+      supportedVersion: [TxVersion.LEGACY, TxVersion.V0],
+      lookupTableAddress: removeIns.innerTransaction.lookupTableAddress,
     })
 
     innerTransactions.push({
       instructions: [...instructions, ...createPositionIns.innerTransaction.instructions, ...endInstructions],
       signers: createPositionIns.innerTransaction.signers,
       instructionTypes: [...instructionTypes, ...createPositionIns.innerTransaction.instructionTypes, ...endInstructionsType],
-      supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
+      supportedVersion: [TxVersion.LEGACY, TxVersion.V0],
+      lookupTableAddress: createPositionIns.innerTransaction.lookupTableAddress,
     })
 
     return {
@@ -2095,7 +2128,8 @@ export class Liquidity extends Base {
         } : {
           withdrawQueue: (pool as LiquidityStateV4).withdrawQueue,
           lpVault: (pool as LiquidityStateV4).lpVault
-        })
+        }),
+        lookupTableAccount: PublicKey.default,
       })
     }
     return formatPoolInfos

@@ -1,9 +1,11 @@
-import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import { TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { PublicKey, TransactionInstruction } from '@solana/web3.js';
 import BN from 'bn.js';
 
 import { AmmV3PoolInfo } from '../ammV3';
-import { jsonInfo2PoolKeys, SYSTEM_PROGRAM_ID } from '../common';
+import {
+  jsonInfo2PoolKeys, MEMO_PROGRAM_ID, SYSTEM_PROGRAM_ID,
+} from '../common';
 import { LiquidityPoolKeysV4 } from '../liquidity';
 import { struct, u64, u8 } from '../marshmallow';
 
@@ -229,7 +231,7 @@ export function routeInstruction(
   amountIn: BN,
   amountOut: BN,
   
-  remainingAccounts: PublicKey[][]
+  remainingAccounts: (PublicKey[] | undefined)[]
 ) {
   const dataLayout = struct([
     u8("instruction"),
@@ -279,7 +281,7 @@ export function routeInstruction(
   });
 }
 
-function makeInnerInsKey(itemPool: PoolType, inMint: string, userInAccount: PublicKey, userOutAccount: PublicKey, remainingAccount: PublicKey[]) {
+function makeInnerInsKey(itemPool: PoolType, inMint: string, userInAccount: PublicKey, userOutAccount: PublicKey, remainingAccount: PublicKey[] | undefined) {
   if (itemPool.version === 4) {
     const poolKey = jsonInfo2PoolKeys(itemPool) as LiquidityPoolKeysV4
 
@@ -342,7 +344,11 @@ function makeInnerInsKey(itemPool: PoolType, inMint: string, userInAccount: Publ
       { pubkey: baseIn ? itemPool.mintA.vault : itemPool.mintB.vault, isSigner: false, isWritable: true },
       { pubkey: baseIn ? itemPool.mintB.vault : itemPool.mintA.vault, isSigner: false, isWritable: true },
       { pubkey: itemPool.observationId, isSigner: false, isWritable: true },
-      ...remainingAccount.map(i => ({ pubkey: i, isSigner: false, isWritable: true }))
+      { pubkey: TOKEN_2022_PROGRAM_ID, isSigner: false, isWritable: false },
+      { pubkey: MEMO_PROGRAM_ID, isSigner: false, isWritable: false },
+      { pubkey: baseIn ? itemPool.mintA.mint : itemPool.mintB.mint, isSigner: false, isWritable: false },
+      { pubkey: baseIn ? itemPool.mintB.mint : itemPool.mintA.mint, isSigner: false, isWritable: false },
+      ...(remainingAccount ?? []).map(i => ({ pubkey: i, isSigner: false, isWritable: true }))
     ]
   } else {
     throw Error('make swap ins error')

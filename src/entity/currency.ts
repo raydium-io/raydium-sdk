@@ -1,9 +1,11 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 
-import { PublicKey } from "@solana/web3.js";
+import { PublicKey } from '@solana/web3.js';
 
-import { PublicKeyish, validateAndParsePublicKey } from "../common";
-import { SOL, WSOL } from "../token";
+import {
+  PublicKeyish, TOKEN_PROGRAM_ID, validateAndParsePublicKey,
+} from '../common';
+import { SOL, WSOL } from '../token';
 
 /**
  * A currency is any fungible financial instrument on Solana, including SOL and all SPL tokens.
@@ -45,16 +47,18 @@ export function inspectCurrency() {
  * Represents an SPL token with a unique address and some metadata.
  */
 export class Token extends Currency {
+  public readonly programId: PublicKey;
   public readonly mint: PublicKey;
 
   /**
    * The only instance of the base class `Token`.
    */
-  public static readonly WSOL: Token = new Token(WSOL.mint, WSOL.decimals, SOL.symbol, SOL.name);
+  public static readonly WSOL: Token = new Token(TOKEN_PROGRAM_ID, WSOL.mint, WSOL.decimals, SOL.symbol, SOL.name);
 
-  public constructor(mint: PublicKeyish, decimals: number, symbol = "UNKNOWN", name = "UNKNOWN") {
+  public constructor(programId: PublicKey, mint: PublicKeyish, decimals: number, symbol = "UNKNOWN", name = "UNKNOWN") {
     super(decimals, symbol, name);
 
+    this.programId = validateAndParsePublicKey(programId);
     this.mint = validateAndParsePublicKey(mint);
   }
 

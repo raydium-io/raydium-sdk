@@ -3,9 +3,7 @@ import {
 } from '@solana/web3.js';
 import BN from 'bn.js';
 
-import {
-  Base, InstructionType, MakeInstructionSimpleOutType, TokenAccount, TxVersion,
-} from '../base';
+import { Base, InstructionType, TokenAccount, TxVersion } from '../base';
 import {
   findProgramAddress, forecastTransactionSize, getMultipleAccountsInfo,
   TOKEN_PROGRAM_ID,
@@ -29,6 +27,7 @@ export interface SHOW_INFO {
   canClaimErrorType: canClaimErrorType
 
   tokenInfo: {
+    programId: PublicKey,
     mintAddress: PublicKey,
     mintVault: PublicKey,
     mintDecimals: number,
@@ -173,6 +172,7 @@ export class Utils1216 extends Base {
         canClaimErrorType: !hasCanClaimToken ? 'alreadyClaimIt' : !inCanClaimTime ? 'outOfOperationalTime' : undefined,
 
         tokenInfo: itemPoolInfo.tokenInfo.map((itemPoolToken, i) => ({
+          programId: TOKEN_PROGRAM_ID,
           mintAddress: itemPoolToken.mintAddress,
           mintVault: itemPoolToken.mintVault,
           mintDecimals: itemPoolToken.mintDecimals,
@@ -207,6 +207,7 @@ export class Utils1216 extends Base {
     const ownerVaultList: PublicKey[] = []
     for (const itemToken of poolInfo.tokenInfo) {
       ownerVaultList.push((await this._selectOrCreateTokenAccount({
+        programId: itemToken.programId,
         mint: itemToken.mintAddress,
         tokenAccounts: itemToken.mintAddress.equals(Token.WSOL.mint) ? [] : ownerInfo.tokenAccounts,
         owner: ownerInfo.wallet,
@@ -278,6 +279,7 @@ export class Utils1216 extends Base {
       const ownerVaultList: PublicKey[] = []
       for (const itemToken of poolInfo.tokenInfo) {
         const tempVault = tempNewVault[itemToken.mintAddress.toString()] ?? await this._selectOrCreateTokenAccount({
+          programId: itemToken.programId,
           mint: itemToken.mintAddress,
           tokenAccounts: itemToken.mintAddress.equals(Token.WSOL.mint) ? [] : ownerInfo.tokenAccounts,
           owner: ownerInfo.wallet,

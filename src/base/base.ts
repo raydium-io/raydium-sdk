@@ -10,12 +10,14 @@ import { Spl, SplAccount } from '../spl';
 import { InstructionType } from './type';
 
 export interface TokenAccount {
+  programId: PublicKey;
   pubkey: PublicKey;
   accountInfo: SplAccount;
 }
 
 export interface SelectTokenAccountParams {
   tokenAccounts: TokenAccount[];
+  programId: PublicKey;
   mint: PublicKey;
   owner: PublicKey;
   config?: { associatedOnly?: boolean };
@@ -25,6 +27,7 @@ export interface HandleTokenAccountParams {
   connection: Connection;
   side: "in" | "out";
   amount: BigNumberish;
+  programId: PublicKey;
   mint: PublicKey;
   tokenAccount: PublicKey | null;
   owner: PublicKey;
@@ -40,6 +43,7 @@ export interface HandleTokenAccountParams {
 }
 
 export interface SelectOrCreateTokenAccountParams {
+  programId: PublicKey,
   mint: PublicKey,
   tokenAccounts: TokenAccount[]
 
@@ -70,7 +74,7 @@ export interface UnsignedTransactionAndSigners {
 
 export class Base {
   static _selectTokenAccount(params: SelectTokenAccountParams) {
-    const { tokenAccounts, mint, owner, config } = params;
+    const { tokenAccounts, programId, mint, owner, config } = params;
 
     const { associatedOnly } = {
       // default
@@ -85,7 +89,7 @@ export class Base {
       // sort by balance
       .sort((a, b) => (a.accountInfo.amount.lt(b.accountInfo.amount) ? 1 : -1));
 
-    const ata = Spl.getAssociatedTokenAccount({ mint, owner });
+    const ata = Spl.getAssociatedTokenAccount({ mint, owner, programId });
 
     for (const tokenAccount of _tokenAccounts) {
       const { pubkey } = tokenAccount;
@@ -107,6 +111,7 @@ export class Base {
       connection,
       side,
       amount,
+      programId,
       mint,
       tokenAccount,
       owner,
@@ -120,7 +125,7 @@ export class Base {
       checkCreateATAOwner,
     } = params;
 
-    const ata = Spl.getAssociatedTokenAccount({ mint, owner });
+    const ata = Spl.getAssociatedTokenAccount({ mint, owner, programId });
 
     if (Token.WSOL.mint.equals(mint)) {
       const newTokenAccount = await Spl.insertCreateWrappedNativeAccount({
@@ -134,12 +139,13 @@ export class Base {
       });
       // if no endInstructions provide, no need to close
       if (endInstructions) {
-        endInstructions.push(Spl.makeCloseAccountInstruction({ tokenAccount: newTokenAccount, owner, payer, instructionsType: endInstructionsType ?? [] }));
+        endInstructions.push(Spl.makeCloseAccountInstruction({ programId: TOKEN_PROGRAM_ID, tokenAccount: newTokenAccount, owner, payer, instructionsType: endInstructionsType ?? [] }));
       }
 
       return newTokenAccount;
     } else if (!tokenAccount || (side === "out" && !ata.equals(tokenAccount) && !bypassAssociatedCheck)) {
       const _createATAIns = Spl.makeCreateAssociatedTokenAccountInstruction({
+        programId,
         mint,
         associatedAccount: ata,
         owner,
@@ -165,8 +171,8 @@ export class Base {
   }
 
   static async _selectOrCreateTokenAccount<T extends SelectOrCreateTokenAccountParams>(params: T): Promise<T['createInfo'] extends undefined ? PublicKey | undefined: PublicKey> {
-    const { mint, tokenAccounts, createInfo, associatedOnly, owner, checkCreateATAOwner } = params
-    const ata = Spl.getAssociatedTokenAccount({ mint, owner });
+    const { mint, tokenAccounts, createInfo, associatedOnly, owner, checkCreateATAOwner, programId } = params
+    const ata = Spl.getAssociatedTokenAccount({ mint, owner, programId });
     const accounts = tokenAccounts.filter((i) => i.accountInfo.mint.equals(mint) && (!associatedOnly || i.pubkey.equals(ata))).sort((a, b) => (a.accountInfo.amount.lt(b.accountInfo.amount) ? 1 : -1))
     // find token or don't need create
     if (createInfo === undefined || accounts.length > 0) {
@@ -175,6 +181,7 @@ export class Base {
 
     if (associatedOnly) {
       const _createATAIns = Spl.makeCreateAssociatedTokenAccountInstruction({
+        programId,
         mint,
         associatedAccount: ata,
         owner,
@@ -185,7 +192,7 @@ export class Base {
         const ataInfo = await createInfo.connection.getAccountInfo(ata)
         if (ataInfo === null) {
           createInfo.frontInstructions.push(_createATAIns);
-        } else if (ataInfo.owner.equals(TOKEN_PROGRAM_ID) && AccountLayout.decode(ataInfo.data).mint.equals(mint) && AccountLayout.decode(ataInfo.data).owner.equals(owner)) { 
+        } else if (ataInfo.owner.equals(programId) && AccountLayout.decode(ataInfo.data).mint.equals(mint) && AccountLayout.decode(ataInfo.data).owner.equals(owner)) { 
           /* empty */ 
         } else {
           throw Error(`create ata check error -> mint: ${mint.toString()}, ata: ${ata.toString()}`)
@@ -205,11 +212,12 @@ export class Base {
           amount: createInfo.amount ?? 0,
         });
 
-        (createInfo.endInstructions ?? []).push(Spl.makeCloseAccountInstruction({ tokenAccount: newTokenAccount, owner, payer: createInfo.payer, instructionsType: createInfo.endInstructionsType ?? [] }));
+        (createInfo.endInstructions ?? []).push(Spl.makeCloseAccountInstruction({ programId: TOKEN_PROGRAM_ID, tokenAccount: newTokenAccount, owner, payer: createInfo.payer, instructionsType: createInfo.endInstructionsType ?? [] }));
 
         if (createInfo.amount) {
           createInfo.frontInstructions.push(
             Spl.makeTransferInstruction({
+              programId: TOKEN_PROGRAM_ID,
               source: newTokenAccount,
               destination: ata,
               owner,
@@ -220,7 +228,7 @@ export class Base {
         }
       }
 
-      (createInfo.endInstructions ?? []).push(Spl.makeCloseAccountInstruction({ tokenAccount: ata, owner, payer: createInfo.payer, instructionsType: createInfo.endInstructionsType ?? [] }));
+      (createInfo.endInstructions ?? []).push(Spl.makeCloseAccountInstruction({ programId, tokenAccount: ata, owner, payer: createInfo.payer, instructionsType: createInfo.endInstructionsType ?? [] }));
 
       return ata
     } else {
@@ -234,7 +242,7 @@ export class Base {
           signers: createInfo.signers,
           amount: createInfo.amount ?? 0,
         });
-        (createInfo.endInstructions ?? []).push(Spl.makeCloseAccountInstruction({ tokenAccount: newTokenAccount, owner, payer: createInfo.payer , instructionsType: createInfo.endInstructionsType ?? []}));
+        (createInfo.endInstructions ?? []).push(Spl.makeCloseAccountInstruction({ programId: TOKEN_PROGRAM_ID, tokenAccount: newTokenAccount, owner, payer: createInfo.payer , instructionsType: createInfo.endInstructionsType ?? []}));
         return newTokenAccount
       } else {
         const newTokenAccount = Keypair.generate()
@@ -245,11 +253,11 @@ export class Base {
           newAccountPubkey: newTokenAccount.publicKey,
           lamports: balanceNeeded,
           space: AccountLayout.span,
-          programId: TOKEN_PROGRAM_ID,
+          programId,
         })
 
         const initAccountIns = Spl.createInitAccountInstruction(
-          TOKEN_PROGRAM_ID,
+          programId,
           mint,
           newTokenAccount.publicKey,
           owner,
@@ -257,7 +265,7 @@ export class Base {
         createInfo.frontInstructions.push(createAccountIns, initAccountIns)
         createInfo.frontInstructionsType.push(InstructionType.createAccount, InstructionType.initAccount)
         createInfo.signers.push(newTokenAccount);
-        (createInfo.endInstructions ?? []).push(Spl.makeCloseAccountInstruction({ tokenAccount: newTokenAccount.publicKey, owner, payer: createInfo.payer , instructionsType: createInfo.endInstructionsType ?? []}));
+        (createInfo.endInstructions ?? []).push(Spl.makeCloseAccountInstruction({ programId, tokenAccount: newTokenAccount.publicKey, owner, payer: createInfo.payer , instructionsType: createInfo.endInstructionsType ?? []}));
         return newTokenAccount.publicKey
       }
     }

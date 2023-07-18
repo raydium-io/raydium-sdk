@@ -5,6 +5,7 @@ import {
   AccountMeta, AccountMetaReadonly, ASSOCIATED_TOKEN_PROGRAM_ID,
   INSTRUCTION_PROGRAM_ID, RENT_PROGRAM_ID, SYSTEM_PROGRAM_ID, TOKEN_PROGRAM_ID,
 } from '../common';
+import { ZERO } from '../entity';
 import { bool, struct, u32, u64, u8 } from '../marshmallow';
 
 const anchorDataBuf = {
@@ -124,7 +125,7 @@ export function voterStakeRegistryCreateDepositEntry(
     depositEntryIndex,
     kind,
     option: startTs === undefined ? 0 : 1,
-    startTs: startTs!,
+    startTs: startTs ?? ZERO,
     periods,
     allowClawback
   },data);

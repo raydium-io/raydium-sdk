@@ -1,6 +1,7 @@
-import { PublicKey } from '@solana/web3.js';
+import { Connection, PublicKey } from '@solana/web3.js';
 import BN from 'bn.js';
 
+import { ApiAmmV3PoolsItem } from '../../baseInfo';
 import { ZERO } from '../../entity';
 import {
   AmmV3PoolInfo, AmmV3PoolRewardInfo, AmmV3PoolRewardLayoutInfo,
@@ -204,17 +205,24 @@ export class PoolUtils {
     return result.length > 0 ? { isExist: true, nextStartIndex: result[0] } : { isExist: false, nextStartIndex: 0 }
   }
 
-  public static updatePoolRewardInfos({ chainTime, poolLiquidity, rewardInfos }: {
+  public static async updatePoolRewardInfos({ connection, apiPoolInfo, chainTime, poolLiquidity, rewardInfos }: {
+    connection: Connection,
+    apiPoolInfo: ApiAmmV3PoolsItem,
     chainTime: number,
     poolLiquidity: BN,
     rewardInfos: AmmV3PoolRewardLayoutInfo[],
   }) {
     const nRewardInfo: AmmV3PoolRewardInfo[] = []
-    for (const _itemReward of rewardInfos) {
-      const itemReward = {
+    for (let i = 0 ; i < rewardInfos.length; i++) {
+      const _itemReward = rewardInfos[i]
+      const apiRewardProgram = apiPoolInfo.rewardInfos[i]?.programId ?? (await connection.getAccountInfo(_itemReward.tokenMint))?.owner
+      if (apiRewardProgram === undefined) throw Error('get new reward mint info error')
+
+      const itemReward: AmmV3PoolRewardInfo = {
         ..._itemReward,
         perSecond: MathUtil.x64ToDecimal(_itemReward.emissionsPerSecondX64),
-        remainingRewards: undefined
+        remainingRewards: undefined,
+        tokenProgramId: new PublicKey(apiRewardProgram),
       }
 
       if (itemReward.tokenMint.equals(PublicKey.default)) continue

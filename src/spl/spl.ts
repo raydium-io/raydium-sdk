@@ -1,35 +1,41 @@
 import {
-  createAssociatedTokenAccountInstruction, createCloseAccountInstruction, createInitializeAccountInstruction,
-  createInitializeMintInstruction, createMintToInstruction, createTransferInstruction,
-} from "@solana/spl-token";
+  createAssociatedTokenAccountInstruction, createCloseAccountInstruction,
+  createInitializeAccountInstruction, createInitializeMintInstruction,
+  createMintToInstruction, createTransferInstruction,
+} from '@solana/spl-token';
 import {
-  Commitment, Connection, Keypair, PublicKey, Signer, SystemProgram, TransactionInstruction,
-} from "@solana/web3.js";
-import BN from "bn.js";
+  Commitment, Connection, Keypair, PublicKey, Signer, SystemProgram,
+  TransactionInstruction,
+} from '@solana/web3.js';
+import BN from 'bn.js';
 
-import { InstructionType, MakeInstructionOutType, TxVersion } from "../base";
-import { getATAAddress } from "../base/pda";
-import { SYSVAR_RENT_PUBKEY, TOKEN_PROGRAM_ID, validateAndParsePublicKey } from "../common";
-import { BigNumberish, parseBigNumberish } from "../entity";
-import { u8 } from "../marshmallow";
-import { WSOL } from "../token";
+import { InstructionType, TxVersion } from '../base';
+import { getATAAddress } from '../base/pda';
+import {
+  SYSVAR_RENT_PUBKEY, TOKEN_PROGRAM_ID, validateAndParsePublicKey,
+} from '../common';
+import { BigNumberish, parseBigNumberish } from '../entity';
+import { u8 } from '../marshmallow';
+import { WSOL } from '../token';
 
-import { SPL_ACCOUNT_LAYOUT } from "./layout";
+import { SPL_ACCOUNT_LAYOUT } from './layout';
 
 // https://github.com/solana-labs/solana-program-library/tree/master/token/js/client
 export class Spl {
-  static getAssociatedTokenAccount({ mint, owner }: { mint: PublicKey; owner: PublicKey }) {
+  static getAssociatedTokenAccount({ mint, owner, programId }: { mint: PublicKey; owner: PublicKey, programId: PublicKey }) {
     // return getAssociatedTokenAddress(ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID, mint, owner, true);
-    return getATAAddress(owner, mint).publicKey
+    return getATAAddress(owner, mint, programId).publicKey
   }
 
   static makeCreateAssociatedTokenAccountInstruction({
+    programId,
     mint,
     associatedAccount,
     owner,
     payer,
     instructionsType,
   }: {
+    programId: PublicKey;
     mint: PublicKey;
     associatedAccount: PublicKey;
     owner: PublicKey;
@@ -42,6 +48,7 @@ export class Spl {
       associatedAccount,
       owner,
       mint,
+      programId,
     );
   }
 
@@ -101,6 +108,7 @@ export class Spl {
     // (i.e. amount)
     instructions.push(
       this.makeInitAccountInstruction({
+        programId: TOKEN_PROGRAM_ID,
         mint: validateAndParsePublicKey(WSOL.mint),
         tokenAccount: newAccount.publicKey,
         owner,
@@ -156,12 +164,14 @@ export class Spl {
   }
 
   static makeInitMintInstruction({
+    programId,
     mint,
     decimals,
     mintAuthority,
     freezeAuthority = null,
     instructionTypes
   }: {
+    programId: PublicKey;
     mint: PublicKey;
     decimals: number;
     mintAuthority: PublicKey;
@@ -169,10 +179,11 @@ export class Spl {
     instructionTypes: InstructionType[];
   }) {
     instructionTypes.push(InstructionType.initMint)
-    return createInitializeMintInstruction(mint, decimals, mintAuthority, freezeAuthority);
+    return createInitializeMintInstruction(mint, decimals, mintAuthority, freezeAuthority, programId);
   }
 
   static makeMintToInstruction({
+    programId,
     mint,
     dest,
     authority,
@@ -180,6 +191,7 @@ export class Spl {
     multiSigners = [],
     instructionTypes,
   }: {
+    programId: PublicKey;
     mint: PublicKey;
     dest: PublicKey;
     authority: PublicKey;
@@ -188,25 +200,28 @@ export class Spl {
     instructionTypes: InstructionType[];
   }) {
     instructionTypes.push(InstructionType.mintTo)
-    return createMintToInstruction(mint, dest, authority, BigInt(String(amount)), multiSigners);
+    return createMintToInstruction(mint, dest, authority, BigInt(String(amount)), multiSigners, programId);
   }
 
   static makeInitAccountInstruction({
+    programId,
     mint,
     tokenAccount,
     owner,
     instructionTypes,
   }: {
+    programId: PublicKey;
     mint: PublicKey;
     tokenAccount: PublicKey;
     owner: PublicKey;
     instructionTypes: InstructionType[];
   }) {
     instructionTypes.push(InstructionType.initAccount)
-    return createInitializeAccountInstruction(tokenAccount, mint, owner);
+    return createInitializeAccountInstruction(tokenAccount, mint, owner, programId);
   }
 
   static makeTransferInstruction({
+    programId,
     source,
     destination,
     owner,
@@ -214,6 +229,7 @@ export class Spl {
     multiSigners = [],
     instructionsType
   }: {
+    programId: PublicKey;
     source: PublicKey;
     destination: PublicKey;
     owner: PublicKey;
@@ -227,17 +243,20 @@ export class Spl {
       destination,
       owner,
       BigInt(String(amount)),
-      multiSigners
+      multiSigners,
+      programId,
     );
   }
 
   static makeCloseAccountInstruction({
+    programId,
     tokenAccount,
     owner,
     payer,
     multiSigners = [],
     instructionsType
   }: {
+    programId: PublicKey;
     tokenAccount: PublicKey;
     owner: PublicKey;
     payer: PublicKey;
@@ -245,7 +264,7 @@ export class Spl {
     instructionsType: InstructionType[]
   }) {
     instructionsType.push(InstructionType.closeAccount)
-    return createCloseAccountInstruction(tokenAccount, payer, owner, multiSigners);
+    return createCloseAccountInstruction(tokenAccount, payer, owner, multiSigners, programId);
   }
 
   static createInitAccountInstruction(programId: PublicKey, mint: PublicKey, account: PublicKey, owner: PublicKey) {
