@@ -271,7 +271,6 @@ export function closePositionInstruction(
 
     { pubkey: SYSTEM_PROGRAM_ID, isSigner: false, isWritable: false },
     { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-    { pubkey: TOKEN_2022_PROGRAM_ID, isSigner: false, isWritable: false },
   ];
 
   const data = Buffer.alloc(dataLayout.span);
