@@ -77,18 +77,16 @@ export const REAL_FARM_STATE_LAYOUT_V6 = struct([
   seq(u64(), 32, "padding"),
 ]);
 
-export type FarmStructReward = {
-  rewardVault: PublicKey;
-  totalReward: BN;
-  perSlotReward: BN;
-  perShareReward: BN;
-}
-
 export const FARM_STATE_LAYOUT_V3 = new Proxy(
   REAL_FARM_STATE_LAYOUT_V3 as GetStructureFromLayoutSchema<
     {
       version: 3,
-      rewardInfos: FarmStructReward[];
+      rewardInfos: {
+        rewardVault: PublicKey;
+        totalReward: BN;
+        perSlotReward: BN;
+        perShareReward: BN;
+      }[];
     } & GetLayoutSchemaFromStructure<typeof REAL_FARM_STATE_LAYOUT_V3>
   >,
   {
@@ -118,7 +116,12 @@ export const FARM_STATE_LAYOUT_V5 = new Proxy(
   REAL_FARM_STATE_LAYOUT_V5 as GetStructureFromLayoutSchema<
     {
       version: 5,
-      rewardInfos: FarmStructReward[];
+      rewardInfos: {
+        rewardVault: PublicKey;
+        totalReward: BN;
+        perSlotReward: BN;
+        perShareReward: BN;
+      }[];
     } & GetLayoutSchemaFromStructure<typeof REAL_FARM_STATE_LAYOUT_V5>
   >,
   {
@@ -150,27 +153,25 @@ export const FARM_STATE_LAYOUT_V5 = new Proxy(
   },
 );
 
-export type FarmV6Reward = {
-  rewardState: BN;
-  rewardOpenTime: BN;
-  rewardEndTime: BN;
-  rewardLastUpdateTime: BN;
-  totalReward: BN;
-  totalRewardEmissioned: BN;
-  rewardClaimed: BN;
-  rewardPerSecond: BN;
-  accRewardPerShare: BN;
-  rewardVault: PublicKey;
-  rewardMint: PublicKey;
-  rewardSender: PublicKey;
-  rewardType: keyof typeof poolTypeV6;
-}
-
 export const FARM_STATE_LAYOUT_V6 = new Proxy(
   REAL_FARM_STATE_LAYOUT_V6 as GetStructureFromLayoutSchema<
     {
       version: 6,
-      rewardInfos: FarmV6Reward[];
+      rewardInfos: {
+        rewardState: BN;
+        rewardOpenTime: BN;
+        rewardEndTime: BN;
+        rewardLastUpdateTime: BN;
+        totalReward: BN;
+        totalRewardEmissioned: BN;
+        rewardClaimed: BN;
+        rewardPerSecond: BN;
+        accRewardPerShare: BN;
+        rewardVault: PublicKey;
+        rewardMint: PublicKey;
+        rewardSender: PublicKey;
+        rewardType: keyof typeof poolTypeV6;
+      }[];
     } & GetLayoutSchemaFromStructure<typeof REAL_FARM_STATE_LAYOUT_V6>
   >,
   {

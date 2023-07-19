@@ -29,7 +29,6 @@ import {
   FARM_LEDGER_LAYOUT_V5_2, FARM_STATE_LAYOUT_V6, FARM_VERSION_TO_LEDGER_LAYOUT,
   FARM_VERSION_TO_STATE_LAYOUT, FarmLedger, FarmState,
   REAL_FARM_STATE_LAYOUT_V3, REAL_FARM_STATE_LAYOUT_V5, Voter, VoterRegistrar,
-  FarmStructReward, FarmV6Reward
 } from './layout';
 import {
   getRegistrarAddress, getTokenOwnerRecordAddress, getVoterAddress,
@@ -1449,7 +1448,7 @@ export class Farm extends Base {
           mint: rewardMint,
           type: "rewardVault",
         }),
-        userRewardToken: userRewardToken!,
+        userRewardToken,
       });
     }
 
@@ -1614,7 +1613,7 @@ export class Farm extends Base {
       AccountMeta(poolKeys.id, false),
       AccountMetaReadonly(poolKeys.lpVault, false),
       AccountMeta(rewardVault, false),
-      AccountMeta(userRewardToken!, false),
+      AccountMeta(userRewardToken, false),
       AccountMetaReadonly(userKeys.owner, true),
     ];
 
@@ -1739,7 +1738,7 @@ export class Farm extends Base {
       AccountMetaReadonly(poolKeys.authority, false),
       AccountMetaReadonly(rewardMint, false),
       AccountMeta(rewardVault, false),
-      AccountMeta(userRewardToken!, false),
+      AccountMeta(userRewardToken, false),
       AccountMetaReadonly(userKeys.owner, true),
     ];
 

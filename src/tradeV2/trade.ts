@@ -160,22 +160,22 @@ export class TradeV2 extends Base {
         directPath.push(itemAmmPool)
         needTickArray[itemAmmPool.id.toString()] = itemAmmPool
       }
-      if (itemAmmPool.mintA.mint.equals(inputMint) && (itemAmmPool.mintA.programId.equals(TOKEN_PROGRAM_ID) || allowedRouteToken2022)) {
+      if (itemAmmPool.mintA.mint.equals(inputMint) && (itemAmmPool.mintB.programId.equals(TOKEN_PROGRAM_ID) || allowedRouteToken2022)) {
         const t = itemAmmPool.mintB.mint.toString()
         if (routePathDict[t] === undefined) routePathDict[t] = {mintProgram: itemAmmPool.mintB.programId, in: [], out: [], mDecimals: itemAmmPool.mintB.decimals }
         routePathDict[t].in.push(itemAmmPool)
       }
-      if (itemAmmPool.mintB.mint.equals(inputMint) && (itemAmmPool.mintB.programId.equals(TOKEN_PROGRAM_ID) || allowedRouteToken2022)) {
+      if (itemAmmPool.mintB.mint.equals(inputMint) && (itemAmmPool.mintA.programId.equals(TOKEN_PROGRAM_ID) || allowedRouteToken2022)) {
         const t = itemAmmPool.mintA.mint.toString()
         if (routePathDict[t] === undefined) routePathDict[t] = {mintProgram: itemAmmPool.mintA.programId, in: [], out: [], mDecimals: itemAmmPool.mintA.decimals }
         routePathDict[t].in.push(itemAmmPool)
       }
-      if (itemAmmPool.mintA.mint.equals(outputMint) && (itemAmmPool.mintA.programId.equals(TOKEN_PROGRAM_ID) || allowedRouteToken2022)) {
+      if (itemAmmPool.mintA.mint.equals(outputMint) && (itemAmmPool.mintB.programId.equals(TOKEN_PROGRAM_ID) || allowedRouteToken2022)) {
         const t = itemAmmPool.mintB.mint.toString()
         if (routePathDict[t] === undefined) routePathDict[t] = {mintProgram: itemAmmPool.mintB.programId, in: [], out: [], mDecimals: itemAmmPool.mintB.decimals }
         routePathDict[t].out.push(itemAmmPool)
       }
-      if (itemAmmPool.mintB.mint.equals(outputMint) && (itemAmmPool.mintB.programId.equals(TOKEN_PROGRAM_ID) || allowedRouteToken2022)) {
+      if (itemAmmPool.mintB.mint.equals(outputMint) && (itemAmmPool.mintA.programId.equals(TOKEN_PROGRAM_ID) || allowedRouteToken2022)) {
         const t = itemAmmPool.mintA.mint.toString()
         if (routePathDict[t] === undefined) routePathDict[t] = {mintProgram: itemAmmPool.mintA.programId, in: [], out: [], mDecimals: itemAmmPool.mintA.decimals }
         routePathDict[t].out.push(itemAmmPool)
@@ -268,7 +268,6 @@ export class TradeV2 extends Base {
         }
       }
     }
-    
     for (const item of directPath) {
       if (item.version === 6) {
         if (item.mintA.programId.equals(TOKEN_2022_PROGRAM_ID)) needCheckToken.add(item.mintA.mint.toString())
@@ -701,7 +700,7 @@ export class TradeV2 extends Base {
               routeProgram,
               ownerInfo.wallet,
               ownerInfo.sourceToken,
-              ownerInfo.routeToken as PublicKey,
+              ownerInfo.routeToken,
               ownerInfo.destinationToken,
 
               inputMint.toString(),
