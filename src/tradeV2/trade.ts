@@ -89,7 +89,8 @@ export interface ComputeAmountOutRouteLayout {
   routeType: 'route',
   poolKey: PoolType[],
   remainingAccounts: (PublicKey[] | undefined)[]
-  minMiddleAmountFee: TokenAmount,
+  minMiddleAmountFee: TokenAmount | undefined,
+  middleToken: Token,
   poolReady: boolean
   poolType: ('CLMM' | 'STABLE' | undefined)[]
 
@@ -436,7 +437,7 @@ export class TradeV2 extends Base {
           if (!simulateCache[iOutPool.id as string] && !tickCache[iOutPool.id.toString()]) continue
           if (iOutPool.version !== 6 && ![1,6,7].includes(simulateCache[iOutPool.id as string].status.toNumber())) continue
           try {
-            const { amountOut, minAmountOut, executionPrice, priceImpact, fee, remainingAccounts, minMiddleAmountFee, expirationTime, realAmountIn } = TradeV2.computeAmountOut({
+            const { amountOut, minAmountOut, executionPrice, priceImpact, fee, remainingAccounts, minMiddleAmountFee, expirationTime, realAmountIn, middleToken } = TradeV2.computeAmountOut({
               middleMintInfo: { programId: info.mintProgram, mint: new PublicKey(routeMint), decimals: info.mDecimals, },
               amountIn,
               currencyOut: outputToken,
@@ -457,7 +458,7 @@ export class TradeV2 extends Base {
             const poolTypeB = iOutPool.version === 6 ? 'CLMM' : iOutPool.version === 5 ? "STABLE" : undefined
 
             outRoute.push({
-              amountIn: realAmountIn, amountOut, minAmountOut, currentPrice: undefined, executionPrice, priceImpact, fee, routeType: 'route', poolKey: [iFromPool, iOutPool], remainingAccounts, minMiddleAmountFee, poolReady: infoAPoolOpen && infoBPoolOpen, poolType: [poolTypeA, poolTypeB], feeConfig: _inFeeConfig, expirationTime 
+              amountIn: realAmountIn, amountOut, minAmountOut, currentPrice: undefined, executionPrice, priceImpact, fee, routeType: 'route', poolKey: [iFromPool, iOutPool], remainingAccounts, minMiddleAmountFee, middleToken, poolReady: infoAPoolOpen && infoBPoolOpen, poolType: [poolTypeA, poolTypeB], feeConfig: _inFeeConfig, expirationTime 
             })
           } catch (e) {
             //
@@ -498,7 +499,8 @@ export class TradeV2 extends Base {
     epochInfo: EpochInfo,
     mintInfos: ReturnTypeFetchMultipleMintInfos,
   }): {
-    minMiddleAmountFee: TokenAmount,
+    minMiddleAmountFee: TokenAmount | undefined,
+    middleToken: Token,
     realAmountIn: TransferAmountFee,
     amountOut: TransferAmountFee,
     minAmountOut: TransferAmountFee,
@@ -638,7 +640,8 @@ export class TradeV2 extends Base {
     }
 
     return {
-      minMiddleAmountFee: new TokenAmount(middleToken, (minMiddleAmountOut.fee?.raw ?? new BN(0)).add((realAmountRouteIn.fee?.raw ?? new BN(0)))),
+      minMiddleAmountFee: minMiddleAmountOut.fee !== undefined ? new TokenAmount(middleToken, (minMiddleAmountOut.fee?.raw ?? new BN(0)).add((realAmountRouteIn.fee?.raw ?? new BN(0)))) : undefined,
+      middleToken,
       realAmountIn,
       amountOut,
       minAmountOut,
@@ -704,7 +707,7 @@ export class TradeV2 extends Base {
               ownerInfo.destinationToken,
 
               inputMint.toString(),
-              swapInfo.minMiddleAmountFee.token.mint.toString(),
+              swapInfo.middleToken.mint.toString(),
 
               poolKey1,
               poolKey2,
@@ -801,7 +804,7 @@ export class TradeV2 extends Base {
 
     let routeToken: PublicKey | undefined = undefined
     if (swapInfo.routeType === 'route') {
-      const middleMint = swapInfo.minMiddleAmountFee.token
+      const middleMint = swapInfo.middleToken
       routeToken = await this._selectOrCreateTokenAccount({
         programId: middleMint.programId,
         mint: middleMint.mint,
