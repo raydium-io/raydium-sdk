@@ -372,7 +372,7 @@ export class AmmV3 extends Base {
   }
 
   static async makeOpenPositionFromLiquidityInstructionSimple(
-    { connection, poolInfo, ownerInfo, amountMaxA, amountMaxB, tickLower, tickUpper, liquidity, associatedOnly = true, checkCreateATAOwner = false, computeBudgetConfig, withMatedata = 'create' }: {
+    { connection, poolInfo, ownerInfo, amountMaxA, amountMaxB, tickLower, tickUpper, liquidity, associatedOnly = true, checkCreateATAOwner = false, computeBudgetConfig, withMetadata = 'create' }: {
       connection: Connection,
       poolInfo: AmmV3PoolInfo,
 
@@ -389,7 +389,7 @@ export class AmmV3 extends Base {
       tickLower: number,
       tickUpper: number,
 
-      withMatedata?: 'create' | 'no-create',
+      withMetadata?: 'create' | 'no-create',
 
       liquidity: BN,
       slippage: number
@@ -470,7 +470,7 @@ export class AmmV3 extends Base {
       liquidity,
       amountMaxA,
       amountMaxB,
-      withMatedata,
+      withMetadata,
     })
 
     return {
@@ -488,7 +488,7 @@ export class AmmV3 extends Base {
   }
 
   static async makeOpenPositionFromBaseInstructionSimple(
-    { connection, poolInfo, ownerInfo, tickLower, tickUpper, base, baseAmount, otherAmountMax, associatedOnly = true, checkCreateATAOwner = false, computeBudgetConfig, withMatedata = 'create' }: {
+    { connection, poolInfo, ownerInfo, tickLower, tickUpper, base, baseAmount, otherAmountMax, associatedOnly = true, checkCreateATAOwner = false, computeBudgetConfig, withMetadata = 'create' }: {
       connection: Connection,
       poolInfo: AmmV3PoolInfo,
 
@@ -502,7 +502,7 @@ export class AmmV3 extends Base {
       tickLower: number,
       tickUpper: number,
 
-      withMatedata?: 'create' | 'no-create',
+      withMetadata?: 'create' | 'no-create',
 
       base: 'MintA' | 'MintB',
       baseAmount: BN,
@@ -587,7 +587,7 @@ export class AmmV3 extends Base {
       baseAmount,
       otherAmountMax,
 
-      withMatedata,
+      withMetadata,
     })
 
     return {
@@ -2139,7 +2139,7 @@ export class AmmV3 extends Base {
   }
 
   static makeOpenPositionFromLiquidityInstructions(
-    { poolInfo, ownerInfo, tickLower, tickUpper, liquidity, amountMaxA, amountMaxB, withMatedata }: {
+    { poolInfo, ownerInfo, tickLower, tickUpper, liquidity, amountMaxA, amountMaxB, withMetadata }: {
       poolInfo: AmmV3PoolInfo,
 
       ownerInfo: {
@@ -2155,7 +2155,7 @@ export class AmmV3 extends Base {
       amountMaxA: BN,
       amountMaxB: BN,
 
-      withMatedata: 'create' | 'no-create',
+      withMetadata: 'create' | 'no-create',
     }
   ) {
     const nftMintAKeypair = new Keypair();
@@ -2197,7 +2197,7 @@ export class AmmV3 extends Base {
       liquidity,
       amountMaxA,
       amountMaxB,
-      withMatedata,
+      withMetadata,
     )
 
     return {
@@ -2221,7 +2221,7 @@ export class AmmV3 extends Base {
   }
 
   static makeOpenPositionFromBaseInstructions(
-    { poolInfo, ownerInfo, tickLower, tickUpper, base, baseAmount, otherAmountMax, withMatedata }: {
+    { poolInfo, ownerInfo, tickLower, tickUpper, base, baseAmount, otherAmountMax, withMetadata }: {
       poolInfo: AmmV3PoolInfo,
 
       ownerInfo: {
@@ -2234,7 +2234,7 @@ export class AmmV3 extends Base {
       tickLower: number,
       tickUpper: number,
 
-      withMatedata: 'create' | 'no-create',
+      withMetadata: 'create' | 'no-create',
 
       base: 'MintA' | 'MintB',
       baseAmount: BN,
@@ -2279,7 +2279,7 @@ export class AmmV3 extends Base {
       tickArrayLowerStartIndex,
       tickArrayUpperStartIndex,
 
-      withMatedata,
+      withMetadata,
 
       base,
       baseAmount,

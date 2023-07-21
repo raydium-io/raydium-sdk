@@ -1947,7 +1947,7 @@ export class Liquidity extends Base {
         wallet: userKeys.owner,
         tokenAccountA, tokenAccountB
       },
-      withMatedata: 'create',
+      withMetadata: 'create',
       ...createPositionInfo
     })
 
