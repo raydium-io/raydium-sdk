@@ -96,6 +96,7 @@ export function openPositionFromLiquidityInstruction(
   liquidity: BN,
   amountMaxA: BN,
   amountMaxB: BN,
+  withMatedata: 'create' | 'no-create',
 ) {
   const dataLayout = struct([
     s32("tickLowerIndex"),
@@ -105,6 +106,7 @@ export function openPositionFromLiquidityInstruction(
     u128("liquidity"),
     u64("amountMaxA"),
     u64("amountMaxB"),
+    bool('withMatedata'),
     u8('optionBaseFlag'),
     bool('baseFlag'),
   ]);
@@ -146,6 +148,7 @@ export function openPositionFromLiquidityInstruction(
       liquidity,
       amountMaxA,
       amountMaxB,
+      withMatedata: withMatedata === 'create',
       baseFlag: false,
       optionBaseFlag: 0,
     },
@@ -185,6 +188,7 @@ export function openPositionFromBaseInstruction(
   tickArrayLowerStartIndex: number,
   tickArrayUpperStartIndex: number,
 
+  withMatedata: 'create' | 'no-create',
   base: 'MintA' | 'MintB',
   baseAmount: BN,
   
@@ -198,6 +202,7 @@ export function openPositionFromBaseInstruction(
     u128("liquidity"),
     u64("amountMaxA"),
     u64("amountMaxB"),
+    bool('withMatedata'),
     u8('optionBaseFlag'),
     bool('baseFlag'),
   ]);
@@ -239,6 +244,7 @@ export function openPositionFromBaseInstruction(
       liquidity: ZERO,
       amountMaxA: base === 'MintA' ? baseAmount : otherAmountMax,
       amountMaxB: base === 'MintA' ? otherAmountMax : baseAmount,
+      withMatedata: withMatedata === 'create',
       baseFlag: base === 'MintA',
       optionBaseFlag: 1,
     },
