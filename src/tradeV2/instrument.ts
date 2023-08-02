@@ -344,10 +344,12 @@ function makeInnerInsKey(itemPool: PoolType, inMint: string, userInAccount: Publ
       { pubkey: baseIn ? itemPool.mintA.vault : itemPool.mintB.vault, isSigner: false, isWritable: true },
       { pubkey: baseIn ? itemPool.mintB.vault : itemPool.mintA.vault, isSigner: false, isWritable: true },
       { pubkey: itemPool.observationId, isSigner: false, isWritable: true },
-      { pubkey: TOKEN_2022_PROGRAM_ID, isSigner: false, isWritable: false },
-      { pubkey: MEMO_PROGRAM_ID, isSigner: false, isWritable: false },
-      { pubkey: baseIn ? itemPool.mintA.mint : itemPool.mintB.mint, isSigner: false, isWritable: false },
-      { pubkey: baseIn ? itemPool.mintB.mint : itemPool.mintA.mint, isSigner: false, isWritable: false },
+      ...itemPool.mintA.programId.equals(TOKEN_2022_PROGRAM_ID) || itemPool.mintB.programId.equals(TOKEN_2022_PROGRAM_ID) ? [
+        { pubkey: TOKEN_2022_PROGRAM_ID, isSigner: false, isWritable: false },
+        { pubkey: MEMO_PROGRAM_ID, isSigner: false, isWritable: false },
+        { pubkey: baseIn ? itemPool.mintA.mint : itemPool.mintB.mint, isSigner: false, isWritable: false },
+        { pubkey: baseIn ? itemPool.mintB.mint : itemPool.mintA.mint, isSigner: false, isWritable: false },
+      ] : [],
       ...(remainingAccount ?? []).map(i => ({ pubkey: i, isSigner: false, isWritable: true }))
     ]
   } else {
