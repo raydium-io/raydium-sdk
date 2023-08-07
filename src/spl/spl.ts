@@ -4,12 +4,12 @@ import {
   createMintToInstruction, createTransferInstruction,
 } from '@solana/spl-token';
 import {
-  Commitment, Connection, Keypair, PublicKey, Signer, SystemProgram,
+  Commitment, Connection, PublicKey, Signer, SystemProgram,
   TransactionInstruction,
 } from '@solana/web3.js';
 import BN from 'bn.js';
 
-import { InstructionType, TxVersion } from '../base';
+import { generatePubKey, InstructionType } from '../base';
 import { getATAAddress } from '../base/pda';
 import {
   SYSVAR_RENT_PUBKEY, TOKEN_PROGRAM_ID, validateAndParsePublicKey,
@@ -80,10 +80,12 @@ export class Spl {
 
     // Create a new account
     const lamports = parseBigNumberish(amount).add(new BN(balanceNeeded));
-    const newAccount = Keypair.generate();
+    const newAccount = generatePubKey({ fromPublicKey: payer, programId: TOKEN_PROGRAM_ID})
     instructions.push(
-      SystemProgram.createAccount({
+      SystemProgram.createAccountWithSeed({
         fromPubkey: payer,
+        basePubkey: payer,
+        seed: newAccount.seed,
         newAccountPubkey: newAccount.publicKey,
         lamports: lamports.toNumber(),
         space: SPL_ACCOUNT_LAYOUT.span,
@@ -121,10 +123,9 @@ export class Spl {
       address: { newAccount: newAccount.publicKey },
       innerTransaction: {
         instructions,
-        signers: [newAccount],
+        signers: [],
         lookupTableAddress: [],
         instructionTypes,
-        supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
       }
     }
   }

@@ -5,7 +5,7 @@ import BN from 'bn.js';
 
 import { Base, InstructionType, TokenAccount, TxVersion } from '../base';
 import {
-  findProgramAddress, forecastTransactionSize, getMultipleAccountsInfo,
+  CacheLTA, findProgramAddress, getMultipleAccountsInfo, splitTxAndSigners,
   TOKEN_PROGRAM_ID,
 } from '../common';
 import { Token } from '../entity';
@@ -185,7 +185,9 @@ export class Utils1216 extends Base {
     return info
   }
 
-  static async makeClaimInstructionSimple({ connection, poolInfo, ownerInfo }: {
+  static async makeClaimInstructionSimple<T extends TxVersion>({ connection, poolInfo, ownerInfo, makeTxVersion, lookupTableCache, }: {
+    makeTxVersion: T,
+    lookupTableCache?: CacheLTA,
     connection: Connection,
     poolInfo: SHOW_INFO,
     ownerInfo: {
@@ -242,19 +244,24 @@ export class Utils1216 extends Base {
 
     return {
       address: {},
-      innerTransactions: [
-        {
-          instructions: [...frontInstructions, ...instructions, ...endInstructions],
-          signers,
-          
-          instructionTypes: [...frontInstructionsType, ...instructionsType, ...endInstructionsType],
-          supportedVersion: [TxVersion.LEGACY, TxVersion.V0],
-        }
-      ]
+      innerTransactions: await splitTxAndSigners({
+        connection,
+        makeTxVersion,
+        computeBudgetConfig: undefined,
+        payer: ownerInfo.wallet,
+        innerTransaction: [ 
+          { instructionTypes: frontInstructionsType, instructions: frontInstructions, signers,}, 
+          { instructionTypes: instructionsType, instructions, signers: [],}, 
+          { instructionTypes: endInstructionsType, instructions: endInstructions, signers: [], }
+        ],
+        lookupTableCache,
+      })
     } 
   }
 
-  static async makeClaimAllInstructionSimple({ connection, poolInfos, ownerInfo }: {
+  static async makeClaimAllInstructionSimple<T extends TxVersion>({ connection, poolInfos, ownerInfo, makeTxVersion, lookupTableCache, }: {
+    makeTxVersion: T,
+    lookupTableCache?: CacheLTA,
     connection: Connection,
     poolInfos: SHOW_INFO[],
     ownerInfo: {
@@ -315,42 +322,20 @@ export class Utils1216 extends Base {
       instructionsType.push(InstructionType.util1216OwnerClaim)
     }
 
-    if (forecastTransactionSize([...frontInstructions, ...instructions, ...endInstructions], [ownerInfo.wallet, ...signers.map(i => i.publicKey)])) {
-      return {
-        address: {},
-        innerTransactions: [
-          {
-            instructions: [...frontInstructions, ...instructions, ...endInstructions],
-            signers,
-            instructionTypes: [...frontInstructionsType, ...instructionsType, ...endInstructionsType],
-            supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
-          }
+    return {
+      address: {},
+      innerTransactions: await splitTxAndSigners({
+        connection,
+        makeTxVersion,
+        computeBudgetConfig: undefined,
+        payer: ownerInfo.wallet,
+        innerTransaction: [ 
+          { instructionTypes: frontInstructionsType, instructions: frontInstructions, signers,}, 
+          { instructionTypes: instructionsType, instructions, signers: [],}, 
+          { instructionTypes: endInstructionsType, instructions: endInstructions, signers: [], }
         ],
-      }
-    } else {
-      return {
-        address: {},
-        innerTransactions: [
-          {
-            instructions: frontInstructions,
-            signers,
-            instructionTypes: frontInstructionsType,
-            supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
-          },
-          {
-            instructions,
-            signers: [],
-            instructionTypes: instructionsType,
-            supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
-          },
-          {
-            instructions: endInstructions,
-            signers: [],
-            instructionTypes: endInstructionsType,
-            supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
-          },
-        ],
-      }
+        lookupTableCache,
+      })
     }
   }
 

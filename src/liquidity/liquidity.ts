@@ -7,17 +7,17 @@ import BN from 'bn.js';
 import { AmmV3, AmmV3PoolInfo } from '../ammV3';
 import {
   Base, ComputeBudgetConfig, InnerTransaction, InstructionType,
-  MakeInstructionOutType, MakeInstructionSimpleOutType, TokenAccount, TxVersion,
+  MakeInstructionOutType, TokenAccount, TxVersion,
 } from '../base';
 import { addComputeBudget } from '../base/instrument';
 import { getATAAddress } from '../base/pda';
 import { ApiPoolInfoItem } from '../baseInfo';
 import {
-  AccountMeta, AccountMetaReadonly, ASSOCIATED_TOKEN_PROGRAM_ID,
+  AccountMeta, AccountMetaReadonly, ASSOCIATED_TOKEN_PROGRAM_ID, CacheLTA,
   findProgramAddress, getMultipleAccountsInfo, GetMultipleAccountsInfoConfig,
   Logger, parseSimulateLogToJson, parseSimulateValue, RENT_PROGRAM_ID,
-  simulateMultipleInstruction, SYSTEM_PROGRAM_ID, SYSVAR_RENT_PUBKEY,
-  TOKEN_PROGRAM_ID,
+  simulateMultipleInstruction, splitTxAndSigners, SYSTEM_PROGRAM_ID,
+  SYSVAR_RENT_PUBKEY, TOKEN_PROGRAM_ID,
 } from '../common';
 import {
   BigNumberish, Currency, CurrencyAmount, divCeil, ONE, parseBigNumberish,
@@ -604,7 +604,6 @@ export class Liquidity extends Base {
           signers: [],
           lookupTableAddress: [poolKeys.lookupTableAccount].filter(i => !i.equals(PublicKey.default)),
           instructionTypes: [version === 4 ? InstructionType.ammV4AddLiquidity : InstructionType.ammV5AddLiquidity],
-          supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
         }
       }
     }
@@ -612,8 +611,12 @@ export class Liquidity extends Base {
     return logger.throwArgumentError("invalid version", "poolKeys.version", version);
   }
 
-  static async makeAddLiquidityInstructionSimple(params: LiquidityAddInstructionSimpleParams) {
-    const { connection, poolKeys, userKeys, amountInA, amountInB, fixedSide, config } = params;
+  static async makeAddLiquidityInstructionSimple<T extends TxVersion>(params: LiquidityAddInstructionSimpleParams & {
+    makeTxVersion: T,
+    lookupTableCache?: CacheLTA,
+    computeBudgetConfig?: ComputeBudgetConfig,
+  }) {
+    const { connection, poolKeys, userKeys, amountInA, amountInB, fixedSide, config, makeTxVersion, lookupTableCache, computeBudgetConfig } = params;
     const { lpMint } = poolKeys;
     const { tokenAccounts, owner, payer = owner } = userKeys;
 
@@ -768,24 +771,18 @@ export class Liquidity extends Base {
       address: {
         lpTokenAccount: _lpTokenAccount,
       },
-      innerTransactions: [{
-        instructions: [
-          ...frontInstructions,
-          ...ins.innerTransaction.instructions,
-          ...endInstructions
+      innerTransactions: await splitTxAndSigners({
+        connection,
+        makeTxVersion,
+        computeBudgetConfig,
+        payer,
+        innerTransaction: [ 
+          { instructionTypes: frontInstructionsType, instructions: frontInstructions, signers,}, 
+          ins.innerTransaction, 
+          { instructionTypes: endInstructionsType, instructions: endInstructions, signers: [], }
         ],
-        signers: [
-          ...signers,
-          ...ins.innerTransaction.signers,
-        ],
-        lookupTableAddress: ins.innerTransaction.lookupTableAddress ?? [],
-        instructionTypes: [
-          ...frontInstructionsType,
-          ...ins.innerTransaction.instructionTypes,
-          ...endInstructionsType
-        ],
-        supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
-      }]
+        lookupTableCache,
+      })
     }
   }
 
@@ -855,7 +852,6 @@ export class Liquidity extends Base {
           signers: [],
           lookupTableAddress: [poolKeys.lookupTableAccount].filter(i => !i.equals(PublicKey.default)),
           instructionTypes: [version === 4 ? InstructionType.ammV4RemoveLiquidity : InstructionType.ammV5RemoveLiquidity],
-          supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
         }
       }
     }
@@ -863,8 +859,12 @@ export class Liquidity extends Base {
     return logger.throwArgumentError("invalid version", "poolKeys.version", version);
   }
 
-  static async makeRemoveLiquidityInstructionSimple(params: LiquidityRemoveInstructionSimpleParams) {
-    const { connection, poolKeys, userKeys, amountIn, config } = params;
+  static async makeRemoveLiquidityInstructionSimple<T extends TxVersion>(params: LiquidityRemoveInstructionSimpleParams & {
+    makeTxVersion: T,
+    lookupTableCache?: CacheLTA,
+    computeBudgetConfig?: ComputeBudgetConfig,
+  }) {
+    const { connection, poolKeys, userKeys, amountIn, config, makeTxVersion, lookupTableCache, computeBudgetConfig } = params;
     const { baseMint, quoteMint, lpMint } = poolKeys;
     const { tokenAccounts, owner, payer = owner } = userKeys;
 
@@ -968,24 +968,18 @@ export class Liquidity extends Base {
       address: {
         lpTokenAccount: _lpTokenAccount,
       },
-      innerTransactions: [{
-        instructions: [
-          ...frontInstructions,
-          ...ins.innerTransaction.instructions,
-          ...endInstructions
+      innerTransactions: await splitTxAndSigners({
+        connection,
+        makeTxVersion,
+        computeBudgetConfig,
+        payer,
+        innerTransaction: [ 
+          { instructionTypes: frontInstructionsType, instructions: frontInstructions, signers,}, 
+          ins.innerTransaction, 
+          { instructionTypes: endInstructionsType, instructions: endInstructions, signers: [], }
         ],
-        signers: [
-          ...signers,
-          ...ins.innerTransaction.signers,
-        ],
-        lookupTableAddress: ins.innerTransaction.lookupTableAddress ?? [],
-        instructionTypes: [
-          ...frontInstructionsType,
-          ...ins.innerTransaction.instructionTypes,
-          ...endInstructionsType
-        ],
-        supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
-      }]
+        lookupTableCache,
+      })
     }
   }
 
@@ -1085,7 +1079,6 @@ export class Liquidity extends Base {
         signers: [],
         lookupTableAddress: [poolKeys.lookupTableAccount].filter(i => !i.equals(PublicKey.default)),
         instructionTypes: [version === 4 ? InstructionType.ammV4SwapBaseIn : InstructionType.ammV5SwapBaseIn],
-        supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
       }
     }
   }
@@ -1150,13 +1143,16 @@ export class Liquidity extends Base {
         signers: [],
         lookupTableAddress: [poolKeys.lookupTableAccount].filter(i => !i.equals(PublicKey.default)),
         instructionTypes: [version === 4 ? InstructionType.ammV4SwapBaseOut : InstructionType.ammV5SwapBaseOut],
-        supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
       }
     }
   }
 
-  static async makeSwapInstructionSimple(params: LiquiditySwapInstructionSimpleParams) {
-    const { connection, poolKeys, userKeys, amountIn, amountOut, fixedSide, config } = params;
+  static async makeSwapInstructionSimple<T extends TxVersion>(params: LiquiditySwapInstructionSimpleParams & {
+    makeTxVersion: T,
+    lookupTableCache?: CacheLTA,
+    computeBudgetConfig?: ComputeBudgetConfig,
+  }) {
+    const { connection, poolKeys, userKeys, amountIn, amountOut, fixedSide, config, makeTxVersion, lookupTableCache, computeBudgetConfig } = params;
     const { tokenAccounts, owner, payer = owner } = userKeys;
 
     logger.debug("amountIn:", amountIn);
@@ -1251,24 +1247,18 @@ export class Liquidity extends Base {
 
     return {
       address: {},
-      innerTransactions: [{
-        instructions: [
-          ...frontInstructions,
-          ...ins.innerTransaction.instructions,
-          ...endInstructions
+      innerTransactions: await splitTxAndSigners({
+        connection,
+        makeTxVersion,
+        computeBudgetConfig,
+        payer,
+        innerTransaction: [ 
+          { instructionTypes: frontInstructionsType, instructions: frontInstructions, signers,}, 
+          ins.innerTransaction, 
+          { instructionTypes: endInstructionsType, instructions: endInstructions, signers: [], }
         ],
-        signers: [
-          ...signers,
-          ...ins.innerTransaction.signers,
-        ],
-        lookupTableAddress: ins.innerTransaction.lookupTableAddress ?? [],
-        instructionTypes: [
-          ...frontInstructionsType,
-          ...ins.innerTransaction.instructionTypes,
-          ...endInstructionsType
-        ],
-        supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
-      }]
+        lookupTableCache,
+      })
     }
   }
 
@@ -1326,16 +1316,31 @@ export class Liquidity extends Base {
         signers: [],
         lookupTableAddress: [poolKeys.lookupTableAccount].filter(i => !i.equals(PublicKey.default)),
         instructionTypes: [InstructionType.ammV4CreatePool],
-        supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
       }
     }
   }
 
-  static makeCreatePoolInstructionSimple(params: LiquidityCreatePoolInstructionSimpleParams) {
+  static async makeCreatePoolInstructionSimple<T extends TxVersion>(params: LiquidityCreatePoolInstructionSimpleParams & {
+    makeTxVersion: T,
+    lookupTableCache?: CacheLTA,
+    computeBudgetConfig?: ComputeBudgetConfig,
+    connection: Connection,
+    payer: PublicKey,
+  }) {
+    const { makeTxVersion, lookupTableCache, computeBudgetConfig, connection, payer } = params
     const ins = this.makeCreatePoolInstruction(params)
     return {
       address: ins.address,
-      innerTransactions: [ins.innerTransaction]
+      innerTransactions: await splitTxAndSigners({
+        connection,
+        makeTxVersion,
+        computeBudgetConfig,
+        payer,
+        innerTransaction: [ 
+          ins.innerTransaction, 
+        ],
+        lookupTableCache,
+      })
     }
   }
 
@@ -1398,13 +1403,16 @@ export class Liquidity extends Base {
         signers: [],
         lookupTableAddress: [poolKeys.lookupTableAccount].filter(i => !i.equals(PublicKey.default)),
         instructionTypes: [InstructionType.ammV4InitPool],
-        supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
       }
     }
   }
 
-  static async makeInitPoolInstructionSimple(params: LiquidityInitPoolTransactionParams) {
-    const { connection, poolKeys, userKeys, baseAmount, quoteAmount, startTime = 0, config } = params;
+  static async makeInitPoolInstructionSimple<T extends TxVersion>(params: LiquidityInitPoolTransactionParams & {
+    makeTxVersion: T,
+    lookupTableCache?: CacheLTA,
+    computeBudgetConfig?: ComputeBudgetConfig,
+  }) {
+    const { connection, poolKeys, userKeys, baseAmount, quoteAmount, startTime = 0, config, makeTxVersion, lookupTableCache, computeBudgetConfig } = params;
     const { baseMint, quoteMint, lpMint, baseVault, quoteVault } = poolKeys;
     const { tokenAccounts, owner, payer = owner } = userKeys;
 
@@ -1534,24 +1542,18 @@ export class Liquidity extends Base {
       address: {
         lpTokenAccount: _lpTokenAccount,
       },
-      innerTransactions: [{
-        instructions: [
-          ...frontInstructions,
-          ...ins.innerTransaction.instructions,
-          ...endInstructions
+      innerTransactions: await splitTxAndSigners({
+        connection,
+        makeTxVersion,
+        computeBudgetConfig,
+        payer,
+        innerTransaction: [ 
+          { instructionTypes: frontInstructionsType, instructions: frontInstructions, signers,}, 
+          ins.innerTransaction, 
+          { instructionTypes: endInstructionsType, instructions: endInstructions, signers: [], }
         ],
-        signers: [
-          ...signers,
-          ...ins.innerTransaction.signers,
-        ],
-        lookupTableAddress: ins.innerTransaction.lookupTableAddress ?? [],
-        instructionTypes: [
-          ...frontInstructionsType,
-          ...ins.innerTransaction.instructionTypes,
-          ...endInstructionsType
-        ],
-        supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
-      }]
+        lookupTableCache,
+      })
     }
   }
 
@@ -1592,7 +1594,6 @@ export class Liquidity extends Base {
         signers: [],
         lookupTableAddress: [poolKeys.lookupTableAccount].filter(i => !i.equals(PublicKey.default)),
         instructionTypes: [poolKeys.version === 4 ? InstructionType.ammV4SimulatePoolInfo : InstructionType.ammV5SimulatePoolInfo],
-        supportedVersion: [TxVersion.LEGACY, TxVersion.V0],
       }
     }
   }
@@ -1601,8 +1602,8 @@ export class Liquidity extends Base {
     return lsl.withdrawQueue !== undefined;
   }
 
-  static async makeCreatePoolV4InstructionV2Simple({
-    connection, programId, marketInfo, baseMintInfo, quoteMintInfo, baseAmount, quoteAmount,startTime, ownerInfo, associatedOnly=false, computeBudgetConfig, checkCreateATAOwner=false
+  static async makeCreatePoolV4InstructionV2Simple<T extends TxVersion>({
+    connection, programId, marketInfo, baseMintInfo, quoteMintInfo, baseAmount, quoteAmount,startTime, ownerInfo, associatedOnly=false, computeBudgetConfig, checkCreateATAOwner=false, makeTxVersion, lookupTableCache,
   }: {
     connection: Connection,
     programId: PublicKey,
@@ -1632,7 +1633,10 @@ export class Liquidity extends Base {
     associatedOnly: boolean,
     checkCreateATAOwner: boolean,
     computeBudgetConfig?: ComputeBudgetConfig
-  }): Promise<MakeInstructionSimpleOutType> {
+  } & {
+    makeTxVersion: T,
+    lookupTableCache?: CacheLTA,
+  }) {
     const frontInstructions: TransactionInstruction[] = [];
     const endInstructions: TransactionInstruction[] = [];
     const frontInstructionsType: InstructionType[] = [];
@@ -1726,8 +1730,6 @@ export class Liquidity extends Base {
       pcAmount: quoteAmount,
     }).innerTransaction
 
-    const { instructions, instructionTypes } = computeBudgetConfig ? addComputeBudget(computeBudgetConfig).innerTransaction : { instructions: [], instructionTypes: [] }
-
     return {
       address: {
         programId,
@@ -1745,13 +1747,18 @@ export class Liquidity extends Base {
         marketProgramId: poolInfo.marketProgramId,
         marketId: poolInfo.marketId,
       },
-      innerTransactions: [{
-        instructions: [...instructions, ...frontInstructions, ...ins.instructions, ...endInstructions],
-        signers,
-        lookupTableAddress: ins.lookupTableAddress,
-        instructionTypes: [...instructionTypes, ...frontInstructionsType, ...ins.instructionTypes, ...endInstructionsType],
-        supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
-      }]
+      innerTransactions: await splitTxAndSigners({
+        connection,
+        makeTxVersion,
+        computeBudgetConfig,
+        payer: ownerInfo.feePayer,
+        innerTransaction: [ 
+          { instructionTypes: frontInstructionsType, instructions: frontInstructions, signers,}, 
+          ins, 
+          { instructionTypes: endInstructionsType, instructions: endInstructions, signers: [], }
+        ],
+        lookupTableCache,
+      })
     }
   }
 
@@ -1827,13 +1834,12 @@ export class Liquidity extends Base {
         signers: [],
         lookupTableAddress: lookupTableAddress ? [lookupTableAddress] : undefined,
         instructionTypes: [InstructionType.ammV4CreatePoolV2],
-        supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
       }
     }
   }
 
   static async makeRemoveAllLpAndCreateClmmPosition({
-    connection, poolKeys, removeLpAmount, userKeys, clmmPoolKeys, createPositionInfo, farmInfo, computeBudgetConfig, checkCreateATAOwner=false
+    connection, poolKeys, removeLpAmount, userKeys, clmmPoolKeys, createPositionInfo, farmInfo, computeBudgetConfig, checkCreateATAOwner=false, getEphemeralSigners
   }: {
     connection: Connection;
     poolKeys: LiquidityPoolKeys;
@@ -1856,8 +1862,10 @@ export class Liquidity extends Base {
       amount: BN;
     }
     computeBudgetConfig?: ComputeBudgetConfig
-    checkCreateATAOwner: boolean
-  }): Promise<MakeInstructionSimpleOutType> {
+    checkCreateATAOwner: boolean,
+
+    getEphemeralSigners?: (k: number) => any,
+  }) {
     const { instructions, instructionTypes } = computeBudgetConfig ? addComputeBudget(computeBudgetConfig).innerTransaction : { instructions: [], instructionTypes: [] }
 
     if (!(poolKeys.baseMint.equals(clmmPoolKeys.mintA.mint) || poolKeys.baseMint.equals(clmmPoolKeys.mintB.mint))) throw Error('mint check error')
@@ -1940,7 +1948,7 @@ export class Liquidity extends Base {
     })
 
     const [tokenAccountA, tokenAccountB] = poolKeys.baseMint.equals(clmmPoolKeys.mintA.mint) ? [baseTokenAccount, quoteTokenAccount] : [quoteTokenAccount, baseTokenAccount]
-    const createPositionIns = AmmV3.makeOpenPositionFromLiquidityInstructions({
+    const createPositionIns = await AmmV3.makeOpenPositionFromLiquidityInstructions({
       poolInfo: clmmPoolKeys,
       ownerInfo: {
         feePayer: userKeys.payer ?? userKeys.owner,
@@ -1948,14 +1956,14 @@ export class Liquidity extends Base {
         tokenAccountA, tokenAccountB
       },
       withMetadata: 'create',
-      ...createPositionInfo
+      ...createPositionInfo,
+      getEphemeralSigners,
     })
 
     let withdrawFarmIns: InnerTransaction = {
       instructions: [],
       signers: [],
       instructionTypes: [],
-      supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
     }
     if (farmInfo !== undefined) {
       const rewardTokenAccounts = []
@@ -2003,14 +2011,12 @@ export class Liquidity extends Base {
         instructions: frontInstructions,
         signers,
         instructionTypes: frontInstructionsType,
-        supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
       })
     }
     innerTransactions.push({
       instructions: [...withdrawFarmIns.instructions, ...removeIns.innerTransaction.instructions],
       signers: [...withdrawFarmIns.signers, ...removeIns.innerTransaction.signers],
       instructionTypes: [...withdrawFarmIns.instructionTypes, ...removeIns.innerTransaction.instructionTypes],
-      supportedVersion: [TxVersion.LEGACY, TxVersion.V0],
       lookupTableAddress: removeIns.innerTransaction.lookupTableAddress,
     })
 
@@ -2018,7 +2024,6 @@ export class Liquidity extends Base {
       instructions: [...instructions, ...createPositionIns.innerTransaction.instructions, ...endInstructions],
       signers: createPositionIns.innerTransaction.signers,
       instructionTypes: [...instructionTypes, ...createPositionIns.innerTransaction.instructionTypes, ...endInstructionsType],
-      supportedVersion: [TxVersion.LEGACY, TxVersion.V0],
       lookupTableAddress: createPositionIns.innerTransaction.lookupTableAddress,
     })
 

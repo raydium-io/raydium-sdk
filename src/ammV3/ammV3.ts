@@ -7,17 +7,16 @@ import BN from 'bn.js';
 import Decimal from 'decimal.js';
 
 import {
-  Base, ComputeBudgetConfig, fetchMultipleMintInfos, getTransferAmountFee,
-  GetTransferAmountFee, InnerTransaction, InstructionType,
+  Base, ComputeBudgetConfig, fetchMultipleMintInfos, generatePubKey,
+  getTransferAmountFee, GetTransferAmountFee, InnerTransaction, InstructionType,
   MakeInstructionOutType, minExpirationTime, ReturnTypeFetchMultipleMintInfos,
   TokenAccount, TransferAmountFee, TxVersion,
 } from '../base';
-import { addComputeBudget } from '../base/instrument';
 import { getATAAddress } from '../base/pda';
 import { ApiAmmV3PoolsItem, ApiAmmV3PoolsItemStatistics } from '../baseInfo';
 import {
-  getMultipleAccountsInfo, getMultipleAccountsInfoWithCustomFlags, Logger,
-  splitTxAndSigners, TOKEN_PROGRAM_ID,
+  CacheLTA, getMultipleAccountsInfo, getMultipleAccountsInfoWithCustomFlags,
+  Logger, splitTxAndSigners, TOKEN_PROGRAM_ID,
 } from '../common';
 import {
   Currency, CurrencyAmount, ONE, Percent, Price, Token, TokenAmount, ZERO,
@@ -320,29 +319,33 @@ export class AmmV3 extends Base {
   }
 
   // transaction
-  static async makeCreatePoolInstructionSimple({
+  static async makeCreatePoolInstructionSimple<T extends TxVersion>({
+    makeTxVersion,
     connection,
     programId,
     owner,
+    payer,
     mint1,
     mint2,
     ammConfig,
     initialPrice,
     startTime,
-    computeBudgetConfig
+    computeBudgetConfig,
+    lookupTableCache,
   }: {
+    makeTxVersion: T,
+    lookupTableCache?: CacheLTA,
     connection: Connection,
     programId: PublicKey,
     owner: PublicKey,
+    payer: PublicKey,
     mint1: MintInfo,
     mint2: MintInfo,
     ammConfig: AmmV3ConfigInfo,
     initialPrice: Decimal,
     startTime: BN,
-    computeBudgetConfig?: ComputeBudgetConfig
+    computeBudgetConfig?: ComputeBudgetConfig,
   }) {
-    const { instructions, instructionTypes } = computeBudgetConfig ? addComputeBudget(computeBudgetConfig).innerTransaction : { instructions: [], instructionTypes: [] }
-
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     const [mintA, mintB, initPrice] = mint1.mint._bn.gt(mint2.mint._bn) ? [mint2, mint1, (new Decimal(1)).div(initialPrice)] : [mint1, mint2, initialPrice];
@@ -362,17 +365,23 @@ export class AmmV3 extends Base {
 
     return {
       address: { ...makeCreatePoolInstructions.address, mintA: mintA.mint, mintB: mintB.mint, mintProgramIdA: mintA.programId, mintProgramIdB: mintB.programId },
-      innerTransactions: [{
-        instructions: [...instructions, ...makeCreatePoolInstructions.innerTransaction.instructions],
-        signers: makeCreatePoolInstructions.innerTransaction.signers,
-        instructionTypes: [...instructionTypes, ...makeCreatePoolInstructions.innerTransaction.instructionTypes],
-        supportedVersion: makeCreatePoolInstructions.innerTransaction.supportedVersion
-      }]
+      innerTransactions: await splitTxAndSigners({
+        connection,
+        makeTxVersion,
+        computeBudgetConfig,
+        payer,
+        innerTransaction: [makeCreatePoolInstructions.innerTransaction],
+        lookupTableCache,
+      }),
     }
   }
 
-  static async makeOpenPositionFromLiquidityInstructionSimple(
-    { connection, poolInfo, ownerInfo, amountMaxA, amountMaxB, tickLower, tickUpper, liquidity, associatedOnly = true, checkCreateATAOwner = false, computeBudgetConfig, withMetadata = 'create' }: {
+  static async makeOpenPositionFromLiquidityInstructionSimple<T extends TxVersion>(
+    { makeTxVersion, connection, poolInfo, ownerInfo, amountMaxA, amountMaxB, tickLower, tickUpper, liquidity, associatedOnly = true, checkCreateATAOwner = false, withMetadata = 'create', getEphemeralSigners,
+      computeBudgetConfig, lookupTableCache,
+    }: {
+      makeTxVersion: T,
+      lookupTableCache?: CacheLTA,
       connection: Connection,
       poolInfo: AmmV3PoolInfo,
 
@@ -392,12 +401,11 @@ export class AmmV3 extends Base {
       withMetadata?: 'create' | 'no-create',
 
       liquidity: BN,
-      slippage: number
       associatedOnly?: boolean,
       checkCreateATAOwner?: boolean,
       computeBudgetConfig?: ComputeBudgetConfig,
+      getEphemeralSigners?: (k: number) => any,
     }) {
-    const { instructions, instructionTypes } = computeBudgetConfig ? addComputeBudget(computeBudgetConfig).innerTransaction : { instructions: [], instructionTypes: [] }
     const frontInstructions: TransactionInstruction[] = [];
     const endInstructions: TransactionInstruction[] = [];
     const frontInstructionsType: InstructionType[] = [];
@@ -413,7 +421,7 @@ export class AmmV3 extends Base {
       tokenAccounts: mintAUseSOLBalance ? [] : ownerInfo.tokenAccounts,
       owner: ownerInfo.wallet,
 
-      createInfo: mintAUseSOLBalance ? {
+      createInfo: mintAUseSOLBalance || amountMaxA.eq(ZERO) ? {
         connection,
         payer: ownerInfo.feePayer,
         amount: amountMaxA,
@@ -435,7 +443,7 @@ export class AmmV3 extends Base {
       tokenAccounts: mintBUseSOLBalance ? [] : ownerInfo.tokenAccounts,
       owner: ownerInfo.wallet,
 
-      createInfo: mintBUseSOLBalance ? {
+      createInfo: mintBUseSOLBalance || amountMaxB.eq(ZERO) ? {
         connection,
         payer: ownerInfo.feePayer,
         amount: amountMaxB,
@@ -458,7 +466,7 @@ export class AmmV3 extends Base {
       ownerInfo.tokenAccounts,
     );
 
-    const makeOpenPositionInstructions = this.makeOpenPositionFromLiquidityInstructions({
+    const makeOpenPositionInstructions = await this.makeOpenPositionFromLiquidityInstructions({
       poolInfo,
       ownerInfo: {
         ...ownerInfo,
@@ -471,24 +479,30 @@ export class AmmV3 extends Base {
       amountMaxA,
       amountMaxB,
       withMetadata,
+      getEphemeralSigners,
     })
 
     return {
       address: makeOpenPositionInstructions.address,
-      innerTransactions: [
-        {
-          instructions: [...instructions, ...frontInstructions, ...makeOpenPositionInstructions.innerTransaction.instructions, ...endInstructions],
-          signers: [...signers, ...makeOpenPositionInstructions.innerTransaction.signers],
-          lookupTableAddress: makeOpenPositionInstructions.innerTransaction.lookupTableAddress,
-          instructionTypes: [...instructionTypes, ...frontInstructionsType, ...makeOpenPositionInstructions.innerTransaction.instructionTypes, ...endInstructionsType],
-          supportedVersion: makeOpenPositionInstructions.innerTransaction.supportedVersion
-        }
-      ]
+      innerTransactions: await splitTxAndSigners({
+        connection,
+        makeTxVersion,
+        computeBudgetConfig,
+        payer: ownerInfo.feePayer,
+        innerTransaction: [ 
+          { instructionTypes: frontInstructionsType, instructions: frontInstructions, signers,}, 
+          makeOpenPositionInstructions.innerTransaction, 
+          { instructionTypes: endInstructionsType, instructions: endInstructions, signers: [], }
+        ],
+        lookupTableCache,
+      })
     }
   }
 
-  static async makeOpenPositionFromBaseInstructionSimple(
-    { connection, poolInfo, ownerInfo, tickLower, tickUpper, base, baseAmount, otherAmountMax, associatedOnly = true, checkCreateATAOwner = false, computeBudgetConfig, withMetadata = 'create' }: {
+  static async makeOpenPositionFromBaseInstructionSimple<T extends TxVersion>(
+    { connection, poolInfo, ownerInfo, tickLower, tickUpper, base, baseAmount, otherAmountMax, associatedOnly = true, checkCreateATAOwner = false, computeBudgetConfig, withMetadata = 'create', makeTxVersion, lookupTableCache, getEphemeralSigners, }: {
+      makeTxVersion: T,
+      lookupTableCache?: CacheLTA,
       connection: Connection,
       poolInfo: AmmV3PoolInfo,
 
@@ -511,8 +525,8 @@ export class AmmV3 extends Base {
       associatedOnly?: boolean,
       checkCreateATAOwner?: boolean,
       computeBudgetConfig?: ComputeBudgetConfig,
+      getEphemeralSigners?: (k: number) => any,
     }) {
-    const { instructions, instructionTypes } = computeBudgetConfig ? addComputeBudget(computeBudgetConfig).innerTransaction : { instructions: [], instructionTypes: [] }
     const frontInstructions: TransactionInstruction[] = [];
     const endInstructions: TransactionInstruction[] = [];
     const frontInstructionsType: InstructionType[] = [];
@@ -573,7 +587,7 @@ export class AmmV3 extends Base {
       ownerInfo.tokenAccounts,
     );
 
-    const makeOpenPositionInstructions = this.makeOpenPositionFromBaseInstructions({
+    const makeOpenPositionInstructions = await this.makeOpenPositionFromBaseInstructions({
       poolInfo,
       ownerInfo: {
         ...ownerInfo,
@@ -588,25 +602,31 @@ export class AmmV3 extends Base {
       otherAmountMax,
 
       withMetadata,
+      getEphemeralSigners,
     })
 
     return {
       address: makeOpenPositionInstructions.address,
-      innerTransactions: [
-        {
-          instructions: [...instructions, ...frontInstructions, ...makeOpenPositionInstructions.innerTransaction.instructions, ...endInstructions],
-          signers: [...signers, ...makeOpenPositionInstructions.innerTransaction.signers],
-          lookupTableAddress: makeOpenPositionInstructions.innerTransaction.lookupTableAddress,
-          instructionTypes: [...instructionTypes, ...frontInstructionsType, ...makeOpenPositionInstructions.innerTransaction.instructionTypes, ...endInstructionsType],
-          supportedVersion: makeOpenPositionInstructions.innerTransaction.supportedVersion
-        }
-      ]
+      innerTransactions: await splitTxAndSigners({
+        connection,
+        makeTxVersion,
+        computeBudgetConfig,
+        payer: ownerInfo.feePayer,
+        innerTransaction: [ 
+          { instructionTypes: frontInstructionsType, instructions: frontInstructions, signers,}, 
+          makeOpenPositionInstructions.innerTransaction, 
+          { instructionTypes: endInstructionsType, instructions: endInstructions, signers: [], }
+        ],
+        lookupTableCache,
+      })
     }
   }
 
-  static async makeIncreasePositionFromLiquidityInstructionSimple({
-    connection, poolInfo, ownerPosition, ownerInfo, amountMaxA, amountMaxB, liquidity, associatedOnly = true, checkCreateATAOwner = false, computeBudgetConfig
+  static async makeIncreasePositionFromLiquidityInstructionSimple<T extends TxVersion>({
+    connection, poolInfo, ownerPosition, ownerInfo, amountMaxA, amountMaxB, liquidity, associatedOnly = true, checkCreateATAOwner = false, computeBudgetConfig, makeTxVersion, lookupTableCache
   }: {
+    makeTxVersion: T,
+    lookupTableCache?: CacheLTA,
     connection: Connection
     poolInfo: AmmV3PoolInfo,
     ownerPosition: AmmV3PoolPersonalPosition,
@@ -625,7 +645,6 @@ export class AmmV3 extends Base {
     checkCreateATAOwner?: boolean,
     computeBudgetConfig?: ComputeBudgetConfig,
   }) {
-    const { instructions, instructionTypes } = computeBudgetConfig ? addComputeBudget(computeBudgetConfig).innerTransaction : { instructions: [], instructionTypes: [] }
     const frontInstructions: TransactionInstruction[] = [];
     const endInstructions: TransactionInstruction[] = [];
     const frontInstructionsType: InstructionType[] = [];
@@ -701,21 +720,26 @@ export class AmmV3 extends Base {
 
     return {
       address: makeIncreaseLiquidityInstructions.address,
-      innerTransactions: [
-        {
-          instructions: [...instructions, ...frontInstructions, ...makeIncreaseLiquidityInstructions.innerTransaction.instructions, ...endInstructions],
-          signers: [...signers, ...makeIncreaseLiquidityInstructions.innerTransaction.signers],
-          lookupTableAddress: makeIncreaseLiquidityInstructions.innerTransaction.lookupTableAddress,
-          instructionTypes: [...instructionTypes, ...frontInstructionsType, ...makeIncreaseLiquidityInstructions.innerTransaction.instructionTypes, ...endInstructionsType],
-          supportedVersion: makeIncreaseLiquidityInstructions.innerTransaction.supportedVersion
-        }
-      ]
+      innerTransactions: await splitTxAndSigners({
+        connection,
+        makeTxVersion,
+        computeBudgetConfig,
+        payer: ownerInfo.feePayer,
+        innerTransaction: [ 
+          { instructionTypes: frontInstructionsType, instructions: frontInstructions, signers,}, 
+          makeIncreaseLiquidityInstructions.innerTransaction, 
+          { instructionTypes: endInstructionsType, instructions: endInstructions, signers: [], }
+        ],
+        lookupTableCache,
+      })
     }
   }
 
-  static async makeIncreasePositionFromBaseInstructionSimple({
-    connection, poolInfo, ownerPosition, ownerInfo, base, baseAmount, otherAmountMax, associatedOnly = true, checkCreateATAOwner = false, computeBudgetConfig
+  static async makeIncreasePositionFromBaseInstructionSimple<T extends TxVersion>({
+    connection, poolInfo, ownerPosition, ownerInfo, base, baseAmount, otherAmountMax, associatedOnly = true, checkCreateATAOwner = false, computeBudgetConfig, makeTxVersion, lookupTableCache
   }: {
+    makeTxVersion: T,
+    lookupTableCache?: CacheLTA,
     connection: Connection
     poolInfo: AmmV3PoolInfo,
     ownerPosition: AmmV3PoolPersonalPosition,
@@ -734,7 +758,6 @@ export class AmmV3 extends Base {
     checkCreateATAOwner?: boolean,
     computeBudgetConfig?: ComputeBudgetConfig,
   }) {
-    const { instructions, instructionTypes } = computeBudgetConfig ? addComputeBudget(computeBudgetConfig).innerTransaction : { instructions: [], instructionTypes: [] }
     const frontInstructions: TransactionInstruction[] = [];
     const endInstructions: TransactionInstruction[] = [];
     const frontInstructionsType: InstructionType[] = [];
@@ -811,21 +834,26 @@ export class AmmV3 extends Base {
 
     return {
       address: makeIncreaseLiquidityInstructions.address,
-      innerTransactions: [
-        {
-          instructions: [...instructions, ...frontInstructions, ...makeIncreaseLiquidityInstructions.innerTransaction.instructions, ...endInstructions],
-          signers: [...signers, ...makeIncreaseLiquidityInstructions.innerTransaction.signers],
-          lookupTableAddress: makeIncreaseLiquidityInstructions.innerTransaction.lookupTableAddress,
-          instructionTypes: [...instructionTypes, ...frontInstructionsType, ...makeIncreaseLiquidityInstructions.innerTransaction.instructionTypes, ...endInstructionsType],
-          supportedVersion: makeIncreaseLiquidityInstructions.innerTransaction.supportedVersion
-        }
-      ]
+      innerTransactions: await splitTxAndSigners({
+        connection,
+        makeTxVersion,
+        computeBudgetConfig,
+        payer: ownerInfo.feePayer,
+        innerTransaction: [ 
+          { instructionTypes: frontInstructionsType, instructions: frontInstructions, signers,}, 
+          makeIncreaseLiquidityInstructions.innerTransaction, 
+          { instructionTypes: endInstructionsType, instructions: endInstructions, signers: [], }
+        ],
+        lookupTableCache,
+      })
     }
   }
 
-  static async makeDecreaseLiquidityInstructionSimple({
-    connection, poolInfo, ownerPosition, ownerInfo, liquidity, amountMinA, amountMinB, associatedOnly = true, checkCreateATAOwner = false, computeBudgetConfig
+  static async makeDecreaseLiquidityInstructionSimple<T extends TxVersion>({
+    connection, poolInfo, ownerPosition, ownerInfo, liquidity, amountMinA, amountMinB, associatedOnly = true, checkCreateATAOwner = false, computeBudgetConfig, makeTxVersion, lookupTableCache, 
   }: {
+    makeTxVersion: T,
+    lookupTableCache?: CacheLTA,
     connection: Connection
     poolInfo: AmmV3PoolInfo,
     ownerPosition: AmmV3PoolPersonalPosition,
@@ -845,7 +873,6 @@ export class AmmV3 extends Base {
     checkCreateATAOwner?: boolean
     computeBudgetConfig?: ComputeBudgetConfig
   }) {
-    const { instructions, instructionTypes } = computeBudgetConfig ? addComputeBudget(computeBudgetConfig).innerTransaction : { instructions: [], instructionTypes: [] }
     const frontInstructions: TransactionInstruction[] = [];
     const endInstructions: TransactionInstruction[] = [];
     const frontInstructionsType: InstructionType[] = [];
@@ -950,23 +977,27 @@ export class AmmV3 extends Base {
 
     const makeClosePositionInstructions: MakeInstructionOutType = ownerInfo.closePosition ? this.makeClosePositionInstructions({
       poolInfo, ownerInfo, ownerPosition
-    }) : { address: {}, innerTransaction: { instructions: [], signers: [], instructionTypes: [], supportedVersion: [] } }
+    }) : { address: {}, innerTransaction: { instructions: [], signers: [], instructionTypes: [], } }
 
     return {
       address: makeDecreaseLiquidityInstructions.address,
-      innerTransactions: [
-        {
-          instructions: [...instructions, ...frontInstructions, ...makeDecreaseLiquidityInstructions.innerTransaction.instructions, ...endInstructions, ...makeClosePositionInstructions.innerTransaction.instructions],
-          signers: [...signers, ...makeDecreaseLiquidityInstructions.innerTransaction.signers],
-          lookupTableAddress: makeDecreaseLiquidityInstructions.innerTransaction.lookupTableAddress,
-          instructionTypes: [...instructionTypes, ...frontInstructionsType, ...makeDecreaseLiquidityInstructions.innerTransaction.instructionTypes, ...endInstructionsType, ...makeClosePositionInstructions.innerTransaction.instructionTypes],
-          supportedVersion: makeDecreaseLiquidityInstructions.innerTransaction.supportedVersion
-        }
-      ]
+      innerTransactions: await splitTxAndSigners({
+        connection,
+        makeTxVersion,
+        computeBudgetConfig,
+        payer: ownerInfo.feePayer,
+        innerTransaction: [ 
+          { instructionTypes: frontInstructionsType, instructions: frontInstructions, signers,}, 
+          makeDecreaseLiquidityInstructions.innerTransaction, 
+          { instructionTypes: endInstructionsType, instructions: endInstructions, signers: [], },
+          makeClosePositionInstructions.innerTransaction,
+        ],
+        lookupTableCache,
+      })
     }
   }
 
-  static async makeSwapBaseInInstructionSimple({
+  static async makeSwapBaseInInstructionSimple<T extends TxVersion>({
     connection,
     poolInfo,
     ownerInfo,
@@ -979,8 +1010,12 @@ export class AmmV3 extends Base {
     remainingAccounts,
     associatedOnly = true,
     checkCreateATAOwner = false,
-    computeBudgetConfig
+    computeBudgetConfig,
+    makeTxVersion,
+    lookupTableCache,
   }: {
+    makeTxVersion: T,
+    lookupTableCache?: CacheLTA,
     connection: Connection
     poolInfo: AmmV3PoolInfo,
     ownerInfo: {
@@ -1000,7 +1035,6 @@ export class AmmV3 extends Base {
     checkCreateATAOwner?: boolean
     computeBudgetConfig?: ComputeBudgetConfig
   }) {
-    const { instructions, instructionTypes } = computeBudgetConfig ? addComputeBudget(computeBudgetConfig).innerTransaction : { instructions: [], instructionTypes: [] }
     const frontInstructions: TransactionInstruction[] = [];
     const endInstructions: TransactionInstruction[] = [];
     const frontInstructionsType: InstructionType[] = [];
@@ -1095,19 +1129,22 @@ export class AmmV3 extends Base {
 
     return {
       address: makeSwapBaseInInstructions.address,
-      innerTransactions: [
-        {
-          instructions: [...instructions, ...frontInstructions, ...makeSwapBaseInInstructions.innerTransaction.instructions, ...endInstructions],
-          signers: [...signers, ...makeSwapBaseInInstructions.innerTransaction.signers],
-          lookupTableAddress: makeSwapBaseInInstructions.innerTransaction.lookupTableAddress,
-          instructionTypes: [...instructionTypes, ...frontInstructionsType, ...makeSwapBaseInInstructions.innerTransaction.instructionTypes, ...endInstructionsType],
-          supportedVersion: makeSwapBaseInInstructions.innerTransaction.supportedVersion
-        }
-      ]
+      innerTransactions: await splitTxAndSigners({
+        connection,
+        makeTxVersion,
+        computeBudgetConfig,
+        payer: ownerInfo.feePayer,
+        innerTransaction: [ 
+          { instructionTypes: frontInstructionsType, instructions: frontInstructions, signers,}, 
+          makeSwapBaseInInstructions.innerTransaction, 
+          { instructionTypes: endInstructionsType, instructions: endInstructions, signers: [], },
+        ],
+        lookupTableCache,
+      })
     }
   }
 
-  static async makeSwapBaseOutInstructionSimple({
+  static async makeSwapBaseOutInstructionSimple<T extends TxVersion>({
     connection,
     poolInfo,
     ownerInfo,
@@ -1120,8 +1157,12 @@ export class AmmV3 extends Base {
     remainingAccounts,
     associatedOnly = true,
     checkCreateATAOwner = false,
-    computeBudgetConfig
+    computeBudgetConfig,
+    makeTxVersion,
+    lookupTableCache,
   }: {
+    makeTxVersion: T,
+    lookupTableCache?: CacheLTA,
     connection: Connection
     poolInfo: AmmV3PoolInfo,
     ownerInfo: {
@@ -1141,7 +1182,6 @@ export class AmmV3 extends Base {
     checkCreateATAOwner?: boolean
     computeBudgetConfig?: ComputeBudgetConfig
   }) {
-    const { instructions, instructionTypes } = computeBudgetConfig ? addComputeBudget(computeBudgetConfig).innerTransaction : { instructions: [], instructionTypes: [] }
     const frontInstructions: TransactionInstruction[] = [];
     const endInstructions: TransactionInstruction[] = [];
     const frontInstructionsType: InstructionType[] = [];
@@ -1236,36 +1276,52 @@ export class AmmV3 extends Base {
 
     return {
       address: makeSwapBaseOutInstructions.address,
-      innerTransactions: [
-        {
-          instructions: [...instructions, ...frontInstructions, ...makeSwapBaseOutInstructions.innerTransaction.instructions, ...endInstructions],
-          signers: [...signers, ...makeSwapBaseOutInstructions.innerTransaction.signers],
-          lookupTableAddress: makeSwapBaseOutInstructions.innerTransaction.lookupTableAddress,
-          instructionTypes: [...instructionTypes, ...frontInstructionsType, ...makeSwapBaseOutInstructions.innerTransaction.instructionTypes, ...endInstructionsType],
-          supportedVersion: makeSwapBaseOutInstructions.innerTransaction.supportedVersion
-        }
-      ]
+      innerTransactions: await splitTxAndSigners({
+        connection,
+        makeTxVersion,
+        computeBudgetConfig,
+        payer: ownerInfo.feePayer,
+        innerTransaction: [ 
+          { instructionTypes: frontInstructionsType, instructions: frontInstructions, signers,}, 
+          makeSwapBaseOutInstructions.innerTransaction, 
+          { instructionTypes: endInstructionsType, instructions: endInstructions, signers: [], },
+        ],
+        lookupTableCache,
+      })
     }
   }
 
-  static makeCLosePositionInstructionSimple({
-    poolInfo, ownerPosition, ownerInfo
+  static async makeCLosePositionInstructionSimple<T extends TxVersion>({
+    poolInfo, ownerPosition, ownerInfo, makeTxVersion, lookupTableCache, connection,
   }: {
+    makeTxVersion: T,
+    lookupTableCache?: CacheLTA,
+    connection: Connection,
     poolInfo: AmmV3PoolInfo,
     ownerPosition: AmmV3PoolPersonalPosition,
 
     ownerInfo: {
       wallet: PublicKey,
+      feePayer: PublicKey,
     },
   }) {
     const data = this.makeClosePositionInstructions({ poolInfo, ownerInfo, ownerPosition })
     return {
       address: data.address,
-      innerTransactions: [data.innerTransaction]
+      innerTransactions: await splitTxAndSigners({
+        connection,
+        makeTxVersion,
+        computeBudgetConfig: undefined,
+        payer: ownerInfo.feePayer,
+        innerTransaction: [ 
+          data.innerTransaction, 
+        ],
+        lookupTableCache,
+      })
     }
   }
 
-  static async makeInitRewardInstructionSimple({
+  static async makeInitRewardInstructionSimple<T extends TxVersion>({
     connection,
     poolInfo,
     ownerInfo,
@@ -1273,7 +1329,11 @@ export class AmmV3 extends Base {
     chainTime,
     associatedOnly = true,
     checkCreateATAOwner = false,
+    makeTxVersion,
+    lookupTableCache,
   }: {
+    makeTxVersion: T,
+    lookupTableCache?: CacheLTA,
     connection: Connection
     poolInfo: AmmV3PoolInfo,
     ownerInfo: {
@@ -1363,27 +1423,34 @@ export class AmmV3 extends Base {
 
     return {
       address: makeInitRewardInstructions.address,
-      innerTransactions: [
-        {
-          instructions: [...frontInstructions, ...makeInitRewardInstructions.innerTransaction.instructions, ...endInstructions],
-          signers: [...signers, ...makeInitRewardInstructions.innerTransaction.signers],
-          lookupTableAddress: makeInitRewardInstructions.innerTransaction.lookupTableAddress,
-          instructionTypes: [...frontInstructionsType, ...makeInitRewardInstructions.innerTransaction.instructionTypes, ...endInstructionsType],
-          supportedVersion: makeInitRewardInstructions.innerTransaction.supportedVersion
-        }
-      ]
+      innerTransactions: await splitTxAndSigners({
+        connection,
+        makeTxVersion,
+        computeBudgetConfig: undefined,
+        payer: ownerInfo.feePayer,
+        innerTransaction: [ 
+          { instructionTypes: frontInstructionsType, instructions: frontInstructions, signers,}, 
+          makeInitRewardInstructions.innerTransaction, 
+          { instructionTypes: endInstructionsType, instructions: endInstructions, signers: [], },
+        ],
+        lookupTableCache,
+      })
     }
   }
 
-  static async makeInitRewardsInstructionSimple({
+  static async makeInitRewardsInstructionSimple<T extends TxVersion>({
     connection,
     poolInfo,
     ownerInfo,
     rewardInfos,
     associatedOnly = true,
     checkCreateATAOwner = false,
-    computeBudgetConfig
+    computeBudgetConfig,
+    makeTxVersion,
+    lookupTableCache,
   }: {
+    makeTxVersion: T,
+    lookupTableCache?: CacheLTA,
     connection: Connection
     poolInfo: AmmV3PoolInfo,
     ownerInfo: {
@@ -1405,7 +1472,6 @@ export class AmmV3 extends Base {
     computeBudgetConfig?: ComputeBudgetConfig
   }) {
     for (const rewardInfo of rewardInfos) logger.assertArgument(rewardInfo.endTime > rewardInfo.openTime, "reward time error", "rewardInfo", rewardInfo,);
-    const { instructions, instructionTypes } = computeBudgetConfig ? addComputeBudget(computeBudgetConfig).innerTransaction : { instructions: [], instructionTypes: [] }
     const frontInstructions: TransactionInstruction[] = [];
     const endInstructions: TransactionInstruction[] = [];
     const frontInstructionsType: InstructionType[] = [];
@@ -1469,19 +1535,22 @@ export class AmmV3 extends Base {
 
     return {
       address,
-      innerTransactions: [
-        {
-          instructions: [...instructions, ...frontInstructions, ...makeInitRewardInstructions.map(i => i.innerTransaction.instructions).flat(), ...endInstructions],
-          signers: [...signers, ...makeInitRewardInstructions.map(i => i.innerTransaction.signers).flat()],
-          instructionTypes: [...instructionTypes, ...frontInstructionsType, ...makeInitRewardInstructions.map(i => i.innerTransaction.instructionTypes).flat(), ...endInstructionsType],
-          supportedVersion: [TxVersion.LEGACY, TxVersion.V0],
-          lookupTableAddress: [poolInfo.lookupTableAccount].filter(i => !i.equals(PublicKey.default)),
-        }
-      ]
+      innerTransactions: await splitTxAndSigners({
+        connection,
+        makeTxVersion,
+        computeBudgetConfig,
+        payer: ownerInfo.feePayer,
+        innerTransaction: [ 
+          { instructionTypes: frontInstructionsType, instructions: frontInstructions, signers,}, 
+          ...makeInitRewardInstructions.map(i => i.innerTransaction),
+          { instructionTypes: endInstructionsType, instructions: endInstructions, signers: [], },
+        ],
+        lookupTableCache,
+      })
     }
   }
 
-  static async makeSetRewardInstructionSimple({
+  static async makeSetRewardInstructionSimple<T extends TxVersion>({
     connection,
     poolInfo,
     ownerInfo,
@@ -1489,7 +1558,11 @@ export class AmmV3 extends Base {
     chainTime,
     associatedOnly = true,
     checkCreateATAOwner = false,
+    makeTxVersion,
+    lookupTableCache,
   }: {
+    makeTxVersion: T,
+    lookupTableCache?: CacheLTA,
     connection: Connection
     poolInfo: AmmV3PoolInfo,
     ownerInfo: {
@@ -1576,19 +1649,22 @@ export class AmmV3 extends Base {
 
     return {
       address: makeSetRewardInstructions.address,
-      innerTransactions: [
-        {
-          instructions: [...frontInstructions, ...makeSetRewardInstructions.innerTransaction.instructions, ...endInstructions],
-          signers: [...signers, ...makeSetRewardInstructions.innerTransaction.signers],
-          lookupTableAddress: makeSetRewardInstructions.innerTransaction.lookupTableAddress,
-          instructionTypes: [...frontInstructionsType, ...makeSetRewardInstructions.innerTransaction.instructionTypes, ...endInstructionsType],
-          supportedVersion: makeSetRewardInstructions.innerTransaction.supportedVersion
-        }
-      ]
+      innerTransactions: await splitTxAndSigners({
+        connection,
+        makeTxVersion,
+        computeBudgetConfig: undefined,
+        payer: ownerInfo.feePayer,
+        innerTransaction: [ 
+          { instructionTypes: frontInstructionsType, instructions: frontInstructions, signers,}, 
+          makeSetRewardInstructions.innerTransaction, 
+          { instructionTypes: endInstructionsType, instructions: endInstructions, signers: [], },
+        ],
+        lookupTableCache,
+      })
     }
   }
 
-  static async makeSetRewardsInstructionSimple({
+  static async makeSetRewardsInstructionSimple<T extends TxVersion>({
     connection,
     poolInfo,
     ownerInfo,
@@ -1596,8 +1672,12 @@ export class AmmV3 extends Base {
     chainTime,
     associatedOnly = true,
     checkCreateATAOwner = false,
-    computeBudgetConfig
+    computeBudgetConfig,
+    makeTxVersion,
+    lookupTableCache,
   }: {
+    makeTxVersion: T,
+    lookupTableCache?: CacheLTA,
     connection: Connection
     poolInfo: AmmV3PoolInfo,
     ownerInfo: {
@@ -1619,7 +1699,6 @@ export class AmmV3 extends Base {
     checkCreateATAOwner?: boolean
     computeBudgetConfig?: ComputeBudgetConfig
   }) {
-    const { instructions, instructionTypes } = computeBudgetConfig ? addComputeBudget(computeBudgetConfig).innerTransaction : { instructions: [], instructionTypes: [] }
     const frontInstructions: TransactionInstruction[] = [];
     const endInstructions: TransactionInstruction[] = [];
     const frontInstructionsType: InstructionType[] = [];
@@ -1695,27 +1774,34 @@ export class AmmV3 extends Base {
 
     return {
       address,
-      innerTransactions: [
-        {
-          instructions: [...instructions, ...frontInstructions, ...makeSetRewardInstructions.map(i => i.innerTransaction.instructions).flat(), ...endInstructions],
-          signers: [...signers, ...makeSetRewardInstructions.map(i => i.innerTransaction.signers).flat()],
-          instructionTypes: [...instructionTypes, ...frontInstructionsType, ...makeSetRewardInstructions.map(i => i.innerTransaction.instructionTypes).flat(), ...endInstructionsType],
-          supportedVersion: [TxVersion.LEGACY, TxVersion.V0],
-          lookupTableAddress: [poolInfo.lookupTableAccount].filter(i => !i.equals(PublicKey.default)),
-        }
-      ]
+      innerTransactions: await splitTxAndSigners({
+        connection,
+        makeTxVersion,
+        computeBudgetConfig,
+        payer: ownerInfo.feePayer,
+        innerTransaction: [ 
+          { instructionTypes: frontInstructionsType, instructions: frontInstructions, signers,}, 
+          ...makeSetRewardInstructions.map(i => i.innerTransaction),
+          { instructionTypes: endInstructionsType, instructions: endInstructions, signers: [], },
+        ],
+        lookupTableCache,
+      })
     }
   }
 
-  static async makeCollectRewardInstructionSimple({
+  static async makeCollectRewardInstructionSimple<T extends TxVersion>({
     connection,
     poolInfo,
     ownerInfo,
     rewardMint,
     associatedOnly = true,
     checkCreateATAOwner = false,
-    computeBudgetConfig
+    computeBudgetConfig,
+    makeTxVersion,
+    lookupTableCache,
   }: {
+    makeTxVersion: T,
+    lookupTableCache?: CacheLTA,
     connection: Connection
     poolInfo: AmmV3PoolInfo,
     ownerInfo: {
@@ -1730,7 +1816,6 @@ export class AmmV3 extends Base {
     checkCreateATAOwner: boolean
     computeBudgetConfig?: ComputeBudgetConfig
   }) {
-    const { instructions, instructionTypes } = computeBudgetConfig ? addComputeBudget(computeBudgetConfig).innerTransaction : { instructions: [], instructionTypes: [] }
     const frontInstructions: TransactionInstruction[] = [];
     const endInstructions: TransactionInstruction[] = [];
     const frontInstructionsType: InstructionType[] = [];
@@ -1790,27 +1875,34 @@ export class AmmV3 extends Base {
 
     return {
       address: makeCollectRewardInstructions.address,
-      innerTransactions: [
-        {
-          instructions: [...instructions, ...frontInstructions, ...makeCollectRewardInstructions.innerTransaction.instructions, ...endInstructions],
-          signers: [...signers, ...makeCollectRewardInstructions.innerTransaction.signers],
-          lookupTableAddress: makeCollectRewardInstructions.innerTransaction.lookupTableAddress,
-          instructionTypes: [...instructionTypes, ...frontInstructionsType, ...makeCollectRewardInstructions.innerTransaction.instructionTypes, ...endInstructionsType],
-          supportedVersion: makeCollectRewardInstructions.innerTransaction.supportedVersion
-        }
-      ]
+      innerTransactions: await splitTxAndSigners({
+        connection,
+        makeTxVersion,
+        computeBudgetConfig,
+        payer: ownerInfo.feePayer,
+        innerTransaction: [ 
+          { instructionTypes: frontInstructionsType, instructions: frontInstructions, signers,}, 
+          makeCollectRewardInstructions.innerTransaction, 
+          { instructionTypes: endInstructionsType, instructions: endInstructions, signers: [], },
+        ],
+        lookupTableCache,
+      })
     }
   }
 
-  static async makeCollectRewardsInstructionSimple({
+  static async makeCollectRewardsInstructionSimple<T extends TxVersion>({
     connection,
     poolInfo,
     ownerInfo,
     rewardMints,
     associatedOnly = true,
     checkCreateATAOwner = false,
-    computeBudgetConfig
+    computeBudgetConfig,
+    makeTxVersion,
+    lookupTableCache,
   }: {
+    makeTxVersion: T,
+    lookupTableCache?: CacheLTA,
     connection: Connection
     poolInfo: AmmV3PoolInfo,
     ownerInfo: {
@@ -1825,7 +1917,6 @@ export class AmmV3 extends Base {
     checkCreateATAOwner: boolean
     computeBudgetConfig?: ComputeBudgetConfig
   }) {
-    const { instructions, instructionTypes } = computeBudgetConfig ? addComputeBudget(computeBudgetConfig).innerTransaction : { instructions: [], instructionTypes: [] }
     const frontInstructions: TransactionInstruction[] = [];
     const endInstructions: TransactionInstruction[] = [];
     const frontInstructionsType: InstructionType[] = [];
@@ -1893,21 +1984,26 @@ export class AmmV3 extends Base {
 
     return {
       address,
-      innerTransactions: [
-        {
-          instructions: [...instructions, ...frontInstructions, ...makeCollectRewardInstructions.map(i => i.innerTransaction.instructions).flat(), ...endInstructions],
-          signers: [...signers, ...makeCollectRewardInstructions.map(i => i.innerTransaction.signers).flat()],
-          instructionTypes: [...instructionTypes, ...frontInstructionsType, ...makeCollectRewardInstructions.map(i => i.innerTransaction.instructionTypes).flat(), ...endInstructionsType],
-          supportedVersion: [TxVersion.LEGACY, TxVersion.V0],
-          lookupTableAddress: [poolInfo.lookupTableAccount].filter(i => !i.equals(PublicKey.default)),
-        }
-      ]
+      innerTransactions: await splitTxAndSigners({
+        connection,
+        makeTxVersion,
+        computeBudgetConfig,
+        payer: ownerInfo.feePayer,
+        innerTransaction: [ 
+          { instructionTypes: frontInstructionsType, instructions: frontInstructions, signers,}, 
+          ...makeCollectRewardInstructions.map(i => i.innerTransaction), 
+          { instructionTypes: endInstructionsType, instructions: endInstructions, signers: [], },
+        ],
+        lookupTableCache,
+      })
     }
   }
 
-  static async makeHarvestAllRewardInstructionSimple({
-    connection, fetchPoolInfos, ownerInfo, associatedOnly = true, checkCreateATAOwner = false,
+  static async makeHarvestAllRewardInstructionSimple<T extends TxVersion>({
+    connection, fetchPoolInfos, ownerInfo, associatedOnly = true, checkCreateATAOwner = false, makeTxVersion, lookupTableCache, 
   }: {
+    makeTxVersion: T,
+    lookupTableCache?: CacheLTA,
     connection: Connection
     fetchPoolInfos: ReturnTypeFetchMultiplePoolInfos,
     ownerInfo: {
@@ -2039,34 +2135,20 @@ export class AmmV3 extends Base {
       }
     }
 
-    const transactions = splitTxAndSigners({ instructions: makeDecreaseLiquidityInstructions.map(i => i.innerTransaction.instructions).flat(), signers: [], payer: ownerInfo.wallet })
-
-    const innerTransactions = []
-    if (frontInstructions.length > 0) innerTransactions.push({
-      instructions: frontInstructions,
-      signers,
-      instructionTypes: frontInstructionsType,
-      supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
-    })
-
-    innerTransactions.push(...transactions.map(i => ({
-      instructions: i.instruction,
-      signers: i.signer as Signer[],
-      instructionTypes: new Array(i.instruction.length).fill(InstructionType.clmmDecreasePosition),
-      supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
-    })))
-
-    if (endInstructions.length > 0) innerTransactions.push({
-      instructions: endInstructions,
-      signers: [],
-      instructionTypes: endInstructionsType,
-      supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
-    })
-
-
     return {
       address: {},
-      innerTransactions
+      innerTransactions: await splitTxAndSigners({
+        connection,
+        makeTxVersion,
+        computeBudgetConfig: undefined,
+        payer: ownerInfo.feePayer,
+        innerTransaction: [ 
+          { instructionTypes: frontInstructionsType, instructions: frontInstructions, signers,}, 
+          ...makeDecreaseLiquidityInstructions.map(i => i.innerTransaction), 
+          { instructionTypes: endInstructionsType, instructions: endInstructions, signers: [], },
+        ],
+        lookupTableCache,
+      })
     }
   }
 
@@ -2090,15 +2172,17 @@ export class AmmV3 extends Base {
     initialPriceX64: BN,
     startTime: BN,
   }) {
-    const observationId = new Keypair();
+    const observationId = generatePubKey({ fromPublicKey: owner, programId });
 
     const poolId = getPdaPoolId(programId, ammConfigId, mintA.mint, mintB.mint).publicKey;
     const mintAVault = getPdaPoolVaultId(programId, poolId, mintA.mint).publicKey;
     const mintBVault = getPdaPoolVaultId(programId, poolId, mintB.mint).publicKey;
 
     const instructions = [
-      SystemProgram.createAccount({
+      SystemProgram.createAccountWithSeed({
         fromPubkey: owner,
+        basePubkey: owner,
+        seed: observationId.seed,
         newAccountPubkey: observationId.publicKey,
         lamports: await connection.getMinimumBalanceForRentExemption(ObservationInfoLayout.span),
         space: ObservationInfoLayout.span,
@@ -2130,16 +2214,15 @@ export class AmmV3 extends Base {
       },
       innerTransaction: {
         instructions,
-        signers: [observationId],
+        signers: [],
         instructionTypes: [InstructionType.createAccount, InstructionType.clmmCreatePool],
-        supportedVersion: [TxVersion.LEGACY, TxVersion.V0],
         lookupTableAddress: [],
-      }
+      } as InnerTransaction
     }
   }
 
-  static makeOpenPositionFromLiquidityInstructions(
-    { poolInfo, ownerInfo, tickLower, tickUpper, liquidity, amountMaxA, amountMaxB, withMetadata }: {
+  static async makeOpenPositionFromLiquidityInstructions(
+    { poolInfo, ownerInfo, tickLower, tickUpper, liquidity, amountMaxA, amountMaxB, withMetadata, getEphemeralSigners }: {
       poolInfo: AmmV3PoolInfo,
 
       ownerInfo: {
@@ -2156,9 +2239,20 @@ export class AmmV3 extends Base {
       amountMaxB: BN,
 
       withMetadata: 'create' | 'no-create',
+      
+      getEphemeralSigners?: (k: number) => any,
     }
   ) {
-    const nftMintAKeypair = new Keypair();
+    const signers: Signer[] = []
+
+    let nftMintAccount
+    if (getEphemeralSigners) {
+      nftMintAccount = new PublicKey((await getEphemeralSigners(1))[0])
+    } else {
+      const _k = Keypair.generate()
+      signers.push(_k)
+      nftMintAccount = _k.publicKey
+    }
 
     const tickArrayLowerStartIndex = TickUtils.getTickArrayStartIndexByTick(tickLower, poolInfo.ammConfig.tickSpacing);
     const tickArrayUpperStartIndex = TickUtils.getTickArrayStartIndexByTick(tickUpper, poolInfo.ammConfig.tickSpacing);
@@ -2166,9 +2260,9 @@ export class AmmV3 extends Base {
     const { publicKey: tickArrayLower } = getPdaTickArrayAddress(poolInfo.programId, poolInfo.id, tickArrayLowerStartIndex);
     const { publicKey: tickArrayUpper } = getPdaTickArrayAddress(poolInfo.programId, poolInfo.id, tickArrayUpperStartIndex);
 
-    const { publicKey: positionNftAccount } = getATAAddress(ownerInfo.wallet, nftMintAKeypair.publicKey, TOKEN_PROGRAM_ID);
-    const { publicKey: metadataAccount } = getPdaMetadataKey(nftMintAKeypair.publicKey);
-    const { publicKey: personalPosition } = getPdaPersonalPositionAddress(poolInfo.programId, nftMintAKeypair.publicKey)
+    const { publicKey: positionNftAccount } = getATAAddress(ownerInfo.wallet, nftMintAccount, TOKEN_PROGRAM_ID);
+    const { publicKey: metadataAccount } = getPdaMetadataKey(nftMintAccount);
+    const { publicKey: personalPosition } = getPdaPersonalPositionAddress(poolInfo.programId, nftMintAccount)
     const { publicKey: protocolPosition } = getPdaProtocolPositionAddress(poolInfo.programId, poolInfo.id, tickLower, tickUpper)
 
     const ins = openPositionFromLiquidityInstruction(
@@ -2176,7 +2270,7 @@ export class AmmV3 extends Base {
       ownerInfo.feePayer,
       poolInfo.id,
       ownerInfo.wallet,
-      nftMintAKeypair.publicKey,
+      nftMintAccount,
       positionNftAccount,
       metadataAccount,
       protocolPosition,
@@ -2202,7 +2296,7 @@ export class AmmV3 extends Base {
 
     return {
       address: {
-        nftMint: nftMintAKeypair.publicKey,
+        nftMint: nftMintAccount,
         tickArrayLower,
         tickArrayUpper,
         positionNftAccount,
@@ -2212,16 +2306,15 @@ export class AmmV3 extends Base {
       },
       innerTransaction: {
         instructions: [ins],
-        signers: [nftMintAKeypair],
+        signers,
         instructionTypes: [InstructionType.clmmOpenPosition],
-        supportedVersion: [TxVersion.LEGACY, TxVersion.V0],
         lookupTableAddress: [poolInfo.lookupTableAccount].filter(i => !i.equals(PublicKey.default)),
       } as InnerTransaction
     }
   }
 
-  static makeOpenPositionFromBaseInstructions(
-    { poolInfo, ownerInfo, tickLower, tickUpper, base, baseAmount, otherAmountMax, withMetadata }: {
+  static async makeOpenPositionFromBaseInstructions(
+    { poolInfo, ownerInfo, tickLower, tickUpper, base, baseAmount, otherAmountMax, withMetadata, getEphemeralSigners }: {
       poolInfo: AmmV3PoolInfo,
 
       ownerInfo: {
@@ -2240,9 +2333,20 @@ export class AmmV3 extends Base {
       baseAmount: BN,
 
       otherAmountMax: BN,
+
+      getEphemeralSigners?: (k: number) => any,
     }
   ) {
-    const nftMintAKeypair = new Keypair();
+    const signers: Signer[] = []
+
+    let nftMintAccount: PublicKey
+    if (getEphemeralSigners) {
+      nftMintAccount = new PublicKey((await getEphemeralSigners(1))[0])
+    } else {
+      const _k = Keypair.generate()
+      signers.push(_k)
+      nftMintAccount = _k.publicKey
+    }
 
     const tickArrayLowerStartIndex = TickUtils.getTickArrayStartIndexByTick(tickLower, poolInfo.ammConfig.tickSpacing);
     const tickArrayUpperStartIndex = TickUtils.getTickArrayStartIndexByTick(tickUpper, poolInfo.ammConfig.tickSpacing);
@@ -2250,9 +2354,9 @@ export class AmmV3 extends Base {
     const { publicKey: tickArrayLower } = getPdaTickArrayAddress(poolInfo.programId, poolInfo.id, tickArrayLowerStartIndex);
     const { publicKey: tickArrayUpper } = getPdaTickArrayAddress(poolInfo.programId, poolInfo.id, tickArrayUpperStartIndex);
 
-    const { publicKey: positionNftAccount } = getATAAddress(ownerInfo.wallet, nftMintAKeypair.publicKey, TOKEN_PROGRAM_ID);
-    const { publicKey: metadataAccount } = getPdaMetadataKey(nftMintAKeypair.publicKey);
-    const { publicKey: personalPosition } = getPdaPersonalPositionAddress(poolInfo.programId, nftMintAKeypair.publicKey)
+    const { publicKey: positionNftAccount } = getATAAddress(ownerInfo.wallet, nftMintAccount, TOKEN_PROGRAM_ID);
+    const { publicKey: metadataAccount } = getPdaMetadataKey(nftMintAccount);
+    const { publicKey: personalPosition } = getPdaPersonalPositionAddress(poolInfo.programId, nftMintAccount)
     const { publicKey: protocolPosition } = getPdaProtocolPositionAddress(poolInfo.programId, poolInfo.id, tickLower, tickUpper)
 
     const ins = openPositionFromBaseInstruction(
@@ -2260,7 +2364,7 @@ export class AmmV3 extends Base {
       ownerInfo.feePayer,
       poolInfo.id,
       ownerInfo.wallet,
-      nftMintAKeypair.publicKey,
+      nftMintAccount,
       positionNftAccount,
       metadataAccount,
       protocolPosition,
@@ -2289,7 +2393,7 @@ export class AmmV3 extends Base {
 
     return {
       address: {
-        nftMint: nftMintAKeypair.publicKey,
+        nftMint: nftMintAccount,
         tickArrayLower,
         tickArrayUpper,
         positionNftAccount,
@@ -2299,9 +2403,8 @@ export class AmmV3 extends Base {
       },
       innerTransaction: {
         instructions: [ins],
-        signers: [nftMintAKeypair],
+        signers,
         instructionTypes: [InstructionType.clmmOpenPosition],
-        supportedVersion: [TxVersion.LEGACY, TxVersion.V0],
         lookupTableAddress: [poolInfo.lookupTableAccount].filter(i => !i.equals(PublicKey.default)),
       } as InnerTransaction
     }
@@ -2371,7 +2474,6 @@ export class AmmV3 extends Base {
           )],
         signers: [],
         instructionTypes: [InstructionType.clmmIncreasePosition],
-        supportedVersion: [TxVersion.LEGACY, TxVersion.V0],
         lookupTableAddress: [poolInfo.lookupTableAccount].filter(i => !i.equals(PublicKey.default)),
       } as InnerTransaction
     }
@@ -2444,7 +2546,6 @@ export class AmmV3 extends Base {
           )],
         signers: [],
         instructionTypes: [InstructionType.clmmIncreasePosition],
-        supportedVersion: [TxVersion.LEGACY, TxVersion.V0],
         lookupTableAddress: [poolInfo.lookupTableAccount].filter(i => !i.equals(PublicKey.default)),
       } as InnerTransaction
     }
@@ -2527,7 +2628,6 @@ export class AmmV3 extends Base {
         ],
         signers: [],
         instructionTypes: [InstructionType.clmmDecreasePosition],
-        supportedVersion: [TxVersion.LEGACY, TxVersion.V0],
         lookupTableAddress: [poolInfo.lookupTableAccount].filter(i => !i.equals(PublicKey.default)),
       } as InnerTransaction
     }
@@ -2564,9 +2664,8 @@ export class AmmV3 extends Base {
         ],
         signers: [],
         instructionTypes: [InstructionType.clmmClosePosition],
-        supportedVersion: [TxVersion.LEGACY, TxVersion.V0],
         lookupTableAddress: [poolInfo.lookupTableAccount].filter(i => !i.equals(PublicKey.default)),
-      }
+      } as InnerTransaction
     }
   }
 
@@ -2620,8 +2719,7 @@ export class AmmV3 extends Base {
         signers: [],
         lookupTableAddress: [poolInfo.lookupTableAccount].filter(i => !i.equals(PublicKey.default)),
         instructionTypes: [InstructionType.clmmSwapBaseIn],
-        supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
-      }
+      } as InnerTransaction
     }
   }
 
@@ -2675,8 +2773,7 @@ export class AmmV3 extends Base {
         signers: [],
         lookupTableAddress: [poolInfo.lookupTableAccount].filter(i => !i.equals(PublicKey.default)),
         instructionTypes: [InstructionType.clmmSwapBaseOut],
-        supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
-      }
+      } as InnerTransaction
     }
   }
 
@@ -2721,7 +2818,6 @@ export class AmmV3 extends Base {
         ],
         signers: [],
         instructionTypes: [InstructionType.clmmInitReward],
-        supportedVersion: [TxVersion.LEGACY, TxVersion.V0],
         lookupTableAddress: [poolInfo.lookupTableAccount].filter(i => !i.equals(PublicKey.default)),
       } as InnerTransaction
     }
@@ -2779,7 +2875,6 @@ export class AmmV3 extends Base {
         ],
         signers: [],
         instructionTypes: [InstructionType.clmmInitReward],
-        supportedVersion: [TxVersion.LEGACY, TxVersion.V0],
         lookupTableAddress: [poolInfo.lookupTableAccount].filter(i => !i.equals(PublicKey.default)),
       } as InnerTransaction
     }
@@ -2823,7 +2918,6 @@ export class AmmV3 extends Base {
         ],
         signers: [],
         instructionTypes: [InstructionType.clmmInitReward],
-        supportedVersion: [TxVersion.LEGACY, TxVersion.V0],
         lookupTableAddress: [poolInfo.lookupTableAccount].filter(i => !i.equals(PublicKey.default)),
       } as InnerTransaction
     }

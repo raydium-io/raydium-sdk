@@ -5,9 +5,15 @@
 
 import {
   AccountInfo, AddressLookupTableAccount, Commitment, Connection, Keypair,
-  PublicKey, Signer, SimulatedTransactionResponse, Transaction,
-  TransactionInstruction,
+  PublicKey, SimulatedTransactionResponse, Transaction, TransactionInstruction,
+  TransactionMessage,
 } from '@solana/web3.js';
+
+import {
+  ComputeBudgetConfig, InnerSimpleLegacyTransaction, InnerSimpleV0Transaction,
+  InnerTransaction, TxVersion,
+} from '../base';
+import { addComputeBudget } from '../base/instrument';
 
 import { chunkArray } from './lodash';
 import { Logger } from './logger';
@@ -342,62 +348,147 @@ export async function simulateTransaction(connection: Connection, transactions: 
   return results
 }
 
-export function splitTxAndSigners({ instructions, signers, payer }: {
-  instructions: TransactionInstruction[],
-  signers: (Signer | Keypair)[],
-  payer: PublicKey
-}): {
-  instruction: TransactionInstruction[];
-  signer: (Keypair | Signer)[];
-}[] {
-  const signerKey: { [key: string]: Signer } = {}
-  for (const item of signers) signerKey[item.publicKey.toString()] = item
+export async function splitTxAndSigners<T extends TxVersion>({ connection, makeTxVersion, innerTransaction, lookupTableCache, computeBudgetConfig, payer }: {
+  connection: Connection,
+  makeTxVersion: T,
+  innerTransaction: InnerTransaction[],
+  lookupTableCache?: CacheLTA,
+  computeBudgetConfig?: ComputeBudgetConfig,
+  payer: PublicKey,
+}): Promise<(T extends typeof TxVersion.LEGACY ? InnerSimpleLegacyTransaction : InnerSimpleV0Transaction)[]> {
+  const lookupTableAddressAccount = lookupTableCache ?? {}
+  const allLTA = [...new Set<string>(innerTransaction.map(i => (i.lookupTableAddress ?? []).map(ii => ii.toString())).flat())]
+  const needCacheLTA: PublicKey[] = []
+  for (const item of allLTA) {
+    if (lookupTableAddressAccount[item] === undefined) needCacheLTA.push(new PublicKey(item))
+  }
 
-  const transactions: { instruction: TransactionInstruction[], signer: (Keypair | Signer)[] }[] = []
+  const newCacheLTA = await getMultipleLookupTableInfo({ connection, address: needCacheLTA})
 
-  let itemIns: TransactionInstruction[] = []
+  for (const [key, value] of Object.entries(newCacheLTA)) lookupTableAddressAccount[key] = value
 
-  for (const item of instructions) {
-    const _itemIns = [...itemIns, item]
-    const _signerStrs = new Set<string>(_itemIns.map(i => i.keys.filter(ii => ii.isSigner).map(ii => ii.pubkey.toString())).flat())
-    const _signer = [..._signerStrs.values()].map(i => new PublicKey(i))
+  const addComputeBudgetInnerTx = computeBudgetConfig ? addComputeBudget(computeBudgetConfig).innerTransaction : undefined
+  
+  const transactions: (T extends typeof TxVersion.LEGACY ? InnerSimpleLegacyTransaction : InnerSimpleV0Transaction)[] = []
 
-    if (forecastTransactionSize(_itemIns, [payer, ..._signer])) {
-      itemIns.push(item)
+  let itemIns: InnerTransaction[] = []
+
+  for (const itemInnerTx of innerTransaction) {
+    if (itemInnerTx.instructions.length === 0) continue
+    const _itemIns = [...itemIns, itemInnerTx]
+    const _addComputeBudgetInnerTx = addComputeBudgetInnerTx ? [addComputeBudgetInnerTx, ..._itemIns] : _itemIns
+
+    if (checkTx({ makeTxVersion, innerIns: _addComputeBudgetInnerTx, payer, lookupTableAddressAccount}) ||
+      checkTx({ makeTxVersion, innerIns: _itemIns, payer, lookupTableAddressAccount})) {
+      itemIns.push(itemInnerTx)
     } else {
-      transactions.push({
-        instruction: itemIns,
-        signer: [..._signerStrs.values()].map(i => signerKey[i]).filter(i => i !== undefined)
-      })
+      if (itemIns.length === 0) throw Error(' item ins too big ')
 
-      itemIns = [item]
+      let lookupTableAddress: undefined | CacheLTA = undefined
+      if (makeTxVersion === TxVersion.V0) {
+        lookupTableAddress = {}
+        for (const item of [...new Set<string>(itemIns.map(i => i.lookupTableAddress ?? []).flat().map(i => i.toString()))]) {
+          if (lookupTableAddressAccount[item] !== undefined) lookupTableAddress[item] = lookupTableAddressAccount[item]
+        }
+      }
+      if (checkTx({ makeTxVersion, innerIns: addComputeBudgetInnerTx ? [addComputeBudgetInnerTx, ...itemIns] : itemIns, payer, lookupTableAddressAccount})) {
+        // add fee is ok
+        const _i = addComputeBudgetInnerTx ? [addComputeBudgetInnerTx, ...itemIns] : itemIns
+        transactions.push({
+          instructionTypes: _i.map(i => i.instructionTypes).flat(),
+          instructions: _i.map(i => i.instructions).flat(),
+          signers: itemIns.map(i => i.signers).flat(),
+          lookupTableAddress,
+        } as any)
+      } else {
+        transactions.push({
+          instructionTypes: itemIns.map(i => i.instructionTypes).flat(),
+          instructions: itemIns.map(i => i.instructions).flat(),
+          signers: itemIns.map(i => i.signers).flat(),
+          lookupTableAddress,
+        } as any)
+      }
+
+      itemIns = [itemInnerTx]
     }
   }
 
   if (itemIns.length > 0) {
-    const _signerStrs = new Set<string>(itemIns.map(i => i.keys.filter(ii => ii.isSigner).map(ii => ii.pubkey.toString())).flat())
-    transactions.push({
-      instruction: itemIns,
-      signer: [..._signerStrs.values()].map(i => signerKey[i]).filter(i => i !== undefined)
-    })
+    let lookupTableAddress: undefined | CacheLTA = undefined
+    if (makeTxVersion === TxVersion.V0) {
+      lookupTableAddress = {}
+      for (const item of [...new Set<string>(itemIns.map(i => i.lookupTableAddress ?? []).flat().map(i => i.toString()))]) {
+        if (lookupTableAddressAccount[item] !== undefined) lookupTableAddress[item] = lookupTableAddressAccount[item]
+      }
+    }
+    if (checkTx({ makeTxVersion, innerIns: addComputeBudgetInnerTx ? [addComputeBudgetInnerTx, ...itemIns] : itemIns, payer, lookupTableAddressAccount})) {
+      const _i = addComputeBudgetInnerTx ? [addComputeBudgetInnerTx, ...itemIns] : itemIns
+      transactions.push({
+        instructionTypes: _i.map(i => i.instructionTypes).flat(),
+        instructions: _i.map(i => i.instructions).flat(),
+        signers: itemIns.map(i => i.signers).flat(),
+        lookupTableAddress,
+      } as any)
+    } else {
+      transactions.push({
+        instructionTypes: itemIns.map(i => i.instructionTypes).flat(),
+        instructions: itemIns.map(i => i.instructions).flat(),
+        signers: itemIns.map(i => i.signers).flat(),
+        lookupTableAddress,
+      } as any)
+    }
   }
 
   return transactions
 }
 
-export async function getMultipleLookupTableInfo({ connection, address}: { connection: Connection, address: PublicKey[]}) {
-  const dataInfos = await getMultipleAccountsInfo(connection, address)
+function checkTx({ makeTxVersion, innerIns, payer, lookupTableAddressAccount }: { makeTxVersion: TxVersion, innerIns: InnerTransaction[], payer: PublicKey, lookupTableAddressAccount?: CacheLTA}) {
+  const instructions = innerIns.map(i => i.instructions).flat()
+  const signers = [...new Set<string>(innerIns.map(i => i.signers).flat().map(i => i.publicKey.toString()))].map(i => new PublicKey(i))
+  const needLTA = innerIns.map(i => i.lookupTableAddress ?? []).flat().map(i => i.toString())
+  const lTaCache: CacheLTA = {}
+  const _lookupTableAddressAccount = lookupTableAddressAccount ?? {}
+  for (const item of needLTA) {
+    if (_lookupTableAddressAccount[item] !== undefined) {
+      lTaCache[item] = _lookupTableAddressAccount[item]
+    }
+  }
+  return makeTxVersion === TxVersion.V0 ? _checkV0Tx({instructions, payer, lookupTableAddressAccount: lTaCache}) : _checkLegacyTx({instructions, payer, signers})
+}
 
-  const outList: AddressLookupTableAccount[] = []
+function _checkLegacyTx({ instructions, payer, signers }: {instructions: TransactionInstruction[], payer: PublicKey, signers: PublicKey[]}) {
+  return forecastTransactionSize(instructions, [payer, ...signers])
+}
+function _checkV0Tx({ instructions, payer, lookupTableAddressAccount }: {instructions: TransactionInstruction[], payer: PublicKey, lookupTableAddressAccount?: CacheLTA}) {
+  const transactionMessage = new TransactionMessage({
+    payerKey: payer,
+    recentBlockhash: Keypair.generate().publicKey.toString(),
+    instructions,
+  })
+  
+  const messageV0 = transactionMessage.compileToV0Message(Object.values(lookupTableAddressAccount ?? {}));
+  try {
+    messageV0.serialize()
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
+export interface CacheLTA {[key: string]: AddressLookupTableAccount}
+export async function getMultipleLookupTableInfo({ connection, address}: { connection: Connection, address: PublicKey[]}) {
+  const dataInfos = await getMultipleAccountsInfo(connection, [...new Set<string>(address.map(i => i.toString()))].map(i => new PublicKey(i)))
+
+  const outDict: CacheLTA = {}
   for (let i = 0 ; i < address.length; i++) {
     const info = dataInfos[i]
     const key = address[i]
     if (!info) continue
-    outList.push(new AddressLookupTableAccount({
+    outDict[key.toString()] = new AddressLookupTableAccount({
       key,
       state: AddressLookupTableAccount.deserialize(info.data)
-    }))
+    })
   }
 
-  return outList
+  return outDict
 }

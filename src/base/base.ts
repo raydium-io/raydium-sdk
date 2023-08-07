@@ -1,3 +1,4 @@
+import { sha256 } from '@noble/hashes/sha256';
 import { AccountLayout, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import {
   Connection, Keypair, PublicKey, Signer, SystemProgram, Transaction,
@@ -245,11 +246,13 @@ export class Base {
         (createInfo.endInstructions ?? []).push(Spl.makeCloseAccountInstruction({ programId: TOKEN_PROGRAM_ID, tokenAccount: newTokenAccount, owner, payer: createInfo.payer , instructionsType: createInfo.endInstructionsType ?? []}));
         return newTokenAccount
       } else {
-        const newTokenAccount = Keypair.generate()
+        const newTokenAccount = generatePubKey({ fromPublicKey: owner, programId })
         const balanceNeeded = await createInfo.connection.getMinimumBalanceForRentExemption(AccountLayout.span)
 
-        const createAccountIns = SystemProgram.createAccount({
+        const createAccountIns = SystemProgram.createAccountWithSeed({
           fromPubkey: owner,
+          basePubkey: owner,
+          seed: newTokenAccount.seed,
           newAccountPubkey: newTokenAccount.publicKey,
           lamports: balanceNeeded,
           space: AccountLayout.span,
@@ -264,10 +267,21 @@ export class Base {
         )
         createInfo.frontInstructions.push(createAccountIns, initAccountIns)
         createInfo.frontInstructionsType.push(InstructionType.createAccount, InstructionType.initAccount)
-        createInfo.signers.push(newTokenAccount);
-        (createInfo.endInstructions ?? []).push(Spl.makeCloseAccountInstruction({ programId, tokenAccount: newTokenAccount.publicKey, owner, payer: createInfo.payer , instructionsType: createInfo.endInstructionsType ?? []}));
+        ;(createInfo.endInstructions ?? []).push(Spl.makeCloseAccountInstruction({ programId, tokenAccount: newTokenAccount.publicKey, owner, payer: createInfo.payer , instructionsType: createInfo.endInstructionsType ?? []}));
         return newTokenAccount.publicKey
       }
     }
   }
+}
+
+export function generatePubKey({fromPublicKey, programId = TOKEN_PROGRAM_ID}: {fromPublicKey: PublicKey, programId: PublicKey}) {
+  const seed = Keypair.generate().publicKey.toBase58().slice(0, 32);
+  const publicKey = createWithSeed( fromPublicKey, seed, programId );
+  return {  publicKey, seed, }
+}
+
+function createWithSeed(fromPublicKey: PublicKey, seed: string, programId: PublicKey) {
+  const buffer = Buffer.concat([fromPublicKey.toBuffer(), Buffer.from(seed), programId.toBuffer()]);
+  const publicKeyBytes = sha256(buffer);
+  return new PublicKey(publicKeyBytes);
 }

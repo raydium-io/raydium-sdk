@@ -1,18 +1,18 @@
 import { PublicKey, Signer, TransactionInstruction } from '@solana/web3.js';
 
+import { CacheLTA } from '../common';
+
 export interface ComputeBudgetConfig {
   units?: number
   microLamports?: number
 }
 
 export interface InnerTransaction {
+  instructionTypes: InstructionType[],
   instructions: TransactionInstruction[],
   signers: Signer[],
 
   lookupTableAddress?: PublicKey[],
-
-  instructionTypes: InstructionType[],
-  supportedVersion: TxVersion[]
 }
 export interface MakeInstructionOutType<T extends {
   [name: string]: PublicKey;
@@ -22,13 +22,20 @@ export interface MakeInstructionOutType<T extends {
   address: T,
   innerTransaction: InnerTransaction,
 }
-export interface MakeInstructionSimpleOutType<T extends {
-  [name: string]: PublicKey;
-} = {
-  [name: string]: PublicKey;
-}> {
-  address: T,
-  innerTransactions: InnerTransaction[],
+
+export type InnerSimpleTransaction = InnerSimpleLegacyTransaction | InnerSimpleV0Transaction
+
+export interface InnerSimpleLegacyTransaction {
+  instructionTypes: InstructionType[],
+  instructions: TransactionInstruction[],
+  signers: Signer[],
+}
+export interface InnerSimpleV0Transaction {
+  instructionTypes: InstructionType[],
+  instructions: TransactionInstruction[],
+  signers: Signer[],
+
+  lookupTableAddress?: CacheLTA,
 }
 
 export enum TxVersion {'V0' , 'LEGACY'}

@@ -1,6 +1,8 @@
 import { ComputeBudgetProgram, TransactionInstruction } from '@solana/web3.js';
 
-import { ComputeBudgetConfig, InstructionType, TxVersion } from '../base';
+import {
+  ComputeBudgetConfig, InnerTransaction, InstructionType,
+} from '../base';
 
 export function addComputeBudget(config: ComputeBudgetConfig) {
   const ins: TransactionInstruction[] = []
@@ -20,7 +22,6 @@ export function addComputeBudget(config: ComputeBudgetConfig) {
       instructions: ins,
       signers: [],
       instructionTypes: insTypes,
-      supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
-    }
+    } as InnerTransaction
   }
 }

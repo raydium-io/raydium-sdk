@@ -1,16 +1,16 @@
 import {
-  Connection, Keypair, PublicKey, Signer, SystemProgram, TransactionInstruction,
+  Connection, PublicKey, Signer, SystemProgram, TransactionInstruction,
 } from '@solana/web3.js';
 import BN from 'bn.js';
 
 import {
-  Base, InnerTransaction, InstructionType, TokenAccount, TxVersion,
+  Base, ComputeBudgetConfig, generatePubKey, InnerTransaction, InstructionType,
+  TokenAccount, TxVersion,
 } from '../base';
 import { getATAAddress } from '../base/pda';
 import {
-  AccountMeta, AccountMetaReadonly, ASSOCIATED_TOKEN_PROGRAM_ID,
-  findProgramAddress, GetMultipleAccountsInfoConfig,
-  getMultipleAccountsInfoWithCustomFlags, Logger, RENT_PROGRAM_ID,
+  AccountMeta, AccountMetaReadonly, CacheLTA, findProgramAddress,
+  GetMultipleAccountsInfoConfig, getMultipleAccountsInfoWithCustomFlags, Logger,
   splitTxAndSigners, SYSTEM_PROGRAM_ID, SYSVAR_CLOCK_PUBKEY, SYSVAR_RENT_PUBKEY,
   TOKEN_PROGRAM_ID,
 } from '../common';
@@ -372,7 +372,6 @@ export class Farm extends Base {
         signers: [],
         lookupTableAddress: [],
         instructionTypes: [InstructionType.farmV3Deposit],
-        supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
       }
     }
   }
@@ -433,7 +432,6 @@ export class Farm extends Base {
         signers: [],
         lookupTableAddress: [],
         instructionTypes: [InstructionType.farmV5Deposit],
-        supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
       }
     }
   }
@@ -491,7 +489,6 @@ export class Farm extends Base {
         signers: [],
         lookupTableAddress: [],
         instructionTypes: [InstructionType.farmV6Deposit],
-        supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
       }
     }
   }
@@ -568,7 +565,6 @@ export class Farm extends Base {
         signers: [],
         lookupTableAddress: [],
         instructionTypes: [InstructionType.farmV5Deposit],
-        supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
       }
     }
   }
@@ -629,7 +625,6 @@ export class Farm extends Base {
         signers: [],
         lookupTableAddress: [],
         instructionTypes: [InstructionType.farmV5Withdraw],
-        supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
       }
     }
   }
@@ -687,7 +682,6 @@ export class Farm extends Base {
         signers: [],
         lookupTableAddress: [],
         instructionTypes: [InstructionType.farmV6Withdraw],
-        supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
       }
     }
   }
@@ -740,7 +734,6 @@ export class Farm extends Base {
         signers: [],
         lookupTableAddress: [],
         instructionTypes: [InstructionType.farmV3CreateLedger],
-        supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
       }
     }
   }
@@ -780,7 +773,6 @@ export class Farm extends Base {
         signers: [],
         lookupTableAddress: [],
         instructionTypes: [InstructionType.farmV5CreateLedger],
-        supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
       }
     }
   }
@@ -800,18 +792,21 @@ export class Farm extends Base {
   }
 
   static async makeCreateFarmInstructionV6({ connection, userKeys, poolInfo }: MakeCreateFarmInstructionParamsV6) {
-    const farmId = Keypair.generate();
+    const payer = userKeys.payer ?? userKeys.owner
+    const farmId = generatePubKey({ fromPublicKey: payer, programId: poolInfo.programId })
     const lamports = await connection.getMinimumBalanceForRentExemption(FARM_STATE_LAYOUT_V6.span);
 
     const frontInstructions: TransactionInstruction[] = [];
     const endInstructions: TransactionInstruction[] = [];
     const frontInstructionsType: InstructionType[] = [];
     const endInstructionsType: InstructionType[] = [];
-    const signers: Signer[] = [farmId];
+    const signers: Signer[] = [];
 
     frontInstructions.push(
-      SystemProgram.createAccount({
-        fromPubkey: userKeys.payer ?? userKeys.owner,
+      SystemProgram.createAccountWithSeed({
+        fromPubkey: payer,
+        basePubkey: payer,
+        seed: farmId.seed,
         newAccountPubkey: farmId.publicKey,
         lamports,
         space: FARM_STATE_LAYOUT_V6.span,
@@ -986,7 +981,6 @@ export class Farm extends Base {
         signers,
         lookupTableAddress: [],
         instructionTypes: [...frontInstructionsType, InstructionType.farmV6Create, ...endInstructionsType],
-        supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
       }
     }
   }
@@ -1048,7 +1042,6 @@ export class Farm extends Base {
         signers: [],
         lookupTableAddress: [],
         instructionTypes: [InstructionType.farmV6CreatorWithdraw],
-        supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
       }
     }
   }
@@ -1227,7 +1220,11 @@ export class Farm extends Base {
   }
 
   /* ================= make instruction simple ================= */
-  static makeCreatorWithdrawFarmRewardInstructionSimple(params: FarmCreatorWithdrawRewardInstructionSimpleParams) {
+  static makeCreatorWithdrawFarmRewardInstructionSimple<T extends TxVersion>(params: FarmCreatorWithdrawRewardInstructionSimpleParams & {
+    makeTxVersion: T,
+    lookupTableCache?: CacheLTA,
+    computeBudgetConfig?: ComputeBudgetConfig,
+  }) {
     const { poolKeys } = params;
     const { version } = poolKeys;
 
@@ -1238,12 +1235,19 @@ export class Farm extends Base {
     return logger.throwArgumentError("invalid version", "version", version);
   }
 
-  static async makeCreatorWithdrawFarmRewardInstructionV6Simple({
+  static async makeCreatorWithdrawFarmRewardInstructionV6Simple<T extends TxVersion>({
     connection,
     poolKeys,
     userKeys,
     withdrawMint,
-  }: FarmCreatorWithdrawRewardInstructionSimpleParamsV6) {
+    makeTxVersion,
+    lookupTableCache,
+    computeBudgetConfig
+  }: FarmCreatorWithdrawRewardInstructionSimpleParamsV6 & {
+    makeTxVersion: T,
+    lookupTableCache?: CacheLTA,
+    computeBudgetConfig?: ComputeBudgetConfig,
+  }) {
     const frontInstructions: TransactionInstruction[] = [];
     const endInstructions: TransactionInstruction[] = [];
     const frontInstructionsType: InstructionType[] = [];
@@ -1301,43 +1305,55 @@ export class Farm extends Base {
 
     return {
       address: {},
-      innerTransactions: [{
-        instructions: [...frontInstructions, ...ins.innerTransaction.instructions, ...endInstructions],
-        signers: [...signers, ...ins.innerTransaction.signers],
-        lookupTableAddress: ins.innerTransaction.lookupTableAddress,
-        instructionTypes: [...frontInstructionsType, ...ins.innerTransaction.instructionTypes, ...endInstructionsType],
-        supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
-      }]
+      innerTransactions: await splitTxAndSigners({
+        connection,
+        makeTxVersion,
+        computeBudgetConfig,
+        payer: userKeys.payer ?? userKeys.owner,
+        innerTransaction: [ 
+          { instructionTypes: frontInstructionsType, instructions: frontInstructions, signers,}, 
+          ins.innerTransaction, 
+          { instructionTypes: endInstructionsType, instructions: endInstructions, signers: [], }
+        ],
+        lookupTableCache,
+      })
     }
   }
 
-  static makeCreateFarmInstructionSimple({ connection, userKeys, poolInfo }: makeCreateFarmInstructionSimpleParams) {
-    const { version } = poolInfo;
+  static makeCreateFarmInstructionSimple<T extends TxVersion>(params: makeCreateFarmInstructionSimpleParams & {
+    makeTxVersion: T,
+    lookupTableCache?: CacheLTA,
+    computeBudgetConfig?: ComputeBudgetConfig,
+  }) {
+    const { version } = params.poolInfo;
 
     if (version === 6) {
-      return this.makeCreateFarmInstructionV6Simple({
-        connection,
-        userKeys,
-        poolInfo,
-      });
+      return this.makeCreateFarmInstructionV6Simple(params);
     }
 
     return logger.throwArgumentError("invalid version", "version", version);
   }
 
-  static async makeCreateFarmInstructionV6Simple({ connection, userKeys, poolInfo }: MakeCreateFarmInstructionParamsV6Simple) {
-    const farmId = Keypair.generate();
+  static async makeCreateFarmInstructionV6Simple<T extends TxVersion>({ connection, userKeys, poolInfo, makeTxVersion, lookupTableCache, computeBudgetConfig }: MakeCreateFarmInstructionParamsV6Simple & {
+    makeTxVersion: T,
+    lookupTableCache?: CacheLTA,
+    computeBudgetConfig?: ComputeBudgetConfig,
+  }) {
+    const payer = userKeys.payer ?? userKeys.owner
+    const farmId = generatePubKey({ fromPublicKey: payer, programId: poolInfo.programId });
     const lamports = await connection.getMinimumBalanceForRentExemption(FARM_STATE_LAYOUT_V6.span);
 
     const frontInstructions: TransactionInstruction[] = [];
     const endInstructions: TransactionInstruction[] = [];
     const frontInstructionsType: InstructionType[] = [];
     const endInstructionsType: InstructionType[] = [];
-    const signers: Signer[] = [farmId];
+    const signers: Signer[] = [];
 
     frontInstructions.push(
-      SystemProgram.createAccount({
-        fromPubkey: userKeys.payer ?? userKeys.owner,
+      SystemProgram.createAccountWithSeed({
+        fromPubkey: payer,
+        basePubkey: payer,
+        seed: farmId.seed,
         newAccountPubkey: farmId.publicKey,
         lamports,
         space: FARM_STATE_LAYOUT_V6.span,
@@ -1508,17 +1524,26 @@ export class Farm extends Base {
 
     return {
       address: { farmId: farmId.publicKey },
-      innerTransactions: [{
-        instructions: [...frontInstructions, ins, ...endInstructions],
-        signers,
-        lookupTableAddress: [],
-        instructionTypes: [...frontInstructionsType, InstructionType.farmV6Create, ...endInstructionsType],
-        supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
-      }]
+      innerTransactions: await splitTxAndSigners({
+        connection,
+        makeTxVersion,
+        computeBudgetConfig,
+        payer: userKeys.payer ?? userKeys.owner,
+        innerTransaction: [ 
+          { instructionTypes: frontInstructionsType, instructions: frontInstructions, signers,}, 
+          { instructionTypes: [InstructionType.farmV6Create], instructions: [ins], signers: [],}, 
+          { instructionTypes: endInstructionsType, instructions: endInstructions, signers: [], }
+        ],
+        lookupTableCache,
+      })
     }
   }
 
-  static makeRestartFarmInstructionSimple(params: FarmRestartInstructionParams) {
+  static makeRestartFarmInstructionSimple<T extends TxVersion>(params: FarmRestartInstructionParams & {
+    makeTxVersion: T,
+    lookupTableCache?: CacheLTA,
+    computeBudgetConfig?: ComputeBudgetConfig,
+  }) {
     const { poolKeys } = params;
     const { version } = poolKeys;
 
@@ -1529,12 +1554,19 @@ export class Farm extends Base {
     return logger.throwArgumentError("invalid version", "version", version);
   }
 
-  static async makeRestartFarmInstructionV6Simple({
+  static async makeRestartFarmInstructionV6Simple<T extends TxVersion>({
     connection,
     poolKeys,
     userKeys,
     newRewardInfo,
-  }: FarmRestartInstructionParamsV6) {
+    makeTxVersion,
+    lookupTableCache,
+    computeBudgetConfig,
+  }: FarmRestartInstructionParamsV6 & {
+    makeTxVersion: T,
+    lookupTableCache?: CacheLTA,
+    computeBudgetConfig?: ComputeBudgetConfig,
+  }) {
     logger.assertArgument(
       newRewardInfo.rewardOpenTime < newRewardInfo.rewardEndTime,
       "start time error",
@@ -1625,17 +1657,26 @@ export class Farm extends Base {
 
     return {
       address: {},
-      innerTransactions: [{
-        instructions: [...frontInstructions, ins, ...endInstructions],
-        signers,
-        lookupTableAddress: [],
-        instructionTypes: [...frontInstructionsType, InstructionType.farmV6Restart, ...endInstructionsType],
-        supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
-      }]
+      innerTransactions: await splitTxAndSigners({
+        connection,
+        makeTxVersion,
+        computeBudgetConfig,
+        payer: userKeys.payer ?? userKeys.owner,
+        innerTransaction: [ 
+          { instructionTypes: frontInstructionsType, instructions: frontInstructions, signers,}, 
+          { instructionTypes: [InstructionType.farmV6Restart], instructions: [ins], signers: [], },
+          { instructionTypes: endInstructionsType, instructions: endInstructions, signers: [], },
+        ],
+        lookupTableCache,
+      })
     }
   }
 
-  static makeFarmCreatorAddRewardTokenInstructionSimple(params: FarmCreatorAddRewardTokenInstructionParams) {
+  static makeFarmCreatorAddRewardTokenInstructionSimple<T extends TxVersion>(params: FarmCreatorAddRewardTokenInstructionParams & {
+    makeTxVersion: T,
+    lookupTableCache?: CacheLTA,
+    computeBudgetConfig?: ComputeBudgetConfig,
+  }) {
     const { poolKeys } = params;
     const { version } = poolKeys;
 
@@ -1646,12 +1687,19 @@ export class Farm extends Base {
     return logger.throwArgumentError("invalid version", "version", version);
   }
 
-  static async makeFarmCreatorAddRewardTokenInstructionV6Simple({
+  static async makeFarmCreatorAddRewardTokenInstructionV6Simple<T extends TxVersion>({
     connection,
     poolKeys,
     userKeys,
     newRewardInfo,
-  }: FarmCreatorAddRewardTokenInstructionParamsV6) {
+    makeTxVersion,
+    lookupTableCache,
+    computeBudgetConfig,
+  }: FarmCreatorAddRewardTokenInstructionParamsV6 & {
+    makeTxVersion: T,
+    lookupTableCache?: CacheLTA,
+    computeBudgetConfig?: ComputeBudgetConfig,
+  }) {
     const rewardVault = Farm.getAssociatedLedgerPoolAccount({
       programId: poolKeys.programId,
       poolId: poolKeys.id,
@@ -1750,18 +1798,23 @@ export class Farm extends Base {
 
     return {
       address: {},
-      innerTransactions: [{
-        instructions: [...frontInstructions, ins, ...endInstructions],
-        signers,
-        lookupTableAddress: [],
-        instructionTypes: [...frontInstructionsType, InstructionType.farmV6CreatorAddReward, ...endInstructionsType],
-        supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
-      }]
+      innerTransactions: await splitTxAndSigners({
+        connection,
+        makeTxVersion,
+        computeBudgetConfig,
+        payer: userKeys.payer ?? userKeys.owner,
+        innerTransaction: [ 
+          { instructionTypes: frontInstructionsType, instructions: frontInstructions, signers,}, 
+          { instructionTypes: [InstructionType.farmV6CreatorAddReward], instructions: [ins], signers: [], },
+          { instructionTypes: endInstructionsType, instructions: endInstructions, signers: [], },
+        ],
+        lookupTableCache,
+      })
     }
   }
 
-  static async makeDepositInstructionSimple({
-    connection, poolKeys, fetchPoolInfo, ownerInfo, amount, associatedOnly = true, checkCreateATAOwner = false
+  static async makeDepositInstructionSimple<T extends TxVersion>({
+    connection, poolKeys, fetchPoolInfo, ownerInfo, amount, associatedOnly = true, checkCreateATAOwner = false, makeTxVersion, lookupTableCache, computeBudgetConfig
   }: {
     connection: Connection
     poolKeys: FarmPoolKeys
@@ -1774,7 +1827,10 @@ export class Farm extends Base {
     },
     amount: BN
     associatedOnly?: boolean
-    checkCreateATAOwner?: boolean
+    checkCreateATAOwner?: boolean,
+    makeTxVersion: T,
+    lookupTableCache?: CacheLTA,
+    computeBudgetConfig?: ComputeBudgetConfig,
   }) {
     const ownerMintToAccount: { [mint: string]: PublicKey } = {}
     for (const item of ownerInfo.tokenAccounts) {
@@ -1859,18 +1915,23 @@ export class Farm extends Base {
     })
     return {
       address: depositInstruction.address,
-      innerTransactions: [{
-        instructions: [...frontInstructions, ...depositInstruction.innerTransaction.instructions, ...endInstructions],
-        signers: [...signers, ...depositInstruction.innerTransaction.signers],
-        lookupTableAddress: [],
-        instructionTypes: [...frontInstructionsType, ...depositInstruction.innerTransaction.instructionTypes, ...endInstructionsType],
-        supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
-      }]
+      innerTransactions: await splitTxAndSigners({
+        connection,
+        makeTxVersion,
+        computeBudgetConfig,
+        payer: ownerInfo.feePayer,
+        innerTransaction: [ 
+          { instructionTypes: frontInstructionsType, instructions: frontInstructions, signers,}, 
+          depositInstruction.innerTransaction, 
+          { instructionTypes: endInstructionsType, instructions: endInstructions, signers: [], }
+        ],
+        lookupTableCache,
+      })
     }
   }
 
-  static async makeWithdrawInstructionSimple({
-    connection, fetchPoolInfo, ownerInfo, amount, associatedOnly = true, checkCreateATAOwner = false,
+  static async makeWithdrawInstructionSimple<T extends TxVersion>({
+    connection, fetchPoolInfo, ownerInfo, amount, associatedOnly = true, checkCreateATAOwner = false, makeTxVersion, lookupTableCache, computeBudgetConfig,
   }: {
     connection: Connection
     fetchPoolInfo: FarmFetchMultipleInfoReturnItem,
@@ -1882,7 +1943,10 @@ export class Farm extends Base {
     },
     amount: BN,
     associatedOnly?: boolean
-    checkCreateATAOwner?: boolean
+    checkCreateATAOwner?: boolean,
+    makeTxVersion: T,
+    lookupTableCache?: CacheLTA,
+    computeBudgetConfig?: ComputeBudgetConfig,
   }) {
     const ownerMintToAccount: { [mint: string]: PublicKey } = {}
     for (const item of ownerInfo.tokenAccounts) {
@@ -1973,31 +2037,25 @@ export class Farm extends Base {
     withdrawInstructions.push(...ins.innerTransaction.instructions)
     withdrawInstructionsType.push(...ins.innerTransaction.instructionTypes)
 
-    const allInstruction = [...frontInstructions, ...withdrawInstructions, ...endInstructions]
-    const allInstructionTyep = [...frontInstructionsType, ...withdrawInstructionsType, ...endInstructionsType]
-
-    const transactions = splitTxAndSigners({ instructions: allInstruction, signers, payer: ownerInfo.wallet })
-
-    let index = 0
-    const innerTransactions: InnerTransaction[] = transactions.map(i => {
-      const instructionTypes = allInstructionTyep.slice(index, index + i.instruction.length)
-      index += i.instruction.length
-      return {
-        instructions: i.instruction,
-        signers: i.signer,
-        lookupTableAddress: [],
-        instructionTypes,
-        supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
-      }
-    })
     return {
       address: {},
-      innerTransactions
+      innerTransactions: await splitTxAndSigners({
+        connection,
+        makeTxVersion,
+        computeBudgetConfig,
+        payer: ownerInfo.feePayer,
+        innerTransaction: [ 
+          { instructionTypes: frontInstructionsType, instructions: frontInstructions, signers,}, 
+          { instructionTypes: withdrawInstructionsType, instructions: withdrawInstructions, signers: [], },
+          { instructionTypes: endInstructionsType, instructions: endInstructions, signers: [], },
+        ],
+        lookupTableCache,
+      })
     }
   }
 
-  static async makeHarvestAllRewardInstructionSimple({
-    connection, fetchPoolInfos, ownerInfo, associatedOnly = true, checkCreateATAOwner = false,
+  static async makeHarvestAllRewardInstructionSimple<T extends TxVersion>({
+    connection, fetchPoolInfos, ownerInfo, associatedOnly = true, checkCreateATAOwner = false, makeTxVersion, lookupTableCache, computeBudgetConfig,
   }: {
     connection: Connection
     fetchPoolInfos: FarmFetchMultipleInfoReturn,
@@ -2008,7 +2066,10 @@ export class Farm extends Base {
       useSOLBalance?: boolean  // if has WSOL mint
     },
     associatedOnly?: boolean
-    checkCreateATAOwner?: boolean
+    checkCreateATAOwner?: boolean,
+    makeTxVersion: T,
+    lookupTableCache?: CacheLTA,
+    computeBudgetConfig?: ComputeBudgetConfig,
   }) {
     const ownerMintToAccount: { [mint: string]: PublicKey } = {}
     for (const item of ownerInfo.tokenAccounts) {
@@ -2024,8 +2085,7 @@ export class Farm extends Base {
     const endInstructions: TransactionInstruction[] = [];
     const frontInstructionsType: InstructionType[] = [];
     const endInstructionsType: InstructionType[] = [];
-    const harvestInstructions: TransactionInstruction[] = [];
-    const harvestInstructionsType: InstructionType[] = [];
+    const harvestInstructions: InnerTransaction[] = [];
 
     const signers: Signer[] = []
 
@@ -2095,43 +2155,38 @@ export class Farm extends Base {
         amount: 0
       })
 
-      harvestInstructions.push(...ins.innerTransaction.instructions)
-      harvestInstructionsType.push(...ins.innerTransaction.instructionTypes)
+      harvestInstructions.push(ins.innerTransaction)
     }
-
-    const allInstruction = [...frontInstructions, ...harvestInstructions, ...endInstructions]
-    const allInstructionTyep = [...frontInstructionsType, ...harvestInstructionsType, ...endInstructionsType]
-
-    const transactions = splitTxAndSigners({ instructions: allInstruction, signers, payer: ownerInfo.wallet })
-
-    let index = 0
-    const innerTransactions: InnerTransaction[] = transactions.map(i => {
-      const instructionTypes = allInstructionTyep.slice(index, index + i.instruction.length)
-      index += i.instruction.length
-      return {
-        instructions: i.instruction,
-        signers: i.signer,
-        lookupTableAddress: [],
-        instructionTypes,
-        supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
-      }
-    })
 
     return {
       address: {},
-      innerTransactions
+      innerTransactions: await splitTxAndSigners({
+        connection,
+        makeTxVersion,
+        computeBudgetConfig,
+        payer: ownerInfo.feePayer,
+        innerTransaction: [ 
+          { instructionTypes: frontInstructionsType, instructions: frontInstructions, signers,}, 
+          ...harvestInstructions,
+          { instructionTypes: endInstructionsType, instructions: endInstructions, signers: [], },
+        ],
+        lookupTableCache,
+      })
     }
   }
 
   /** 
    * @deprecated the method is **DANGEROUS**, please don't use
    */
-  static async makeV1InfoToV2PdaAndHarvestSimple({connection, wallet, tokenAccounts, programIdV3, programIdV5}: {
+  static async makeV1InfoToV2PdaAndHarvestSimple<T extends TxVersion>({connection, wallet, tokenAccounts, programIdV3, programIdV5, makeTxVersion, lookupTableCache, computeBudgetConfig}: {
     connection: Connection,
     wallet: PublicKey,
     tokenAccounts: TokenAccount[]
     programIdV3: PublicKey,
-    programIdV5: PublicKey
+    programIdV5: PublicKey,
+    makeTxVersion: T,
+    lookupTableCache?: CacheLTA,
+    computeBudgetConfig?: ComputeBudgetConfig,
   }) {
     const mintToAccount: {[mint: string]: PublicKey} = {}
     for (const item of tokenAccounts) {
@@ -2208,8 +2263,7 @@ export class Farm extends Base {
 
     const frontInstructions: TransactionInstruction[] = []
     const frontInstructionsType: InstructionType[] = []
-    const instructions: TransactionInstruction[] = []
-    const instructionsType: InstructionType[] = []
+    const instructions: InnerTransaction[] = []
     const endInstructions: TransactionInstruction[] = []
     const endInstructionsType: InstructionType[] = []
 
@@ -2267,8 +2321,7 @@ export class Farm extends Base {
             owner: wallet
           }
         })
-        instructions.push(..._i.innerTransaction.instructions)
-        instructionsType.push(..._i.innerTransaction.instructionTypes)
+        instructions.push(_i.innerTransaction)
       }
       
       const _i = this.makeDepositInstructionV3({
@@ -2296,8 +2349,7 @@ export class Farm extends Base {
         }
       })
 
-      instructions.push(..._i.innerTransaction.instructions)
-      instructionsType.push(..._i.innerTransaction.instructionTypes)
+      instructions.push(_i.innerTransaction)
     }
 
     for (const [poolId, info] of Object.entries(poolIdToAccountV5)) {
@@ -2369,8 +2421,7 @@ export class Farm extends Base {
             owner: wallet
           }
         })
-        instructions.push(..._i.innerTransaction.instructions)
-        instructionsType.push(..._i.innerTransaction.instructionTypes)
+        instructions.push(_i.innerTransaction)
       }
       
       const _i = this.makeDepositInstructionV5({
@@ -2398,30 +2449,23 @@ export class Farm extends Base {
         }
       })
 
-      instructions.push(..._i.innerTransaction.instructions)
-      instructionsType.push(..._i.innerTransaction.instructionTypes)
+      instructions.push(_i.innerTransaction)
     }
 
-    const allInstruction = [...frontInstructions, ...instructions, ...endInstructions]
-    const allInstructionTyep = [...frontInstructionsType, ...instructionsType, ...endInstructionsType]
-
-    const transactions = splitTxAndSigners({ instructions: allInstruction, signers: [], payer: wallet })
-
-    let index = 0
-    const innerTransactions: InnerTransaction[] = transactions.map(i => {
-      const instructionTypes = allInstructionTyep.slice(index, index + i.instruction.length)
-      index += i.instruction.length
-      return {
-        instructions: i.instruction,
-        signers: i.signer,
-        lookupTableAddress: [],
-        instructionTypes,
-        supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
-      }
-    })
     return {
       address: {},
-      innerTransactions
+      innerTransactions: await splitTxAndSigners({
+        connection,
+        makeTxVersion,
+        computeBudgetConfig,
+        payer: wallet,
+        innerTransaction: [ 
+          { instructionTypes: frontInstructionsType, instructions: frontInstructions, signers: [],}, 
+          ...instructions,
+          { instructionTypes: endInstructionsType, instructions: endInstructions, signers: [], },
+        ],
+        lookupTableCache,
+      })
     }
   }
 
@@ -2566,7 +2610,6 @@ export class Farm extends Base {
         signers: [],
         lookupTableAddress: [],
         instructionTypes: Array(instructions.length).fill(InstructionType.test),
-        supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
       }
     }
   }
@@ -2648,7 +2691,6 @@ export class Farm extends Base {
         signers: [],
         lookupTableAddress: [],
         instructionTypes: Array(instructions.length).fill(InstructionType.test),
-        supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
       }
     }
   }

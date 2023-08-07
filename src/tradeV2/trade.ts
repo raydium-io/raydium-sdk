@@ -13,15 +13,13 @@ import {
   MAX_SQRT_PRICE_X64, MIN_SQRT_PRICE_X64,
 } from '../ammV3/utils/constants';
 import {
-  Base, ComputeBudgetConfig, InnerTransaction, InstructionType,
-  minExpirationTime, ReturnTypeFetchMultipleMintInfos, TokenAccount,
-  TransferAmountFee, TxVersion,
+  Base, ComputeBudgetConfig, InstructionType, minExpirationTime,
+  ReturnTypeFetchMultipleMintInfos, TokenAccount, TransferAmountFee, TxVersion,
 } from '../base';
-import { addComputeBudget } from '../base/instrument';
 import { ApiPoolInfo, ApiPoolInfoItem } from '../baseInfo';
 import {
-  forecastTransactionSize, jsonInfo2PoolKeys, parseSimulateLogToJson,
-  parseSimulateValue, simulateMultipleInstruction,
+  CacheLTA, jsonInfo2PoolKeys, parseSimulateLogToJson, parseSimulateValue,
+  simulateMultipleInstruction, splitTxAndSigners,
 } from '../common';
 import {
   Currency, CurrencyAmount, ONE, Percent, Price, Token, TokenAmount,
@@ -721,7 +719,6 @@ export class TradeV2 extends Base {
           signers: [],
           lookupTableAddress: [new PublicKey(poolKey1.lookupTableAccount), new PublicKey(poolKey2.lookupTableAccount)],
           instructionTypes: [InstructionType.routeSwap],
-          supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
         }
       }
     } else {
@@ -729,7 +726,9 @@ export class TradeV2 extends Base {
     }
   }
 
-  static async makeSwapInstructionSimple({ connection, swapInfo, ownerInfo, checkTransaction, computeBudgetConfig, routeProgram }: {
+  static async makeSwapInstructionSimple<T extends TxVersion>({ connection, swapInfo, ownerInfo, computeBudgetConfig, routeProgram, makeTxVersion, lookupTableCache, }: {
+    makeTxVersion: T,
+    lookupTableCache?: CacheLTA,
     connection: Connection
     swapInfo: ComputeAmountOutLayout,
     ownerInfo: {
@@ -739,7 +738,6 @@ export class TradeV2 extends Base {
       checkCreateATAOwner: boolean,
     }
     routeProgram: PublicKey
-    checkTransaction: boolean
     computeBudgetConfig?: ComputeBudgetConfig
   }) {
     const frontInstructions: TransactionInstruction[] = [];
@@ -838,10 +836,6 @@ export class TradeV2 extends Base {
       }
     })
 
-    const innerTransactions: InnerTransaction[] = []
-    
-    const { instructions, instructionTypes } = computeBudgetConfig ? addComputeBudget(computeBudgetConfig).innerTransaction : { instructions: [], instructionTypes: [] }
-
     const transferIns: TransactionInstruction[] = []
     const transferInsType: InstructionType[] = []
     if (swapInfo.feeConfig !== undefined) {
@@ -854,151 +848,35 @@ export class TradeV2 extends Base {
       transferInsType.push(InstructionType.transferAmount)
     }
 
-    const tempIns = [...instructions, ...transferIns, ...frontInstructions, ...ins.innerTransaction.instructions, ...endInstructions]
-    const tempInsType = [...instructionTypes, ...transferInsType, ...frontInstructionsType, ...ins.innerTransaction.instructionTypes, ...endInstructionsType]
-    const tempSigner = [...signers, ...ins.innerTransaction.signers]
-    if (checkTransaction) {
-      if (forecastTransactionSize(tempIns, [ownerInfo.wallet, ...tempSigner.map(i => i.publicKey)])) {
-        innerTransactions.push({
-          instructions: tempIns,
-          signers: tempSigner,
-          lookupTableAddress: [],
-          instructionTypes: tempInsType,
-          supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
-        })
-      } else {
-        if (frontInstructions.length > 0) {
-          innerTransactions.push({
-            instructions: frontInstructions,
-            signers,
-            lookupTableAddress: [],
-            instructionTypes: frontInstructionsType,
-            supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
-          })
-        }
-        if (forecastTransactionSize([...instructions, ...transferIns, ...ins.innerTransaction.instructions], [ownerInfo.wallet])) {
-          innerTransactions.push({
-            instructions: [...instructions, ...transferIns, ...ins.innerTransaction.instructions],
-            signers: ins.innerTransaction.signers,
-            lookupTableAddress: ins.innerTransaction.lookupTableAddress,
-            instructionTypes: [...instructionTypes, ...transferInsType, ...ins.innerTransaction.instructionTypes],
-            supportedVersion: ins.innerTransaction.supportedVersion
-          })
-        } else if (forecastTransactionSize([...instructions, ...ins.innerTransaction.instructions], [ownerInfo.wallet])) {
-          innerTransactions.push({
-            instructions: [...instructions, ...ins.innerTransaction.instructions],
-            signers: ins.innerTransaction.signers,
-            lookupTableAddress: ins.innerTransaction.lookupTableAddress,
-            instructionTypes: [...instructionTypes, ...ins.innerTransaction.instructionTypes],
-            supportedVersion: ins.innerTransaction.supportedVersion
-          })
-        } else if (forecastTransactionSize(ins.innerTransaction.instructions, [ownerInfo.wallet])) {
-          innerTransactions.push({
-            instructions: ins.innerTransaction.instructions,
-            signers: ins.innerTransaction.signers,
-            lookupTableAddress: ins.innerTransaction.lookupTableAddress,
-            instructionTypes: ins.innerTransaction.instructionTypes,
-            supportedVersion: ins.innerTransaction.supportedVersion
-          })
-        } else {
-          for (let index = 0 ; index < ins.innerTransaction.instructions.length; index++) {
-            innerTransactions.push({
-              instructions: [...instructions, ins.innerTransaction.instructions[index]],
-              signers: ins.innerTransaction.signers,
-              lookupTableAddress: [],
-              instructionTypes: [...instructionTypes, ins.innerTransaction.instructionTypes[index]],
-              supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
-            })
-          }
-        }
-        if (endInstructions.length > 0) {
-          innerTransactions.push({
-            instructions: endInstructions,
-            signers: [],
-            lookupTableAddress: [],
-            instructionTypes: endInstructionsType,
-            supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
-          })
-        }
-        // if (frontInstructions.length > 0) {
-        //   innerTransactions.push({
-        //     instructions: [...instructions, ...frontInstructions],
-        //     signers,
-        //     lookupTableAddress: [],
-        //     instructionTypes: [...instructionTypes, ...frontInstructionsType],
-        //     supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
-        //   })
-        // }
-        // if (forecastTransactionSize(ins.innerTransaction.instructions, [ownerInfo.wallet])) {
-        //   innerTransactions.push({
-        //     instructions: [...instructions, ...ins.innerTransaction.instructions],
-        //     signers: ins.innerTransaction.signers,
-        //     lookupTableAddress: ins.innerTransaction.lookupTableAddress,
-        //     instructionTypes: [...instructionTypes, ...ins.innerTransaction.instructionTypes],
-        //     supportedVersion: ins.innerTransaction.supportedVersion
-        //   })
-        // } else {
-        //   for (let index = 0 ; index < ins.innerTransaction.instructions.length; index++) {
-        //     innerTransactions.push({
-        //       instructions: [...instructions, ins.innerTransaction.instructions[index]],
-        //       signers: ins.innerTransaction.signers,
-        //       lookupTableAddress: [],
-        //       instructionTypes: [...instructionTypes, ins.innerTransaction.instructionTypes[index]],
-        //       supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
-        //     })
-        //   }
-        // }
-        // if (endInstructions.length > 0) {
-        //   innerTransactions.push({
-        //     instructions: [...instructions, ...endInstructions],
-        //     signers: [],
-        //     lookupTableAddress: [],
-        //     instructionTypes: [...instructionTypes, ...endInstructionsType],
-        //     supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
-        //   })
-        // }
-      }
-    } else {
-      if (swapInfo.routeType === 'amm') {
-        innerTransactions.push({
-          instructions: tempIns,
-          signers: tempSigner,
-          lookupTableAddress: [],
-          instructionTypes: tempInsType,
-          supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
-        })
-      } else {
-        if (frontInstructions.length > 0) {
-          innerTransactions.push({
-            instructions: [...instructions, ...frontInstructions],
-            signers,
-            lookupTableAddress: [],
-            instructionTypes: [...instructionTypes, ...frontInstructionsType],
-            supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
-          })
-        }
-        innerTransactions.push({
-          instructions: [...instructions, ...transferIns, ...ins.innerTransaction.instructions],
-          signers: ins.innerTransaction.signers,
-          lookupTableAddress: ins.innerTransaction.lookupTableAddress,
-          instructionTypes: [...instructionTypes, ...transferInsType, ...ins.innerTransaction.instructionTypes],
-          supportedVersion: ins.innerTransaction.supportedVersion
-        })
-        if (endInstructions.length > 0) {
-          innerTransactions.push({
-            instructions: [...instructions, ...endInstructions],
-            signers: [],
-            lookupTableAddress: [],
-            instructionTypes: [...instructionTypes, ...endInstructionsType],
-            supportedVersion: [TxVersion.LEGACY, TxVersion.V0]
-          })
-        }
-      }
-    }
+    const transferAddCheck = await splitTxAndSigners({
+      connection,
+      makeTxVersion,
+      computeBudgetConfig,
+      payer: ownerInfo.wallet,
+      innerTransaction: [ 
+        { instructionTypes: transferInsType, instructions: transferIns, signers: [],}, 
+        ins.innerTransaction, 
+      ],
+      lookupTableCache,
+    })
 
     return {
       address: ins.address,
-      innerTransactions
+      innerTransactions: await splitTxAndSigners({
+        connection,
+        makeTxVersion,
+        computeBudgetConfig,
+        payer: ownerInfo.wallet,
+        innerTransaction: [ 
+          { instructionTypes: frontInstructionsType, instructions: frontInstructions, signers,},
+          ...transferAddCheck.length > 1 ? [] : [
+            { instructionTypes: transferInsType, instructions: transferIns, signers: [],}, 
+          ], 
+          ins.innerTransaction,
+          { instructionTypes: endInstructionsType, instructions: endInstructions, signers: [], }
+        ],
+        lookupTableCache,
+      })
     }
   }
 }

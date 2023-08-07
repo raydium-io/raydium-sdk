@@ -1,11 +1,17 @@
-import { createInitializeAccountInstruction } from "@solana/spl-token";
-import { Connection, Keypair, PublicKey, SystemProgram, TransactionInstruction } from "@solana/web3.js";
-import BN from "bn.js";
+import { createInitializeAccountInstruction } from '@solana/spl-token';
+import {
+  Connection, Keypair, PublicKey, SystemProgram, TransactionInstruction,
+} from '@solana/web3.js';
+import BN from 'bn.js';
 
-import { Base, InstructionType, MakeInstructionSimpleOutType, TxVersion } from "../base";
-import { SYSVAR_RENT_PUBKEY, TOKEN_PROGRAM_ID } from "../common";
-import { ZERO } from "../entity";
-import { blob, publicKey, struct, u16, u32, u64, u8, WideBits } from "../marshmallow";
+import { Base, generatePubKey, InstructionType, TxVersion } from '../base';
+import {
+  CacheLTA, splitTxAndSigners, SYSVAR_RENT_PUBKEY, TOKEN_PROGRAM_ID,
+} from '../common';
+import { ZERO } from '../entity';
+import {
+  blob, publicKey, struct, u16, u32, u64, u8, WideBits,
+} from '../marshmallow';
 
 function accountFlagsLayout(property = 'accountFlags') {
   const ACCOUNT_FLAGS_LAYOUT = new WideBits(property);
@@ -45,7 +51,7 @@ export const MARKET_STATE_LAYOUT_V2 = struct([
 ]);
 
 export class MarketV2 extends Base {
-  static async makeCreateMarketInstructionSimple({
+  static async makeCreateMarketInstructionSimple<T extends TxVersion>({
     connection,
     wallet,
     baseInfo,
@@ -53,7 +59,11 @@ export class MarketV2 extends Base {
     lotSize, // 1
     tickSize, // 0.01
     dexProgramId,
+    makeTxVersion,
+    lookupTableCache,
   }: {
+    makeTxVersion: T,
+    lookupTableCache?: CacheLTA,
     connection: Connection;
     wallet: PublicKey;
     baseInfo: {
@@ -68,13 +78,13 @@ export class MarketV2 extends Base {
     tickSize: number;
     dexProgramId: PublicKey;
   }) {
-    const market = Keypair.generate();
-    const requestQueue = Keypair.generate();
-    const eventQueue = Keypair.generate();
-    const bids = Keypair.generate();
-    const asks = Keypair.generate();
-    const baseVault = Keypair.generate();
-    const quoteVault = Keypair.generate();
+    const market = generatePubKey({ fromPublicKey: wallet, programId: dexProgramId});
+    const requestQueue = generatePubKey({ fromPublicKey: wallet, programId: dexProgramId});
+    const eventQueue = generatePubKey({ fromPublicKey: wallet, programId: dexProgramId});
+    const bids = generatePubKey({ fromPublicKey: wallet, programId: dexProgramId});
+    const asks = generatePubKey({ fromPublicKey: wallet, programId: dexProgramId});
+    const baseVault = generatePubKey({ fromPublicKey: wallet, programId: TOKEN_PROGRAM_ID});
+    const quoteVault = generatePubKey({ fromPublicKey: wallet, programId: TOKEN_PROGRAM_ID});
     const feeRateBps = 0;
     const quoteDustThreshold = new BN(100);
 
@@ -102,7 +112,7 @@ export class MarketV2 extends Base {
     if (baseLotSize.eq(ZERO)) throw Error('lot size is too small')
     if (quoteLotSize.eq(ZERO)) throw Error('tick size or lot size is too small')
 
-    return await this.makeCreateMarketInstruction({
+    const ins =  await this.makeCreateMarketInstruction({
       connection, wallet, marketInfo: {
         programId: dexProgramId,
         id: market,
@@ -123,6 +133,18 @@ export class MarketV2 extends Base {
         quoteLotSize
       }
     })
+
+    return {
+      address: ins.address,
+      innerTransactions: await splitTxAndSigners({
+        connection,
+        makeTxVersion,
+        computeBudgetConfig: undefined,
+        payer: wallet,
+        innerTransaction: ins.innerTransactions,
+        lookupTableCache,
+      }),
+    }
   }
 
   static async makeCreateMarketInstruction({ connection, wallet, marketInfo }: {
@@ -130,17 +152,17 @@ export class MarketV2 extends Base {
     wallet: PublicKey
     marketInfo: {
       programId: PublicKey
-      id: Keypair,
+      id: { publicKey: PublicKey, seed: string },
       baseMint: PublicKey,
       quoteMint: PublicKey,
-      baseVault: Keypair,
-      quoteVault: Keypair,
+      baseVault: { publicKey: PublicKey, seed: string },
+      quoteVault: { publicKey: PublicKey, seed: string },
       vaultOwner: PublicKey
 
-      requestQueue: Keypair,
-      eventQueue: Keypair,
-      bids: Keypair,
-      asks: Keypair,
+      requestQueue: { publicKey: PublicKey, seed: string },
+      eventQueue: { publicKey: PublicKey, seed: string },
+      bids: { publicKey: PublicKey, seed: string },
+      asks: { publicKey: PublicKey, seed: string },
 
       feeRateBps: number,
       vaultSignerNonce: BN,
@@ -153,15 +175,19 @@ export class MarketV2 extends Base {
     const ins1: TransactionInstruction[] = [];
     const accountLamports = await connection.getMinimumBalanceForRentExemption(165)
     ins1.push(
-      SystemProgram.createAccount({
+      SystemProgram.createAccountWithSeed({
         fromPubkey: wallet,
+        basePubkey: wallet,
+        seed: marketInfo.baseVault.seed,
         newAccountPubkey: marketInfo.baseVault.publicKey,
         lamports: accountLamports,
         space: 165,
         programId: TOKEN_PROGRAM_ID,
       }),
-      SystemProgram.createAccount({
+      SystemProgram.createAccountWithSeed({
         fromPubkey: wallet,
+        basePubkey: wallet,
+        seed: marketInfo.quoteVault.seed,
         newAccountPubkey: marketInfo.quoteVault.publicKey,
         lamports: accountLamports,
         space: 165,
@@ -181,36 +207,46 @@ export class MarketV2 extends Base {
 
     const ins2: TransactionInstruction[] = []
     ins2.push(
-      SystemProgram.createAccount({
+      SystemProgram.createAccountWithSeed({
         fromPubkey: wallet,
+        basePubkey: wallet,
+        seed: marketInfo.id.seed,
         newAccountPubkey: marketInfo.id.publicKey,
         lamports: await connection.getMinimumBalanceForRentExemption(MARKET_STATE_LAYOUT_V2.span),
         space: MARKET_STATE_LAYOUT_V2.span,
         programId: marketInfo.programId,
       }),
-      SystemProgram.createAccount({
+      SystemProgram.createAccountWithSeed({
         fromPubkey: wallet,
+        basePubkey: wallet,
+        seed: marketInfo.requestQueue.seed,
         newAccountPubkey: marketInfo.requestQueue.publicKey,
         lamports: await connection.getMinimumBalanceForRentExemption(5120 + 12),
         space: 5120 + 12,
         programId: marketInfo.programId,
       }),
-      SystemProgram.createAccount({
+      SystemProgram.createAccountWithSeed({
         fromPubkey: wallet,
+        basePubkey: wallet,
+        seed: marketInfo.eventQueue.seed,
         newAccountPubkey: marketInfo.eventQueue.publicKey,
         lamports: await connection.getMinimumBalanceForRentExemption(262144 + 12),
         space: 262144 + 12,
         programId: marketInfo.programId,
       }),
-      SystemProgram.createAccount({
+      SystemProgram.createAccountWithSeed({
         fromPubkey: wallet,
+        basePubkey: wallet,
+        seed: marketInfo.bids.seed,
         newAccountPubkey: marketInfo.bids.publicKey,
         lamports: await connection.getMinimumBalanceForRentExemption(65536 + 12),
         space: 65536 + 12,
         programId: marketInfo.programId,
       }),
-      SystemProgram.createAccount({
+      SystemProgram.createAccountWithSeed({
         fromPubkey: wallet,
+        basePubkey: wallet,
+        seed: marketInfo.asks.seed,
         newAccountPubkey: marketInfo.asks.publicKey,
         lamports: await connection.getMinimumBalanceForRentExemption(65536 + 12),
         space: 65536 + 12,
@@ -253,15 +289,13 @@ export class MarketV2 extends Base {
       innerTransactions: [
         {
           instructions: ins1,
-          signers: [marketInfo.baseVault, marketInfo.quoteVault],
+          signers: [],
           instructionTypes: [InstructionType.createAccount, InstructionType.createAccount, InstructionType.initAccount, InstructionType.initAccount],
-          supportedVersion: [TxVersion.LEGACY, TxVersion.V0],
         },
         {
           instructions: ins2,
-          signers: [marketInfo.id, marketInfo.requestQueue, marketInfo.eventQueue, marketInfo.bids, marketInfo.asks],
+          signers: [],
           instructionTypes: [InstructionType.createAccount, InstructionType.createAccount, InstructionType.createAccount, InstructionType.createAccount, InstructionType.createAccount, InstructionType.initMarket],
-          supportedVersion: [TxVersion.LEGACY, TxVersion.V0],
         },
       ],
     }
