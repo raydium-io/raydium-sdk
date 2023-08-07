@@ -2,7 +2,8 @@ import {
   getTransferFeeConfig, Mint, TransferFee, TransferFeeConfig, unpackMint,
 } from '@solana/spl-token';
 import {
-  Connection, EpochInfo, Message, MessageV0, PublicKey, TransactionMessage,
+  AddressLookupTableAccount, Connection, EpochInfo, Keypair, Message, MessageV0,
+  PublicKey, Signer, Transaction, TransactionInstruction, TransactionMessage,
   VersionedTransaction,
 } from '@solana/web3.js';
 import BN from 'bn.js';
@@ -60,24 +61,21 @@ export async function buildSimpleTransaction({connection, makeTxVersion, payer, 
   connection: Connection,
   innerTransactions: InnerSimpleTransaction[], 
   recentBlockhash?: string | undefined,
-}): Promise<VersionedTransaction[]> {
+}): Promise<(VersionedTransaction | Transaction)[]> {
   if (makeTxVersion !== TxVersion.V0 && makeTxVersion !== TxVersion.LEGACY) throw Error(' make tx version args error')
 
   const _recentBlockhash = recentBlockhash ?? (await connection.getLatestBlockhash()).blockhash;
 
-  const txList: VersionedTransaction[] = []
+  const txList: (VersionedTransaction | Transaction)[] = []
   for (const itemIx of innerTransactions) {
-    const transactionMessage = new TransactionMessage({
-      payerKey: payer,
-      recentBlockhash: _recentBlockhash,
+    txList.push(_makeTransaction({
+      makeTxVersion,
       instructions: itemIx.instructions,
-    })
-
-    const itemMessage: Message | MessageV0 = makeTxVersion === TxVersion.LEGACY ? transactionMessage.compileToLegacyMessage() : transactionMessage.compileToV0Message(Object.values({...LOOKUP_TABLE_CACHE, ...((itemIx as InnerSimpleV0Transaction).lookupTableAddress ?? {})}))
-    const itemVersionedTransaction = new VersionedTransaction(itemMessage)
-    itemVersionedTransaction.sign(itemIx.signers)
-
-    txList.push(itemVersionedTransaction)
+      payer,
+      recentBlockhash: _recentBlockhash,
+      signers: itemIx.signers,
+      lookupTableInfos: Object.values({...LOOKUP_TABLE_CACHE, ...((itemIx as InnerSimpleV0Transaction).lookupTableAddress ?? {})})
+    }))
   }
   return txList
 }
@@ -89,7 +87,7 @@ export async function buildTransaction({connection, makeTxVersion, payer, innerT
   innerTransactions: InnerTransaction[], 
   recentBlockhash?: string | undefined,
   lookupTableCache?: CacheLTA,
-}): Promise<VersionedTransaction[]> {
+}): Promise<(VersionedTransaction | Transaction)[]> {
   if (makeTxVersion !== TxVersion.V0 && makeTxVersion !== TxVersion.LEGACY) throw Error(' make tx version args error')
 
   const _recentBlockhash = recentBlockhash ?? (await connection.getLatestBlockhash()).blockhash;
@@ -107,31 +105,47 @@ export async function buildTransaction({connection, makeTxVersion, payer, innerT
     _lookupTableCache[key] = value
   }
 
-  const txList: VersionedTransaction[] = []
+  const txList: (VersionedTransaction | Transaction)[] = []
   for (const itemIx of innerTransactions) {
-    const transactionMessage = new TransactionMessage({
-      payerKey: payer,
-      recentBlockhash: _recentBlockhash,
-      instructions: itemIx.instructions,
-    })
-
-    if (makeTxVersion === TxVersion.LEGACY) {
-      const itemV = new VersionedTransaction(transactionMessage.compileToLegacyMessage())
-      itemV.sign(itemIx.signers)
-      txList.push(itemV)
-    } else if (makeTxVersion === TxVersion.V0) {
-      const _itemLTA: CacheLTA = {}
+    const _itemLTA: CacheLTA = {'2immgwYNHBbyVQKVGCEkgWpi53bLwWNRMB5G2nbgYV17': _lookupTableCache['2immgwYNHBbyVQKVGCEkgWpi53bLwWNRMB5G2nbgYV17']}
+    if (makeTxVersion === TxVersion.V0) {
       for (const item of itemIx.lookupTableAddress?? []) {
         _itemLTA[item.toString()] = _lookupTableCache[item.toString()]
       }
-      const itemV = new VersionedTransaction(transactionMessage.compileToV0Message(Object.values(_itemLTA)))
-      itemV.sign(itemIx.signers)
-       txList.push(itemV)
-    } else {
-      throw Error(' make tx version check error ')
     }
+    
+    txList.push(_makeTransaction({
+      makeTxVersion,
+      instructions: itemIx.instructions,
+      payer,
+      recentBlockhash: _recentBlockhash,
+      signers: itemIx.signers,
+      lookupTableInfos: Object.values(_itemLTA)
+    }))
   }
   return txList
+}
+
+function _makeTransaction({ makeTxVersion, instructions, payer, recentBlockhash, signers, lookupTableInfos }: { makeTxVersion: TxVersion, instructions: TransactionInstruction[], payer: PublicKey, recentBlockhash: string, signers: (Signer | Keypair)[], lookupTableInfos?: AddressLookupTableAccount[] }): VersionedTransaction | Transaction {
+  if (makeTxVersion === TxVersion.LEGACY) {
+    const tx = new Transaction()
+    tx.add(...instructions)
+    tx.feePayer = payer
+    tx.recentBlockhash = recentBlockhash
+    if (signers.length > 0) tx.sign(...signers)
+    return tx
+  } else if (makeTxVersion === TxVersion.V0) {
+    const transactionMessage = new TransactionMessage({
+      payerKey: payer,
+      recentBlockhash,
+      instructions,
+    })
+    const itemV = new VersionedTransaction(transactionMessage.compileToV0Message(lookupTableInfos ))
+    itemV.sign(signers)
+    return itemV
+  } else {
+    throw Error(' make tx version check error ')
+  }
 }
 
 export interface TransferAmountFee {amount: TokenAmount | CurrencyAmount, fee: TokenAmount | CurrencyAmount | undefined, expirationTime: number | undefined}
