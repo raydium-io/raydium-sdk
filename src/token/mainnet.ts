@@ -1095,6 +1095,13 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
       coingeckoId: "solice",
     },
   },
+  SOUL: {
+    symbol: "SOUL",
+    name: "SOUL",
+    mint: "F6weWmuc1vwdL4u38Ro9jKXHEMjP9BoNdWMF5o5TvtJf",
+    decimals: 9,
+    extensions: {},
+  },
 };
 
 export const MAINNET_LP_TOKENS: LpTokens = {
@@ -2716,4 +2723,15 @@ export const MAINNET_LP_TOKENS: LpTokens = {
 
     version: 4,
   },
+  SOUL_USDC_V4: {
+    symbol: "SOUL-USDC",
+    name: "SOUL-USDC V4 LP",
+    mint: "F6weWmuc1vwdL4u38Ro9jKXHEMjP9BoNdWMF5o5TvtJf",
+
+    base: MAINNET_SPL_TOKENS.SOUL,
+    quote: MAINNET_SPL_TOKENS.USDC,
+    decimals: MAINNET_SPL_TOKENS.SOUL.decimals,
+
+    version: 4,
+},
 };
