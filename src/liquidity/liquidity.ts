@@ -9,7 +9,6 @@ import {
   Base, ComputeBudgetConfig, InnerTransaction, InstructionType,
   MakeInstructionOutType, TokenAccount, TxVersion,
 } from '../base';
-import { addComputeBudget } from '../base/instrument';
 import { getATAAddress } from '../base/pda';
 import { ApiPoolInfoItem } from '../baseInfo';
 import {
@@ -1838,8 +1837,8 @@ export class Liquidity extends Base {
     }
   }
 
-  static async makeRemoveAllLpAndCreateClmmPosition({
-    connection, poolKeys, removeLpAmount, userKeys, clmmPoolKeys, createPositionInfo, farmInfo, computeBudgetConfig, checkCreateATAOwner=false, getEphemeralSigners
+  static async makeRemoveAllLpAndCreateClmmPosition<T extends TxVersion>({
+    connection, poolKeys, removeLpAmount, userKeys, clmmPoolKeys, createPositionInfo, farmInfo, computeBudgetConfig, checkCreateATAOwner=false, getEphemeralSigners, makeTxVersion, lookupTableCache
   }: {
     connection: Connection;
     poolKeys: LiquidityPoolKeys;
@@ -1865,9 +1864,10 @@ export class Liquidity extends Base {
     checkCreateATAOwner: boolean,
 
     getEphemeralSigners?: (k: number) => any,
+  } & {
+    makeTxVersion: T,
+    lookupTableCache?: CacheLTA,
   }) {
-    const { instructions, instructionTypes } = computeBudgetConfig ? addComputeBudget(computeBudgetConfig).innerTransaction : { instructions: [], instructionTypes: [] }
-
     if (!(poolKeys.baseMint.equals(clmmPoolKeys.mintA.mint) || poolKeys.baseMint.equals(clmmPoolKeys.mintB.mint))) throw Error('mint check error')
     if (!(poolKeys.quoteMint.equals(clmmPoolKeys.mintA.mint) || poolKeys.quoteMint.equals(clmmPoolKeys.mintB.mint))) throw Error('mint check error')
 
@@ -2005,31 +2005,22 @@ export class Liquidity extends Base {
       }).innerTransaction
     }
 
-    const innerTransactions = []
-    if (frontInstructions.length > 0) {
-      innerTransactions.push({
-        instructions: frontInstructions,
-        signers,
-        instructionTypes: frontInstructionsType,
-      })
-    }
-    innerTransactions.push({
-      instructions: [...withdrawFarmIns.instructions, ...removeIns.innerTransaction.instructions],
-      signers: [...withdrawFarmIns.signers, ...removeIns.innerTransaction.signers],
-      instructionTypes: [...withdrawFarmIns.instructionTypes, ...removeIns.innerTransaction.instructionTypes],
-      lookupTableAddress: removeIns.innerTransaction.lookupTableAddress,
-    })
-
-    innerTransactions.push({
-      instructions: [...instructions, ...createPositionIns.innerTransaction.instructions, ...endInstructions],
-      signers: createPositionIns.innerTransaction.signers,
-      instructionTypes: [...instructionTypes, ...createPositionIns.innerTransaction.instructionTypes, ...endInstructionsType],
-      lookupTableAddress: createPositionIns.innerTransaction.lookupTableAddress,
-    })
-
     return {
       address: {...removeIns.address, ...createPositionIns.address},
-      innerTransactions
+      innerTransactions: await splitTxAndSigners({
+        connection,
+        makeTxVersion,
+        computeBudgetConfig,
+        payer: userKeys.payer ?? userKeys.owner,
+        innerTransaction: [ 
+          { instructionTypes: frontInstructionsType, instructions: frontInstructions, signers,}, 
+          withdrawFarmIns, 
+          removeIns.innerTransaction, 
+          createPositionIns.innerTransaction,
+          { instructionTypes: endInstructionsType, instructions: endInstructions, signers: [], }
+        ],
+        lookupTableCache,
+      })
     }
   }
 
