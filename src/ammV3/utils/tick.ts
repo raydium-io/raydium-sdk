@@ -1,10 +1,14 @@
-import { PublicKey } from "@solana/web3.js";
-import BN from "bn.js";
+import { PublicKey } from '@solana/web3.js';
+import BN from 'bn.js';
 
-import { getPdaTickArrayAddress } from "./pda";
+import { TickArrayBitmapExtensionLayout } from '../ammV3';
+
+import { MAX_TICK, MIN_TICK } from './constants';
+import { getPdaTickArrayAddress } from './pda';
+import { TickQuery } from './tickQuery';
 
 export const TICK_ARRAY_SIZE = 60
-export const TICK_ARRAY_BITMAP_SIZE = 1024
+export const TICK_ARRAY_BITMAP_SIZE = 512
 
 export type Tick = {
   tick: number;
@@ -79,17 +83,26 @@ export class TickUtils {
     return offsetInArray
   }
 
-  public static getTickArrayStartIndexByTick(
+  public static getTickArrayBitIndex(
     tickIndex: number,
     tickSpacing: number
   ) {
-    let startIndex: number = tickIndex / (TICK_ARRAY_SIZE * tickSpacing)
-    if (tickIndex < 0 && tickIndex % (TICK_ARRAY_SIZE * tickSpacing) != 0) {
+    const ticksInArray = TickQuery.tickCount(tickSpacing)
+
+    let startIndex: number = tickIndex / ticksInArray
+    if (tickIndex < 0 && tickIndex % ticksInArray != 0) {
       startIndex = Math.ceil(startIndex) - 1
     } else {
       startIndex = Math.floor(startIndex)
     }
-    return startIndex * (tickSpacing * TICK_ARRAY_SIZE)
+    return startIndex
+  }
+
+  public static getTickArrayStartIndexByTick(
+    tickIndex: number,
+    tickSpacing: number
+  ) {
+    return this.getTickArrayBitIndex(tickIndex, tickSpacing) * TickQuery.tickCount(tickSpacing)
   }
 
   public static getTickArrayOffsetInBitmapByTick(
@@ -108,10 +121,10 @@ export class TickUtils {
   ) {
     const multiplier = tickSpacing * TICK_ARRAY_SIZE
     const compressed = Math.floor(tick / multiplier) + 512
-    const bit_pos = Math.abs(compressed)
+    const bitPos = Math.abs(compressed)
     return {
-      isInitialized: bitmap.testn(bit_pos),
-      startIndex: (bit_pos - 512) * multiplier
+      isInitialized: bitmap.testn(bitPos),
+      startIndex: (bitPos - 512) * multiplier
     }
   }
 
@@ -124,40 +137,43 @@ export class TickUtils {
   }
 
   public static mergeTickArrayBitmap(bns: BN[]) {
-    return bns[0]
-      .add(bns[1].shln(64))
-      .add(bns[2].shln(128))
-      .add(bns[3].shln(192))
-      .add(bns[4].shln(256))
-      .add(bns[5].shln(320))
-      .add(bns[6].shln(384))
-      .add(bns[7].shln(448))
-      .add(bns[8].shln(512))
-      .add(bns[9].shln(576))
-      .add(bns[10].shln(640))
-      .add(bns[11].shln(704))
-      .add(bns[12].shln(768))
-      .add(bns[13].shln(832))
-      .add(bns[14].shln(896))
-      .add(bns[15].shln(960))
+    let b = new BN(0)
+    for (let i = 0 ; i < bns.length ; i++) {
+      b = b.add(bns[i].shln(64 * i))
+    }
+    return b
+    // return bns[0]
+    //   .add(bns[1].shln(64))
+    //   .add(bns[2].shln(128))
+    //   .add(bns[3].shln(192))
+    //   .add(bns[4].shln(256))
+    //   .add(bns[5].shln(320))
+    //   .add(bns[6].shln(384))
+    //   .add(bns[7].shln(448))
+    //   .add(bns[8].shln(512))
+    //   .add(bns[9].shln(576))
+    //   .add(bns[10].shln(640))
+    //   .add(bns[11].shln(704))
+    //   .add(bns[12].shln(768))
+    //   .add(bns[13].shln(832))
+    //   .add(bns[14].shln(896))
+    //   .add(bns[15].shln(960))
   }
 
   public static getInitializedTickArrayInRange(
-    tickArrayBitmap: BN,
+    tickArrayBitmap: BN[],
+    exTickArrayBitmap: TickArrayBitmapExtensionLayout,
     tickSpacing: number,
     tickArrayStartIndex: number,
     expectedCount: number
   ) {
-    if (tickArrayStartIndex % (tickSpacing * TICK_ARRAY_SIZE) != 0) {
-      throw new Error('Invild tickArrayStartIndex')
-    }
-    const tickArrayOffset = Math.floor(tickArrayStartIndex / (tickSpacing * TICK_ARRAY_SIZE)) + 512
+    const tickArrayOffset = Math.floor(tickArrayStartIndex / (tickSpacing * TICK_ARRAY_SIZE))
     return [
       // find right of currenct offset
       ...TickUtils.searchLowBitFromStart(
         tickArrayBitmap,
+        exTickArrayBitmap,
         tickArrayOffset - 1,
-        0,
         expectedCount,
         tickSpacing
       ),
@@ -165,8 +181,8 @@ export class TickUtils {
       // find left of current offset
       ...TickUtils.searchHightBitFromStart(
         tickArrayBitmap,
+        exTickArrayBitmap,
         tickArrayOffset,
-        TICK_ARRAY_BITMAP_SIZE,
         expectedCount,
         tickSpacing
       )
@@ -174,14 +190,15 @@ export class TickUtils {
   }
 
   public static getAllInitializedTickArrayStartIndex(
-    tickArrayBitmap: BN,
+    tickArrayBitmap: BN[],
+    exTickArrayBitmap: TickArrayBitmapExtensionLayout,
     tickSpacing: number
   ) {
     // find from offset 0 to 1024
     return TickUtils.searchHightBitFromStart(
       tickArrayBitmap,
+      exTickArrayBitmap,
       0,
-      TICK_ARRAY_BITMAP_SIZE,
       TICK_ARRAY_BITMAP_SIZE,
       tickSpacing
     )
@@ -190,7 +207,8 @@ export class TickUtils {
   public static getAllInitializedTickArrayInfo(
     programId: PublicKey,
     poolId: PublicKey,
-    tickArrayBitmap: BN,
+    tickArrayBitmap: BN[],
+    exTickArrayBitmap: TickArrayBitmapExtensionLayout,
     tickSpacing: number
   ) {
     const result: {
@@ -200,6 +218,7 @@ export class TickUtils {
     const allInitializedTickArrayIndex: number[] =
       TickUtils.getAllInitializedTickArrayStartIndex(
         tickArrayBitmap,
+        exTickArrayBitmap,
         tickSpacing
       )
     for (const startIndex of allInitializedTickArrayIndex) {
@@ -223,46 +242,108 @@ export class TickUtils {
   }
 
   public static searchLowBitFromStart(
-    tickArrayBitmap: BN,
-    start: number,
-    end: number,
+    tickArrayBitmap: BN[],
+    exTickArrayBitmap: TickArrayBitmapExtensionLayout,
+    currentTickArrayBitStartIndex: number,
     expectedCount: number,
     tickSpacing: number
   ) {
-    let fetchNum = 0
+    const tickArrayBitmaps = [...exTickArrayBitmap.negativeTickArrayBitmap.reverse(), tickArrayBitmap.slice(0, 8), tickArrayBitmap.slice(8, 16), ...exTickArrayBitmap.positiveTickArrayBitmap].map(i => TickUtils.mergeTickArrayBitmap(i))
     const result: number[] = []
-    for (let i = start; i >= end; i--) {
-      if (tickArrayBitmap.shrn(i).and(new BN(1)).eqn(1)) {
-        const nextStartIndex = (i - 512) * (tickSpacing * TICK_ARRAY_SIZE)
-        result.push(nextStartIndex)
-        fetchNum++
-      }
-      if (fetchNum >= expectedCount) {
-        break
-      }
+    while (currentTickArrayBitStartIndex >= -7680) {
+      const arrayIndex = Math.floor((currentTickArrayBitStartIndex + 7680) / 512)
+      const searchIndex = (currentTickArrayBitStartIndex + 7680) % 512
+
+      if (tickArrayBitmaps[arrayIndex].testn(searchIndex)) result.push(currentTickArrayBitStartIndex)
+
+      currentTickArrayBitStartIndex--
+      if (result.length === expectedCount) break
     }
-    return result
+
+    const tickCount =  TickQuery.tickCount(tickSpacing)    
+    return result.map(i => i * tickCount)
   }
 
   public static searchHightBitFromStart(
-    tickArrayBitmap: BN,
-    start: number,
-    end: number,
+    tickArrayBitmap: BN[],
+    exTickArrayBitmap: TickArrayBitmapExtensionLayout,
+    currentTickArrayBitStartIndex: number,
     expectedCount: number,
     tickSpacing: number
   ) {
-    let fetchNum = 0
+    const tickArrayBitmaps = [...exTickArrayBitmap.negativeTickArrayBitmap.reverse(), tickArrayBitmap.slice(0, 8), tickArrayBitmap.slice(8, 16), ...exTickArrayBitmap.positiveTickArrayBitmap].map(i => TickUtils.mergeTickArrayBitmap(i))
     const result: number[] = []
-    for (let i = start; i < end; i++) {
-      if (tickArrayBitmap.shrn(i).and(new BN(1)).eqn(1)) {
-        const nextStartIndex = (i - 512) * (tickSpacing * TICK_ARRAY_SIZE)
-        result.push(nextStartIndex)
-        fetchNum++
-      }
-      if (fetchNum >= expectedCount) {
-        break
-      }
+    while (currentTickArrayBitStartIndex < 7680) {
+      const arrayIndex = Math.floor((currentTickArrayBitStartIndex + 7680) / 512)
+      const searchIndex = (currentTickArrayBitStartIndex + 7680) % 512
+
+      if (tickArrayBitmaps[arrayIndex].testn(searchIndex)) result.push(currentTickArrayBitStartIndex)
+
+      currentTickArrayBitStartIndex++
+      if (result.length === expectedCount) break
     }
-    return result
+
+    const tickCount =  TickQuery.tickCount(tickSpacing)    
+    return result.map(i => i * tickCount)
+  }
+
+  public static checkIsOutOfBoundary(tick: number): boolean {
+    return tick < MIN_TICK || tick > MAX_TICK
+  }
+
+  public static nextInitTick(
+    tickArrayCurrent: TickArray,
+    currentTickIndex: number,
+    tickSpacing: number,
+    zeroForOne: boolean,
+  ) {
+    const currentTickArrayStartIndex = TickQuery.getArrayStartIndex(currentTickIndex, tickSpacing)
+    if (currentTickArrayStartIndex != tickArrayCurrent.startTickIndex) {
+        return null
+    }
+    let offsetInArray = Math.floor((currentTickIndex - tickArrayCurrent.startTickIndex) / tickSpacing)
+
+    if (zeroForOne) {
+        while (offsetInArray >= 0) {
+            if (tickArrayCurrent.ticks[offsetInArray].liquidityGross.gtn(0)) {
+                return tickArrayCurrent.ticks[offsetInArray]
+            }
+            offsetInArray = offsetInArray - 1;
+        }
+    } else {
+        offsetInArray = offsetInArray + 1;
+        while (offsetInArray < TICK_ARRAY_SIZE) {
+            if (tickArrayCurrent.ticks[offsetInArray].liquidityGross.gtn(0)) {
+                return tickArrayCurrent.ticks[offsetInArray]
+            }
+            offsetInArray = offsetInArray + 1;
+        }
+    }
+    return null
+  }
+
+  public static firstInitializedTick(
+    tickArrayCurrent: TickArray,
+    zeroForOne: boolean,
+  ) {
+    if (zeroForOne) {
+        let i = TICK_ARRAY_SIZE - 1;
+        while (i >= 0) {
+            if (tickArrayCurrent.ticks[i].liquidityGross.gtn(0)) {
+                return tickArrayCurrent.ticks[i]
+            }
+            i = i - 1;
+        }
+    } else {
+        let i = 0;
+        while (i < TICK_ARRAY_SIZE) {
+            if (tickArrayCurrent.ticks[i].liquidityGross.gtn(0)) {
+                return tickArrayCurrent.ticks[i]
+            }
+            i = i + 1;
+        }
+    }
+
+    throw Error(`firstInitializedTick check error: ${tickArrayCurrent} - ${zeroForOne}`)
   }
 }

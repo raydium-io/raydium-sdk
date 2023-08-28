@@ -1,6 +1,6 @@
-import BN from "bn.js";
+import BN from 'bn.js';
 
-import { ONE } from "../../entity";
+import { ONE } from '../../entity';
 
 export const NEGATIVE_ONE = new BN(-1);
 
@@ -13,16 +13,16 @@ export const U64Resolution = 64;
 
 export const MaxUint128 = Q128.subn(1);
 
-export const MIN_TICK = -307200;
+export const MIN_TICK = -443636;
 export const MAX_TICK = -MIN_TICK;
 
-export const MIN_SQRT_PRICE_X64: BN = new BN("3939943522091");
-export const MAX_SQRT_PRICE_X64: BN = new BN("86367321006760116002434269");
+export const MIN_SQRT_PRICE_X64: BN = new BN("4295048016");
+export const MAX_SQRT_PRICE_X64: BN = new BN("79226673521066979257578248091");
 
-export const MIN_TICK_ARRAY_START_INDEX = -307200;
-export const MAX_TICK_ARRAY_START_INDEX = 306600;
+// export const MIN_TICK_ARRAY_START_INDEX = -307200;
+// export const MAX_TICK_ARRAY_START_INDEX = 306600;
 
-export const BIT_PRECISION = 14;
+export const BIT_PRECISION = 16;
 export const LOG_B_2_X32 = "59543866431248";
 export const LOG_B_P_ERR_MARGIN_LOWER_X64 = "184467440737095516";
 export const LOG_B_P_ERR_MARGIN_UPPER_X64 = "15793534762490258745";

@@ -5,12 +5,15 @@ import { ApiAmmV3PoolsItem } from '../../baseInfo';
 import { ZERO } from '../../entity';
 import {
   AmmV3PoolInfo, AmmV3PoolRewardInfo, AmmV3PoolRewardLayoutInfo,
+  TickArrayBitmapExtensionLayout,
 } from '../ammV3';
 
-import { NEGATIVE_ONE, Q64 } from './constants';
+import { MAX_TICK, MIN_TICK, NEGATIVE_ONE, Q64 } from './constants';
 import { MathUtil, SwapMath } from './math';
 import { getPdaTickArrayAddress } from './pda';
-import { TickArray, TickUtils } from './tick';
+import { TICK_ARRAY_BITMAP_SIZE, TickArray, TickUtils } from './tick';
+import { TickArrayBitmap, TickArrayBitmapExtension } from './tickarrayBitmap';
+import { TickQuery } from './tickQuery';
 
 export class PoolUtils {
   public static getOutputAmountAndRemainAccounts(
@@ -26,17 +29,17 @@ export class PoolUtils {
     const { isExist, startIndex: firstTickArrayStartIndex, nextAccountMeta } = this.getFirstInitializedTickArray(poolInfo, zeroForOne);
     if (!isExist || firstTickArrayStartIndex === undefined || !nextAccountMeta) throw new Error("Invalid tick array");
 
-    try {
-      const preTick = this.preInitializedTickArrayStartIndex(poolInfo, !zeroForOne)
-      if (preTick.isExist) {
-        const { publicKey: address } = getPdaTickArrayAddress(
-          poolInfo.programId,
-          poolInfo.id,
-          preTick.nextStartIndex
-        );
-        allNeededAccounts.push(address)
-      }
-    } catch (e) { /* empty */ }
+    // try {
+    //   const preTick = this.preInitializedTickArrayStartIndex(poolInfo, !zeroForOne)
+    //   if (preTick.isExist) {
+    //     const { publicKey: address } = getPdaTickArrayAddress(
+    //       poolInfo.programId,
+    //       poolInfo.id,
+    //       preTick.nextStartIndex
+    //     );
+    //     allNeededAccounts.push(address)
+    //   }
+    // } catch (e) { /* empty */ }
 
     allNeededAccounts.push(nextAccountMeta);
     const {
@@ -48,6 +51,8 @@ export class PoolUtils {
       poolInfo.programId,
       poolInfo.id,
       tickArrayCache,
+      poolInfo.tickArrayBitmap,
+      poolInfo.exBitmapInfo,
       zeroForOne,
       poolInfo.ammConfig.tradeFeeRate,
       poolInfo.liquidity,
@@ -97,6 +102,8 @@ export class PoolUtils {
       poolInfo.programId,
       poolInfo.id,
       tickArrayCache,
+      poolInfo.tickArrayBitmap,
+      poolInfo.exBitmapInfo,
       zeroForOne,
       poolInfo.ammConfig.tradeFeeRate,
       poolInfo.liquidity,
@@ -115,14 +122,16 @@ export class PoolUtils {
     poolInfo: AmmV3PoolInfo,
     zeroForOne: boolean
   ): { isExist: true, startIndex: number, nextAccountMeta: PublicKey } | { isExist: false, startIndex: undefined, nextAccountMeta: undefined } {
-    const tickArrayBitmap = TickUtils.mergeTickArrayBitmap(
-      poolInfo.tickArrayBitmap
-    );
-    const { isInitialized, startIndex } = TickUtils.checkTickArrayIsInitialized(
-      tickArrayBitmap,
+    const { isInitialized, startIndex } = PoolUtils.isOverflowDefaultTickarrayBitmap(poolInfo.tickSpacing, [poolInfo.tickCurrent]) ? TickArrayBitmapExtension.checkTickArrayIsInit(
+      TickQuery.getArrayStartIndex(poolInfo.tickCurrent, poolInfo.tickSpacing),
+      poolInfo.tickSpacing,
+      poolInfo.exBitmapInfo,
+    ) : TickUtils.checkTickArrayIsInitialized(
+      TickUtils.mergeTickArrayBitmap(poolInfo.tickArrayBitmap),
       poolInfo.tickCurrent,
       poolInfo.tickSpacing
-    );
+    )
+
     if (isInitialized) {
       const { publicKey: address } = getPdaTickArrayAddress(
         poolInfo.programId,
@@ -135,7 +144,7 @@ export class PoolUtils {
         nextAccountMeta: address
       }
     }
-    const { isExist, nextStartIndex } = this.nextInitializedTickArrayStartIndex(poolInfo, zeroForOne);
+    const { isExist, nextStartIndex } = this.nextInitializedTickArrayStartIndex(poolInfo, TickQuery.getArrayStartIndex(poolInfo.tickCurrent, poolInfo.tickSpacing), zeroForOne);
     if (isExist) {
       const { publicKey: address } = getPdaTickArrayAddress(
         poolInfo.programId,
@@ -154,23 +163,17 @@ export class PoolUtils {
   public static preInitializedTickArrayStartIndex(
     poolInfo: AmmV3PoolInfo,
     zeroForOne: boolean) {
-    const tickArrayBitmap = TickUtils.mergeTickArrayBitmap(
-      poolInfo.tickArrayBitmap
-    );
-    const currentOffset = TickUtils.getTickArrayOffsetInBitmapByTick(
-      poolInfo.tickCurrent,
-      poolInfo.tickSpacing
-    );
+    const currentOffset = (Math.floor(poolInfo.tickCurrent / TickQuery.tickCount(poolInfo.tickSpacing))) * TickQuery.tickCount(poolInfo.tickSpacing)
     const result: number[] = zeroForOne ? TickUtils.searchLowBitFromStart(
-      tickArrayBitmap,
+      poolInfo.tickArrayBitmap,
+      poolInfo.exBitmapInfo,
       currentOffset - 1,
-      0,
       1,
       poolInfo.tickSpacing
     ) : TickUtils.searchHightBitFromStart(
-      tickArrayBitmap,
+      poolInfo.tickArrayBitmap,
+      poolInfo.exBitmapInfo,
       currentOffset + 1,
-      1024,
       1,
       poolInfo.tickSpacing
     );
@@ -179,30 +182,60 @@ export class PoolUtils {
   }
 
   public static nextInitializedTickArrayStartIndex(
-    poolInfo: AmmV3PoolInfo,
-    zeroForOne: boolean) {
-    const tickArrayBitmap = TickUtils.mergeTickArrayBitmap(
-      poolInfo.tickArrayBitmap
-    );
-    const currentOffset = TickUtils.getTickArrayOffsetInBitmapByTick(
-      poolInfo.tickCurrent,
-      poolInfo.tickSpacing
-    );
-    const result: number[] = zeroForOne ? TickUtils.searchLowBitFromStart(
-      tickArrayBitmap,
-      currentOffset - 1,
-      0,
-      1,
-      poolInfo.tickSpacing
-    ) : TickUtils.searchHightBitFromStart(
-      tickArrayBitmap,
-      currentOffset,
-      1024,
-      1,
-      poolInfo.tickSpacing
-    );
+    poolInfo: {tickCurrent: number, tickSpacing: number, tickArrayBitmap: BN[], exBitmapInfo: TickArrayBitmapExtensionLayout } | AmmV3PoolInfo,
+    lastTickArrayStartIndex: number,
+    zeroForOne: boolean
+  ) {
+    lastTickArrayStartIndex = TickQuery.getArrayStartIndex(poolInfo.tickCurrent, poolInfo.tickSpacing)
 
-    return result.length > 0 ? { isExist: true, nextStartIndex: result[0] } : { isExist: false, nextStartIndex: 0 }
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const { isInit: startIsInit, tickIndex: startIndex} = TickArrayBitmap.nextInitializedTickArrayStartIndex(
+        TickUtils.mergeTickArrayBitmap(poolInfo.tickArrayBitmap),
+        lastTickArrayStartIndex,
+        poolInfo.tickSpacing,
+        zeroForOne
+      )
+      if (startIsInit) {
+          return { isExist: true, nextStartIndex: startIndex }
+      }
+      lastTickArrayStartIndex = startIndex;
+
+      const {isInit, tickIndex} = TickArrayBitmapExtension.nextInitializedTickArrayFromOneBitmap(
+        lastTickArrayStartIndex,
+        poolInfo.tickSpacing,
+        zeroForOne,
+        poolInfo.exBitmapInfo,
+      ) 
+      if (isInit) return { isExist: true, nextStartIndex: tickIndex }
+
+      lastTickArrayStartIndex = tickIndex;
+
+      if (lastTickArrayStartIndex < MIN_TICK || lastTickArrayStartIndex > MAX_TICK) return { isExist: false, nextStartIndex: 0 }
+    }
+
+    // const tickArrayBitmap = TickUtils.mergeTickArrayBitmap(
+    //   poolInfo.tickArrayBitmap
+    // );
+    // const currentOffset = TickUtils.getTickArrayOffsetInBitmapByTick(
+    //   poolInfo.tickCurrent,
+    //   poolInfo.tickSpacing
+    // );
+    // const result: number[] = zeroForOne ? TickUtils.searchLowBitFromStart(
+    //   tickArrayBitmap,
+    //   currentOffset - 1,
+    //   0,
+    //   1,
+    //   poolInfo.tickSpacing
+    // ) : TickUtils.searchHightBitFromStart(
+    //   tickArrayBitmap,
+    //   currentOffset,
+    //   1024,
+    //   1,
+    //   poolInfo.tickSpacing
+    // );
+
+    // return result.length > 0 ? { isExist: true, nextStartIndex: result[0] } : { isExist: false, nextStartIndex: 0 }
   }
 
   public static async updatePoolRewardInfos({ connection, apiPoolInfo, chainTime, poolLiquidity, rewardInfos }: {
@@ -253,5 +286,45 @@ export class PoolUtils {
       })
     }
     return nRewardInfo
+  }
+
+  public static isOverflowDefaultTickarrayBitmap(tickSpacing: number, tickarrayStartIndexs: number[]): boolean {
+    const { maxTickBoundary, minTickBoundary } = this.tickRange(tickSpacing)
+
+    for (const tickIndex of tickarrayStartIndexs) {
+      const tickarrayStartIndex = TickUtils.getTickArrayStartIndexByTick(tickIndex, tickSpacing)
+
+      if (tickarrayStartIndex >= maxTickBoundary || tickarrayStartIndex < minTickBoundary ) {
+        return true
+      }
+    }
+
+    return false
+  }
+
+  public static tickRange(tickSpacing: number): {
+    maxTickBoundary: number;
+    minTickBoundary: number;
+  } {
+    let maxTickBoundary = TickArrayBitmap.maxTickInTickarrayBitmap(tickSpacing)
+    let minTickBoundary =  -maxTickBoundary
+
+    if (maxTickBoundary > MAX_TICK) {
+      maxTickBoundary = MAX_TICK
+    }
+    if (minTickBoundary < MIN_TICK) {
+      minTickBoundary = MIN_TICK
+    }
+    return {maxTickBoundary, minTickBoundary}
+  }
+
+  public static get_tick_array_offset(tickarrayStartIndex: number, tickSpacing: number): number {
+    if (
+      !TickQuery.checkIsValidStartIndex(tickarrayStartIndex, tickSpacing)
+    ) {
+      throw new Error("No enough initialized tickArray");
+    }
+
+    return tickarrayStartIndex / TickQuery.tickCount(tickSpacing) * TICK_ARRAY_BITMAP_SIZE
   }
 }

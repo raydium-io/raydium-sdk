@@ -2,11 +2,10 @@ import { Connection, PublicKey } from '@solana/web3.js';
 import BN from 'bn.js';
 
 import { getMultipleAccountsInfo } from '../../common';
+import { TickArrayBitmapExtensionLayout } from '../ammV3';
 import { TickArrayLayout } from '../layout';
 
-import {
-  MAX_TICK_ARRAY_START_INDEX, MIN_TICK_ARRAY_START_INDEX,
-} from './constants';
+import { MAX_TICK, MIN_TICK } from './constants';
 import { getPdaTickArrayAddress } from './pda';
 import { Tick, TICK_ARRAY_SIZE, TickArray, TickUtils } from './tick';
 
@@ -26,13 +25,13 @@ export class TickQuery {
     poolId: PublicKey,
     tickCurrent: number,
     tickSpacing: number,
-    tickArrayBitmapArray: BN[]
+    tickArrayBitmapArray: BN[],
+    exTickArrayBitmap: TickArrayBitmapExtensionLayout,
   ) {
-    const tickArrayBitmap = TickUtils.mergeTickArrayBitmap(tickArrayBitmapArray);
     const tickArraysToFetch: PublicKey[] = [];
     const currentTickArrayStartIndex = TickUtils.getTickArrayStartIndexByTick(tickCurrent, tickSpacing);
 
-    const startIndexArray = TickUtils.getInitializedTickArrayInRange(tickArrayBitmap, tickSpacing, currentTickArrayStartIndex, Math.floor(FETCH_TICKARRAY_COUNT / 2));
+    const startIndexArray = TickUtils.getInitializedTickArrayInRange(tickArrayBitmapArray, exTickArrayBitmap, tickSpacing, currentTickArrayStartIndex, Math.floor(FETCH_TICKARRAY_COUNT / 2));
     for (let i = 0; i < startIndexArray.length; i++) {
       const { publicKey: tickArrayAddress } = getPdaTickArrayAddress(
         programId,
@@ -84,8 +83,7 @@ export class TickQuery {
         zeroForOne
       );
       if (
-        tickArrayStartTickIndex < MIN_TICK_ARRAY_START_INDEX ||
-        tickArrayStartTickIndex > MAX_TICK_ARRAY_START_INDEX
+        this.checkIsValidStartIndex(tickArrayStartTickIndex, tickSpacing)
       ) {
         throw new Error("No enough initialized tickArray");
       }
@@ -108,61 +106,35 @@ export class TickQuery {
   }
 
   public static nextInitializedTickArray(
-    programId: PublicKey,
-    poolId: PublicKey,
-    tickArrayCache: { [key: string]: TickArray },
     tickIndex: number,
     tickSpacing: number,
-    zeroForOne: boolean
+    zeroForOne: boolean,
+    tickArrayBitmap: BN[],
+    exBitmapInfo: TickArrayBitmapExtensionLayout,
   ) {
-    let {
-      initializedTick: nextTick,
-      tickArrayAddress,
-      tickArrayStartTickIndex,
-    } = this.nextInitializedTickInOneArray(
-      programId,
-      poolId,
-      tickArrayCache,
-      tickIndex,
-      tickSpacing,
-      zeroForOne
+    const currentOffset = (Math.floor(tickIndex / TickQuery.tickCount(tickSpacing))) * TickQuery.tickCount(tickSpacing)
+    const result: number[] = !zeroForOne ? TickUtils.searchLowBitFromStart(
+      tickArrayBitmap,
+      exBitmapInfo,
+      currentOffset - 1,
+      1,
+      tickSpacing
+    ) : TickUtils.searchHightBitFromStart(
+      tickArrayBitmap,
+      exBitmapInfo,
+      currentOffset + 1,
+      1,
+      tickSpacing
     );
-    do {
-      tickArrayStartTickIndex = TickUtils.getNextTickArrayStartIndex(
-        tickArrayStartTickIndex,
-        tickSpacing,
-        zeroForOne
-      );
-      if (
-        tickArrayStartTickIndex < MIN_TICK_ARRAY_START_INDEX ||
-        tickArrayStartTickIndex > MAX_TICK_ARRAY_START_INDEX
-      ) {
-        throw new Error("No enough initialized tickArray");
-      }
-      const cachedTickArray = tickArrayCache[tickArrayStartTickIndex];
 
-      if (cachedTickArray === undefined) throw new Error("CachedTickArray undefined");
-
-      const { nextTick: _nextTick, tickArrayAddress: _tickArrayAddress, tickArrayStartTickIndex: _tickArrayStartTickIndex } = this.firstInitializedTickInOneArray(
-        programId,
-        poolId,
-        cachedTickArray,
-        zeroForOne
-      );
-      [nextTick, tickArrayAddress, tickArrayStartTickIndex] = [_nextTick, _tickArrayAddress, _tickArrayStartTickIndex]
-    } while (nextTick == undefined || nextTick.liquidityGross.lten(0))
-
-    if (nextTick == undefined) {
-      throw new Error("No invaild tickArray cache");
-    }
-    return { nextTick, tickArrayAddress, tickArrayStartTickIndex };
+    return result.length > 0 ? { isExist: true, nextStartIndex: result[0] } : { isExist: false, nextStartIndex: 0 }
   }
 
   public static firstInitializedTickInOneArray(
     programId: PublicKey,
     poolId: PublicKey,
     tickArray: TickArray,
-    zeroForOne: boolean
+    zeroForOne: boolean,
   ) {
     let nextInitializedTick: Tick | undefined = undefined;
     if (zeroForOne) {
@@ -252,5 +224,28 @@ export class TickQuery {
       tickArrayAddress,
       tickArrayStartTickIndex: cachedTickArray.startTickIndex,
     };
+  }
+
+  public static getArrayStartIndex(tickIndex: number, tickSpacing: number) {
+    const ticksInArray = this.tickCount(tickSpacing)
+    const start = Math.floor(tickIndex / ticksInArray)
+
+    return start * ticksInArray
+  }
+
+
+  public static checkIsValidStartIndex(tickIndex: number, tickSpacing: number): boolean {
+    if (TickUtils.checkIsOutOfBoundary(tickIndex)) {
+      if (tickIndex > MAX_TICK) {
+          return false;
+      }
+      const minStartIndex = TickUtils.getTickArrayStartIndexByTick(MIN_TICK, tickSpacing)
+      return tickIndex == minStartIndex;
+    }
+    return tickIndex % this.tickCount(tickSpacing) == 0
+  }
+
+  public static tickCount(tickSpacing: number): number {
+    return TICK_ARRAY_SIZE * tickSpacing
   }
 }

@@ -32,19 +32,19 @@ import {
 } from './instrument';
 import {
   ObservationInfoLayout, OperationLayout, PoolInfoLayout, PositionInfoLayout,
-  TickArrayLayout,
+  TickArrayBitmapExtension, TickArrayLayout,
 } from './layout';
 import { MAX_SQRT_PRICE_X64, MIN_SQRT_PRICE_X64 } from './utils/constants';
 import { LiquidityMath, MathUtil, SqrtPriceMath, TickMath } from './utils/math';
 import {
-  getPdaMetadataKey, getPdaOperationAccount, getPdaPersonalPositionAddress,
-  getPdaPoolId, getPdaPoolRewardVaulId, getPdaPoolVaultId,
-  getPdaProtocolPositionAddress, getPdaTickArrayAddress,
+  getPdaExBitmapAccount, getPdaMetadataKey, getPdaOperationAccount,
+  getPdaPersonalPositionAddress, getPdaPoolId, getPdaPoolRewardVaulId,
+  getPdaPoolVaultId, getPdaProtocolPositionAddress, getPdaTickArrayAddress,
 } from './utils/pda';
 import { PoolUtils } from './utils/pool';
 import { PositionUtils } from './utils/position';
 import { Tick, TickArray, TickUtils } from './utils/tick';
-import { FETCH_TICKARRAY_COUNT } from './utils/tickQuery';
+import { EXTENSION_TICKARRAY_BITMAP_SIZE } from './utils/tickarrayBitmap';
 
 const logger = Logger.from("AmmV3");
 
@@ -138,6 +138,8 @@ export interface AmmV3PoolInfo {
   lookupTableAccount: PublicKey
 
   startTime: number
+
+  exBitmapInfo: TickArrayBitmapExtensionLayout
 }
 export interface AmmV3PoolPersonalPosition {
   poolId: PublicKey,
@@ -230,6 +232,14 @@ export interface ReturnTypeFetchMultiplePoolInfos {
 }
 export interface ReturnTypeFetchMultiplePoolTickArrays { [poolId: string]: { [key: string]: TickArray } }
 
+export interface TickArrayBitmapExtensionLayout {
+  poolId: PublicKey,
+  positiveTickArrayBitmap: BN[][],
+  negativeTickArrayBitmap: BN[][],
+}
+export interface ReturnTypeFetchExBitmaps { [exBitmapId: string]: TickArrayBitmapExtensionLayout }
+
+
 export class AmmV3 extends Base {
   static makeMockPoolInfo({
     programId,
@@ -315,6 +325,12 @@ export class AmmV3 extends Base {
       lookupTableAccount: PublicKey.default,
 
       startTime: startTime.toNumber(),
+
+      exBitmapInfo: {
+        poolId: createPoolInstructionSimpleAddress.poolId,
+        positiveTickArrayBitmap: Array.from({ length: EXTENSION_TICKARRAY_BITMAP_SIZE }, (_) => Array.from({ length: 8 }, (_) => new BN(0))),
+        negativeTickArrayBitmap: Array.from({ length: EXTENSION_TICKARRAY_BITMAP_SIZE }, (_) => Array.from({ length: 8 }, (_) => new BN(0))),
+      },
     }
   }
 
@@ -2200,6 +2216,7 @@ export class AmmV3 extends Base {
         mintB.mint,
         mintBVault,
         mintB.programId,
+        getPdaExBitmapAccount(programId, poolId).publicKey,
         initialPriceX64,
         startTime
       )
@@ -2292,6 +2309,8 @@ export class AmmV3 extends Base {
       amountMaxA,
       amountMaxB,
       withMetadata,
+
+      PoolUtils.isOverflowDefaultTickarrayBitmap(poolInfo.tickSpacing, [tickArrayLowerStartIndex, tickArrayUpperStartIndex]) ? getPdaExBitmapAccount(poolInfo.programId, poolInfo.id).publicKey : undefined,
     )
 
     return {
@@ -2389,6 +2408,8 @@ export class AmmV3 extends Base {
       baseAmount,
       
       otherAmountMax,
+
+      PoolUtils.isOverflowDefaultTickarrayBitmap(poolInfo.tickSpacing, [tickArrayLowerStartIndex, tickArrayUpperStartIndex]) ? getPdaExBitmapAccount(poolInfo.programId, poolInfo.id).publicKey : undefined,
     )
 
     return {
@@ -2470,7 +2491,9 @@ export class AmmV3 extends Base {
 
             liquidity,
             amountMaxA,
-            amountMaxB
+            amountMaxB,
+
+            PoolUtils.isOverflowDefaultTickarrayBitmap(poolInfo.tickSpacing, [tickArrayLowerStartIndex, tickArrayUpperStartIndex]) ? getPdaExBitmapAccount(poolInfo.programId, poolInfo.id).publicKey : undefined,
           )],
         signers: [],
         instructionTypes: [InstructionType.clmmIncreasePosition],
@@ -2543,6 +2566,8 @@ export class AmmV3 extends Base {
             baseAmount,
 
             otherAmountMax,
+
+            PoolUtils.isOverflowDefaultTickarrayBitmap(poolInfo.tickSpacing, [tickArrayLowerStartIndex, tickArrayUpperStartIndex]) ? getPdaExBitmapAccount(poolInfo.programId, poolInfo.id).publicKey : undefined,
           )],
         signers: [],
         instructionTypes: [InstructionType.clmmIncreasePosition],
@@ -2623,7 +2648,9 @@ export class AmmV3 extends Base {
 
             liquidity,
             amountMinA,
-            amountMinB
+            amountMinB,
+
+            PoolUtils.isOverflowDefaultTickarrayBitmap(poolInfo.tickSpacing, [tickArrayLowerStartIndex, tickArrayUpperStartIndex]) ? getPdaExBitmapAccount(poolInfo.programId, poolInfo.id).publicKey : undefined,
           )
         ],
         signers: [],
@@ -2713,7 +2740,8 @@ export class AmmV3 extends Base {
             amountIn,
             amountOutMin,
             sqrtPriceLimitX64,
-            true
+            true,
+            getPdaExBitmapAccount(poolInfo.programId, poolInfo.id).publicKey
           )
         ],
         signers: [],
@@ -2767,7 +2795,8 @@ export class AmmV3 extends Base {
             amountOut,
             amountInMax,
             sqrtPriceLimitX64,
-            false
+            false,
+            getPdaExBitmapAccount(poolInfo.programId, poolInfo.id).publicKey
           ),
         ],
         signers: [],
@@ -3353,6 +3382,16 @@ export class AmmV3 extends Base {
   // fetch data
   static async fetchMultiplePoolInfos({ connection, poolKeys, ownerInfo, chainTime, batchRequest = false, updateOwnerRewardAndFee = true }: { connection: Connection, poolKeys: ApiAmmV3PoolsItem[], ownerInfo?: { wallet: PublicKey, tokenAccounts: TokenAccount[] }, chainTime: number, batchRequest?: boolean, updateOwnerRewardAndFee?: boolean }): Promise<ReturnTypeFetchMultiplePoolInfos> {
     const poolAccountInfos = await getMultipleAccountsInfo(connection, poolKeys.map(i => new PublicKey(i.id)), { batchRequest })
+    const exBitmapAddress: {[poolId: string]: PublicKey} = {}
+    for (let index = 0; index < poolKeys.length; index++) {
+      const apiPoolInfo = poolKeys[index]
+      const accountInfo = poolAccountInfos[index]
+
+      if (accountInfo === null) continue
+      exBitmapAddress[apiPoolInfo.id] = getPdaExBitmapAccount(accountInfo.owner, new PublicKey(apiPoolInfo.id)).publicKey
+    }
+
+    const exBitmapAccountInfos = await this.fetchExBitmaps({connection, exBitmapAddress: Object.values(exBitmapAddress), batchRequest })
 
     const programIds: PublicKey[] = []
 
@@ -3363,6 +3402,7 @@ export class AmmV3 extends Base {
     for (let index = 0; index < poolKeys.length; index++) {
       const apiPoolInfo = poolKeys[index]
       const accountInfo = poolAccountInfos[index]
+      const exBitmapInfo = exBitmapAccountInfos[exBitmapAddress[apiPoolInfo.id].toString()]
 
       if (accountInfo === null) continue
 
@@ -3425,6 +3465,8 @@ export class AmmV3 extends Base {
           lookupTableAccount: new PublicKey(apiPoolInfo.lookupTableAccount),
 
           startTime: layoutAccountInfo.startTime.toNumber(),
+
+          exBitmapInfo,
         }
       }
 
@@ -3575,10 +3617,14 @@ export class AmmV3 extends Base {
     const tickArraysToPoolId: {[key: string]: PublicKey} = {}
     const tickArrays: { pubkey: PublicKey }[] = []
     for (const itemPoolInfo of poolKeys) {
-      const tickArrayBitmap = TickUtils.mergeTickArrayBitmap(itemPoolInfo.tickArrayBitmap);
       const currentTickArrayStartIndex = TickUtils.getTickArrayStartIndexByTick(itemPoolInfo.tickCurrent, itemPoolInfo.tickSpacing);
-
-      const startIndexArray = TickUtils.getInitializedTickArrayInRange(tickArrayBitmap, itemPoolInfo.tickSpacing, currentTickArrayStartIndex, Math.floor(FETCH_TICKARRAY_COUNT / 2));
+      const startIndexArray = TickUtils.getInitializedTickArrayInRange(
+        itemPoolInfo.tickArrayBitmap,
+        itemPoolInfo.exBitmapInfo,
+        itemPoolInfo.tickSpacing,
+        currentTickArrayStartIndex,
+        7,
+      )
       for (const itemIndex of startIndexArray) {
         const { publicKey: tickArrayAddress } = getPdaTickArrayAddress(
           itemPoolInfo.programId,
@@ -3608,6 +3654,18 @@ export class AmmV3 extends Base {
       }
     }
     return tickArrayCache;
+  }
+
+  static async fetchExBitmaps({ connection, exBitmapAddress, batchRequest }: { connection: Connection, exBitmapAddress: PublicKey[], batchRequest: boolean }): Promise<ReturnTypeFetchExBitmaps> {
+    const fetchedBitmapAccount = await getMultipleAccountsInfoWithCustomFlags(connection, exBitmapAddress.map(i => ({ pubkey: i})), { batchRequest })
+
+    const returnTypeFetchExBitmaps: ReturnTypeFetchExBitmaps = {}
+    for (const item of fetchedBitmapAccount) {
+      if (item.accountInfo === null) continue
+
+      returnTypeFetchExBitmaps[item.pubkey.toString()] = TickArrayBitmapExtension.decode(item.accountInfo.data)
+    }
+    return returnTypeFetchExBitmaps
   }
 
   static async getWhiteListMint({ connection, programId }: { connection: Connection, programId: PublicKey }) {

@@ -33,6 +33,7 @@ export function createPoolInstruction(
   mintB: PublicKey,
   mintVaultB: PublicKey,
   mintProgramIdB: PublicKey,
+  exTickArrayBitmap: PublicKey,
   sqrtPriceX64: BN,
   startTime: BN,
 ) {
@@ -47,6 +48,7 @@ export function createPoolInstruction(
     { pubkey: mintVaultA, isSigner: false, isWritable: true },
     { pubkey: mintVaultB, isSigner: false, isWritable: true },
     { pubkey: observationId, isSigner: false, isWritable: false },
+    { pubkey: exTickArrayBitmap, isSigner: false, isWritable: true },
     { pubkey: mintProgramIdA, isSigner: false, isWritable: false },
     { pubkey: mintProgramIdB, isSigner: false, isWritable: false },
     { pubkey: SYSTEM_PROGRAM_ID, isSigner: false, isWritable: false },
@@ -97,6 +99,8 @@ export function openPositionFromLiquidityInstruction(
   amountMaxA: BN,
   amountMaxB: BN,
   withMetadata: 'create' | 'no-create',
+
+  exTickArrayBitmap?: PublicKey,
 ) {
   const dataLayout = struct([
     s32("tickLowerIndex"),
@@ -110,6 +114,12 @@ export function openPositionFromLiquidityInstruction(
     u8('optionBaseFlag'),
     bool('baseFlag'),
   ]);
+
+  const remainingAccounts = [
+    ...exTickArrayBitmap ? [
+      { pubkey: exTickArrayBitmap, isSigner: false, isWritable: true },
+    ] : [],
+  ]
 
   const keys = [
     { pubkey: payer, isSigner: true, isWritable: true },
@@ -136,6 +146,8 @@ export function openPositionFromLiquidityInstruction(
 
     { pubkey: tokenMintA, isSigner: false, isWritable: false },
     { pubkey: tokenMintB, isSigner: false, isWritable: false },
+
+    ...remainingAccounts,
   ];
 
   const data = Buffer.alloc(dataLayout.span);
@@ -193,6 +205,8 @@ export function openPositionFromBaseInstruction(
   baseAmount: BN,
   
   otherAmountMax: BN,
+
+  exTickArrayBitmap?: PublicKey,
 ) {
   const dataLayout = struct([
     s32("tickLowerIndex"),
@@ -206,6 +220,12 @@ export function openPositionFromBaseInstruction(
     u8('optionBaseFlag'),
     bool('baseFlag'),
   ]);
+
+  const remainingAccounts = [
+    ...exTickArrayBitmap ? [
+      { pubkey: exTickArrayBitmap, isSigner: false, isWritable: true },
+    ] : [],
+  ]
 
   const keys = [
     { pubkey: payer, isSigner: true, isWritable: true },
@@ -232,6 +252,8 @@ export function openPositionFromBaseInstruction(
 
     { pubkey: tokenMintA, isSigner: false, isWritable: false },
     { pubkey: tokenMintB, isSigner: false, isWritable: false },
+    
+    ...remainingAccounts,
   ];
 
   const data = Buffer.alloc(dataLayout.span);
@@ -310,7 +332,9 @@ export function increasePositionFromLiquidityInstruction(
 
   liquidity: BN,
   amountMaxA: BN,
-  amountMaxB: BN
+  amountMaxB: BN,
+
+  exTickArrayBitmap?: PublicKey,
 ) {
   const dataLayout = struct([
     u128("liquidity"),
@@ -319,6 +343,12 @@ export function increasePositionFromLiquidityInstruction(
     u8('optionBaseFlag'),
     bool('baseFlag'),
   ]);
+
+  const remainingAccounts = [
+    ...exTickArrayBitmap ? [
+      { pubkey: exTickArrayBitmap, isSigner: false, isWritable: true },
+    ] : [],
+  ]
 
   const keys = [
     { pubkey: positionNftOwner, isSigner: true, isWritable: false },
@@ -338,6 +368,8 @@ export function increasePositionFromLiquidityInstruction(
 
     { pubkey: mintMintA, isSigner: false, isWritable: false },
     { pubkey: mintMintB, isSigner: false, isWritable: false },
+
+    ...remainingAccounts,
   ];
 
   const data = Buffer.alloc(dataLayout.span);
@@ -382,6 +414,8 @@ export function increasePositionFromBaseInstruction(
   baseAmount: BN,
   
   otherAmountMax: BN,
+
+  exTickArrayBitmap?: PublicKey,
 ) {
   const dataLayout = struct([
     u128("liquidity"),
@@ -390,6 +424,12 @@ export function increasePositionFromBaseInstruction(
     u8('optionBaseFlag'),
     bool('baseFlag'),
   ]);
+
+  const remainingAccounts = [
+    ...exTickArrayBitmap ? [
+      { pubkey: exTickArrayBitmap, isSigner: false, isWritable: true },
+    ] : [],
+  ]
 
   const keys = [
     { pubkey: positionNftOwner, isSigner: true, isWritable: false },
@@ -409,6 +449,8 @@ export function increasePositionFromBaseInstruction(
 
     { pubkey: mintMintA, isSigner: false, isWritable: false },
     { pubkey: mintMintB, isSigner: false, isWritable: false },
+
+    ...remainingAccounts,
   ];
 
   const data = Buffer.alloc(dataLayout.span);
@@ -456,13 +498,26 @@ export function decreaseLiquidityInstruction(
 
   liquidity: BN,
   amountMinA: BN,
-  amountMinB: BN
+  amountMinB: BN,
+
+  exTickArrayBitmap?: PublicKey,
 ) {
   const dataLayout = struct([
     u128("liquidity"),
     u64("amountMinA"),
     u64("amountMinB"),
   ]);
+
+  const remainingAccounts = [
+    ...exTickArrayBitmap ? [
+      { pubkey: exTickArrayBitmap, isSigner: false, isWritable: true },
+    ] : [],
+    ...rewardAccounts.map(i => ([
+      { pubkey: i.poolRewardVault, isSigner: false, isWritable: true },
+      { pubkey: i.ownerRewardVault, isSigner: false, isWritable: true },
+      { pubkey: i.rewardMint, isSigner: false, isWritable: false },
+    ])).flat()
+  ]
 
   const keys = [
     { pubkey: positionNftOwner, isSigner: true, isWritable: false },
@@ -485,11 +540,7 @@ export function decreaseLiquidityInstruction(
     { pubkey: mintMintA, isSigner: false, isWritable: false },
     { pubkey: mintMintB, isSigner: false, isWritable: false },
 
-    ...rewardAccounts.map(i => ([
-      { pubkey: i.poolRewardVault, isSigner: false, isWritable: true },
-      { pubkey: i.ownerRewardVault, isSigner: false, isWritable: true },
-      { pubkey: i.rewardMint, isSigner: false, isWritable: false },
-    ])).flat()
+    ...remainingAccounts,
   ];
 
   const data = Buffer.alloc(dataLayout.span);
@@ -528,7 +579,9 @@ export function swapInstruction(
   amount: BN,
   otherAmountThreshold: BN,
   sqrtPriceLimitX64: BN,
-  isBaseInput: boolean
+  isBaseInput: boolean,
+
+  exTickArrayBitmap?: PublicKey,
 ) {
   const dataLayout = struct([
     u64("amount"),
@@ -536,6 +589,14 @@ export function swapInstruction(
     u128("sqrtPriceLimitX64"),
     bool("isBaseInput"),
   ]);
+
+  const remainingAccounts = [
+    ...exTickArrayBitmap ? [
+      { pubkey: exTickArrayBitmap, isSigner: false, isWritable: true },
+    ] : [],
+    ...tickArray
+      .map((i) => ({ pubkey: i, isSigner: false, isWritable: true })),
+  ]
 
   const keys = [
     { pubkey: payer, isSigner: true, isWritable: false },
@@ -556,8 +617,7 @@ export function swapInstruction(
     { pubkey: inputMint, isSigner: false, isWritable: false },
     { pubkey: outputMint, isSigner: false, isWritable: false },
 
-    ...tickArray
-      .map((i) => ({ pubkey: i, isSigner: false, isWritable: true })),
+    ...remainingAccounts,
   ];
 
   const data = Buffer.alloc(dataLayout.span);

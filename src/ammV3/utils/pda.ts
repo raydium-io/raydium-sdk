@@ -1,8 +1,8 @@
-import { PublicKey } from "@solana/web3.js";
+import { PublicKey } from '@solana/web3.js';
 
-import { findProgramAddress, METADATA_PROGRAM_ID } from "../../common";
+import { findProgramAddress, METADATA_PROGRAM_ID } from '../../common';
 
-import { i32ToBytes, u16ToBytes } from "./util";
+import { i32ToBytes, u16ToBytes } from './util';
 
 export const AMM_CONFIG_SEED = Buffer.from("amm_config", "utf8");
 export const POOL_SEED = Buffer.from("pool", "utf8");
@@ -11,6 +11,7 @@ export const POOL_REWARD_VAULT_SEED = Buffer.from("pool_reward_vault", "utf8");
 export const POSITION_SEED = Buffer.from("position", "utf8");
 export const TICK_ARRAY_SEED = Buffer.from("tick_array", "utf8");
 export const OPERATION_SEED = Buffer.from("operation", "utf8");
+export const POOL_TICK_ARRAY_BITMAP_SEED = Buffer.from("pool_tick_array_bitmap_extension", "utf8");
 
 export function getPdaAmmConfigId(programId: PublicKey, index: number) {
   return findProgramAddress(
@@ -107,6 +108,19 @@ export function getPdaOperationAccount(
 ) {
   return findProgramAddress(
     [OPERATION_SEED],
+    programId
+  );
+}
+
+export function getPdaExBitmapAccount(
+  programId: PublicKey,
+  poolId: PublicKey,
+) {
+  return findProgramAddress(
+    [
+      POOL_TICK_ARRAY_BITMAP_SEED,
+      poolId.toBuffer(),
+    ],
     programId
   );
 }
