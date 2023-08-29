@@ -55,7 +55,7 @@ export class Token extends Currency {
    */
   public static readonly WSOL: Token = new Token(TOKEN_PROGRAM_ID, WSOL.mint, WSOL.decimals, SOL.symbol, SOL.name);
 
-  public constructor(programId: PublicKey, mint: PublicKeyish, decimals: number, symbol = "UNKNOWN", name = "UNKNOWN") {
+  public constructor(programId: PublicKeyish, mint: PublicKeyish, decimals: number, symbol = "UNKNOWN", name = "UNKNOWN") {
     super(decimals, symbol, name);
 
     this.programId = validateAndParsePublicKey(programId);
