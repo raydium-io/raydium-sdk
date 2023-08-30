@@ -22,11 +22,11 @@ export class TickArrayBitmap {
   } {
     const ticksInOneBitmap = this.maxTickInTickarrayBitmap(tickSpacing)
     let m = Math.floor(Math.abs(tickarrayStartIndex) / ticksInOneBitmap)
-    if (tickarrayStartIndex < 0 && Math.abs(tickarrayStartIndex) % ticksInOneBitmap != 0) m+= 1
+    if (tickarrayStartIndex < 0 && Math.abs(tickarrayStartIndex) % ticksInOneBitmap != 0) m += 1
 
     const minValue = ticksInOneBitmap * m
 
-    return tickarrayStartIndex < 0 ? {minValue: -minValue , maxValue: -minValue + ticksInOneBitmap} : {minValue, maxValue: minValue + ticksInOneBitmap}
+    return tickarrayStartIndex < 0 ? { minValue: -minValue, maxValue: -minValue + ticksInOneBitmap } : { minValue, maxValue: minValue + ticksInOneBitmap }
   }
 
   public static nextInitializedTickArrayStartIndex(
@@ -36,10 +36,10 @@ export class TickArrayBitmap {
     zeroForOne: boolean,
   ) {
     if (!TickQuery.checkIsValidStartIndex(lastTickArrayStartIndex, tickSpacing)) throw Error('nextInitializedTickArrayStartIndex check error')
-    
+
     const tickBoundary = this.maxTickInTickarrayBitmap(tickSpacing);
     const nextTickArrayStartIndex = zeroForOne ? (lastTickArrayStartIndex - TickQuery.tickCount(tickSpacing)) : (lastTickArrayStartIndex + TickQuery.tickCount(tickSpacing))
-    
+
     if (nextTickArrayStartIndex < -tickBoundary || nextTickArrayStartIndex >= tickBoundary) {
       return { isInit: false, tickIndex: lastTickArrayStartIndex }
     }
@@ -54,29 +54,29 @@ export class TickArrayBitmap {
     const bitPos = Math.abs(compressed)
 
     if (zeroForOne) {
-        // tick from upper to lower
-        // find from highter bits to lower bits
-        const offsetBitMap = bitMap.shln(1024 - bitPos - 1)
-        const nextBit = mostSignificantBit(1024, offsetBitMap)
-        if (nextBit) {
-            const nextArrayStartIndex = (bitPos - nextBit - 512) * multiplier
-            return { isInit: true, tickIndex: nextArrayStartIndex }
-        } else {
-            // not found til to the end
-            return { isInit: false, tickIndex: -tickBoundary }
-        }
+      // tick from upper to lower
+      // find from highter bits to lower bits
+      const offsetBitMap = bitMap.shln(1024 - bitPos - 1)
+      const nextBit = mostSignificantBit(1024, offsetBitMap)
+      if (nextBit) {
+        const nextArrayStartIndex = (bitPos - nextBit - 512) * multiplier
+        return { isInit: true, tickIndex: nextArrayStartIndex }
+      } else {
+        // not found til to the end
+        return { isInit: false, tickIndex: -tickBoundary }
+      }
     } else {
-        // tick from lower to upper
-        // find from lower bits to highter bits
-        const offsetBitMap = bitMap.shrn(bitPos)
-        const nextBit = leastSignificantBit(1024, offsetBitMap)
-        if (nextBit) {
-            const nextArrayStartIndex = (bitPos + nextBit - 512) * multiplier
-            return { isInit: true, tickIndex: nextArrayStartIndex }
-        } else {
-            // not found til to the end
-            return { isInit: false, tickIndex: tickBoundary - TickQuery.tickCount(tickSpacing) }
-        }
+      // tick from lower to upper
+      // find from lower bits to highter bits
+      const offsetBitMap = bitMap.shrn(bitPos)
+      const nextBit = leastSignificantBit(1024, offsetBitMap)
+      if (nextBit) {
+        const nextArrayStartIndex = (bitPos + nextBit - 512) * multiplier
+        return { isInit: true, tickIndex: nextArrayStartIndex }
+      } else {
+        // not found til to the end
+        return { isInit: false, tickIndex: tickBoundary - TickQuery.tickCount(tickSpacing) }
+      }
     }
   }
 }
@@ -97,12 +97,12 @@ export class TickArrayBitmapExtension {
     return offset
   }
 
-  public static getBitmap(tickIndex: number, tickSpacing: number, tickArrayBitmapExtension: TickArrayBitmapExtensionLayout): {offset: number, tickarrayBitmap: BN[]} {
+  public static getBitmap(tickIndex: number, tickSpacing: number, tickArrayBitmapExtension: TickArrayBitmapExtensionLayout): { offset: number, tickarrayBitmap: BN[] } {
     const offset = this.getBitmapOffset(tickIndex, tickSpacing)
     if (tickIndex < 0) {
-      return { offset, tickarrayBitmap: tickArrayBitmapExtension.negativeTickArrayBitmap[offset]}
+      return { offset, tickarrayBitmap: tickArrayBitmapExtension.negativeTickArrayBitmap[offset] }
     } else {
-      return { offset, tickarrayBitmap: tickArrayBitmapExtension.positiveTickArrayBitmap[offset]}
+      return { offset, tickarrayBitmap: tickArrayBitmapExtension.positiveTickArrayBitmap[offset] }
     }
   }
 
@@ -125,7 +125,7 @@ export class TickArrayBitmapExtension {
     if (MAX_TICK <= positiveTickBoundary) throw Error(`extensionTickBoundary check error: ${MAX_TICK}, ${positiveTickBoundary}`)
     if (negativeTickBoundary <= MIN_TICK) throw Error(`extensionTickBoundary check error: ${negativeTickBoundary}, ${MIN_TICK}`)
 
-    return { positiveTickBoundary, negativeTickBoundary}
+    return { positiveTickBoundary, negativeTickBoundary }
   }
 
   public static checkTickArrayIsInit(tickArrayStartIndex: number, tickSpacing: number, tickArrayBitmapExtension: TickArrayBitmapExtensionLayout) {
@@ -147,7 +147,18 @@ export class TickArrayBitmapExtension {
   ) {
     const multiplier = TickQuery.tickCount(tickSpacing)
     const nextTickArrayStartIndex = zeroForOne ? (lastTickArrayStartIndex - multiplier) : (lastTickArrayStartIndex + multiplier)
-    const {tickarrayBitmap}  = this.getBitmap(nextTickArrayStartIndex, tickSpacing, tickArrayBitmapExtension)
+
+    const minTickArrayStartIndex = TickQuery.getArrayStartIndex(MIN_TICK, tickSpacing)
+    const maxTickArrayStartIndex = TickQuery.getArrayStartIndex(MAX_TICK, tickSpacing)
+
+    if (nextTickArrayStartIndex < minTickArrayStartIndex || nextTickArrayStartIndex > maxTickArrayStartIndex) {
+      return {
+        isInit: false,
+        tickIndex: nextTickArrayStartIndex
+      }
+    }
+
+    const { tickarrayBitmap } = this.getBitmap(nextTickArrayStartIndex, tickSpacing, tickArrayBitmapExtension)
 
     return this.nextInitializedTickArrayInBitmap(
       tickarrayBitmap,
@@ -163,22 +174,22 @@ export class TickArrayBitmapExtension {
     tickSpacing: number,
     zeroForOne: boolean,
   ) {
-    const {minValue: bitmapMinTickBoundary, maxValue: bitmapMaxTickBoundary} = TickArrayBitmap.getBitmapTickBoundary(nextTickArrayStartIndex, tickSpacing)
+    const { minValue: bitmapMinTickBoundary, maxValue: bitmapMaxTickBoundary } = TickArrayBitmap.getBitmapTickBoundary(nextTickArrayStartIndex, tickSpacing)
 
     const tickArrayOffsetInBitmap = this.tickArrayOffsetInBitmap(nextTickArrayStartIndex, tickSpacing)
     if (zeroForOne) {
       // tick from upper to lower
       // find from highter bits to lower bits
       const offsetBitMap = TickUtils.mergeTickArrayBitmap(tickarrayBitmap).shln(TICK_ARRAY_BITMAP_SIZE - 1 - tickArrayOffsetInBitmap)
-      
+
       const nextBit = isZero(512, offsetBitMap) ? null : leadingZeros(512, offsetBitMap)
 
       if (nextBit !== null) {
-          const nextArrayStartIndex = nextTickArrayStartIndex - nextBit * TickQuery.tickCount(tickSpacing)
-          return { isInit: true, tickIndex: nextArrayStartIndex }
+        const nextArrayStartIndex = nextTickArrayStartIndex - nextBit * TickQuery.tickCount(tickSpacing)
+        return { isInit: true, tickIndex: nextArrayStartIndex }
       } else {
-          // not found til to the end
-          return { isInit: false, tickIndex: bitmapMinTickBoundary }
+        // not found til to the end
+        return { isInit: false, tickIndex: bitmapMinTickBoundary }
       }
     } else {
       // tick from lower to upper
@@ -188,11 +199,11 @@ export class TickArrayBitmapExtension {
       const nextBit = isZero(512, offsetBitMap) ? null : trailingZeros(512, offsetBitMap)
 
       if (nextBit !== null) {
-          const nextArrayStartIndex = nextTickArrayStartIndex + nextBit * TickQuery.tickCount(tickSpacing)
-          return { isInit: true, tickIndex: nextArrayStartIndex }
+        const nextArrayStartIndex = nextTickArrayStartIndex + nextBit * TickQuery.tickCount(tickSpacing)
+        return { isInit: true, tickIndex: nextArrayStartIndex }
       } else {
-          // not found til to the end
-          return { isInit: false, tickIndex: bitmapMaxTickBoundary - TickQuery.tickCount(tickSpacing) }
+        // not found til to the end
+        return { isInit: false, tickIndex: bitmapMaxTickBoundary - TickQuery.tickCount(tickSpacing) }
       }
     }
   }
@@ -201,7 +212,7 @@ export class TickArrayBitmapExtension {
     const m = Math.abs(tickArrayStartIndex) % TickArrayBitmap.maxTickInTickarrayBitmap(tickSpacing)
     let tickArrayOffsetInBitmap = Math.floor(m / TickQuery.tickCount(tickSpacing))
     if (tickArrayStartIndex < 0 && m != 0) {
-        tickArrayOffsetInBitmap = TICK_ARRAY_BITMAP_SIZE - tickArrayOffsetInBitmap;
+      tickArrayOffsetInBitmap = TICK_ARRAY_BITMAP_SIZE - tickArrayOffsetInBitmap;
     }
     return tickArrayOffsetInBitmap
   }
