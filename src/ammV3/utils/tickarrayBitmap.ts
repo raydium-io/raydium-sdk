@@ -57,9 +57,9 @@ export class TickArrayBitmap {
         // tick from upper to lower
         // find from highter bits to lower bits
         const offsetBitMap = bitMap.shln(1024 - bitPos - 1)
-        const next_bit = mostSignificantBit(1024, offsetBitMap)
-        if (next_bit) {
-            const nextArrayStartIndex = (bitPos - next_bit - 512) * multiplier
+        const nextBit = mostSignificantBit(1024, offsetBitMap)
+        if (nextBit) {
+            const nextArrayStartIndex = (bitPos - nextBit - 512) * multiplier
             return { isInit: true, tickIndex: nextArrayStartIndex }
         } else {
             // not found til to the end
@@ -69,9 +69,9 @@ export class TickArrayBitmap {
         // tick from lower to upper
         // find from lower bits to highter bits
         const offsetBitMap = bitMap.shrn(bitPos)
-        const next_bit = leastSignificantBit(1024, offsetBitMap)
-        if (next_bit) {
-            const nextArrayStartIndex = (bitPos + next_bit - 512) * multiplier
+        const nextBit = leastSignificantBit(1024, offsetBitMap)
+        if (nextBit) {
+            const nextArrayStartIndex = (bitPos + nextBit - 512) * multiplier
             return { isInit: true, tickIndex: nextArrayStartIndex }
         } else {
             // not found til to the end

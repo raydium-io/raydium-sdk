@@ -186,7 +186,7 @@ export class PoolUtils {
     lastTickArrayStartIndex: number,
     zeroForOne: boolean
   ) {
-    lastTickArrayStartIndex = TickQuery.getArrayStartIndex(poolInfo.tickCurrent, poolInfo.tickSpacing)
+    lastTickArrayStartIndex = TickQuery.getArrayStartIndex(lastTickArrayStartIndex, poolInfo.tickSpacing)
 
     // eslint-disable-next-line no-constant-condition
     while (true) {
