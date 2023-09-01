@@ -1,25 +1,29 @@
-import { TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
-import { PublicKey, TransactionInstruction } from '@solana/web3.js';
-import BN from 'bn.js';
+import { TOKEN_2022_PROGRAM_ID } from '@solana/spl-token'
+import { PublicKey, TransactionInstruction } from '@solana/web3.js'
+import BN from 'bn.js'
 
 import {
-  ASSOCIATED_TOKEN_PROGRAM_ID, MEMO_PROGRAM_ID, METADATA_PROGRAM_ID,
-  RENT_PROGRAM_ID, SYSTEM_PROGRAM_ID, TOKEN_PROGRAM_ID,
-} from '../common';
-import { parseBigNumberish, ZERO } from '../entity';
-import { bool, s32, struct, u128, u64, u8 } from '../marshmallow';
+  ASSOCIATED_TOKEN_PROGRAM_ID,
+  MEMO_PROGRAM_ID,
+  METADATA_PROGRAM_ID,
+  RENT_PROGRAM_ID,
+  SYSTEM_PROGRAM_ID,
+  TOKEN_PROGRAM_ID,
+} from '../common'
+import { ZERO, parseBigNumberish } from '../entity'
+import { bool, s32, struct, u128, u64, u8 } from '../marshmallow'
 
 const anchorDataBuf = {
   createPool: [233, 146, 209, 142, 207, 104, 64, 188],
   initReward: [95, 135, 192, 196, 242, 129, 230, 68],
   setRewardEmissions: [112, 52, 167, 75, 32, 201, 211, 137],
-  openPosition: [77, 184,  74, 214, 112,  86, 241, 199],
+  openPosition: [77, 184, 74, 214, 112, 86, 241, 199],
   closePosition: [123, 134, 81, 0, 49, 68, 98, 98],
-  increaseLiquidity: [133,  29,  89, 223,69, 238, 176,  10],
-  decreaseLiquidity: [58, 127, 188, 62, 79,  82, 196, 96],
-  swap: [43, 4, 237, 11, 26, 201, 30, 98],  // [248, 198, 158, 145, 225, 117, 135, 200],
+  increaseLiquidity: [133, 29, 89, 223, 69, 238, 176, 10],
+  decreaseLiquidity: [58, 127, 188, 62, 79, 82, 196, 96],
+  swap: [43, 4, 237, 11, 26, 201, 30, 98], // [248, 198, 158, 145, 225, 117, 135, 200],
   collectReward: [18, 237, 166, 197, 34, 16, 213, 144],
-};
+}
 
 export function createPoolInstruction(
   programId: PublicKey,
@@ -37,7 +41,7 @@ export function createPoolInstruction(
   sqrtPriceX64: BN,
   startTime: BN,
 ) {
-  const dataLayout = struct([u128("sqrtPriceX64"), u64("startTime")]);
+  const dataLayout = struct([u128('sqrtPriceX64'), u64('startTime')])
 
   const keys = [
     { pubkey: poolCreator, isSigner: true, isWritable: true },
@@ -53,23 +57,23 @@ export function createPoolInstruction(
     { pubkey: mintProgramIdB, isSigner: false, isWritable: false },
     { pubkey: SYSTEM_PROGRAM_ID, isSigner: false, isWritable: false },
     { pubkey: RENT_PROGRAM_ID, isSigner: false, isWritable: false },
-  ];
+  ]
 
-  const data = Buffer.alloc(dataLayout.span);
+  const data = Buffer.alloc(dataLayout.span)
   dataLayout.encode(
     {
       sqrtPriceX64,
       startTime,
     },
-    data
-  );
-  const aData = Buffer.from([...anchorDataBuf.createPool, ...data]);
+    data,
+  )
+  const aData = Buffer.from([...anchorDataBuf.createPool, ...data])
 
   return new TransactionInstruction({
     keys,
     programId,
     data: aData,
-  });
+  })
 }
 
 export function openPositionFromLiquidityInstruction(
@@ -103,22 +107,20 @@ export function openPositionFromLiquidityInstruction(
   exTickArrayBitmap?: PublicKey,
 ) {
   const dataLayout = struct([
-    s32("tickLowerIndex"),
-    s32("tickUpperIndex"),
-    s32("tickArrayLowerStartIndex"),
-    s32("tickArrayUpperStartIndex"),
-    u128("liquidity"),
-    u64("amountMaxA"),
-    u64("amountMaxB"),
+    s32('tickLowerIndex'),
+    s32('tickUpperIndex'),
+    s32('tickArrayLowerStartIndex'),
+    s32('tickArrayUpperStartIndex'),
+    u128('liquidity'),
+    u64('amountMaxA'),
+    u64('amountMaxB'),
     bool('withMetadata'),
     u8('optionBaseFlag'),
     bool('baseFlag'),
-  ]);
+  ])
 
   const remainingAccounts = [
-    ...exTickArrayBitmap ? [
-      { pubkey: exTickArrayBitmap, isSigner: false, isWritable: true },
-    ] : [],
+    ...(exTickArrayBitmap ? [{ pubkey: exTickArrayBitmap, isSigner: false, isWritable: true }] : []),
   ]
 
   const keys = [
@@ -148,9 +150,9 @@ export function openPositionFromLiquidityInstruction(
     { pubkey: tokenMintB, isSigner: false, isWritable: false },
 
     ...remainingAccounts,
-  ];
+  ]
 
-  const data = Buffer.alloc(dataLayout.span);
+  const data = Buffer.alloc(dataLayout.span)
   dataLayout.encode(
     {
       tickLowerIndex,
@@ -164,16 +166,16 @@ export function openPositionFromLiquidityInstruction(
       baseFlag: false,
       optionBaseFlag: 0,
     },
-    data
-  );
+    data,
+  )
 
-  const aData = Buffer.from([...anchorDataBuf.openPosition, ...data]);
+  const aData = Buffer.from([...anchorDataBuf.openPosition, ...data])
 
   return new TransactionInstruction({
     keys,
     programId,
     data: aData,
-  });
+  })
 }
 
 export function openPositionFromBaseInstruction(
@@ -203,28 +205,26 @@ export function openPositionFromBaseInstruction(
   withMetadata: 'create' | 'no-create',
   base: 'MintA' | 'MintB',
   baseAmount: BN,
-  
+
   otherAmountMax: BN,
 
   exTickArrayBitmap?: PublicKey,
 ) {
   const dataLayout = struct([
-    s32("tickLowerIndex"),
-    s32("tickUpperIndex"),
-    s32("tickArrayLowerStartIndex"),
-    s32("tickArrayUpperStartIndex"),
-    u128("liquidity"),
-    u64("amountMaxA"),
-    u64("amountMaxB"),
+    s32('tickLowerIndex'),
+    s32('tickUpperIndex'),
+    s32('tickArrayLowerStartIndex'),
+    s32('tickArrayUpperStartIndex'),
+    u128('liquidity'),
+    u64('amountMaxA'),
+    u64('amountMaxB'),
     bool('withMetadata'),
     u8('optionBaseFlag'),
     bool('baseFlag'),
-  ]);
+  ])
 
   const remainingAccounts = [
-    ...exTickArrayBitmap ? [
-      { pubkey: exTickArrayBitmap, isSigner: false, isWritable: true },
-    ] : [],
+    ...(exTickArrayBitmap ? [{ pubkey: exTickArrayBitmap, isSigner: false, isWritable: true }] : []),
   ]
 
   const keys = [
@@ -252,11 +252,11 @@ export function openPositionFromBaseInstruction(
 
     { pubkey: tokenMintA, isSigner: false, isWritable: false },
     { pubkey: tokenMintB, isSigner: false, isWritable: false },
-    
-    ...remainingAccounts,
-  ];
 
-  const data = Buffer.alloc(dataLayout.span);
+    ...remainingAccounts,
+  ]
+
+  const data = Buffer.alloc(dataLayout.span)
   dataLayout.encode(
     {
       tickLowerIndex,
@@ -270,16 +270,16 @@ export function openPositionFromBaseInstruction(
       baseFlag: base === 'MintA',
       optionBaseFlag: 1,
     },
-    data
-  );
+    data,
+  )
 
-  const aData = Buffer.from([...anchorDataBuf.openPosition, ...data]);
+  const aData = Buffer.from([...anchorDataBuf.openPosition, ...data])
 
   return new TransactionInstruction({
     keys,
     programId,
     data: aData,
-  });
+  })
 }
 
 export function closePositionInstruction(
@@ -287,9 +287,9 @@ export function closePositionInstruction(
   positionNftOwner: PublicKey,
   positionNftMint: PublicKey,
   positionNftAccount: PublicKey,
-  personalPosition: PublicKey
+  personalPosition: PublicKey,
 ) {
-  const dataLayout = struct([]);
+  const dataLayout = struct([])
 
   const keys = [
     { pubkey: positionNftOwner, isSigner: true, isWritable: true },
@@ -299,18 +299,18 @@ export function closePositionInstruction(
 
     { pubkey: SYSTEM_PROGRAM_ID, isSigner: false, isWritable: false },
     { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-  ];
+  ]
 
-  const data = Buffer.alloc(dataLayout.span);
-  dataLayout.encode({}, data);
+  const data = Buffer.alloc(dataLayout.span)
+  dataLayout.encode({}, data)
 
-  const aData = Buffer.from([...anchorDataBuf.closePosition, ...data]);
+  const aData = Buffer.from([...anchorDataBuf.closePosition, ...data])
 
   return new TransactionInstruction({
     keys,
     programId,
     data: aData,
-  });
+  })
 }
 
 export function increasePositionFromLiquidityInstruction(
@@ -337,17 +337,15 @@ export function increasePositionFromLiquidityInstruction(
   exTickArrayBitmap?: PublicKey,
 ) {
   const dataLayout = struct([
-    u128("liquidity"),
-    u64("amountMaxA"),
-    u64("amountMaxB"),
+    u128('liquidity'),
+    u64('amountMaxA'),
+    u64('amountMaxB'),
     u8('optionBaseFlag'),
     bool('baseFlag'),
-  ]);
+  ])
 
   const remainingAccounts = [
-    ...exTickArrayBitmap ? [
-      { pubkey: exTickArrayBitmap, isSigner: false, isWritable: true },
-    ] : [],
+    ...(exTickArrayBitmap ? [{ pubkey: exTickArrayBitmap, isSigner: false, isWritable: true }] : []),
   ]
 
   const keys = [
@@ -370,9 +368,9 @@ export function increasePositionFromLiquidityInstruction(
     { pubkey: mintMintB, isSigner: false, isWritable: false },
 
     ...remainingAccounts,
-  ];
+  ]
 
-  const data = Buffer.alloc(dataLayout.span);
+  const data = Buffer.alloc(dataLayout.span)
   dataLayout.encode(
     {
       liquidity,
@@ -381,16 +379,16 @@ export function increasePositionFromLiquidityInstruction(
       optionBaseFlag: 0,
       baseFlag: false,
     },
-    data
-  );
+    data,
+  )
 
-  const aData = Buffer.from([...anchorDataBuf.increaseLiquidity, ...data]);
+  const aData = Buffer.from([...anchorDataBuf.increaseLiquidity, ...data])
 
   return new TransactionInstruction({
     keys,
     programId,
     data: aData,
-  });
+  })
 }
 
 export function increasePositionFromBaseInstruction(
@@ -412,23 +410,21 @@ export function increasePositionFromBaseInstruction(
 
   base: 'MintA' | 'MintB',
   baseAmount: BN,
-  
+
   otherAmountMax: BN,
 
   exTickArrayBitmap?: PublicKey,
 ) {
   const dataLayout = struct([
-    u128("liquidity"),
-    u64("amountMaxA"),
-    u64("amountMaxB"),
+    u128('liquidity'),
+    u64('amountMaxA'),
+    u64('amountMaxB'),
     u8('optionBaseFlag'),
     bool('baseFlag'),
-  ]);
+  ])
 
   const remainingAccounts = [
-    ...exTickArrayBitmap ? [
-      { pubkey: exTickArrayBitmap, isSigner: false, isWritable: true },
-    ] : [],
+    ...(exTickArrayBitmap ? [{ pubkey: exTickArrayBitmap, isSigner: false, isWritable: true }] : []),
   ]
 
   const keys = [
@@ -451,9 +447,9 @@ export function increasePositionFromBaseInstruction(
     { pubkey: mintMintB, isSigner: false, isWritable: false },
 
     ...remainingAccounts,
-  ];
+  ]
 
-  const data = Buffer.alloc(dataLayout.span);
+  const data = Buffer.alloc(dataLayout.span)
   dataLayout.encode(
     {
       liquidity: ZERO,
@@ -462,16 +458,16 @@ export function increasePositionFromBaseInstruction(
       baseFlag: base === 'MintA',
       optionBaseFlag: 1,
     },
-    data
-  );
+    data,
+  )
 
-  const aData = Buffer.from([...anchorDataBuf.increaseLiquidity, ...data]);
+  const aData = Buffer.from([...anchorDataBuf.increaseLiquidity, ...data])
 
   return new TransactionInstruction({
     keys,
     programId,
     data: aData,
-  });
+  })
 }
 
 export function decreaseLiquidityInstruction(
@@ -491,9 +487,9 @@ export function decreaseLiquidityInstruction(
   mintMintA: PublicKey,
   mintMintB: PublicKey,
   rewardAccounts: {
-    poolRewardVault: PublicKey,
-    ownerRewardVault: PublicKey,
-    rewardMint: PublicKey,
+    poolRewardVault: PublicKey
+    ownerRewardVault: PublicKey
+    rewardMint: PublicKey
   }[],
 
   liquidity: BN,
@@ -502,21 +498,17 @@ export function decreaseLiquidityInstruction(
 
   exTickArrayBitmap?: PublicKey,
 ) {
-  const dataLayout = struct([
-    u128("liquidity"),
-    u64("amountMinA"),
-    u64("amountMinB"),
-  ]);
+  const dataLayout = struct([u128('liquidity'), u64('amountMinA'), u64('amountMinB')])
 
   const remainingAccounts = [
-    ...exTickArrayBitmap ? [
-      { pubkey: exTickArrayBitmap, isSigner: false, isWritable: true },
-    ] : [],
-    ...rewardAccounts.map(i => ([
-      { pubkey: i.poolRewardVault, isSigner: false, isWritable: true },
-      { pubkey: i.ownerRewardVault, isSigner: false, isWritable: true },
-      { pubkey: i.rewardMint, isSigner: false, isWritable: false },
-    ])).flat()
+    ...(exTickArrayBitmap ? [{ pubkey: exTickArrayBitmap, isSigner: false, isWritable: true }] : []),
+    ...rewardAccounts
+      .map((i) => [
+        { pubkey: i.poolRewardVault, isSigner: false, isWritable: true },
+        { pubkey: i.ownerRewardVault, isSigner: false, isWritable: true },
+        { pubkey: i.rewardMint, isSigner: false, isWritable: false },
+      ])
+      .flat(),
   ]
 
   const keys = [
@@ -541,25 +533,25 @@ export function decreaseLiquidityInstruction(
     { pubkey: mintMintB, isSigner: false, isWritable: false },
 
     ...remainingAccounts,
-  ];
+  ]
 
-  const data = Buffer.alloc(dataLayout.span);
+  const data = Buffer.alloc(dataLayout.span)
   dataLayout.encode(
     {
       liquidity,
       amountMinA,
       amountMinB,
     },
-    data
-  );
+    data,
+  )
 
-  const aData = Buffer.from([...anchorDataBuf.decreaseLiquidity, ...data]);
+  const aData = Buffer.from([...anchorDataBuf.decreaseLiquidity, ...data])
 
   return new TransactionInstruction({
     keys,
     programId,
     data: aData,
-  });
+  })
 }
 
 export function swapInstruction(
@@ -584,18 +576,15 @@ export function swapInstruction(
   exTickArrayBitmap?: PublicKey,
 ) {
   const dataLayout = struct([
-    u64("amount"),
-    u64("otherAmountThreshold"),
-    u128("sqrtPriceLimitX64"),
-    bool("isBaseInput"),
-  ]);
+    u64('amount'),
+    u64('otherAmountThreshold'),
+    u128('sqrtPriceLimitX64'),
+    bool('isBaseInput'),
+  ])
 
   const remainingAccounts = [
-    ...exTickArrayBitmap ? [
-      { pubkey: exTickArrayBitmap, isSigner: false, isWritable: true },
-    ] : [],
-    ...tickArray
-      .map((i) => ({ pubkey: i, isSigner: false, isWritable: true })),
+    ...(exTickArrayBitmap ? [{ pubkey: exTickArrayBitmap, isSigner: false, isWritable: true }] : []),
+    ...tickArray.map((i) => ({ pubkey: i, isSigner: false, isWritable: true })),
   ]
 
   const keys = [
@@ -618,9 +607,9 @@ export function swapInstruction(
     { pubkey: outputMint, isSigner: false, isWritable: false },
 
     ...remainingAccounts,
-  ];
+  ]
 
-  const data = Buffer.alloc(dataLayout.span);
+  const data = Buffer.alloc(dataLayout.span)
   dataLayout.encode(
     {
       amount,
@@ -628,16 +617,16 @@ export function swapInstruction(
       sqrtPriceLimitX64,
       isBaseInput,
     },
-    data
-  );
+    data,
+  )
 
-  const aData = Buffer.from([...anchorDataBuf.swap, ...data]);
+  const aData = Buffer.from([...anchorDataBuf.swap, ...data])
 
   return new TransactionInstruction({
     keys,
     programId,
     data: aData,
-  });
+  })
 }
 
 export function initRewardInstruction(
@@ -654,13 +643,9 @@ export function initRewardInstruction(
 
   openTime: number,
   endTime: number,
-  emissionsPerSecondX64: BN
+  emissionsPerSecondX64: BN,
 ) {
-  const dataLayout = struct([
-    u64("openTime"),
-    u64("endTime"),
-    u128("emissionsPerSecondX64"),
-  ]);
+  const dataLayout = struct([u64('openTime'), u64('endTime'), u128('emissionsPerSecondX64')])
 
   const keys = [
     { pubkey: payer, isSigner: true, isWritable: true },
@@ -675,25 +660,25 @@ export function initRewardInstruction(
     { pubkey: rewardProgramId, isSigner: false, isWritable: false },
     { pubkey: SYSTEM_PROGRAM_ID, isSigner: false, isWritable: false },
     { pubkey: RENT_PROGRAM_ID, isSigner: false, isWritable: false },
-  ];
+  ]
 
-  const data = Buffer.alloc(dataLayout.span);
+  const data = Buffer.alloc(dataLayout.span)
   dataLayout.encode(
     {
       openTime: parseBigNumberish(openTime),
       endTime: parseBigNumberish(endTime),
       emissionsPerSecondX64,
     },
-    data
-  );
+    data,
+  )
 
-  const aData = Buffer.from([...anchorDataBuf.initReward, ...data]);
+  const aData = Buffer.from([...anchorDataBuf.initReward, ...data])
 
   return new TransactionInstruction({
     keys,
     programId,
     data: aData,
-  });
+  })
 }
 
 export function setRewardInstruction(
@@ -710,14 +695,9 @@ export function setRewardInstruction(
   rewardIndex: number,
   openTime: number,
   endTime: number,
-  emissionsPerSecondX64: BN
+  emissionsPerSecondX64: BN,
 ) {
-  const dataLayout = struct([
-    u8("rewardIndex"),
-    u128("emissionsPerSecondX64"),
-    u64("openTime"),
-    u64("endTime"),
-  ]);
+  const dataLayout = struct([u8('rewardIndex'), u128('emissionsPerSecondX64'), u64('openTime'), u64('endTime')])
 
   const keys = [
     { pubkey: payer, isSigner: true, isWritable: true },
@@ -731,9 +711,9 @@ export function setRewardInstruction(
     { pubkey: rewardVault, isSigner: false, isWritable: true },
     { pubkey: ownerTokenAccount, isSigner: false, isWritable: true },
     { pubkey: rewardMint, isSigner: false, isWritable: true },
-  ];
+  ]
 
-  const data = Buffer.alloc(dataLayout.span);
+  const data = Buffer.alloc(dataLayout.span)
   dataLayout.encode(
     {
       rewardIndex,
@@ -741,16 +721,16 @@ export function setRewardInstruction(
       openTime: parseBigNumberish(openTime),
       endTime: parseBigNumberish(endTime),
     },
-    data
-  );
+    data,
+  )
 
-  const aData = Buffer.from([...anchorDataBuf.setRewardEmissions, ...data]);
+  const aData = Buffer.from([...anchorDataBuf.setRewardEmissions, ...data])
 
   return new TransactionInstruction({
     keys,
     programId,
     data: aData,
-  });
+  })
 }
 
 export function collectRewardInstruction(
@@ -764,9 +744,7 @@ export function collectRewardInstruction(
 
   rewardIndex: number,
 ) {
-  const dataLayout = struct([
-    u8("rewardIndex"),
-  ]);
+  const dataLayout = struct([u8('rewardIndex')])
 
   const keys = [
     { pubkey: payer, isSigner: true, isWritable: true },
@@ -777,21 +755,21 @@ export function collectRewardInstruction(
     { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
     { pubkey: TOKEN_2022_PROGRAM_ID, isSigner: false, isWritable: false },
     { pubkey: MEMO_PROGRAM_ID, isSigner: false, isWritable: false },
-  ];
+  ]
 
-  const data = Buffer.alloc(dataLayout.span);
+  const data = Buffer.alloc(dataLayout.span)
   dataLayout.encode(
     {
       rewardIndex,
     },
-    data
-  );
+    data,
+  )
 
-  const aData = Buffer.from([...anchorDataBuf.collectReward, ...data]);
+  const aData = Buffer.from([...anchorDataBuf.collectReward, ...data])
 
   return new TransactionInstruction({
     keys,
     programId,
     data: aData,
-  });
+  })
 }

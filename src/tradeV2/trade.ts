@@ -1,99 +1,95 @@
-import {
-  createTransferInstruction, TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID,
-} from '@solana/spl-token';
-import {
-  Connection, EpochInfo, PublicKey, Signer, TransactionInstruction,
-} from '@solana/web3.js';
-import BN from 'bn.js';
+import { createTransferInstruction, TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID } from '@solana/spl-token'
+import { Connection, EpochInfo, PublicKey, Signer, TransactionInstruction } from '@solana/web3.js'
+import BN from 'bn.js'
 
+import { AmmV3, AmmV3PoolInfo, ReturnTypeFetchMultiplePoolTickArrays } from '../ammV3'
+import { MAX_SQRT_PRICE_X64, MIN_SQRT_PRICE_X64 } from '../ammV3/utils/constants'
 import {
-  AmmV3, AmmV3PoolInfo, ReturnTypeFetchMultiplePoolTickArrays,
-} from '../ammV3';
+  Base,
+  ComputeBudgetConfig,
+  InstructionType,
+  minExpirationTime,
+  ReturnTypeFetchMultipleMintInfos,
+  TokenAccount,
+  TransferAmountFee,
+  TxVersion,
+} from '../base'
+import { ApiPoolInfo, ApiPoolInfoItem } from '../baseInfo'
 import {
-  MAX_SQRT_PRICE_X64, MIN_SQRT_PRICE_X64,
-} from '../ammV3/utils/constants';
-import {
-  Base, ComputeBudgetConfig, InstructionType, minExpirationTime,
-  ReturnTypeFetchMultipleMintInfos, TokenAccount, TransferAmountFee, TxVersion,
-} from '../base';
-import { ApiPoolInfo, ApiPoolInfoItem } from '../baseInfo';
-import {
-  CacheLTA, jsonInfo2PoolKeys, parseSimulateLogToJson, parseSimulateValue,
-  simulateMultipleInstruction, splitTxAndSigners,
-} from '../common';
-import {
-  Currency, CurrencyAmount, ONE, Percent, Price, Token, TokenAmount,
-  TokenAmountType, ZERO,
-} from '../entity';
-import {
-  initStableModelLayout, Liquidity, LiquidityPoolKeys,
-} from '../liquidity';
-import { WSOL } from '../token';
+  CacheLTA,
+  jsonInfo2PoolKeys,
+  parseSimulateLogToJson,
+  parseSimulateValue,
+  simulateMultipleInstruction,
+  splitTxAndSigners,
+} from '../common'
+import { Currency, CurrencyAmount, ONE, Percent, Price, Token, TokenAmount, TokenAmountType, ZERO } from '../entity'
+import { initStableModelLayout, Liquidity, LiquidityPoolKeys } from '../liquidity'
+import { WSOL } from '../token'
 
-import { routeInstruction } from './instrument';
+import { routeInstruction } from './instrument'
 
 export type PoolType = AmmV3PoolInfo | ApiPoolInfoItem
 type RoutePathType = {
   [routeMint: string]: {
-    mintProgram: PublicKey;
-    in: PoolType[];
-    out: PoolType[];
+    mintProgram: PublicKey
+    in: PoolType[]
+    out: PoolType[]
     mDecimals: number
   }
 }
 
-
 interface PoolAccountInfoV4 {
-  ammId: string;
-  status: BN;
-  baseDecimals: number;
-  quoteDecimals: number;
-  lpDecimals: number;
-  baseReserve: BN;
-  quoteReserve: BN;
-  lpSupply: BN;
-  startTime: BN;
+  ammId: string
+  status: BN
+  baseDecimals: number
+  quoteDecimals: number
+  lpDecimals: number
+  baseReserve: BN
+  quoteReserve: BN
+  lpSupply: BN
+  startTime: BN
 }
 
 export interface ComputeAmountOutAmmLayout {
-  amountIn: TransferAmountFee,
-  amountOut: TransferAmountFee,
-  minAmountOut: TransferAmountFee,
+  amountIn: TransferAmountFee
+  amountOut: TransferAmountFee
+  minAmountOut: TransferAmountFee
   currentPrice: Price | undefined
   executionPrice: Price | null
   priceImpact: Percent
-  fee: TokenAmountType[],
-  routeType: 'amm',
-  poolKey: PoolType[],
+  fee: TokenAmountType[]
+  routeType: 'amm'
+  poolKey: PoolType[]
   remainingAccounts: PublicKey[][]
   poolReady: boolean
   poolType: 'CLMM' | 'STABLE' | undefined
 
   feeConfig?: {
-    feeAmount: BN,
+    feeAmount: BN
     feeAccount: PublicKey
   }
 
   expirationTime: number | undefined
 }
 export interface ComputeAmountOutRouteLayout {
-  amountIn: TransferAmountFee,
-  amountOut: TransferAmountFee,
-  minAmountOut: TransferAmountFee,
+  amountIn: TransferAmountFee
+  amountOut: TransferAmountFee
+  minAmountOut: TransferAmountFee
   currentPrice: Price | undefined
   executionPrice: Price | null
   priceImpact: Percent
-  fee: TokenAmountType[],
-  routeType: 'route',
-  poolKey: PoolType[],
+  fee: TokenAmountType[]
+  routeType: 'route'
+  poolKey: PoolType[]
   remainingAccounts: (PublicKey[] | undefined)[]
-  minMiddleAmountFee: TokenAmount | undefined,
-  middleToken: Token,
+  minMiddleAmountFee: TokenAmount | undefined
+  middleToken: Token
   poolReady: boolean
   poolType: ('CLMM' | 'STABLE' | undefined)[]
 
   feeConfig?: {
-    feeAmount: BN,
+    feeAmount: BN
     feeAccount: PublicKey
   }
 
@@ -103,14 +99,14 @@ type ComputeAmountOutLayout = ComputeAmountOutAmmLayout | ComputeAmountOutRouteL
 
 type makeSwapInstructionParam = {
   ownerInfo: {
-    wallet: PublicKey,
+    wallet: PublicKey
     // tokenAccountA: PublicKey
     // tokenAccountB: PublicKey
 
-    sourceToken: PublicKey,
-    routeToken?: PublicKey,
-    destinationToken: PublicKey,
-  },
+    sourceToken: PublicKey
+    routeToken?: PublicKey
+    destinationToken: PublicKey
+  }
 
   inputMint: PublicKey
   routeProgram: PublicKey
@@ -119,24 +115,29 @@ type makeSwapInstructionParam = {
 }
 
 export interface ReturnTypeGetAllRoute {
-  directPath: PoolType[];
-  addLiquidityPools: ApiPoolInfoItem[];
-  routePathDict: RoutePathType;
-  needSimulate: ApiPoolInfoItem[];
-  needTickArray: AmmV3PoolInfo[];
-  needCheckToken: string[];
+  directPath: PoolType[]
+  addLiquidityPools: ApiPoolInfoItem[]
+  routePathDict: RoutePathType
+  needSimulate: ApiPoolInfoItem[]
+  needTickArray: AmmV3PoolInfo[]
+  needCheckToken: string[]
 }
-export interface ReturnTypeFetchMultipleInfo { [ammId: string]: PoolAccountInfoV4 }
+export interface ReturnTypeFetchMultipleInfo {
+  [ammId: string]: PoolAccountInfoV4
+}
 export type ReturnTypeGetAddLiquidityDefaultPool = ApiPoolInfoItem | undefined
 export type ReturnTypeGetAllRouteComputeAmountOut = ComputeAmountOutLayout[]
 
-
 export class TradeV2 extends Base {
   static getAllRoute({
-    inputMint, outputMint, apiPoolList, ammV3List, allowedRouteToken2022 = false,
+    inputMint,
+    outputMint,
+    apiPoolList,
+    ammV3List,
+    allowedRouteToken2022 = false,
   }: {
-    inputMint: PublicKey,
-    outputMint: PublicKey,
+    inputMint: PublicKey
+    outputMint: PublicKey
 
     apiPoolList?: ApiPoolInfo
     ammV3List?: AmmV3PoolInfo[]
@@ -155,28 +156,67 @@ export class TradeV2 extends Base {
     const routePathDict: RoutePathType = {} // {[route mint: string]: {in: [] , out: []}}
 
     for (const itemAmmPool of ammV3List ?? []) {
-      if ((itemAmmPool.mintA.mint.equals(inputMint) && itemAmmPool.mintB.mint.equals(outputMint)) || (itemAmmPool.mintA.mint.equals(outputMint) && itemAmmPool.mintB.mint.equals(inputMint))) {
+      if (
+        (itemAmmPool.mintA.mint.equals(inputMint) && itemAmmPool.mintB.mint.equals(outputMint)) ||
+        (itemAmmPool.mintA.mint.equals(outputMint) && itemAmmPool.mintB.mint.equals(inputMint))
+      ) {
         directPath.push(itemAmmPool)
         needTickArray[itemAmmPool.id.toString()] = itemAmmPool
       }
-      if (itemAmmPool.mintA.mint.equals(inputMint) && (itemAmmPool.mintB.programId.equals(TOKEN_PROGRAM_ID) || allowedRouteToken2022)) {
+      if (
+        itemAmmPool.mintA.mint.equals(inputMint) &&
+        (itemAmmPool.mintB.programId.equals(TOKEN_PROGRAM_ID) || allowedRouteToken2022)
+      ) {
         const t = itemAmmPool.mintB.mint.toString()
-        if (routePathDict[t] === undefined) routePathDict[t] = {mintProgram: itemAmmPool.mintB.programId, in: [], out: [], mDecimals: itemAmmPool.mintB.decimals }
+        if (routePathDict[t] === undefined)
+          routePathDict[t] = {
+            mintProgram: itemAmmPool.mintB.programId,
+            in: [],
+            out: [],
+            mDecimals: itemAmmPool.mintB.decimals,
+          }
         routePathDict[t].in.push(itemAmmPool)
       }
-      if (itemAmmPool.mintB.mint.equals(inputMint) && (itemAmmPool.mintA.programId.equals(TOKEN_PROGRAM_ID) || allowedRouteToken2022)) {
+      if (
+        itemAmmPool.mintB.mint.equals(inputMint) &&
+        (itemAmmPool.mintA.programId.equals(TOKEN_PROGRAM_ID) || allowedRouteToken2022)
+      ) {
         const t = itemAmmPool.mintA.mint.toString()
-        if (routePathDict[t] === undefined) routePathDict[t] = {mintProgram: itemAmmPool.mintA.programId, in: [], out: [], mDecimals: itemAmmPool.mintA.decimals }
+        if (routePathDict[t] === undefined)
+          routePathDict[t] = {
+            mintProgram: itemAmmPool.mintA.programId,
+            in: [],
+            out: [],
+            mDecimals: itemAmmPool.mintA.decimals,
+          }
         routePathDict[t].in.push(itemAmmPool)
       }
-      if (itemAmmPool.mintA.mint.equals(outputMint) && (itemAmmPool.mintB.programId.equals(TOKEN_PROGRAM_ID) || allowedRouteToken2022)) {
+      if (
+        itemAmmPool.mintA.mint.equals(outputMint) &&
+        (itemAmmPool.mintB.programId.equals(TOKEN_PROGRAM_ID) || allowedRouteToken2022)
+      ) {
         const t = itemAmmPool.mintB.mint.toString()
-        if (routePathDict[t] === undefined) routePathDict[t] = {mintProgram: itemAmmPool.mintB.programId, in: [], out: [], mDecimals: itemAmmPool.mintB.decimals }
+        if (routePathDict[t] === undefined)
+          routePathDict[t] = {
+            mintProgram: itemAmmPool.mintB.programId,
+            in: [],
+            out: [],
+            mDecimals: itemAmmPool.mintB.decimals,
+          }
         routePathDict[t].out.push(itemAmmPool)
       }
-      if (itemAmmPool.mintB.mint.equals(outputMint) && (itemAmmPool.mintA.programId.equals(TOKEN_PROGRAM_ID) || allowedRouteToken2022)) {
+      if (
+        itemAmmPool.mintB.mint.equals(outputMint) &&
+        (itemAmmPool.mintA.programId.equals(TOKEN_PROGRAM_ID) || allowedRouteToken2022)
+      ) {
         const t = itemAmmPool.mintA.mint.toString()
-        if (routePathDict[t] === undefined) routePathDict[t] = {mintProgram: itemAmmPool.mintA.programId, in: [], out: [], mDecimals: itemAmmPool.mintA.decimals }
+        if (routePathDict[t] === undefined)
+          routePathDict[t] = {
+            mintProgram: itemAmmPool.mintA.programId,
+            in: [],
+            out: [],
+            mDecimals: itemAmmPool.mintA.decimals,
+          }
         routePathDict[t].out.push(itemAmmPool)
       }
     }
@@ -186,56 +226,113 @@ export class TradeV2 extends Base {
     const _inputMint = inputMint.toString()
     const _outputMint = outputMint.toString()
     for (const itemAmmPool of (apiPoolList ?? {}).official ?? []) {
-      if ((itemAmmPool.baseMint === _inputMint && itemAmmPool.quoteMint === _outputMint) || (itemAmmPool.baseMint === _outputMint && itemAmmPool.quoteMint === _inputMint)) {
+      if (
+        (itemAmmPool.baseMint === _inputMint && itemAmmPool.quoteMint === _outputMint) ||
+        (itemAmmPool.baseMint === _outputMint && itemAmmPool.quoteMint === _inputMint)
+      ) {
         directPath.push(itemAmmPool)
         needSimulate[itemAmmPool.id] = itemAmmPool
         addLiquidityPools.push(itemAmmPool)
       }
       if (itemAmmPool.baseMint === _inputMint) {
-        if (routePathDict[itemAmmPool.quoteMint] === undefined) routePathDict[itemAmmPool.quoteMint] = { mintProgram: TOKEN_PROGRAM_ID, in: [], out: [], mDecimals: itemAmmPool.quoteDecimals }
+        if (routePathDict[itemAmmPool.quoteMint] === undefined)
+          routePathDict[itemAmmPool.quoteMint] = {
+            mintProgram: TOKEN_PROGRAM_ID,
+            in: [],
+            out: [],
+            mDecimals: itemAmmPool.quoteDecimals,
+          }
         routePathDict[itemAmmPool.quoteMint].in.push(itemAmmPool)
       }
       if (itemAmmPool.quoteMint === _inputMint) {
-        if (routePathDict[itemAmmPool.baseMint] === undefined) routePathDict[itemAmmPool.baseMint] = { mintProgram: TOKEN_PROGRAM_ID, in: [], out: [], mDecimals: itemAmmPool.baseDecimals }
+        if (routePathDict[itemAmmPool.baseMint] === undefined)
+          routePathDict[itemAmmPool.baseMint] = {
+            mintProgram: TOKEN_PROGRAM_ID,
+            in: [],
+            out: [],
+            mDecimals: itemAmmPool.baseDecimals,
+          }
         routePathDict[itemAmmPool.baseMint].in.push(itemAmmPool)
       }
       if (itemAmmPool.baseMint === _outputMint) {
-        if (routePathDict[itemAmmPool.quoteMint] === undefined) routePathDict[itemAmmPool.quoteMint] = { mintProgram: TOKEN_PROGRAM_ID, in: [], out: [], mDecimals: itemAmmPool.quoteDecimals }
+        if (routePathDict[itemAmmPool.quoteMint] === undefined)
+          routePathDict[itemAmmPool.quoteMint] = {
+            mintProgram: TOKEN_PROGRAM_ID,
+            in: [],
+            out: [],
+            mDecimals: itemAmmPool.quoteDecimals,
+          }
         routePathDict[itemAmmPool.quoteMint].out.push(itemAmmPool)
       }
       if (itemAmmPool.quoteMint === _outputMint) {
-        if (routePathDict[itemAmmPool.baseMint] === undefined) routePathDict[itemAmmPool.baseMint] = { mintProgram: TOKEN_PROGRAM_ID, in: [], out: [], mDecimals: itemAmmPool.baseDecimals }
+        if (routePathDict[itemAmmPool.baseMint] === undefined)
+          routePathDict[itemAmmPool.baseMint] = {
+            mintProgram: TOKEN_PROGRAM_ID,
+            in: [],
+            out: [],
+            mDecimals: itemAmmPool.baseDecimals,
+          }
         routePathDict[itemAmmPool.baseMint].out.push(itemAmmPool)
       }
     }
     const _insertAddLiquidityPool = addLiquidityPools.length === 0
     for (const itemAmmPool of (apiPoolList ?? {}).unOfficial ?? []) {
-      if ((itemAmmPool.baseMint === _inputMint && itemAmmPool.quoteMint === _outputMint) || (itemAmmPool.baseMint === _outputMint && itemAmmPool.quoteMint === _inputMint)) {
+      if (
+        (itemAmmPool.baseMint === _inputMint && itemAmmPool.quoteMint === _outputMint) ||
+        (itemAmmPool.baseMint === _outputMint && itemAmmPool.quoteMint === _inputMint)
+      ) {
         directPath.push(itemAmmPool)
         needSimulate[itemAmmPool.id] = itemAmmPool
         if (_insertAddLiquidityPool) addLiquidityPools.push(itemAmmPool)
       }
       if (itemAmmPool.baseMint === _inputMint) {
-        if (routePathDict[itemAmmPool.quoteMint] === undefined) routePathDict[itemAmmPool.quoteMint] = { mintProgram: TOKEN_PROGRAM_ID, in: [], out: [], mDecimals: itemAmmPool.quoteDecimals }
+        if (routePathDict[itemAmmPool.quoteMint] === undefined)
+          routePathDict[itemAmmPool.quoteMint] = {
+            mintProgram: TOKEN_PROGRAM_ID,
+            in: [],
+            out: [],
+            mDecimals: itemAmmPool.quoteDecimals,
+          }
         routePathDict[itemAmmPool.quoteMint].in.push(itemAmmPool)
       }
       if (itemAmmPool.quoteMint === _inputMint) {
-        if (routePathDict[itemAmmPool.baseMint] === undefined) routePathDict[itemAmmPool.baseMint] = { mintProgram: TOKEN_PROGRAM_ID, in: [], out: [], mDecimals: itemAmmPool.baseDecimals }
+        if (routePathDict[itemAmmPool.baseMint] === undefined)
+          routePathDict[itemAmmPool.baseMint] = {
+            mintProgram: TOKEN_PROGRAM_ID,
+            in: [],
+            out: [],
+            mDecimals: itemAmmPool.baseDecimals,
+          }
         routePathDict[itemAmmPool.baseMint].in.push(itemAmmPool)
       }
       if (itemAmmPool.baseMint === _outputMint) {
-        if (routePathDict[itemAmmPool.quoteMint] === undefined) routePathDict[itemAmmPool.quoteMint] = { mintProgram: TOKEN_PROGRAM_ID, in: [], out: [], mDecimals: itemAmmPool.quoteDecimals }
+        if (routePathDict[itemAmmPool.quoteMint] === undefined)
+          routePathDict[itemAmmPool.quoteMint] = {
+            mintProgram: TOKEN_PROGRAM_ID,
+            in: [],
+            out: [],
+            mDecimals: itemAmmPool.quoteDecimals,
+          }
         routePathDict[itemAmmPool.quoteMint].out.push(itemAmmPool)
       }
       if (itemAmmPool.quoteMint === _outputMint) {
-        if (routePathDict[itemAmmPool.baseMint] === undefined) routePathDict[itemAmmPool.baseMint] = { mintProgram: TOKEN_PROGRAM_ID, in: [], out: [], mDecimals: itemAmmPool.baseDecimals }
+        if (routePathDict[itemAmmPool.baseMint] === undefined)
+          routePathDict[itemAmmPool.baseMint] = {
+            mintProgram: TOKEN_PROGRAM_ID,
+            in: [],
+            out: [],
+            mDecimals: itemAmmPool.baseDecimals,
+          }
         routePathDict[itemAmmPool.baseMint].out.push(itemAmmPool)
       }
     }
 
-
     for (const t of Object.keys(routePathDict)) {
-      if (routePathDict[t].in.length === 1 && routePathDict[t].out.length === 1 && String(routePathDict[t].in[0].id) === String(routePathDict[t].out[0].id)) {
+      if (
+        routePathDict[t].in.length === 1 &&
+        routePathDict[t].out.length === 1 &&
+        String(routePathDict[t].in[0].id) === String(routePathDict[t].out[0].id)
+      ) {
         delete routePathDict[t]
         continue
       }
@@ -285,34 +382,43 @@ export class TradeV2 extends Base {
   }
 
   static async fetchMultipleInfo({
-    connection, pools, batchRequest = true
+    connection,
+    pools,
+    batchRequest = true,
   }: {
-    connection: Connection,
-    pools: ApiPoolInfoItem[],
-    batchRequest?: boolean,
+    connection: Connection
+    pools: ApiPoolInfoItem[]
+    batchRequest?: boolean
   }): Promise<ReturnTypeFetchMultipleInfo> {
-    if (pools.find(i => i.version === 5)) await initStableModelLayout(connection);
+    if (pools.find((i) => i.version === 5)) await initStableModelLayout(connection)
 
-    const instructions = pools.map((pool) => Liquidity.makeSimulatePoolInfoInstruction({ poolKeys: jsonInfo2PoolKeys(pool) }));
+    const instructions = pools.map((pool) =>
+      Liquidity.makeSimulatePoolInfoInstruction({ poolKeys: jsonInfo2PoolKeys(pool) }),
+    )
 
-    const logs = await simulateMultipleInstruction(connection, instructions.map(i=>i.innerTransaction.instructions).flat(), "GetPoolData", batchRequest);
+    const logs = await simulateMultipleInstruction(
+      connection,
+      instructions.map((i) => i.innerTransaction.instructions).flat(),
+      'GetPoolData',
+      batchRequest,
+    )
 
     const poolsInfo: ReturnTypeFetchMultipleInfo = {}
     for (const log of logs) {
-      const json = parseSimulateLogToJson(log, "GetPoolData");
+      const json = parseSimulateLogToJson(log, 'GetPoolData')
 
       const ammId = JSON.parse(json)['amm_id']
-      const status = new BN(parseSimulateValue(json, "status"));
-      const baseDecimals = Number(parseSimulateValue(json, "coin_decimals"));
-      const quoteDecimals = Number(parseSimulateValue(json, "pc_decimals"));
-      const lpDecimals = Number(parseSimulateValue(json, "lp_decimals"));
-      const baseReserve = new BN(parseSimulateValue(json, "pool_coin_amount"));
-      const quoteReserve = new BN(parseSimulateValue(json, "pool_pc_amount"));
-      const lpSupply = new BN(parseSimulateValue(json, "pool_lp_supply"));
+      const status = new BN(parseSimulateValue(json, 'status'))
+      const baseDecimals = Number(parseSimulateValue(json, 'coin_decimals'))
+      const quoteDecimals = Number(parseSimulateValue(json, 'pc_decimals'))
+      const lpDecimals = Number(parseSimulateValue(json, 'lp_decimals'))
+      const baseReserve = new BN(parseSimulateValue(json, 'pool_coin_amount'))
+      const quoteReserve = new BN(parseSimulateValue(json, 'pool_pc_amount'))
+      const lpSupply = new BN(parseSimulateValue(json, 'pool_lp_supply'))
       // TODO fix it when split stable
-      let startTime = "0";
+      let startTime = '0'
       try {
-        startTime = parseSimulateValue(json, "pool_open_time");
+        startTime = parseSimulateValue(json, 'pool_open_time')
       } catch (error) {
         //
       }
@@ -330,10 +436,13 @@ export class TradeV2 extends Base {
       }
     }
 
-    return poolsInfo;
+    return poolsInfo
   }
 
-  static getAddLiquidityDefaultPool({ addLiquidityPools, poolInfosCache }: {
+  static getAddLiquidityDefaultPool({
+    addLiquidityPools,
+    poolInfosCache,
+  }: {
     addLiquidityPools: ApiPoolInfoItem[]
     poolInfosCache: { [ammId: string]: PoolAccountInfoV4 }
   }): ReturnTypeGetAddLiquidityDefaultPool {
@@ -342,13 +451,17 @@ export class TradeV2 extends Base {
     addLiquidityPools.sort((a, b) => b.version - a.version)
     if (addLiquidityPools[0].version !== addLiquidityPools[1].version) return addLiquidityPools[0]
 
-    const _addLiquidityPools = addLiquidityPools.filter(i => i.version === addLiquidityPools[0].version)
+    const _addLiquidityPools = addLiquidityPools.filter((i) => i.version === addLiquidityPools[0].version)
 
     _addLiquidityPools.sort((a, b) => this.ComparePoolSize(a, b, poolInfosCache))
     return _addLiquidityPools[0]
   }
 
-  private static ComparePoolSize(a: ApiPoolInfoItem, b: ApiPoolInfoItem, ammIdToPoolInfo: { [ammId: string]: PoolAccountInfoV4 }) {
+  private static ComparePoolSize(
+    a: ApiPoolInfoItem,
+    b: ApiPoolInfoItem,
+    ammIdToPoolInfo: { [ammId: string]: PoolAccountInfoV4 },
+  ) {
     const aInfo = ammIdToPoolInfo[a.id]
     const bInfo = ammIdToPoolInfo[b.id]
     if (aInfo === undefined) return 1
@@ -363,40 +476,71 @@ export class TradeV2 extends Base {
     }
   }
 
-  static getAllRouteComputeAmountOut({ inputTokenAmount, outputToken, directPath, routePathDict, simulateCache, tickCache, mintInfos, slippage, chainTime, epochInfo, feeConfig }: {
-    directPath: PoolType[],
-    routePathDict: RoutePathType,
-    simulateCache: ReturnTypeFetchMultipleInfo,
-    tickCache: ReturnTypeFetchMultiplePoolTickArrays,
+  static getAllRouteComputeAmountOut({
+    inputTokenAmount,
+    outputToken,
+    directPath,
+    routePathDict,
+    simulateCache,
+    tickCache,
+    mintInfos,
+    slippage,
+    chainTime,
+    epochInfo,
+    feeConfig,
+  }: {
+    directPath: PoolType[]
+    routePathDict: RoutePathType
+    simulateCache: ReturnTypeFetchMultipleInfo
+    tickCache: ReturnTypeFetchMultiplePoolTickArrays
 
-    mintInfos: ReturnTypeFetchMultipleMintInfos,
+    mintInfos: ReturnTypeFetchMultipleMintInfos
 
-    inputTokenAmount: TokenAmountType,
-    outputToken: Token | Currency,
-    slippage: Percent,
-    chainTime: number,
-    epochInfo: EpochInfo,
+    inputTokenAmount: TokenAmountType
+    outputToken: Token | Currency
+    slippage: Percent
+    chainTime: number
+    epochInfo: EpochInfo
 
     feeConfig?: {
-      feeBps: BN,
+      feeBps: BN
       feeAccount: PublicKey
     }
   }): ReturnTypeGetAllRouteComputeAmountOut {
-    const _amountInFee = feeConfig === undefined ? new BN(0) : inputTokenAmount.raw.mul(new BN(feeConfig.feeBps.toNumber())).div(new BN(10000)) 
+    const _amountInFee =
+      feeConfig === undefined
+        ? new BN(0)
+        : inputTokenAmount.raw.mul(new BN(feeConfig.feeBps.toNumber())).div(new BN(10000))
     const _amoutIn = inputTokenAmount.raw.sub(_amountInFee)
-    const amountIn = inputTokenAmount instanceof TokenAmount ? new TokenAmount(inputTokenAmount.token, _amoutIn) : new CurrencyAmount(inputTokenAmount.currency, _amoutIn)
+    const amountIn =
+      inputTokenAmount instanceof TokenAmount
+        ? new TokenAmount(inputTokenAmount.token, _amoutIn)
+        : new CurrencyAmount(inputTokenAmount.currency, _amoutIn)
 
-    const _inFeeConfig = feeConfig === undefined ? undefined : {
-      feeAmount: _amountInFee,
-      feeAccount: feeConfig.feeAccount
-    }
+    const _inFeeConfig =
+      feeConfig === undefined
+        ? undefined
+        : {
+            feeAmount: _amountInFee,
+            feeAccount: feeConfig.feeAccount,
+          }
 
     const outRoute: ComputeAmountOutLayout[] = []
 
     for (const itemPool of directPath) {
       if (itemPool.version === 6) {
         try {
-          const { realAmountIn, amountOut, minAmountOut, expirationTime, currentPrice, executionPrice, priceImpact, fee, remainingAccounts } = AmmV3.computeAmountOutFormat({
+          const {
+            realAmountIn,
+            amountOut,
+            minAmountOut,
+            expirationTime,
+            currentPrice,
+            executionPrice,
+            priceImpact,
+            fee,
+            remainingAccounts,
+          } = AmmV3.computeAmountOutFormat({
             poolInfo: itemPool as AmmV3PoolInfo,
             tickArrayCache: tickCache[itemPool.id.toString()],
             amountIn,
@@ -406,13 +550,28 @@ export class TradeV2 extends Base {
             token2022Infos: mintInfos,
             epochInfo,
           })
-          outRoute.push({ amountIn: realAmountIn, amountOut, minAmountOut, currentPrice, executionPrice, priceImpact, fee: [fee], remainingAccounts: [remainingAccounts], routeType: 'amm', poolKey: [itemPool], poolReady: itemPool.startTime < chainTime, poolType: 'CLMM', feeConfig: _inFeeConfig, expirationTime: minExpirationTime(realAmountIn.expirationTime, expirationTime) })
+          outRoute.push({
+            amountIn: realAmountIn,
+            amountOut,
+            minAmountOut,
+            currentPrice,
+            executionPrice,
+            priceImpact,
+            fee: [fee],
+            remainingAccounts: [remainingAccounts],
+            routeType: 'amm',
+            poolKey: [itemPool],
+            poolReady: itemPool.startTime < chainTime,
+            poolType: 'CLMM',
+            feeConfig: _inFeeConfig,
+            expirationTime: minExpirationTime(realAmountIn.expirationTime, expirationTime),
+          })
         } catch (e) {
-          // 
+          //
         }
       } else {
         try {
-          if (![1,6,7].includes(simulateCache[itemPool.id as string].status.toNumber())) continue
+          if (![1, 6, 7].includes(simulateCache[itemPool.id as string].status.toNumber())) continue
           const { amountOut, minAmountOut, currentPrice, executionPrice, priceImpact, fee } =
             Liquidity.computeAmountOut({
               poolKeys: jsonInfo2PoolKeys(itemPool) as LiquidityPoolKeys,
@@ -421,7 +580,22 @@ export class TradeV2 extends Base {
               currencyOut: outputToken,
               slippage,
             })
-          outRoute.push({ amountIn: { amount: amountIn, fee: undefined, expirationTime: undefined }, amountOut: { amount: amountOut, fee: undefined, expirationTime: undefined}, minAmountOut: { amount: minAmountOut, fee: undefined, expirationTime: undefined}, currentPrice, executionPrice, priceImpact, fee: [fee], routeType: 'amm', poolKey: [itemPool], remainingAccounts: [], poolReady: simulateCache[itemPool.id as string].startTime.toNumber() < chainTime, poolType: itemPool.version === 5 ? 'STABLE' : undefined, feeConfig: _inFeeConfig, expirationTime: undefined })
+          outRoute.push({
+            amountIn: { amount: amountIn, fee: undefined, expirationTime: undefined },
+            amountOut: { amount: amountOut, fee: undefined, expirationTime: undefined },
+            minAmountOut: { amount: minAmountOut, fee: undefined, expirationTime: undefined },
+            currentPrice,
+            executionPrice,
+            priceImpact,
+            fee: [fee],
+            routeType: 'amm',
+            poolKey: [itemPool],
+            remainingAccounts: [],
+            poolReady: simulateCache[itemPool.id as string].startTime.toNumber() < chainTime,
+            poolType: itemPool.version === 5 ? 'STABLE' : undefined,
+            feeConfig: _inFeeConfig,
+            expirationTime: undefined,
+          })
         } catch (e) {
           //
         }
@@ -430,13 +604,26 @@ export class TradeV2 extends Base {
     for (const [routeMint, info] of Object.entries(routePathDict)) {
       for (const iFromPool of info.in) {
         if (!simulateCache[iFromPool.id as string] && !tickCache[iFromPool.id.toString()]) continue
-        if (iFromPool.version !== 6 && ![1,6,7].includes(simulateCache[iFromPool.id as string].status.toNumber())) continue
+        if (iFromPool.version !== 6 && ![1, 6, 7].includes(simulateCache[iFromPool.id as string].status.toNumber()))
+          continue
         for (const iOutPool of info.out) {
           if (!simulateCache[iOutPool.id as string] && !tickCache[iOutPool.id.toString()]) continue
-          if (iOutPool.version !== 6 && ![1,6,7].includes(simulateCache[iOutPool.id as string].status.toNumber())) continue
+          if (iOutPool.version !== 6 && ![1, 6, 7].includes(simulateCache[iOutPool.id as string].status.toNumber()))
+            continue
           try {
-            const { amountOut, minAmountOut, executionPrice, priceImpact, fee, remainingAccounts, minMiddleAmountFee, expirationTime, realAmountIn, middleToken } = TradeV2.computeAmountOut({
-              middleMintInfo: { programId: info.mintProgram, mint: new PublicKey(routeMint), decimals: info.mDecimals, },
+            const {
+              amountOut,
+              minAmountOut,
+              executionPrice,
+              priceImpact,
+              fee,
+              remainingAccounts,
+              minMiddleAmountFee,
+              expirationTime,
+              realAmountIn,
+              middleToken,
+            } = TradeV2.computeAmountOut({
+              middleMintInfo: { programId: info.mintProgram, mint: new PublicKey(routeMint), decimals: info.mDecimals },
               amountIn,
               currencyOut: outputToken,
               slippage,
@@ -448,15 +635,36 @@ export class TradeV2 extends Base {
 
               epochInfo,
               mintInfos,
-            });
-            const infoAPoolOpen = iFromPool.version === 6 ? iFromPool.startTime < chainTime : simulateCache[iFromPool.id as string].startTime.toNumber() < chainTime
-            const infoBPoolOpen = iOutPool.version === 6 ? iOutPool.startTime < chainTime : simulateCache[iOutPool.id as string].startTime.toNumber() < chainTime
+            })
+            const infoAPoolOpen =
+              iFromPool.version === 6
+                ? iFromPool.startTime < chainTime
+                : simulateCache[iFromPool.id as string].startTime.toNumber() < chainTime
+            const infoBPoolOpen =
+              iOutPool.version === 6
+                ? iOutPool.startTime < chainTime
+                : simulateCache[iOutPool.id as string].startTime.toNumber() < chainTime
 
-            const poolTypeA = iFromPool.version === 6 ? 'CLMM' : iFromPool.version === 5 ? "STABLE" : undefined
-            const poolTypeB = iOutPool.version === 6 ? 'CLMM' : iOutPool.version === 5 ? "STABLE" : undefined
+            const poolTypeA = iFromPool.version === 6 ? 'CLMM' : iFromPool.version === 5 ? 'STABLE' : undefined
+            const poolTypeB = iOutPool.version === 6 ? 'CLMM' : iOutPool.version === 5 ? 'STABLE' : undefined
 
             outRoute.push({
-              amountIn: realAmountIn, amountOut, minAmountOut, currentPrice: undefined, executionPrice, priceImpact, fee, routeType: 'route', poolKey: [iFromPool, iOutPool], remainingAccounts, minMiddleAmountFee, middleToken, poolReady: infoAPoolOpen && infoBPoolOpen, poolType: [poolTypeA, poolTypeB], feeConfig: _inFeeConfig, expirationTime 
+              amountIn: realAmountIn,
+              amountOut,
+              minAmountOut,
+              currentPrice: undefined,
+              executionPrice,
+              priceImpact,
+              fee,
+              routeType: 'route',
+              poolKey: [iFromPool, iOutPool],
+              remainingAccounts,
+              minMiddleAmountFee,
+              middleToken,
+              poolReady: infoAPoolOpen && infoBPoolOpen,
+              poolType: [poolTypeA, poolTypeB],
+              feeConfig: _inFeeConfig,
+              expirationTime,
             })
           } catch (e) {
             //
@@ -484,31 +692,31 @@ export class TradeV2 extends Base {
     epochInfo,
     mintInfos,
   }: {
-    middleMintInfo: { programId: PublicKey, mint: PublicKey, decimals: number },
-    amountIn: TokenAmountType;
-    currencyOut: Currency | Token;
-    slippage: Percent;
+    middleMintInfo: { programId: PublicKey; mint: PublicKey; decimals: number }
+    amountIn: TokenAmountType
+    currencyOut: Currency | Token
+    slippage: Percent
 
-    fromPool: PoolType,
-    toPool: PoolType,
-    simulateCache: ReturnTypeFetchMultipleInfo,
-    tickCache: ReturnTypeFetchMultiplePoolTickArrays,
+    fromPool: PoolType
+    toPool: PoolType
+    simulateCache: ReturnTypeFetchMultipleInfo
+    tickCache: ReturnTypeFetchMultiplePoolTickArrays
 
-    epochInfo: EpochInfo,
-    mintInfos: ReturnTypeFetchMultipleMintInfos,
+    epochInfo: EpochInfo
+    mintInfos: ReturnTypeFetchMultipleMintInfos
   }): {
-    minMiddleAmountFee: TokenAmount | undefined,
-    middleToken: Token,
-    realAmountIn: TransferAmountFee,
-    amountOut: TransferAmountFee,
-    minAmountOut: TransferAmountFee,
-    executionPrice: Price | null,
-    priceImpact: Percent,
-    fee: [TokenAmountType, TokenAmountType],
-    remainingAccounts: [PublicKey[] | undefined, PublicKey[] | undefined],
-    expirationTime: number | undefined,
+    minMiddleAmountFee: TokenAmount | undefined
+    middleToken: Token
+    realAmountIn: TransferAmountFee
+    amountOut: TransferAmountFee
+    minAmountOut: TransferAmountFee
+    executionPrice: Price | null
+    priceImpact: Percent
+    fee: [TokenAmountType, TokenAmountType]
+    remainingAccounts: [PublicKey[] | undefined, PublicKey[] | undefined]
+    expirationTime: number | undefined
   } {
-    const middleToken = new Token(middleMintInfo.programId, middleMintInfo.mint, middleMintInfo.decimals);
+    const middleToken = new Token(middleMintInfo.programId, middleMintInfo.mint, middleMintInfo.decimals)
 
     let firstPriceImpact: Percent
     let firstFee: TokenAmountType
@@ -530,7 +738,7 @@ export class TradeV2 extends Base {
         fee: _firstFee,
         remainingAccounts: _firstRemainingAccounts,
         expirationTime: _expirationTime,
-        realAmountIn: _realAmountIn
+        realAmountIn: _realAmountIn,
       } = AmmV3.computeAmountOutFormat({
         poolInfo: fromPool as AmmV3PoolInfo,
         tickArrayCache: tickCache[fromPool.id.toString()],
@@ -558,11 +766,11 @@ export class TradeV2 extends Base {
         amountIn,
         currencyOut: middleToken,
         slippage: _slippage,
-      });
+      })
       minMiddleAmountOut = {
         amount: _minMiddleAmountOut,
         fee: undefined,
-        expirationTime: undefined
+        expirationTime: undefined,
       }
       firstPriceImpact = _firstPriceImpact
       firstFee = _firstFee
@@ -588,7 +796,10 @@ export class TradeV2 extends Base {
       } = AmmV3.computeAmountOutFormat({
         poolInfo: toPool as AmmV3PoolInfo,
         tickArrayCache: tickCache[toPool.id.toString()],
-        amountIn: new TokenAmount((minMiddleAmountOut.amount as TokenAmount).token, minMiddleAmountOut.amount.raw.sub(minMiddleAmountOut.fee === undefined ? ZERO : minMiddleAmountOut.fee.raw)),
+        amountIn: new TokenAmount(
+          (minMiddleAmountOut.amount as TokenAmount).token,
+          minMiddleAmountOut.amount.raw.sub(minMiddleAmountOut.fee === undefined ? ZERO : minMiddleAmountOut.fee.raw),
+        ),
         currencyOut,
         slippage,
 
@@ -611,10 +822,13 @@ export class TradeV2 extends Base {
       } = Liquidity.computeAmountOut({
         poolKeys: jsonInfo2PoolKeys(toPool) as LiquidityPoolKeys,
         poolInfo: simulateCache[toPool.id as string],
-        amountIn: new TokenAmount((minMiddleAmountOut.amount as TokenAmount).token, minMiddleAmountOut.amount.raw.sub(minMiddleAmountOut.fee === undefined ? ZERO : minMiddleAmountOut.fee.raw)),
+        amountIn: new TokenAmount(
+          (minMiddleAmountOut.amount as TokenAmount).token,
+          minMiddleAmountOut.amount.raw.sub(minMiddleAmountOut.fee === undefined ? ZERO : minMiddleAmountOut.fee.raw),
+        ),
         currencyOut,
         slippage,
-      });
+      })
       amountOut = {
         amount: _amountOut,
         fee: undefined,
@@ -629,16 +843,22 @@ export class TradeV2 extends Base {
       secondFee = _secondFee
     }
 
-    let executionPrice: Price | null = null;
-    const amountInRaw = amountIn.raw;
-    const amountOutRaw = amountOut.amount.raw;
-    const currencyIn = amountIn instanceof TokenAmount ? amountIn.token : amountIn.currency;
+    let executionPrice: Price | null = null
+    const amountInRaw = amountIn.raw
+    const amountOutRaw = amountOut.amount.raw
+    const currencyIn = amountIn instanceof TokenAmount ? amountIn.token : amountIn.currency
     if (!amountInRaw.isZero() && !amountOutRaw.isZero()) {
-      executionPrice = new Price(currencyIn, amountInRaw, currencyOut, amountOutRaw);
+      executionPrice = new Price(currencyIn, amountInRaw, currencyOut, amountOutRaw)
     }
 
     return {
-      minMiddleAmountFee: minMiddleAmountOut.fee !== undefined ? new TokenAmount(middleToken, (minMiddleAmountOut.fee?.raw ?? new BN(0)).add((realAmountRouteIn.fee?.raw ?? new BN(0)))) : undefined,
+      minMiddleAmountFee:
+        minMiddleAmountOut.fee !== undefined
+          ? new TokenAmount(
+              middleToken,
+              (minMiddleAmountOut.fee?.raw ?? new BN(0)).add(realAmountRouteIn.fee?.raw ?? new BN(0)),
+            )
+          : undefined,
       middleToken,
       realAmountIn,
       amountOut,
@@ -655,9 +875,9 @@ export class TradeV2 extends Base {
     if (swapInfo.routeType === 'amm') {
       if (swapInfo.poolKey[0].version === 6) {
         const _poolKey = swapInfo.poolKey[0] as AmmV3PoolInfo
-        const sqrtPriceLimitX64 = inputMint.equals((_poolKey).mintA.mint)
+        const sqrtPriceLimitX64 = inputMint.equals(_poolKey.mintA.mint)
           ? MIN_SQRT_PRICE_X64.add(ONE)
-          : MAX_SQRT_PRICE_X64.sub(ONE);
+          : MAX_SQRT_PRICE_X64.sub(ONE)
 
         return AmmV3.makeSwapBaseInInstructions({
           poolInfo: _poolKey,
@@ -670,7 +890,7 @@ export class TradeV2 extends Base {
           amountIn: swapInfo.amountIn.amount.raw,
           amountOutMin: swapInfo.minAmountOut.amount.raw.sub(swapInfo.minAmountOut.fee?.raw ?? ZERO),
           sqrtPriceLimitX64,
-          remainingAccounts: swapInfo.remainingAccounts[0]
+          remainingAccounts: swapInfo.remainingAccounts[0],
         })
       } else {
         const _poolKey = swapInfo.poolKey[0] as ApiPoolInfoItem
@@ -684,7 +904,7 @@ export class TradeV2 extends Base {
           },
           amountIn: swapInfo.amountIn.amount.raw,
           amountOut: swapInfo.minAmountOut.amount.raw.sub(swapInfo.minAmountOut.fee?.raw ?? ZERO),
-          fixedSide: "in",
+          fixedSide: 'in',
         })
       }
     } else if (swapInfo.routeType === 'route') {
@@ -713,37 +933,45 @@ export class TradeV2 extends Base {
               swapInfo.amountIn.amount.raw,
               swapInfo.minAmountOut.amount.raw.sub(swapInfo.minAmountOut.fee?.raw ?? ZERO),
 
-              swapInfo.remainingAccounts
-            )
+              swapInfo.remainingAccounts,
+            ),
           ],
           signers: [],
           lookupTableAddress: [new PublicKey(poolKey1.lookupTableAccount), new PublicKey(poolKey2.lookupTableAccount)],
           instructionTypes: [InstructionType.routeSwap],
-        }
+        },
       }
     } else {
       throw Error('route type error')
     }
   }
 
-  static async makeSwapInstructionSimple<T extends TxVersion>({ connection, swapInfo, ownerInfo, computeBudgetConfig, routeProgram, makeTxVersion, lookupTableCache, }: {
-    makeTxVersion: T,
-    lookupTableCache?: CacheLTA,
+  static async makeSwapInstructionSimple<T extends TxVersion>({
+    connection,
+    swapInfo,
+    ownerInfo,
+    computeBudgetConfig,
+    routeProgram,
+    makeTxVersion,
+    lookupTableCache,
+  }: {
+    makeTxVersion: T
+    lookupTableCache?: CacheLTA
     connection: Connection
-    swapInfo: ComputeAmountOutLayout,
+    swapInfo: ComputeAmountOutLayout
     ownerInfo: {
-      wallet: PublicKey,
-      tokenAccounts: TokenAccount[],
-      associatedOnly: boolean,
-      checkCreateATAOwner: boolean,
+      wallet: PublicKey
+      tokenAccounts: TokenAccount[]
+      associatedOnly: boolean
+      checkCreateATAOwner: boolean
     }
     routeProgram: PublicKey
     computeBudgetConfig?: ComputeBudgetConfig
   }) {
-    const frontInstructions: TransactionInstruction[] = [];
-    const endInstructions: TransactionInstruction[] = [];
-    const frontInstructionsType: InstructionType[] = [];
-    const endInstructionsType: InstructionType[] = [];
+    const frontInstructions: TransactionInstruction[] = []
+    const endInstructions: TransactionInstruction[] = []
+    const frontInstructionsType: InstructionType[] = []
+    const endInstructionsType: InstructionType[] = []
 
     const signers: Signer[] = []
 
@@ -752,25 +980,29 @@ export class TradeV2 extends Base {
     const useSolBalance = !(amountIn.amount instanceof TokenAmount)
     const outSolBalance = !(amountOut.amount instanceof TokenAmount)
     const inputMint = amountIn.amount instanceof TokenAmount ? amountIn.amount.token.mint : Token.WSOL.mint
-    const inputProgramId = amountIn.amount instanceof TokenAmount ? amountIn.amount.token.programId : Token.WSOL.programId
+    const inputProgramId =
+      amountIn.amount instanceof TokenAmount ? amountIn.amount.token.programId : Token.WSOL.programId
     const outputMint = amountOut.amount instanceof TokenAmount ? amountOut.amount.token.mint : Token.WSOL.mint
-    const outputProgramId = amountOut.amount instanceof TokenAmount ? amountOut.amount.token.programId : Token.WSOL.programId
+    const outputProgramId =
+      amountOut.amount instanceof TokenAmount ? amountOut.amount.token.programId : Token.WSOL.programId
 
     const sourceToken = await this._selectOrCreateTokenAccount({
       programId: inputProgramId,
       mint: inputMint,
       tokenAccounts: useSolBalance ? [] : ownerInfo.tokenAccounts,
-      createInfo: useSolBalance ? {
-        connection,
-        payer: ownerInfo.wallet,
-        amount: amountIn.amount.raw,
+      createInfo: useSolBalance
+        ? {
+            connection,
+            payer: ownerInfo.wallet,
+            amount: amountIn.amount.raw,
 
-        frontInstructions,
-        endInstructions,
-        signers,
-        frontInstructionsType,
-        endInstructionsType,
-      } : undefined,
+            frontInstructions,
+            endInstructions,
+            signers,
+            frontInstructionsType,
+            endInstructionsType,
+          }
+        : undefined,
       owner: ownerInfo.wallet,
       associatedOnly: useSolBalance ? false : ownerInfo.associatedOnly,
       checkCreateATAOwner: ownerInfo.checkCreateATAOwner,
@@ -811,7 +1043,7 @@ export class TradeV2 extends Base {
           connection,
           payer: ownerInfo.wallet,
           amount: 0,
-  
+
           frontInstructions,
           endInstructions,
           signers,
@@ -833,18 +1065,20 @@ export class TradeV2 extends Base {
         sourceToken,
         routeToken,
         destinationToken,
-      }
+      },
     })
 
     const transferIns: TransactionInstruction[] = []
     const transferInsType: InstructionType[] = []
     if (swapInfo.feeConfig !== undefined) {
-      transferIns.push(createTransferInstruction(
-        sourceToken,
-        swapInfo.feeConfig.feeAccount,
-        ownerInfo.wallet,
-        swapInfo.feeConfig.feeAmount.toNumber(),
-      ))
+      transferIns.push(
+        createTransferInstruction(
+          sourceToken,
+          swapInfo.feeConfig.feeAccount,
+          ownerInfo.wallet,
+          swapInfo.feeConfig.feeAmount.toNumber(),
+        ),
+      )
       transferInsType.push(InstructionType.transferAmount)
     }
 
@@ -853,9 +1087,9 @@ export class TradeV2 extends Base {
       makeTxVersion,
       computeBudgetConfig,
       payer: ownerInfo.wallet,
-      innerTransaction: [ 
-        { instructionTypes: transferInsType, instructions: transferIns, signers: [],}, 
-        ins.innerTransaction, 
+      innerTransaction: [
+        { instructionTypes: transferInsType, instructions: transferIns, signers: [] },
+        ins.innerTransaction,
       ],
       lookupTableCache,
     })
@@ -867,16 +1101,16 @@ export class TradeV2 extends Base {
         makeTxVersion,
         computeBudgetConfig,
         payer: ownerInfo.wallet,
-        innerTransaction: [ 
-          { instructionTypes: frontInstructionsType, instructions: frontInstructions, signers,},
-          ...transferAddCheck.length > 1 ? [] : [
-            { instructionTypes: transferInsType, instructions: transferIns, signers: [],}, 
-          ], 
+        innerTransaction: [
+          { instructionTypes: frontInstructionsType, instructions: frontInstructions, signers },
+          ...(transferAddCheck.length > 1
+            ? []
+            : [{ instructionTypes: transferInsType, instructions: transferIns, signers: [] }]),
           ins.innerTransaction,
-          { instructionTypes: endInstructionsType, instructions: endInstructions, signers: [], }
+          { instructionTypes: endInstructionsType, instructions: endInstructions, signers: [] },
         ],
         lookupTableCache,
-      })
+      }),
     }
   }
 }

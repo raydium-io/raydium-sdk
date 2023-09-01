@@ -1,8 +1,8 @@
-export * from "./mainnet";
-export * from "./devnet";
-export * from "./testnet";
+export * from './devnet'
+export * from './mainnet'
+export * from './testnet'
 
-export * from "./sol";
-export * from "./util";
+export * from './sol'
+export * from './util'
 
-export * from "./type";
+export * from './type'

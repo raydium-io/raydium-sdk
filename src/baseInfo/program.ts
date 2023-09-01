@@ -1,16 +1,16 @@
-import { PublicKey } from '@solana/web3.js';
+import { PublicKey } from '@solana/web3.js'
 
 export type ProgramId = {
-  SERUM_MARKET: PublicKey,
-  OPENBOOK_MARKET: PublicKey,
+  SERUM_MARKET: PublicKey
+  OPENBOOK_MARKET: PublicKey
 
-  UTIL1216: PublicKey,
+  UTIL1216: PublicKey
 
-  FarmV3: PublicKey,
-  FarmV5: PublicKey,
+  FarmV3: PublicKey
+  FarmV5: PublicKey
   FarmV6: PublicKey
 
-  AmmV4: PublicKey,
+  AmmV4: PublicKey
   AmmStable: PublicKey
 
   CLMM: PublicKey
@@ -48,7 +48,7 @@ export const DEVNET_PROGRAM_ID: ProgramId = {
 
   AmmV4: new PublicKey('HWy1jotHpo6UqeQxx49dpYYdQB8wj9Qk9MdxwjLvDHB8'),
   AmmStable: new PublicKey('DDg4VmQaJV9ogWce7LpcjBA9bv22wRp5uaTPa5pGjijF'),
-  
+
   CLMM: new PublicKey('devi51mZmdwUJGU9hjN27vEz64Gps7uUefqxg27EAtH'),
 
   Router: new PublicKey('BVChZ3XFEwTMUk1o9i3HAf91H6mFxSwa5X2wFAWhYPhU'),

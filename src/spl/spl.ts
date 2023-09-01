@@ -1,28 +1,34 @@
 import {
-  createAssociatedTokenAccountInstruction, createCloseAccountInstruction,
-  createInitializeAccountInstruction, createInitializeMintInstruction,
-  createMintToInstruction, createTransferInstruction,
-} from '@solana/spl-token';
-import {
-  Commitment, Connection, PublicKey, Signer, SystemProgram,
-  TransactionInstruction,
-} from '@solana/web3.js';
-import BN from 'bn.js';
+  createAssociatedTokenAccountInstruction,
+  createCloseAccountInstruction,
+  createInitializeAccountInstruction,
+  createInitializeMintInstruction,
+  createMintToInstruction,
+  createTransferInstruction,
+} from '@solana/spl-token'
+import { Commitment, Connection, PublicKey, Signer, SystemProgram, TransactionInstruction } from '@solana/web3.js'
+import BN from 'bn.js'
 
-import { generatePubKey, InstructionType } from '../base';
-import { getATAAddress } from '../base/pda';
-import {
-  SYSVAR_RENT_PUBKEY, TOKEN_PROGRAM_ID, validateAndParsePublicKey,
-} from '../common';
-import { BigNumberish, parseBigNumberish } from '../entity';
-import { u8 } from '../marshmallow';
-import { WSOL } from '../token';
+import { generatePubKey, InstructionType } from '../base'
+import { getATAAddress } from '../base/pda'
+import { SYSVAR_RENT_PUBKEY, TOKEN_PROGRAM_ID, validateAndParsePublicKey } from '../common'
+import { BigNumberish, parseBigNumberish } from '../entity'
+import { u8 } from '../marshmallow'
+import { WSOL } from '../token'
 
-import { SPL_ACCOUNT_LAYOUT } from './layout';
+import { SPL_ACCOUNT_LAYOUT } from './layout'
 
 // https://github.com/solana-labs/solana-program-library/tree/master/token/js/client
 export class Spl {
-  static getAssociatedTokenAccount({ mint, owner, programId }: { mint: PublicKey; owner: PublicKey, programId: PublicKey }) {
+  static getAssociatedTokenAccount({
+    mint,
+    owner,
+    programId,
+  }: {
+    mint: PublicKey
+    owner: PublicKey
+    programId: PublicKey
+  }) {
     // return getAssociatedTokenAddress(ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID, mint, owner, true);
     return getATAAddress(owner, mint, programId).publicKey
   }
@@ -35,21 +41,15 @@ export class Spl {
     payer,
     instructionsType,
   }: {
-    programId: PublicKey;
-    mint: PublicKey;
-    associatedAccount: PublicKey;
-    owner: PublicKey;
-    payer: PublicKey;
-    instructionsType: InstructionType[];
+    programId: PublicKey
+    mint: PublicKey
+    associatedAccount: PublicKey
+    owner: PublicKey
+    payer: PublicKey
+    instructionsType: InstructionType[]
   }) {
     instructionsType.push(InstructionType.createATA)
-    return createAssociatedTokenAccountInstruction(
-      payer,
-      associatedAccount,
-      owner,
-      mint,
-      programId,
-    );
+    return createAssociatedTokenAccountInstruction(payer, associatedAccount, owner, mint, programId)
   }
 
   // https://github.com/solana-labs/solana-program-library/blob/master/token/js/client/token.js
@@ -61,14 +61,14 @@ export class Spl {
     // baseRentExemption,
     commitment,
   }: {
-    connection: Connection;
-    owner: PublicKey;
-    payer: PublicKey;
-    amount: BigNumberish;
+    connection: Connection
+    owner: PublicKey
+    payer: PublicKey
+    amount: BigNumberish
     // baseRentExemption?: number;
-    commitment?: Commitment;
+    commitment?: Commitment
   }) {
-    const instructions: TransactionInstruction[] = [];
+    const instructions: TransactionInstruction[] = []
     const instructionTypes: InstructionType[] = []
 
     // Allocate memory for the account
@@ -76,11 +76,11 @@ export class Spl {
     // -X POST -H "Content-Type: application/json" -d '{"jsonrpc":"2.0", "id":1, "method":"getMinimumBalanceForRentExemption", "params":[0]}'
     // baseRentExemption = perByteRentExemption * 128
     // balanceNeeded = baseRentExemption / 128 * (dataSize + 128)
-    const balanceNeeded = await connection.getMinimumBalanceForRentExemption(SPL_ACCOUNT_LAYOUT.span, commitment);
+    const balanceNeeded = await connection.getMinimumBalanceForRentExemption(SPL_ACCOUNT_LAYOUT.span, commitment)
 
     // Create a new account
-    const lamports = parseBigNumberish(amount).add(new BN(balanceNeeded));
-    const newAccount = generatePubKey({ fromPublicKey: payer, programId: TOKEN_PROGRAM_ID})
+    const lamports = parseBigNumberish(amount).add(new BN(balanceNeeded))
+    const newAccount = generatePubKey({ fromPublicKey: payer, programId: TOKEN_PROGRAM_ID })
     instructions.push(
       SystemProgram.createAccountWithSeed({
         fromPubkey: payer,
@@ -91,7 +91,7 @@ export class Spl {
         space: SPL_ACCOUNT_LAYOUT.span,
         programId: TOKEN_PROGRAM_ID,
       }),
-    );
+    )
     instructionTypes.push(InstructionType.createAccount)
 
     // * merge this instruction into SystemProgram.createAccount
@@ -116,8 +116,7 @@ export class Spl {
         owner,
         instructionTypes,
       }),
-    );
-    
+    )
 
     return {
       address: { newAccount: newAccount.publicKey },
@@ -126,7 +125,7 @@ export class Spl {
         signers: [],
         lookupTableAddress: [],
         instructionTypes,
-      }
+      },
     }
   }
 
@@ -140,14 +139,14 @@ export class Spl {
     signers,
     commitment,
   }: {
-    connection: Connection;
-    owner: PublicKey;
-    payer: PublicKey;
-    amount: BigNumberish;
-    instructions: TransactionInstruction[];
-    instructionsType: InstructionType[];
-    signers: Signer[];
-    commitment?: Commitment;
+    connection: Connection
+    owner: PublicKey
+    payer: PublicKey
+    amount: BigNumberish
+    instructions: TransactionInstruction[]
+    instructionsType: InstructionType[]
+    signers: Signer[]
+    commitment?: Commitment
   }) {
     const ins = await this.makeCreateWrappedNativeAccountInstructions({
       connection,
@@ -155,10 +154,10 @@ export class Spl {
       payer,
       amount,
       commitment,
-    });
+    })
 
-    instructions.push(...ins.innerTransaction.instructions);
-    signers.push(...ins.innerTransaction.signers);
+    instructions.push(...ins.innerTransaction.instructions)
+    signers.push(...ins.innerTransaction.signers)
     instructionsType.push(...ins.innerTransaction.instructionTypes)
 
     return ins.address.newAccount
@@ -170,17 +169,17 @@ export class Spl {
     decimals,
     mintAuthority,
     freezeAuthority = null,
-    instructionTypes
+    instructionTypes,
   }: {
-    programId: PublicKey;
-    mint: PublicKey;
-    decimals: number;
-    mintAuthority: PublicKey;
-    freezeAuthority?: PublicKey | null;
-    instructionTypes: InstructionType[];
+    programId: PublicKey
+    mint: PublicKey
+    decimals: number
+    mintAuthority: PublicKey
+    freezeAuthority?: PublicKey | null
+    instructionTypes: InstructionType[]
   }) {
     instructionTypes.push(InstructionType.initMint)
-    return createInitializeMintInstruction(mint, decimals, mintAuthority, freezeAuthority, programId);
+    return createInitializeMintInstruction(mint, decimals, mintAuthority, freezeAuthority, programId)
   }
 
   static makeMintToInstruction({
@@ -192,16 +191,16 @@ export class Spl {
     multiSigners = [],
     instructionTypes,
   }: {
-    programId: PublicKey;
-    mint: PublicKey;
-    dest: PublicKey;
-    authority: PublicKey;
-    amount: BigNumberish;
-    multiSigners?: Signer[];
-    instructionTypes: InstructionType[];
+    programId: PublicKey
+    mint: PublicKey
+    dest: PublicKey
+    authority: PublicKey
+    amount: BigNumberish
+    multiSigners?: Signer[]
+    instructionTypes: InstructionType[]
   }) {
     instructionTypes.push(InstructionType.mintTo)
-    return createMintToInstruction(mint, dest, authority, BigInt(String(amount)), multiSigners, programId);
+    return createMintToInstruction(mint, dest, authority, BigInt(String(amount)), multiSigners, programId)
   }
 
   static makeInitAccountInstruction({
@@ -211,14 +210,14 @@ export class Spl {
     owner,
     instructionTypes,
   }: {
-    programId: PublicKey;
-    mint: PublicKey;
-    tokenAccount: PublicKey;
-    owner: PublicKey;
-    instructionTypes: InstructionType[];
+    programId: PublicKey
+    mint: PublicKey
+    tokenAccount: PublicKey
+    owner: PublicKey
+    instructionTypes: InstructionType[]
   }) {
     instructionTypes.push(InstructionType.initAccount)
-    return createInitializeAccountInstruction(tokenAccount, mint, owner, programId);
+    return createInitializeAccountInstruction(tokenAccount, mint, owner, programId)
   }
 
   static makeTransferInstruction({
@@ -228,25 +227,18 @@ export class Spl {
     owner,
     amount,
     multiSigners = [],
-    instructionsType
+    instructionsType,
   }: {
-    programId: PublicKey;
-    source: PublicKey;
-    destination: PublicKey;
-    owner: PublicKey;
-    amount: BigNumberish;
-    multiSigners?: Signer[];
-    instructionsType: InstructionType[];
+    programId: PublicKey
+    source: PublicKey
+    destination: PublicKey
+    owner: PublicKey
+    amount: BigNumberish
+    multiSigners?: Signer[]
+    instructionsType: InstructionType[]
   }) {
     instructionsType.push(InstructionType.transferAmount)
-    return createTransferInstruction(
-      source,
-      destination,
-      owner,
-      BigInt(String(amount)),
-      multiSigners,
-      programId,
-    );
+    return createTransferInstruction(source, destination, owner, BigInt(String(amount)), multiSigners, programId)
   }
 
   static makeCloseAccountInstruction({
@@ -255,44 +247,49 @@ export class Spl {
     owner,
     payer,
     multiSigners = [],
-    instructionsType
+    instructionsType,
   }: {
-    programId: PublicKey;
-    tokenAccount: PublicKey;
-    owner: PublicKey;
-    payer: PublicKey;
-    multiSigners?: Signer[];
+    programId: PublicKey
+    tokenAccount: PublicKey
+    owner: PublicKey
+    payer: PublicKey
+    multiSigners?: Signer[]
     instructionsType: InstructionType[]
   }) {
     instructionsType.push(InstructionType.closeAccount)
-    return createCloseAccountInstruction(tokenAccount, payer, owner, multiSigners, programId);
+    return createCloseAccountInstruction(tokenAccount, payer, owner, multiSigners, programId)
   }
 
   static createInitAccountInstruction(programId: PublicKey, mint: PublicKey, account: PublicKey, owner: PublicKey) {
-    const keys = [{
-      pubkey: account,
-      isSigner: false,
-      isWritable: true
-    }, {
-      pubkey: mint,
-      isSigner: false,
-      isWritable: false
-    }, {
-      pubkey: owner,
-      isSigner: false,
-      isWritable: false
-    }, {
-      pubkey: SYSVAR_RENT_PUBKEY,
-      isSigner: false,
-      isWritable: false
-    }];
-    const dataLayout = u8('instruction');
-    const data = Buffer.alloc(dataLayout.span);
-    dataLayout.encode(1, data);
+    const keys = [
+      {
+        pubkey: account,
+        isSigner: false,
+        isWritable: true,
+      },
+      {
+        pubkey: mint,
+        isSigner: false,
+        isWritable: false,
+      },
+      {
+        pubkey: owner,
+        isSigner: false,
+        isWritable: false,
+      },
+      {
+        pubkey: SYSVAR_RENT_PUBKEY,
+        isSigner: false,
+        isWritable: false,
+      },
+    ]
+    const dataLayout = u8('instruction')
+    const data = Buffer.alloc(dataLayout.span)
+    dataLayout.encode(1, data)
     return new TransactionInstruction({
       keys,
       programId,
-      data
-    });
+      data,
+    })
   }
 }

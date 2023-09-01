@@ -4,38 +4,48 @@
 // import { TOKEN_PROGRAM_ID } from './id';
 
 import {
-  AccountInfo, AddressLookupTableAccount, Commitment, Connection, Keypair,
-  PublicKey, SimulatedTransactionResponse, Transaction, TransactionInstruction,
+  AccountInfo,
+  AddressLookupTableAccount,
+  Commitment,
+  Connection,
+  Keypair,
+  PublicKey,
+  SimulatedTransactionResponse,
+  Transaction,
+  TransactionInstruction,
   TransactionMessage,
-} from '@solana/web3.js';
+} from '@solana/web3.js'
 
 import {
-  ComputeBudgetConfig, InnerSimpleLegacyTransaction, InnerSimpleV0Transaction,
-  InnerTransaction, TxVersion,
-} from '../base';
-import { addComputeBudget } from '../base/instrument';
+  ComputeBudgetConfig,
+  InnerSimpleLegacyTransaction,
+  InnerSimpleV0Transaction,
+  InnerTransaction,
+  TxVersion,
+} from '../base'
+import { addComputeBudget } from '../base/instrument'
 
-import { chunkArray } from './lodash';
-import { Logger } from './logger';
+import { chunkArray } from './lodash'
+import { Logger } from './logger'
 
-const logger = Logger.from("common/web3");
+const logger = Logger.from('common/web3')
 
 interface MultipleAccountsJsonRpcResponse {
-  jsonrpc: string;
-  id: string;
+  jsonrpc: string
+  id: string
   error?: {
-    code: number;
-    message: string;
-  };
+    code: number
+    message: string
+  }
   result: {
-    context: { slot: number };
-    value: { data: Array<string>; executable: boolean; lamports: number; owner: string; rentEpoch: number }[];
-  };
+    context: { slot: number }
+    value: { data: Array<string>; executable: boolean; lamports: number; owner: string; rentEpoch: number }[]
+  }
 }
 
 export interface GetMultipleAccountsInfoConfig {
-  batchRequest?: boolean;
-  commitment?: Commitment;
+  batchRequest?: boolean
+  commitment?: Commitment
 }
 
 // export async function batchGetMultipleAccountsInfo() {}
@@ -52,66 +62,73 @@ export async function getMultipleAccountsInfo(
     },
     // custom
     ...config,
-  };
+  }
 
-  const chunkedKeys = chunkArray(publicKeys, 100);
-  let results: (AccountInfo<Buffer> | null)[][] = new Array(chunkedKeys.length).fill([]);
+  const chunkedKeys = chunkArray(publicKeys, 100)
+  let results: (AccountInfo<Buffer> | null)[][] = new Array(chunkedKeys.length).fill([])
 
   if (batchRequest) {
     const batch = chunkedKeys.map((keys) => {
-      const args = connection._buildArgs([keys.map((key) => key.toBase58())], commitment, "base64");
+      const args = connection._buildArgs([keys.map((key) => key.toBase58())], commitment, 'base64')
       return {
-        methodName: "getMultipleAccounts",
+        methodName: 'getMultipleAccounts',
         args,
-      };
-    });
+      }
+    })
     const _batch = chunkArray(batch, 10)
 
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
-    const unsafeResponse: MultipleAccountsJsonRpcResponse[] = await (await Promise.all(_batch.map(async i => await connection._rpcBatchRequest(i) ))).flat()
+    const unsafeResponse: MultipleAccountsJsonRpcResponse[] = await (
+      await Promise.all(
+        _batch.map(
+          async (i) =>
+            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+            // @ts-ignore
+            await connection._rpcBatchRequest(i),
+        ),
+      )
+    ).flat()
     results = unsafeResponse.map((unsafeRes: MultipleAccountsJsonRpcResponse) => {
       if (unsafeRes.error) {
-        return logger.throwError("failed to get info for multiple accounts", Logger.errors.RPC_ERROR, {
+        return logger.throwError('failed to get info for multiple accounts', Logger.errors.RPC_ERROR, {
           message: unsafeRes.error.message,
-        });
+        })
       }
 
       return unsafeRes.result.value.map((accountInfo) => {
         if (accountInfo) {
-          const { data, executable, lamports, owner, rentEpoch } = accountInfo;
+          const { data, executable, lamports, owner, rentEpoch } = accountInfo
 
-          if (data.length !== 2 && data[1] !== "base64") {
-            return logger.throwError("info must be base64 encoded", Logger.errors.RPC_ERROR);
+          if (data.length !== 2 && data[1] !== 'base64') {
+            return logger.throwError('info must be base64 encoded', Logger.errors.RPC_ERROR)
           }
 
           return {
-            data: Buffer.from(data[0], "base64"),
+            data: Buffer.from(data[0], 'base64'),
             executable,
             lamports,
             owner: new PublicKey(owner),
             rentEpoch,
-          };
+          }
         } else {
-          return null;
+          return null
         }
-      });
-    });
+      })
+    })
   } else {
     try {
       results = (await Promise.all(
         chunkedKeys.map((keys) => connection.getMultipleAccountsInfo(keys, commitment)),
-      )) as (AccountInfo<Buffer> | null)[][];
+      )) as (AccountInfo<Buffer> | null)[][]
     } catch (error) {
       if (error instanceof Error) {
-        return logger.throwError("failed to get info for multiple accounts", Logger.errors.RPC_ERROR, {
+        return logger.throwError('failed to get info for multiple accounts', Logger.errors.RPC_ERROR, {
           message: error.message,
-        });
+        })
       }
     }
   }
 
-  return results.flat();
+  return results.flat()
 }
 
 export async function getMultipleAccountsInfoWithCustomFlags<T extends { pubkey: PublicKey }>(
@@ -123,13 +140,13 @@ export async function getMultipleAccountsInfoWithCustomFlags<T extends { pubkey:
     connection,
     publicKeysWithCustomFlag.map((o) => o.pubkey),
     config,
-  );
+  )
 
-  return publicKeysWithCustomFlag.map((o, idx) => ({ ...o, accountInfo: multipleAccountsInfo[idx] }));
+  return publicKeysWithCustomFlag.map((o, idx) => ({ ...o, accountInfo: multipleAccountsInfo[idx] }))
 }
 
 export interface GetTokenAccountsByOwnerConfig {
-  commitment?: Commitment;
+  commitment?: Commitment
 }
 
 // export async function getTokenAccountsByOwner(
@@ -192,24 +209,24 @@ export interface GetTokenAccountsByOwnerConfig {
  */
 export function forecastTransactionSize(instructions: TransactionInstruction[], signers: PublicKey[]) {
   if (instructions.length < 1) {
-    return logger.throwArgumentError("no instructions provided", "instructions", instructions);
+    return logger.throwArgumentError('no instructions provided', 'instructions', instructions)
   }
   if (signers.length < 1) {
-    return logger.throwArgumentError("no signers provided", "signers", signers);
+    return logger.throwArgumentError('no signers provided', 'signers', signers)
   }
 
   const transaction = new Transaction({
-    recentBlockhash: "11111111111111111111111111111111",
+    recentBlockhash: '11111111111111111111111111111111',
     feePayer: signers[0],
-  });
+  })
 
-  transaction.add(...instructions);
+  transaction.add(...instructions)
 
   try {
-    transaction.serialize({ verifySignatures: false });
-    return true;
+    transaction.serialize({ verifySignatures: false })
+    return true
   } catch (error) {
-    return false;
+    return false
   }
 }
 
@@ -220,75 +237,75 @@ export async function simulateMultipleInstruction(
   connection: Connection,
   instructions: TransactionInstruction[],
   keyword: string,
-  batchRequest = true
+  batchRequest = true,
 ) {
-  const feePayer = new PublicKey("RaydiumSimuLateTransaction11111111111111111");
+  const feePayer = new PublicKey('RaydiumSimuLateTransaction11111111111111111')
 
-  const transactions: Transaction[] = [];
+  const transactions: Transaction[] = []
 
-  let transaction = new Transaction();
+  let transaction = new Transaction()
   transaction.feePayer = feePayer
 
   for (const instruction of instructions) {
     if (!forecastTransactionSize([...transaction.instructions, instruction], [feePayer])) {
-      transactions.push(transaction);
-      transaction = new Transaction();
+      transactions.push(transaction)
+      transaction = new Transaction()
       transaction.feePayer = feePayer
     }
-    transaction.add(instruction);
+    transaction.add(instruction)
   }
   if (transaction.instructions.length > 0) {
-    transactions.push(transaction);
+    transactions.push(transaction)
   }
 
-  let results: SimulatedTransactionResponse[] = [];
+  let results: SimulatedTransactionResponse[] = []
 
   try {
     results = await simulateTransaction(connection, transactions, batchRequest)
-    if (results.find(i => i.err !== null)) throw Error('rpc simulateTransaction error')
+    if (results.find((i) => i.err !== null)) throw Error('rpc simulateTransaction error')
   } catch (error) {
     if (error instanceof Error) {
-      return logger.throwError("failed to simulate for instructions", Logger.errors.RPC_ERROR, {
+      return logger.throwError('failed to simulate for instructions', Logger.errors.RPC_ERROR, {
         message: error.message,
-      });
+      })
     }
   }
 
-  const logs: string[] = [];
+  const logs: string[] = []
   for (const result of results) {
-    logger.debug("simulate result:", result);
+    logger.debug('simulate result:', result)
 
     if (result.logs) {
-      const filteredLog = result.logs.filter((log) => log && log.includes(keyword));
-      logger.debug("filteredLog:", logs);
+      const filteredLog = result.logs.filter((log) => log && log.includes(keyword))
+      logger.debug('filteredLog:', logs)
 
-      logger.assertArgument(filteredLog.length !== 0, "simulate log not match keyword", "keyword", keyword);
+      logger.assertArgument(filteredLog.length !== 0, 'simulate log not match keyword', 'keyword', keyword)
 
-      logs.push(...filteredLog);
+      logs.push(...filteredLog)
     }
   }
 
-  return logs;
+  return logs
 }
 
 export function parseSimulateLogToJson(log: string, keyword: string) {
-  const results = log.match(/{["\w:,]+}/g);
+  const results = log.match(/{["\w:,]+}/g)
   if (!results || results.length !== 1) {
-    return logger.throwArgumentError("simulate log fail to match json", "keyword", keyword);
+    return logger.throwArgumentError('simulate log fail to match json', 'keyword', keyword)
   }
 
-  return results[0];
+  return results[0]
 }
 
 export function parseSimulateValue(log: string, key: string) {
-  const reg = new RegExp(`"${key}":(\\d+)`, "g");
+  const reg = new RegExp(`"${key}":(\\d+)`, 'g')
 
-  const results = reg.exec(log);
+  const results = reg.exec(log)
   if (!results || results.length !== 2) {
-    return logger.throwArgumentError("simulate log fail to match key", "key", key);
+    return logger.throwArgumentError('simulate log fail to match key', 'key', key)
   }
 
-  return results[1];
+  return results[1]
 }
 
 export async function simulateTransaction(connection: Connection, transactions: Transaction[], batchRequest?: boolean) {
@@ -303,44 +320,51 @@ export async function simulateTransaction(connection: Connection, transactions: 
 
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore
-      const message = transaction._compile();
-      const signData = message.serialize();
+      const message = transaction._compile()
+      const signData = message.serialize()
 
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore
-      const wireTransaction = transaction._serialize(signData);
-      const encodedTransaction = wireTransaction.toString('base64');
+      const wireTransaction = transaction._serialize(signData)
+      const encodedTransaction = wireTransaction.toString('base64')
 
       encodedTransactions.push(encodedTransaction)
     }
 
     const batch = encodedTransactions.map((keys) => {
-      const args = connection._buildArgs([keys], undefined, "base64");
+      const args = connection._buildArgs([keys], undefined, 'base64')
       return {
-        methodName: "simulateTransaction",
+        methodName: 'simulateTransaction',
         args,
-      };
-    });
+      }
+    })
 
-    const reqData: { methodName: string; args: any[]; }[][] = []
+    const reqData: { methodName: string; args: any[] }[][] = []
     const itemReqIndex = 20
     for (let i = 0; i < Math.ceil(batch.length / itemReqIndex); i++) {
       reqData.push(batch.slice(i * itemReqIndex, (i + 1) * itemReqIndex))
     }
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
-    results = await (await Promise.all(reqData.map(async (i) => (await connection._rpcBatchRequest(i)).map(ii => ii.result.value)))).flat()
+
+    results = await (
+      await Promise.all(
+        reqData.map(async (i) => {
+          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+          // @ts-ignore
+          const d: any[] = await connection._rpcBatchRequest(i)
+          return d.map((ii) => ii.result.value)
+        }),
+      )
+    ).flat()
   } else {
     try {
-      results = (await Promise.all(
-        transactions.map(async (transaction) =>
-          await (await connection.simulateTransaction(transaction)).value
-        )));
+      results = await Promise.all(
+        transactions.map(async (transaction) => await (await connection.simulateTransaction(transaction)).value),
+      )
     } catch (error) {
       if (error instanceof Error) {
-        return logger.throwError("failed to get info for multiple accounts", Logger.errors.RPC_ERROR, {
+        return logger.throwError('failed to get info for multiple accounts', Logger.errors.RPC_ERROR, {
           message: error.message,
-        });
+        })
       }
     }
   }
@@ -348,28 +372,40 @@ export async function simulateTransaction(connection: Connection, transactions: 
   return results
 }
 
-export async function splitTxAndSigners<T extends TxVersion>({ connection, makeTxVersion, innerTransaction, lookupTableCache, computeBudgetConfig, payer }: {
-  connection: Connection,
-  makeTxVersion: T,
-  innerTransaction: InnerTransaction[],
-  lookupTableCache?: CacheLTA,
-  computeBudgetConfig?: ComputeBudgetConfig,
-  payer: PublicKey,
+export async function splitTxAndSigners<T extends TxVersion>({
+  connection,
+  makeTxVersion,
+  innerTransaction,
+  lookupTableCache,
+  computeBudgetConfig,
+  payer,
+}: {
+  connection: Connection
+  makeTxVersion: T
+  innerTransaction: InnerTransaction[]
+  lookupTableCache?: CacheLTA
+  computeBudgetConfig?: ComputeBudgetConfig
+  payer: PublicKey
 }): Promise<(T extends typeof TxVersion.LEGACY ? InnerSimpleLegacyTransaction : InnerSimpleV0Transaction)[]> {
   const lookupTableAddressAccount = lookupTableCache ?? {}
-  const allLTA = [...new Set<string>(innerTransaction.map(i => (i.lookupTableAddress ?? []).map(ii => ii.toString())).flat())]
+  const allLTA = [
+    ...new Set<string>(innerTransaction.map((i) => (i.lookupTableAddress ?? []).map((ii) => ii.toString())).flat()),
+  ]
   const needCacheLTA: PublicKey[] = []
   for (const item of allLTA) {
     if (lookupTableAddressAccount[item] === undefined) needCacheLTA.push(new PublicKey(item))
   }
 
-  const newCacheLTA = await getMultipleLookupTableInfo({ connection, address: needCacheLTA})
+  const newCacheLTA = await getMultipleLookupTableInfo({ connection, address: needCacheLTA })
 
   for (const [key, value] of Object.entries(newCacheLTA)) lookupTableAddressAccount[key] = value
 
-  const addComputeBudgetInnerTx = computeBudgetConfig ? addComputeBudget(computeBudgetConfig).innerTransaction : undefined
-  
-  const transactions: (T extends typeof TxVersion.LEGACY ? InnerSimpleLegacyTransaction : InnerSimpleV0Transaction)[] = []
+  const addComputeBudgetInnerTx = computeBudgetConfig
+    ? addComputeBudget(computeBudgetConfig).innerTransaction
+    : undefined
+
+  const transactions: (T extends typeof TxVersion.LEGACY ? InnerSimpleLegacyTransaction : InnerSimpleV0Transaction)[] =
+    []
 
   let itemIns: InnerTransaction[] = []
 
@@ -378,8 +414,10 @@ export async function splitTxAndSigners<T extends TxVersion>({ connection, makeT
     const _itemIns = [...itemIns, itemInnerTx]
     const _addComputeBudgetInnerTx = addComputeBudgetInnerTx ? [addComputeBudgetInnerTx, ..._itemIns] : _itemIns
 
-    if (checkTx({ makeTxVersion, innerIns: _addComputeBudgetInnerTx, payer, lookupTableAddressAccount}) ||
-      checkTx({ makeTxVersion, innerIns: _itemIns, payer, lookupTableAddressAccount})) {
+    if (
+      checkTx({ makeTxVersion, innerIns: _addComputeBudgetInnerTx, payer, lookupTableAddressAccount }) ||
+      checkTx({ makeTxVersion, innerIns: _itemIns, payer, lookupTableAddressAccount })
+    ) {
       itemIns.push(itemInnerTx)
     } else {
       if (itemIns.length === 0) throw Error(' item ins too big ')
@@ -387,24 +425,38 @@ export async function splitTxAndSigners<T extends TxVersion>({ connection, makeT
       let lookupTableAddress: undefined | CacheLTA = undefined
       if (makeTxVersion === TxVersion.V0) {
         lookupTableAddress = {}
-        for (const item of [...new Set<string>(itemIns.map(i => i.lookupTableAddress ?? []).flat().map(i => i.toString()))]) {
+        for (const item of [
+          ...new Set<string>(
+            itemIns
+              .map((i) => i.lookupTableAddress ?? [])
+              .flat()
+              .map((i) => i.toString()),
+          ),
+        ]) {
           if (lookupTableAddressAccount[item] !== undefined) lookupTableAddress[item] = lookupTableAddressAccount[item]
         }
       }
-      if (checkTx({ makeTxVersion, innerIns: addComputeBudgetInnerTx ? [addComputeBudgetInnerTx, ...itemIns] : itemIns, payer, lookupTableAddressAccount})) {
+      if (
+        checkTx({
+          makeTxVersion,
+          innerIns: addComputeBudgetInnerTx ? [addComputeBudgetInnerTx, ...itemIns] : itemIns,
+          payer,
+          lookupTableAddressAccount,
+        })
+      ) {
         // add fee is ok
         const _i = addComputeBudgetInnerTx ? [addComputeBudgetInnerTx, ...itemIns] : itemIns
         transactions.push({
-          instructionTypes: _i.map(i => i.instructionTypes).flat(),
-          instructions: _i.map(i => i.instructions).flat(),
-          signers: itemIns.map(i => i.signers).flat(),
+          instructionTypes: _i.map((i) => i.instructionTypes).flat(),
+          instructions: _i.map((i) => i.instructions).flat(),
+          signers: itemIns.map((i) => i.signers).flat(),
           lookupTableAddress,
         } as any)
       } else {
         transactions.push({
-          instructionTypes: itemIns.map(i => i.instructionTypes).flat(),
-          instructions: itemIns.map(i => i.instructions).flat(),
-          signers: itemIns.map(i => i.signers).flat(),
+          instructionTypes: itemIns.map((i) => i.instructionTypes).flat(),
+          instructions: itemIns.map((i) => i.instructions).flat(),
+          signers: itemIns.map((i) => i.signers).flat(),
           lookupTableAddress,
         } as any)
       }
@@ -417,23 +469,37 @@ export async function splitTxAndSigners<T extends TxVersion>({ connection, makeT
     let lookupTableAddress: undefined | CacheLTA = undefined
     if (makeTxVersion === TxVersion.V0) {
       lookupTableAddress = {}
-      for (const item of [...new Set<string>(itemIns.map(i => i.lookupTableAddress ?? []).flat().map(i => i.toString()))]) {
+      for (const item of [
+        ...new Set<string>(
+          itemIns
+            .map((i) => i.lookupTableAddress ?? [])
+            .flat()
+            .map((i) => i.toString()),
+        ),
+      ]) {
         if (lookupTableAddressAccount[item] !== undefined) lookupTableAddress[item] = lookupTableAddressAccount[item]
       }
     }
-    if (checkTx({ makeTxVersion, innerIns: addComputeBudgetInnerTx ? [addComputeBudgetInnerTx, ...itemIns] : itemIns, payer, lookupTableAddressAccount})) {
+    if (
+      checkTx({
+        makeTxVersion,
+        innerIns: addComputeBudgetInnerTx ? [addComputeBudgetInnerTx, ...itemIns] : itemIns,
+        payer,
+        lookupTableAddressAccount,
+      })
+    ) {
       const _i = addComputeBudgetInnerTx ? [addComputeBudgetInnerTx, ...itemIns] : itemIns
       transactions.push({
-        instructionTypes: _i.map(i => i.instructionTypes).flat(),
-        instructions: _i.map(i => i.instructions).flat(),
-        signers: itemIns.map(i => i.signers).flat(),
+        instructionTypes: _i.map((i) => i.instructionTypes).flat(),
+        instructions: _i.map((i) => i.instructions).flat(),
+        signers: itemIns.map((i) => i.signers).flat(),
         lookupTableAddress,
       } as any)
     } else {
       transactions.push({
-        instructionTypes: itemIns.map(i => i.instructionTypes).flat(),
-        instructions: itemIns.map(i => i.instructions).flat(),
-        signers: itemIns.map(i => i.signers).flat(),
+        instructionTypes: itemIns.map((i) => i.instructionTypes).flat(),
+        instructions: itemIns.map((i) => i.instructions).flat(),
+        signers: itemIns.map((i) => i.signers).flat(),
         lookupTableAddress,
       } as any)
     }
@@ -442,10 +508,30 @@ export async function splitTxAndSigners<T extends TxVersion>({ connection, makeT
   return transactions
 }
 
-function checkTx({ makeTxVersion, innerIns, payer, lookupTableAddressAccount }: { makeTxVersion: TxVersion, innerIns: InnerTransaction[], payer: PublicKey, lookupTableAddressAccount?: CacheLTA}) {
-  const instructions = innerIns.map(i => i.instructions).flat()
-  const signers = [...new Set<string>(innerIns.map(i => i.signers).flat().map(i => i.publicKey.toString()))].map(i => new PublicKey(i))
-  const needLTA = innerIns.map(i => i.lookupTableAddress ?? []).flat().map(i => i.toString())
+function checkTx({
+  makeTxVersion,
+  innerIns,
+  payer,
+  lookupTableAddressAccount,
+}: {
+  makeTxVersion: TxVersion
+  innerIns: InnerTransaction[]
+  payer: PublicKey
+  lookupTableAddressAccount?: CacheLTA
+}) {
+  const instructions = innerIns.map((i) => i.instructions).flat()
+  const signers = [
+    ...new Set<string>(
+      innerIns
+        .map((i) => i.signers)
+        .flat()
+        .map((i) => i.publicKey.toString()),
+    ),
+  ].map((i) => new PublicKey(i))
+  const needLTA = innerIns
+    .map((i) => i.lookupTableAddress ?? [])
+    .flat()
+    .map((i) => i.toString())
   const lTaCache: CacheLTA = {}
   const _lookupTableAddressAccount = lookupTableAddressAccount ?? {}
   for (const item of needLTA) {
@@ -453,40 +539,69 @@ function checkTx({ makeTxVersion, innerIns, payer, lookupTableAddressAccount }: 
       lTaCache[item] = _lookupTableAddressAccount[item]
     }
   }
-  return makeTxVersion === TxVersion.V0 ? _checkV0Tx({instructions, payer, lookupTableAddressAccount: lTaCache}) : _checkLegacyTx({instructions, payer, signers})
+  return makeTxVersion === TxVersion.V0
+    ? _checkV0Tx({ instructions, payer, lookupTableAddressAccount: lTaCache })
+    : _checkLegacyTx({ instructions, payer, signers })
 }
 
-function _checkLegacyTx({ instructions, payer, signers }: {instructions: TransactionInstruction[], payer: PublicKey, signers: PublicKey[]}) {
+function _checkLegacyTx({
+  instructions,
+  payer,
+  signers,
+}: {
+  instructions: TransactionInstruction[]
+  payer: PublicKey
+  signers: PublicKey[]
+}) {
   return forecastTransactionSize(instructions, [payer, ...signers])
 }
-function _checkV0Tx({ instructions, payer, lookupTableAddressAccount }: {instructions: TransactionInstruction[], payer: PublicKey, lookupTableAddressAccount?: CacheLTA}) {
+function _checkV0Tx({
+  instructions,
+  payer,
+  lookupTableAddressAccount,
+}: {
+  instructions: TransactionInstruction[]
+  payer: PublicKey
+  lookupTableAddressAccount?: CacheLTA
+}) {
   const transactionMessage = new TransactionMessage({
     payerKey: payer,
     recentBlockhash: Keypair.generate().publicKey.toString(),
     instructions,
   })
-  
-  const messageV0 = transactionMessage.compileToV0Message(Object.values(lookupTableAddressAccount ?? {}));
+
+  const messageV0 = transactionMessage.compileToV0Message(Object.values(lookupTableAddressAccount ?? {}))
   try {
     messageV0.serialize()
-    return true;
+    return true
   } catch (error) {
-    return false;
+    return false
   }
 }
 
-export interface CacheLTA {[key: string]: AddressLookupTableAccount}
-export async function getMultipleLookupTableInfo({ connection, address}: { connection: Connection, address: PublicKey[]}) {
-  const dataInfos = await getMultipleAccountsInfo(connection, [...new Set<string>(address.map(i => i.toString()))].map(i => new PublicKey(i)))
+export interface CacheLTA {
+  [key: string]: AddressLookupTableAccount
+}
+export async function getMultipleLookupTableInfo({
+  connection,
+  address,
+}: {
+  connection: Connection
+  address: PublicKey[]
+}) {
+  const dataInfos = await getMultipleAccountsInfo(
+    connection,
+    [...new Set<string>(address.map((i) => i.toString()))].map((i) => new PublicKey(i)),
+  )
 
   const outDict: CacheLTA = {}
-  for (let i = 0 ; i < address.length; i++) {
+  for (let i = 0; i < address.length; i++) {
     const info = dataInfos[i]
     const key = address[i]
     if (!info) continue
     outDict[key.toString()] = new AddressLookupTableAccount({
       key,
-      state: AddressLookupTableAccount.deserialize(info.data)
+      state: AddressLookupTableAccount.deserialize(info.data),
     })
   }
 

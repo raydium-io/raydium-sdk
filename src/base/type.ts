@@ -1,6 +1,6 @@
-import { PublicKey, Signer, TransactionInstruction } from '@solana/web3.js';
+import { PublicKey, Signer, TransactionInstruction } from '@solana/web3.js'
 
-import { CacheLTA } from '../common';
+import { CacheLTA } from '../common'
 
 export interface ComputeBudgetConfig {
   units?: number
@@ -8,37 +8,42 @@ export interface ComputeBudgetConfig {
 }
 
 export interface InnerTransaction {
-  instructionTypes: InstructionType[],
-  instructions: TransactionInstruction[],
-  signers: Signer[],
+  instructionTypes: InstructionType[]
+  instructions: TransactionInstruction[]
+  signers: Signer[]
 
-  lookupTableAddress?: PublicKey[],
+  lookupTableAddress?: PublicKey[]
 }
-export interface MakeInstructionOutType<T extends {
-  [name: string]: PublicKey;
-} =  {
-  [name: string]: PublicKey;
-}> {
-  address: T,
-  innerTransaction: InnerTransaction,
+export interface MakeInstructionOutType<
+  T extends {
+    [name: string]: PublicKey
+  } = {
+    [name: string]: PublicKey
+  },
+> {
+  address: T
+  innerTransaction: InnerTransaction
 }
 
 export type InnerSimpleTransaction = InnerSimpleLegacyTransaction | InnerSimpleV0Transaction
 
 export interface InnerSimpleLegacyTransaction {
-  instructionTypes: InstructionType[],
-  instructions: TransactionInstruction[],
-  signers: Signer[],
+  instructionTypes: InstructionType[]
+  instructions: TransactionInstruction[]
+  signers: Signer[]
 }
 export interface InnerSimpleV0Transaction {
-  instructionTypes: InstructionType[],
-  instructions: TransactionInstruction[],
-  signers: Signer[],
+  instructionTypes: InstructionType[]
+  instructions: TransactionInstruction[]
+  signers: Signer[]
 
-  lookupTableAddress?: CacheLTA,
+  lookupTableAddress?: CacheLTA
 }
 
-export enum TxVersion {'V0' , 'LEGACY'}
+export enum TxVersion {
+  'V0',
+  'LEGACY',
+}
 
 export enum InstructionType {
   'createAccount',
@@ -49,7 +54,7 @@ export enum InstructionType {
   'initMint',
   'mintTo',
 
-  'initMarket',  // create market main ins
+  'initMarket', // create market main ins
   'util1216OwnerClaim', // owner claim token ins
 
   'setComputeUnitPrice', // addComputeBudget

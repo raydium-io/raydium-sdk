@@ -13,5 +13,6 @@ module.exports = {
     "no-implicit-any": 0,
     "@typescript-eslint/no-explicit-any": 0,
     "object-shorthand": ["error", "always"],
+    "no-extra-semi": 0,
   },
 };

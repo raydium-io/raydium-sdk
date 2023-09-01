@@ -1,66 +1,71 @@
-import { sha256 } from '@noble/hashes/sha256';
-import { AccountLayout, TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import { sha256 } from '@noble/hashes/sha256'
+import { AccountLayout, TOKEN_PROGRAM_ID } from '@solana/spl-token'
 import {
-  Connection, Keypair, PublicKey, Signer, SystemProgram, Transaction,
+  Connection,
+  Keypair,
+  PublicKey,
+  Signer,
+  SystemProgram,
+  Transaction,
   TransactionInstruction,
-} from '@solana/web3.js';
+} from '@solana/web3.js'
 
-import { BigNumberish, Token } from '../entity';
-import { Spl, SplAccount } from '../spl';
+import { BigNumberish, Token } from '../entity'
+import { Spl, SplAccount } from '../spl'
 
-import { InstructionType } from './type';
+import { InstructionType } from './type'
 
 export interface TokenAccount {
-  programId: PublicKey;
-  pubkey: PublicKey;
-  accountInfo: SplAccount;
+  programId: PublicKey
+  pubkey: PublicKey
+  accountInfo: SplAccount
 }
 
 export interface SelectTokenAccountParams {
-  tokenAccounts: TokenAccount[];
-  programId: PublicKey;
-  mint: PublicKey;
-  owner: PublicKey;
-  config?: { associatedOnly?: boolean };
+  tokenAccounts: TokenAccount[]
+  programId: PublicKey
+  mint: PublicKey
+  owner: PublicKey
+  config?: { associatedOnly?: boolean }
 }
 
 export interface HandleTokenAccountParams {
-  connection: Connection;
-  side: "in" | "out";
-  amount: BigNumberish;
-  programId: PublicKey;
-  mint: PublicKey;
-  tokenAccount: PublicKey | null;
-  owner: PublicKey;
-  payer?: PublicKey;
-  frontInstructions: TransactionInstruction[];
-  endInstructions?: TransactionInstruction[];
-  frontInstructionsType: InstructionType[];
-  endInstructionsType?: InstructionType[];
-  signers: Signer[];
-  bypassAssociatedCheck: boolean;
+  connection: Connection
+  side: 'in' | 'out'
+  amount: BigNumberish
+  programId: PublicKey
+  mint: PublicKey
+  tokenAccount: PublicKey | null
+  owner: PublicKey
+  payer?: PublicKey
+  frontInstructions: TransactionInstruction[]
+  endInstructions?: TransactionInstruction[]
+  frontInstructionsType: InstructionType[]
+  endInstructionsType?: InstructionType[]
+  signers: Signer[]
+  bypassAssociatedCheck: boolean
 
   checkCreateATAOwner: boolean // if owner check error and associatedOnly = true -> then throw Error else out notATA
 }
 
 export interface SelectOrCreateTokenAccountParams {
-  programId: PublicKey,
-  mint: PublicKey,
+  programId: PublicKey
+  mint: PublicKey
   tokenAccounts: TokenAccount[]
 
   owner: PublicKey
 
   createInfo?: {
-    connection: Connection,
+    connection: Connection
     payer: PublicKey
     amount?: BigNumberish
 
-    frontInstructions: TransactionInstruction[];
-    endInstructions?: TransactionInstruction[];
-    signers: Signer[];
+    frontInstructions: TransactionInstruction[]
+    endInstructions?: TransactionInstruction[]
+    signers: Signer[]
 
-    frontInstructionsType: InstructionType[];
-    endInstructionsType?: InstructionType[];
+    frontInstructionsType: InstructionType[]
+    endInstructionsType?: InstructionType[]
   }
 
   associatedOnly: boolean
@@ -69,42 +74,42 @@ export interface SelectOrCreateTokenAccountParams {
 }
 
 export interface UnsignedTransactionAndSigners {
-  transaction: Transaction;
-  signers: Signer[];
+  transaction: Transaction
+  signers: Signer[]
 }
 
 export class Base {
   static _selectTokenAccount(params: SelectTokenAccountParams) {
-    const { tokenAccounts, programId, mint, owner, config } = params;
+    const { tokenAccounts, programId, mint, owner, config } = params
 
     const { associatedOnly } = {
       // default
       ...{ associatedOnly: true },
       // custom
       ...config,
-    };
+    }
 
     const _tokenAccounts = tokenAccounts
       // filter by mint
       .filter(({ accountInfo }) => accountInfo.mint.equals(mint))
       // sort by balance
-      .sort((a, b) => (a.accountInfo.amount.lt(b.accountInfo.amount) ? 1 : -1));
+      .sort((a, b) => (a.accountInfo.amount.lt(b.accountInfo.amount) ? 1 : -1))
 
-    const ata = Spl.getAssociatedTokenAccount({ mint, owner, programId });
+    const ata = Spl.getAssociatedTokenAccount({ mint, owner, programId })
 
     for (const tokenAccount of _tokenAccounts) {
-      const { pubkey } = tokenAccount;
+      const { pubkey } = tokenAccount
 
       if (associatedOnly) {
         // return ata only
-        if (ata.equals(pubkey)) return pubkey;
+        if (ata.equals(pubkey)) return pubkey
       } else {
         // return the first account
-        return pubkey;
+        return pubkey
       }
     }
 
-    return null;
+    return null
   }
 
   static async _handleTokenAccount(params: HandleTokenAccountParams) {
@@ -124,9 +129,9 @@ export class Base {
       frontInstructionsType,
       endInstructionsType,
       checkCreateATAOwner,
-    } = params;
+    } = params
 
-    const ata = Spl.getAssociatedTokenAccount({ mint, owner, programId });
+    const ata = Spl.getAssociatedTokenAccount({ mint, owner, programId })
 
     if (Token.WSOL.mint.equals(mint)) {
       const newTokenAccount = await Spl.insertCreateWrappedNativeAccount({
@@ -137,14 +142,22 @@ export class Base {
         instructionsType: frontInstructionsType,
         signers,
         amount,
-      });
+      })
       // if no endInstructions provide, no need to close
       if (endInstructions) {
-        endInstructions.push(Spl.makeCloseAccountInstruction({ programId: TOKEN_PROGRAM_ID, tokenAccount: newTokenAccount, owner, payer, instructionsType: endInstructionsType ?? [] }));
+        endInstructions.push(
+          Spl.makeCloseAccountInstruction({
+            programId: TOKEN_PROGRAM_ID,
+            tokenAccount: newTokenAccount,
+            owner,
+            payer,
+            instructionsType: endInstructionsType ?? [],
+          }),
+        )
       }
 
-      return newTokenAccount;
-    } else if (!tokenAccount || (side === "out" && !ata.equals(tokenAccount) && !bypassAssociatedCheck)) {
+      return newTokenAccount
+    } else if (!tokenAccount || (side === 'out' && !ata.equals(tokenAccount) && !bypassAssociatedCheck)) {
       const _createATAIns = Spl.makeCreateAssociatedTokenAccountInstruction({
         programId,
         mint,
@@ -156,28 +169,36 @@ export class Base {
       if (checkCreateATAOwner) {
         const ataInfo = await connection.getAccountInfo(ata)
         if (ataInfo === null) {
-          frontInstructions.push(_createATAIns);
-        } else if (ataInfo.owner.equals(TOKEN_PROGRAM_ID) && AccountLayout.decode(ataInfo.data).mint.equals(mint) && AccountLayout.decode(ataInfo.data).owner.equals(owner)) { 
-          /* empty */ 
+          frontInstructions.push(_createATAIns)
+        } else if (
+          ataInfo.owner.equals(TOKEN_PROGRAM_ID) &&
+          AccountLayout.decode(ataInfo.data).mint.equals(mint) &&
+          AccountLayout.decode(ataInfo.data).owner.equals(owner)
+        ) {
+          /* empty */
         } else {
           throw Error(`create ata check error -> mint: ${mint.toString()}, ata: ${ata.toString()}`)
         }
       } else {
-        frontInstructions.push(_createATAIns);
+        frontInstructions.push(_createATAIns)
       }
-      return ata;
+      return ata
     }
 
-    return tokenAccount;
+    return tokenAccount
   }
 
-  static async _selectOrCreateTokenAccount<T extends SelectOrCreateTokenAccountParams>(params: T): Promise<T['createInfo'] extends undefined ? PublicKey | undefined: PublicKey> {
+  static async _selectOrCreateTokenAccount<T extends SelectOrCreateTokenAccountParams>(
+    params: T,
+  ): Promise<T['createInfo'] extends undefined ? PublicKey | undefined : PublicKey> {
     const { mint, tokenAccounts, createInfo, associatedOnly, owner, checkCreateATAOwner, programId } = params
-    const ata = Spl.getAssociatedTokenAccount({ mint, owner, programId });
-    const accounts = tokenAccounts.filter((i) => i.accountInfo.mint.equals(mint) && (!associatedOnly || i.pubkey.equals(ata))).sort((a, b) => (a.accountInfo.amount.lt(b.accountInfo.amount) ? 1 : -1))
+    const ata = Spl.getAssociatedTokenAccount({ mint, owner, programId })
+    const accounts = tokenAccounts
+      .filter((i) => i.accountInfo.mint.equals(mint) && (!associatedOnly || i.pubkey.equals(ata)))
+      .sort((a, b) => (a.accountInfo.amount.lt(b.accountInfo.amount) ? 1 : -1))
     // find token or don't need create
     if (createInfo === undefined || accounts.length > 0) {
-      return accounts.length > 0 ? accounts[0].pubkey : undefined as any
+      return accounts.length > 0 ? accounts[0].pubkey : (undefined as any)
     }
 
     if (associatedOnly) {
@@ -192,14 +213,18 @@ export class Base {
       if (checkCreateATAOwner) {
         const ataInfo = await createInfo.connection.getAccountInfo(ata)
         if (ataInfo === null) {
-          createInfo.frontInstructions.push(_createATAIns);
-        } else if (ataInfo.owner.equals(programId) && AccountLayout.decode(ataInfo.data).mint.equals(mint) && AccountLayout.decode(ataInfo.data).owner.equals(owner)) { 
-          /* empty */ 
+          createInfo.frontInstructions.push(_createATAIns)
+        } else if (
+          ataInfo.owner.equals(programId) &&
+          AccountLayout.decode(ataInfo.data).mint.equals(mint) &&
+          AccountLayout.decode(ataInfo.data).owner.equals(owner)
+        ) {
+          /* empty */
         } else {
           throw Error(`create ata check error -> mint: ${mint.toString()}, ata: ${ata.toString()}`)
         }
       } else {
-        createInfo.frontInstructions.push(_createATAIns);
+        createInfo.frontInstructions.push(_createATAIns)
       }
 
       if (mint.equals(Token.WSOL.mint) && createInfo.amount) {
@@ -211,9 +236,17 @@ export class Base {
           instructionsType: createInfo.frontInstructionsType,
           signers: createInfo.signers,
           amount: createInfo.amount ?? 0,
-        });
+        })
 
-        (createInfo.endInstructions ?? []).push(Spl.makeCloseAccountInstruction({ programId: TOKEN_PROGRAM_ID, tokenAccount: newTokenAccount, owner, payer: createInfo.payer, instructionsType: createInfo.endInstructionsType ?? [] }));
+        ;(createInfo.endInstructions ?? []).push(
+          Spl.makeCloseAccountInstruction({
+            programId: TOKEN_PROGRAM_ID,
+            tokenAccount: newTokenAccount,
+            owner,
+            payer: createInfo.payer,
+            instructionsType: createInfo.endInstructionsType ?? [],
+          }),
+        )
 
         if (createInfo.amount) {
           createInfo.frontInstructions.push(
@@ -223,13 +256,21 @@ export class Base {
               destination: ata,
               owner,
               amount: createInfo.amount,
-              instructionsType: createInfo.frontInstructionsType
-            })
+              instructionsType: createInfo.frontInstructionsType,
+            }),
           )
         }
       }
 
-      (createInfo.endInstructions ?? []).push(Spl.makeCloseAccountInstruction({ programId, tokenAccount: ata, owner, payer: createInfo.payer, instructionsType: createInfo.endInstructionsType ?? [] }));
+      ;(createInfo.endInstructions ?? []).push(
+        Spl.makeCloseAccountInstruction({
+          programId,
+          tokenAccount: ata,
+          owner,
+          payer: createInfo.payer,
+          instructionsType: createInfo.endInstructionsType ?? [],
+        }),
+      )
 
       return ata
     } else {
@@ -242,8 +283,16 @@ export class Base {
           instructionsType: createInfo.frontInstructionsType,
           signers: createInfo.signers,
           amount: createInfo.amount ?? 0,
-        });
-        (createInfo.endInstructions ?? []).push(Spl.makeCloseAccountInstruction({ programId: TOKEN_PROGRAM_ID, tokenAccount: newTokenAccount, owner, payer: createInfo.payer , instructionsType: createInfo.endInstructionsType ?? []}));
+        })
+        ;(createInfo.endInstructions ?? []).push(
+          Spl.makeCloseAccountInstruction({
+            programId: TOKEN_PROGRAM_ID,
+            tokenAccount: newTokenAccount,
+            owner,
+            payer: createInfo.payer,
+            instructionsType: createInfo.endInstructionsType ?? [],
+          }),
+        )
         return newTokenAccount
       } else {
         const newTokenAccount = generatePubKey({ fromPublicKey: owner, programId })
@@ -259,29 +308,38 @@ export class Base {
           programId,
         })
 
-        const initAccountIns = Spl.createInitAccountInstruction(
-          programId,
-          mint,
-          newTokenAccount.publicKey,
-          owner,
-        )
+        const initAccountIns = Spl.createInitAccountInstruction(programId, mint, newTokenAccount.publicKey, owner)
         createInfo.frontInstructions.push(createAccountIns, initAccountIns)
         createInfo.frontInstructionsType.push(InstructionType.createAccount, InstructionType.initAccount)
-        ;(createInfo.endInstructions ?? []).push(Spl.makeCloseAccountInstruction({ programId, tokenAccount: newTokenAccount.publicKey, owner, payer: createInfo.payer , instructionsType: createInfo.endInstructionsType ?? []}));
+        ;(createInfo.endInstructions ?? []).push(
+          Spl.makeCloseAccountInstruction({
+            programId,
+            tokenAccount: newTokenAccount.publicKey,
+            owner,
+            payer: createInfo.payer,
+            instructionsType: createInfo.endInstructionsType ?? [],
+          }),
+        )
         return newTokenAccount.publicKey
       }
     }
   }
 }
 
-export function generatePubKey({fromPublicKey, programId = TOKEN_PROGRAM_ID}: {fromPublicKey: PublicKey, programId: PublicKey}) {
-  const seed = Keypair.generate().publicKey.toBase58().slice(0, 32);
-  const publicKey = createWithSeed( fromPublicKey, seed, programId );
-  return {  publicKey, seed, }
+export function generatePubKey({
+  fromPublicKey,
+  programId = TOKEN_PROGRAM_ID,
+}: {
+  fromPublicKey: PublicKey
+  programId: PublicKey
+}) {
+  const seed = Keypair.generate().publicKey.toBase58().slice(0, 32)
+  const publicKey = createWithSeed(fromPublicKey, seed, programId)
+  return { publicKey, seed }
 }
 
 function createWithSeed(fromPublicKey: PublicKey, seed: string, programId: PublicKey) {
-  const buffer = Buffer.concat([fromPublicKey.toBuffer(), Buffer.from(seed), programId.toBuffer()]);
-  const publicKeyBytes = sha256(buffer);
-  return new PublicKey(publicKeyBytes);
+  const buffer = Buffer.concat([fromPublicKey.toBuffer(), Buffer.from(seed), programId.toBuffer()])
+  const publicKeyBytes = sha256(buffer)
+  return new PublicKey(publicKeyBytes)
 }

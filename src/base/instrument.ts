@@ -1,18 +1,16 @@
-import { ComputeBudgetProgram, TransactionInstruction } from '@solana/web3.js';
+import { ComputeBudgetProgram, TransactionInstruction } from '@solana/web3.js'
 
-import {
-  ComputeBudgetConfig, InnerTransaction, InstructionType,
-} from '../base';
+import { ComputeBudgetConfig, InnerTransaction, InstructionType } from '../base'
 
 export function addComputeBudget(config: ComputeBudgetConfig) {
   const ins: TransactionInstruction[] = []
   const insTypes: InstructionType[] = []
   if (config.microLamports) {
-    ins.push(ComputeBudgetProgram.setComputeUnitPrice({microLamports: config.microLamports}))
+    ins.push(ComputeBudgetProgram.setComputeUnitPrice({ microLamports: config.microLamports }))
     insTypes.push(InstructionType.setComputeUnitPrice)
   }
   if (config.units) {
-    ins.push(ComputeBudgetProgram.setComputeUnitLimit({units: config.units}))
+    ins.push(ComputeBudgetProgram.setComputeUnitLimit({ units: config.units }))
     insTypes.push(InstructionType.setComputeUnitLimit)
   }
 
@@ -22,6 +20,6 @@ export function addComputeBudget(config: ComputeBudgetConfig) {
       instructions: ins,
       signers: [],
       instructionTypes: insTypes,
-    } as InnerTransaction
+    } as InnerTransaction,
   }
 }

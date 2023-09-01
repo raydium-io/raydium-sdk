@@ -1,23 +1,23 @@
 export type API_LINK = {
-  time: string,
-  info: string,
-  pairs: string,
-  price: string,
-  rpcs: string,
-  version: string,
-  farmApr: string,
-  farmAprLine: string,
+  time: string
+  info: string
+  pairs: string
+  price: string
+  rpcs: string
+  version: string
+  farmApr: string
+  farmAprLine: string
 
-  tokenInfo: string,
-  poolInfo: string,
-  farmInfo: string,
-  idoInfo: string,
-  idoProjectInfo: string,
+  tokenInfo: string
+  poolInfo: string
+  farmInfo: string
+  idoInfo: string
+  idoProjectInfo: string
 
   // CLMM
-  ammV3Pools: string,
-  ammV3Configs: string,
-  ammV3PositionLine: string,
+  ammV3Pools: string
+  ammV3Configs: string
+  ammV3PositionLine: string
 }
 
 export const ENDPOINT = 'https://api.raydium.io'
@@ -39,5 +39,5 @@ export const RAYDIUM_MAINNET = {
   // CLMM
   ammV3Pools: '/v2/ammV3/ammPools',
   ammV3Configs: '/v2/ammV3/ammConfigs',
-  ammV3PositionLine: '/v2/ammV3/positionLine/<poolId>'
+  ammV3PositionLine: '/v2/ammV3/positionLine/<poolId>',
 } as const
