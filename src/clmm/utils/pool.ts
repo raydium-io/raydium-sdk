@@ -1,9 +1,9 @@
 import { Connection, PublicKey } from '@solana/web3.js'
 import BN from 'bn.js'
 
-import { ApiAmmV3PoolsItem } from '../../baseInfo'
+import { ApiClmmPoolsItem } from '../../baseInfo'
 import { ZERO } from '../../entity'
-import { AmmV3PoolInfo, AmmV3PoolRewardInfo, AmmV3PoolRewardLayoutInfo, TickArrayBitmapExtensionLayout } from '../ammV3'
+import { ClmmPoolInfo, ClmmPoolRewardInfo, ClmmPoolRewardLayoutInfo, TickArrayBitmapExtensionLayout } from '../clmm'
 
 import { MAX_TICK, MIN_TICK, NEGATIVE_ONE, Q64 } from './constants'
 import { MathUtil, SwapMath } from './math'
@@ -14,7 +14,7 @@ import { TickQuery } from './tickQuery'
 
 export class PoolUtils {
   public static getOutputAmountAndRemainAccounts(
-    poolInfo: AmmV3PoolInfo,
+    poolInfo: ClmmPoolInfo,
     tickArrayCache: { [key: string]: TickArray },
     inputTokenMint: PublicKey,
     inputAmount: BN,
@@ -74,7 +74,7 @@ export class PoolUtils {
   }
 
   public static getInputAmountAndRemainAccounts(
-    poolInfo: AmmV3PoolInfo,
+    poolInfo: ClmmPoolInfo,
     tickArrayCache: { [key: string]: TickArray },
     outputTokenMint: PublicKey,
     outputAmount: BN,
@@ -127,7 +127,7 @@ export class PoolUtils {
   }
 
   public static getFirstInitializedTickArray(
-    poolInfo: AmmV3PoolInfo,
+    poolInfo: ClmmPoolInfo,
     zeroForOne: boolean,
   ):
     | { isExist: true; startIndex: number; nextAccountMeta: PublicKey }
@@ -170,7 +170,7 @@ export class PoolUtils {
     return { isExist: false, nextAccountMeta: undefined, startIndex: undefined }
   }
 
-  public static preInitializedTickArrayStartIndex(poolInfo: AmmV3PoolInfo, zeroForOne: boolean) {
+  public static preInitializedTickArrayStartIndex(poolInfo: ClmmPoolInfo, zeroForOne: boolean) {
     const currentOffset =
       Math.floor(poolInfo.tickCurrent / TickQuery.tickCount(poolInfo.tickSpacing)) *
       TickQuery.tickCount(poolInfo.tickSpacing)
@@ -201,7 +201,7 @@ export class PoolUtils {
           tickArrayBitmap: BN[]
           exBitmapInfo: TickArrayBitmapExtensionLayout
         }
-      | AmmV3PoolInfo,
+      | ClmmPoolInfo,
     lastTickArrayStartIndex: number,
     zeroForOne: boolean,
   ) {
@@ -266,19 +266,19 @@ export class PoolUtils {
     rewardInfos,
   }: {
     connection: Connection
-    apiPoolInfo: ApiAmmV3PoolsItem
+    apiPoolInfo: ApiClmmPoolsItem
     chainTime: number
     poolLiquidity: BN
-    rewardInfos: AmmV3PoolRewardLayoutInfo[]
+    rewardInfos: ClmmPoolRewardLayoutInfo[]
   }) {
-    const nRewardInfo: AmmV3PoolRewardInfo[] = []
+    const nRewardInfo: ClmmPoolRewardInfo[] = []
     for (let i = 0; i < rewardInfos.length; i++) {
       const _itemReward = rewardInfos[i]
       const apiRewardProgram =
         apiPoolInfo.rewardInfos[i]?.programId ?? (await connection.getAccountInfo(_itemReward.tokenMint))?.owner
       if (apiRewardProgram === undefined) throw Error('get new reward mint info error')
 
-      const itemReward: AmmV3PoolRewardInfo = {
+      const itemReward: ClmmPoolRewardInfo = {
         ..._itemReward,
         perSecond: MathUtil.x64ToDecimal(_itemReward.emissionsPerSecondX64),
         remainingRewards: undefined,

@@ -2,7 +2,7 @@ import { Connection, PublicKey } from '@solana/web3.js'
 import BN from 'bn.js'
 
 import { getMultipleAccountsInfo } from '../../common'
-import { TickArrayBitmapExtensionLayout } from '../ammV3'
+import { TickArrayBitmapExtensionLayout } from '../clmm'
 import { TickArrayLayout } from '../layout'
 
 import { MAX_TICK, MIN_TICK } from './constants'

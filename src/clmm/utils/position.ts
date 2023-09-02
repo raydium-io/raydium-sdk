@@ -1,13 +1,13 @@
 import BN from 'bn.js'
 
-import { AmmV3PoolInfo, AmmV3PoolPersonalPosition, AmmV3PoolRewardInfo } from '../ammV3'
+import { ClmmPoolInfo, ClmmPoolPersonalPosition, ClmmPoolRewardInfo } from '../clmm'
 
 import { Q64 } from './constants'
 import { MathUtil } from './math'
 import { Tick } from './tick'
 
 export class PositionUtils {
-  static getfeeGrowthInside(poolState: AmmV3PoolInfo, tickLowerState: Tick, tickUpperState: Tick) {
+  static getfeeGrowthInside(poolState: ClmmPoolInfo, tickLowerState: Tick, tickUpperState: Tick) {
     let feeGrowthBelowX64A = new BN(0)
     let feeGrowthBelowX64B = new BN(0)
     if (poolState.tickCurrent >= tickLowerState.tick) {
@@ -40,8 +40,8 @@ export class PositionUtils {
   }
 
   static GetPositionFees(
-    ammPool: AmmV3PoolInfo,
-    positionState: AmmV3PoolPersonalPosition,
+    ammPool: ClmmPoolInfo,
+    positionState: ClmmPoolPersonalPosition,
     tickLowerState: Tick,
     tickUpperState: Tick,
   ) {
@@ -69,8 +69,8 @@ export class PositionUtils {
   }
 
   static GetPositionRewards(
-    ammPool: AmmV3PoolInfo,
-    positionState: AmmV3PoolPersonalPosition,
+    ammPool: ClmmPoolInfo,
+    positionState: ClmmPoolPersonalPosition,
     tickLowerState: Tick,
     tickUpperState: Tick,
   ): BN[] {
@@ -98,7 +98,7 @@ export class PositionUtils {
     tickCurrentIndex: number,
     tickLowerState: Tick,
     tickUpperState: Tick,
-    rewardInfos: AmmV3PoolRewardInfo[],
+    rewardInfos: ClmmPoolRewardInfo[],
   ): BN[] {
     const rewardGrowthsInside: BN[] = []
     for (let i = 0; i < rewardInfos.length; i++) {

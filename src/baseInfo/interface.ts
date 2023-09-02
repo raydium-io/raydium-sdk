@@ -315,7 +315,7 @@ export interface ApiIdoProjectInfo {
 }
 
 // CLMM
-export interface ApiAmmV3ConfigItem {
+export interface ApiClmmConfigItem {
   id: string
   index: number
   protocolFeeRate: number
@@ -326,11 +326,11 @@ export interface ApiAmmV3ConfigItem {
   description: string
 }
 
-export interface ApiAmmV3Config {
-  data: { [id: string]: ApiAmmV3ConfigItem }
+export interface ApiClmmConfig {
+  data: { [id: string]: ApiClmmConfigItem }
 }
 
-export interface ApiAmmV3PoolsItemStatistics {
+export interface ApiClmmPoolsItemStatistics {
   volume: number
   volumeFee: number
   feeA: number
@@ -345,7 +345,7 @@ export interface ApiAmmV3PoolsItemStatistics {
   priceMin: number
   priceMax: number
 }
-export interface ApiAmmV3PoolsItem {
+export interface ApiClmmPoolsItem {
   id: string
   mintProgramIdA: string
   mintProgramIdB: string
@@ -355,26 +355,26 @@ export interface ApiAmmV3PoolsItem {
   vaultB: string
   mintDecimalsA: number
   mintDecimalsB: number
-  ammConfig: ApiAmmV3ConfigItem
+  ammConfig: ApiClmmConfigItem
   rewardInfos: {
     mint: string
     programId: string
   }[]
   tvl: number
-  day: ApiAmmV3PoolsItemStatistics
-  week: ApiAmmV3PoolsItemStatistics
-  month: ApiAmmV3PoolsItemStatistics
+  day: ApiClmmPoolsItemStatistics
+  week: ApiClmmPoolsItemStatistics
+  month: ApiClmmPoolsItemStatistics
   lookupTableAccount: string
 }
 
-export interface ApiAmmV3Pools {
-  data: ApiAmmV3PoolsItem[]
+export interface ApiClmmPools {
+  data: ApiClmmPoolsItem[]
 }
 
-export interface ApiAmmV3PositionLinePoint {
+export interface ApiClmmPositionLinePoint {
   price: number
   liquidity: number
 }
-export interface ApiAmmV3PositionLine {
-  data: ApiAmmV3PositionLinePoint[]
+export interface ApiClmmPositionLine {
+  data: ApiClmmPositionLinePoint[]
 }

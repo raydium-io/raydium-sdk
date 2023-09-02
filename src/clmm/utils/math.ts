@@ -3,7 +3,7 @@ import BN from 'bn.js'
 import Decimal from 'decimal.js'
 
 import { ONE, ZERO } from '../../entity'
-import { TickArrayBitmapExtensionLayout } from '../ammV3'
+import { TickArrayBitmapExtensionLayout } from '../clmm'
 
 import {
   BIT_PRECISION,

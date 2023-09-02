@@ -15,9 +15,9 @@ export type API_LINK = {
   idoProjectInfo: string
 
   // CLMM
-  ammV3Pools: string
-  ammV3Configs: string
-  ammV3PositionLine: string
+  clmmPools: string
+  clmmConfigs: string
+  clmmPositionLine: string
 }
 
 export const ENDPOINT = 'https://api.raydium.io'
@@ -37,7 +37,7 @@ export const RAYDIUM_MAINNET = {
   idoInfo: '/v2/main/ido/pools',
   idoProjectInfo: '/v2/main/ido/project/<id>',
   // CLMM
-  ammV3Pools: '/v2/ammV3/ammPools',
-  ammV3Configs: '/v2/ammV3/ammConfigs',
-  ammV3PositionLine: '/v2/ammV3/positionLine/<poolId>',
+  clmmPools: '/v2/ammV3/ammPools',
+  clmmConfigs: '/v2/ammV3/ammConfigs',
+  clmmPositionLine: '/v2/ammV3/positionLine/<poolId>',
 } as const

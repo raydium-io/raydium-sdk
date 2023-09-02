@@ -8,7 +8,6 @@ import {
 } from '@solana/web3.js'
 import BN from 'bn.js'
 
-import { AmmV3, AmmV3PoolInfo } from '../ammV3'
 import {
   Base,
   ComputeBudgetConfig,
@@ -20,6 +19,7 @@ import {
 } from '../base'
 import { getATAAddress } from '../base/pda'
 import { ApiPoolInfoItem } from '../baseInfo'
+import { Clmm, ClmmPoolInfo } from '../clmm'
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   AccountMeta,
@@ -1974,7 +1974,7 @@ export class Liquidity extends Base {
     connection: Connection
     poolKeys: LiquidityPoolKeys
     removeLpAmount: BN
-    clmmPoolKeys: AmmV3PoolInfo
+    clmmPoolKeys: ClmmPoolInfo
     createPositionInfo: {
       tickLower: number
       tickUpper: number
@@ -2086,7 +2086,7 @@ export class Liquidity extends Base {
     const [tokenAccountA, tokenAccountB] = poolKeys.baseMint.equals(clmmPoolKeys.mintA.mint)
       ? [baseTokenAccount, quoteTokenAccount]
       : [quoteTokenAccount, baseTokenAccount]
-    const createPositionIns = await AmmV3.makeOpenPositionFromLiquidityInstructions({
+    const createPositionIns = await Clmm.makeOpenPositionFromLiquidityInstructions({
       poolInfo: clmmPoolKeys,
       ownerInfo: {
         feePayer: userKeys.payer ?? userKeys.owner,

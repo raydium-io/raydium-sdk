@@ -2,7 +2,7 @@ import { TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID } from '@solana/spl-token'
 import { PublicKey, TransactionInstruction } from '@solana/web3.js'
 import BN from 'bn.js'
 
-import { AmmV3PoolInfo } from '../ammV3'
+import { ClmmPoolInfo } from '../clmm'
 import { jsonInfo2PoolKeys, MEMO_PROGRAM_ID, SYSTEM_PROGRAM_ID } from '../common'
 import { LiquidityPoolKeysV4 } from '../liquidity'
 import { struct, u64, u8 } from '../marshmallow'
@@ -44,7 +44,7 @@ export function route1Instruction(
   ]
 
   if (poolKeyA.version === 6) {
-    const poolKey = poolKeyA as AmmV3PoolInfo
+    const poolKey = poolKeyA as ClmmPoolInfo
     keys.push(
       ...[
         { pubkey: poolKey.ammConfig.id, isSigner: false, isWritable: false },
@@ -158,7 +158,7 @@ export function route2Instruction(
   ]
 
   if (poolKeyB.version === 6) {
-    const poolKey = poolKeyB as AmmV3PoolInfo
+    const poolKey = poolKeyB as ClmmPoolInfo
     keys.push(
       ...[
         { pubkey: poolKey.ammConfig.id, isSigner: false, isWritable: false },

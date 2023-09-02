@@ -2,8 +2,6 @@ import { createTransferInstruction, TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID } fr
 import { Connection, EpochInfo, PublicKey, Signer, TransactionInstruction } from '@solana/web3.js'
 import BN from 'bn.js'
 
-import { AmmV3, AmmV3PoolInfo, ReturnTypeFetchMultiplePoolTickArrays } from '../ammV3'
-import { MAX_SQRT_PRICE_X64, MIN_SQRT_PRICE_X64 } from '../ammV3/utils/constants'
 import {
   Base,
   ComputeBudgetConfig,
@@ -15,6 +13,8 @@ import {
   TxVersion,
 } from '../base'
 import { ApiPoolInfo, ApiPoolInfoItem } from '../baseInfo'
+import { Clmm, ClmmPoolInfo, ReturnTypeFetchMultiplePoolTickArrays } from '../clmm'
+import { MAX_SQRT_PRICE_X64, MIN_SQRT_PRICE_X64 } from '../clmm/utils/constants'
 import {
   CacheLTA,
   jsonInfo2PoolKeys,
@@ -29,7 +29,7 @@ import { WSOL } from '../token'
 
 import { routeInstruction } from './instrument'
 
-export type PoolType = AmmV3PoolInfo | ApiPoolInfoItem
+export type PoolType = ClmmPoolInfo | ApiPoolInfoItem
 type RoutePathType = {
   [routeMint: string]: {
     mintProgram: PublicKey
@@ -119,7 +119,7 @@ export interface ReturnTypeGetAllRoute {
   addLiquidityPools: ApiPoolInfoItem[]
   routePathDict: RoutePathType
   needSimulate: ApiPoolInfoItem[]
-  needTickArray: AmmV3PoolInfo[]
+  needTickArray: ClmmPoolInfo[]
   needCheckToken: string[]
 }
 export interface ReturnTypeFetchMultipleInfo {
@@ -133,14 +133,14 @@ export class TradeV2 extends Base {
     inputMint,
     outputMint,
     apiPoolList,
-    ammV3List,
+    clmmList,
     allowedRouteToken2022 = false,
   }: {
     inputMint: PublicKey
     outputMint: PublicKey
 
     apiPoolList?: ApiPoolInfo
-    ammV3List?: AmmV3PoolInfo[]
+    clmmList?: ClmmPoolInfo[]
 
     allowedRouteToken2022?: boolean
   }): ReturnTypeGetAllRoute {
@@ -148,14 +148,14 @@ export class TradeV2 extends Base {
     outputMint = outputMint.toString() === PublicKey.default.toString() ? new PublicKey(WSOL.mint) : outputMint
 
     const needSimulate: { [poolKey: string]: ApiPoolInfoItem } = {}
-    const needTickArray: { [poolKey: string]: AmmV3PoolInfo } = {}
+    const needTickArray: { [poolKey: string]: ClmmPoolInfo } = {}
     const needCheckToken: Set<string> = new Set()
 
     const directPath: PoolType[] = []
 
     const routePathDict: RoutePathType = {} // {[route mint: string]: {in: [] , out: []}}
 
-    for (const itemAmmPool of ammV3List ?? []) {
+    for (const itemAmmPool of clmmList ?? []) {
       if (
         (itemAmmPool.mintA.mint.equals(inputMint) && itemAmmPool.mintB.mint.equals(outputMint)) ||
         (itemAmmPool.mintA.mint.equals(outputMint) && itemAmmPool.mintB.mint.equals(inputMint))
@@ -346,7 +346,7 @@ export class TradeV2 extends Base {
       for (const infoIn of info.in) {
         for (const infoOut of info.out) {
           if (infoIn.version === 6 && needTickArray[infoIn.id.toString()] === undefined) {
-            needTickArray[infoIn.id.toString()] = infoIn as AmmV3PoolInfo
+            needTickArray[infoIn.id.toString()] = infoIn as ClmmPoolInfo
 
             if (infoIn.mintA.programId.equals(TOKEN_2022_PROGRAM_ID)) needCheckToken.add(infoIn.mintA.mint.toString())
             if (infoIn.mintB.programId.equals(TOKEN_2022_PROGRAM_ID)) needCheckToken.add(infoIn.mintB.mint.toString())
@@ -354,7 +354,7 @@ export class TradeV2 extends Base {
             needSimulate[infoIn.id as string] = infoIn as ApiPoolInfoItem
           }
           if (infoOut.version === 6 && needTickArray[infoOut.id.toString()] === undefined) {
-            needTickArray[infoOut.id.toString()] = infoOut as AmmV3PoolInfo
+            needTickArray[infoOut.id.toString()] = infoOut as ClmmPoolInfo
 
             if (infoOut.mintA.programId.equals(TOKEN_2022_PROGRAM_ID)) needCheckToken.add(infoOut.mintA.mint.toString())
             if (infoOut.mintB.programId.equals(TOKEN_2022_PROGRAM_ID)) needCheckToken.add(infoOut.mintB.mint.toString())
@@ -540,8 +540,8 @@ export class TradeV2 extends Base {
             priceImpact,
             fee,
             remainingAccounts,
-          } = AmmV3.computeAmountOutFormat({
-            poolInfo: itemPool as AmmV3PoolInfo,
+          } = Clmm.computeAmountOutFormat({
+            poolInfo: itemPool as ClmmPoolInfo,
             tickArrayCache: tickCache[itemPool.id.toString()],
             amountIn,
             currencyOut: outputToken,
@@ -739,8 +739,8 @@ export class TradeV2 extends Base {
         remainingAccounts: _firstRemainingAccounts,
         expirationTime: _expirationTime,
         realAmountIn: _realAmountIn,
-      } = AmmV3.computeAmountOutFormat({
-        poolInfo: fromPool as AmmV3PoolInfo,
+      } = Clmm.computeAmountOutFormat({
+        poolInfo: fromPool as ClmmPoolInfo,
         tickArrayCache: tickCache[fromPool.id.toString()],
         amountIn,
         currencyOut: middleToken,
@@ -793,8 +793,8 @@ export class TradeV2 extends Base {
         remainingAccounts: _secondRemainingAccounts,
         expirationTime: _expirationTime,
         realAmountIn: _realAmountIn,
-      } = AmmV3.computeAmountOutFormat({
-        poolInfo: toPool as AmmV3PoolInfo,
+      } = Clmm.computeAmountOutFormat({
+        poolInfo: toPool as ClmmPoolInfo,
         tickArrayCache: tickCache[toPool.id.toString()],
         amountIn: new TokenAmount(
           (minMiddleAmountOut.amount as TokenAmount).token,
@@ -874,12 +874,12 @@ export class TradeV2 extends Base {
   static makeSwapInstruction({ routeProgram, ownerInfo, inputMint, swapInfo }: makeSwapInstructionParam) {
     if (swapInfo.routeType === 'amm') {
       if (swapInfo.poolKey[0].version === 6) {
-        const _poolKey = swapInfo.poolKey[0] as AmmV3PoolInfo
+        const _poolKey = swapInfo.poolKey[0] as ClmmPoolInfo
         const sqrtPriceLimitX64 = inputMint.equals(_poolKey.mintA.mint)
           ? MIN_SQRT_PRICE_X64.add(ONE)
           : MAX_SQRT_PRICE_X64.sub(ONE)
 
-        return AmmV3.makeSwapBaseInInstructions({
+        return Clmm.makeSwapBaseInInstructions({
           poolInfo: _poolKey,
           ownerInfo: {
             wallet: ownerInfo.wallet,

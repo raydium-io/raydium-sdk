@@ -28,7 +28,7 @@ import {
   TxVersion,
 } from '../base'
 import { getATAAddress } from '../base/pda'
-import { ApiAmmV3PoolsItem, ApiAmmV3PoolsItemStatistics } from '../baseInfo'
+import { ApiClmmPoolsItem, ApiClmmPoolsItemStatistics } from '../baseInfo'
 import {
   CacheLTA,
   getMultipleAccountsInfo,
@@ -79,9 +79,9 @@ import { PositionUtils } from './utils/position'
 import { Tick, TickArray, TickUtils } from './utils/tick'
 import { EXTENSION_TICKARRAY_BITMAP_SIZE } from './utils/tickarrayBitmap'
 
-const logger = Logger.from('AmmV3')
+const logger = Logger.from('Clmm')
 
-export interface AmmV3ConfigInfo {
+export interface ClmmConfigInfo {
   id: PublicKey
   index: number
   protocolFeeRate: number
@@ -92,7 +92,7 @@ export interface AmmV3ConfigInfo {
   description: string
 }
 
-export interface AmmV3PoolRewardLayoutInfo {
+export interface ClmmPoolRewardLayoutInfo {
   rewardState: number
   openTime: BN
   endTime: BN
@@ -106,7 +106,7 @@ export interface AmmV3PoolRewardLayoutInfo {
   rewardGrowthGlobalX64: BN
 }
 
-export interface AmmV3PoolRewardInfo {
+export interface ClmmPoolRewardInfo {
   rewardState: number
   openTime: BN
   endTime: BN
@@ -122,7 +122,7 @@ export interface AmmV3PoolRewardInfo {
   perSecond: Decimal
   remainingRewards: undefined | BN
 }
-export interface AmmV3PoolInfo {
+export interface ClmmPoolInfo {
   id: PublicKey
   mintA: {
     programId: PublicKey
@@ -137,7 +137,7 @@ export interface AmmV3PoolInfo {
     decimals: number
   }
 
-  ammConfig: AmmV3ConfigInfo
+  ammConfig: ClmmConfigInfo
   observationId: PublicKey
 
   creator: PublicKey
@@ -161,11 +161,11 @@ export interface AmmV3PoolInfo {
   swapOutAmountTokenA: BN
   tickArrayBitmap: BN[]
 
-  rewardInfos: AmmV3PoolRewardInfo[]
+  rewardInfos: ClmmPoolRewardInfo[]
 
-  day: ApiAmmV3PoolsItemStatistics
-  week: ApiAmmV3PoolsItemStatistics
-  month: ApiAmmV3PoolsItemStatistics
+  day: ApiClmmPoolsItemStatistics
+  week: ApiClmmPoolsItemStatistics
+  month: ApiClmmPoolsItemStatistics
   tvl: number
 
   lookupTableAccount: PublicKey
@@ -174,7 +174,7 @@ export interface AmmV3PoolInfo {
 
   exBitmapInfo: TickArrayBitmapExtensionLayout
 }
-export interface AmmV3PoolPersonalPosition {
+export interface ClmmPoolPersonalPosition {
   poolId: PublicKey
   nftMint: PublicKey
 
@@ -259,8 +259,8 @@ export interface ReturnTypeComputeAmountOutBaseOut {
 }
 export interface ReturnTypeFetchMultiplePoolInfos {
   [id: string]: {
-    state: AmmV3PoolInfo
-    positionAccount?: AmmV3PoolPersonalPosition[] | undefined
+    state: ClmmPoolInfo
+    positionAccount?: ClmmPoolPersonalPosition[] | undefined
   }
 }
 export interface ReturnTypeFetchMultiplePoolTickArrays {
@@ -276,7 +276,7 @@ export interface ReturnTypeFetchExBitmaps {
   [exBitmapId: string]: TickArrayBitmapExtensionLayout
 }
 
-export class AmmV3 extends Base {
+export class Clmm extends Base {
   static makeMockPoolInfo({
     programId,
     mint1,
@@ -290,7 +290,7 @@ export class AmmV3 extends Base {
     programId: PublicKey
     mint1: MintInfo
     mint2: MintInfo
-    ammConfig: AmmV3ConfigInfo
+    ammConfig: ClmmConfigInfo
 
     createPoolInstructionSimpleAddress: {
       observationId: PublicKey
@@ -305,7 +305,7 @@ export class AmmV3 extends Base {
     initialPrice: Decimal
     startTime: BN
     owner: PublicKey
-  }): AmmV3PoolInfo {
+  }): ClmmPoolInfo {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     const [mintA, mintB, initPrice] = mint1.mint._bn.gt(mint2.mint._bn)
@@ -429,7 +429,7 @@ export class AmmV3 extends Base {
     payer: PublicKey
     mint1: MintInfo
     mint2: MintInfo
-    ammConfig: AmmV3ConfigInfo
+    ammConfig: ClmmConfigInfo
     initialPrice: Decimal
     startTime: BN
     computeBudgetConfig?: ComputeBudgetConfig
@@ -492,7 +492,7 @@ export class AmmV3 extends Base {
     makeTxVersion: T
     lookupTableCache?: CacheLTA
     connection: Connection
-    poolInfo: AmmV3PoolInfo
+    poolInfo: ClmmPoolInfo
 
     ownerInfo: {
       feePayer: PublicKey
@@ -634,7 +634,7 @@ export class AmmV3 extends Base {
     makeTxVersion: T
     lookupTableCache?: CacheLTA
     connection: Connection
-    poolInfo: AmmV3PoolInfo
+    poolInfo: ClmmPoolInfo
 
     ownerInfo: {
       feePayer: PublicKey
@@ -773,8 +773,8 @@ export class AmmV3 extends Base {
     makeTxVersion: T
     lookupTableCache?: CacheLTA
     connection: Connection
-    poolInfo: AmmV3PoolInfo
-    ownerPosition: AmmV3PoolPersonalPosition
+    poolInfo: ClmmPoolInfo
+    ownerPosition: ClmmPoolPersonalPosition
     ownerInfo: {
       feePayer: PublicKey
       wallet: PublicKey
@@ -901,8 +901,8 @@ export class AmmV3 extends Base {
     makeTxVersion: T
     lookupTableCache?: CacheLTA
     connection: Connection
-    poolInfo: AmmV3PoolInfo
-    ownerPosition: AmmV3PoolPersonalPosition
+    poolInfo: ClmmPoolInfo
+    ownerPosition: ClmmPoolPersonalPosition
     ownerInfo: {
       feePayer: PublicKey
       wallet: PublicKey
@@ -1030,8 +1030,8 @@ export class AmmV3 extends Base {
     makeTxVersion: T
     lookupTableCache?: CacheLTA
     connection: Connection
-    poolInfo: AmmV3PoolInfo
-    ownerPosition: AmmV3PoolPersonalPosition
+    poolInfo: ClmmPoolInfo
+    ownerPosition: ClmmPoolPersonalPosition
     ownerInfo: {
       feePayer: PublicKey
       wallet: PublicKey
@@ -1196,7 +1196,7 @@ export class AmmV3 extends Base {
     makeTxVersion: T
     lookupTableCache?: CacheLTA
     connection: Connection
-    poolInfo: AmmV3PoolInfo
+    poolInfo: ClmmPoolInfo
     ownerInfo: {
       feePayer: PublicKey
       wallet: PublicKey
@@ -1349,7 +1349,7 @@ export class AmmV3 extends Base {
     makeTxVersion: T
     lookupTableCache?: CacheLTA
     connection: Connection
-    poolInfo: AmmV3PoolInfo
+    poolInfo: ClmmPoolInfo
     ownerInfo: {
       feePayer: PublicKey
       wallet: PublicKey
@@ -1493,8 +1493,8 @@ export class AmmV3 extends Base {
     makeTxVersion: T
     lookupTableCache?: CacheLTA
     connection: Connection
-    poolInfo: AmmV3PoolInfo
-    ownerPosition: AmmV3PoolPersonalPosition
+    poolInfo: ClmmPoolInfo
+    ownerPosition: ClmmPoolPersonalPosition
 
     ownerInfo: {
       wallet: PublicKey
@@ -1529,7 +1529,7 @@ export class AmmV3 extends Base {
     makeTxVersion: T
     lookupTableCache?: CacheLTA
     connection: Connection
-    poolInfo: AmmV3PoolInfo
+    poolInfo: ClmmPoolInfo
     ownerInfo: {
       feePayer: PublicKey
       wallet: PublicKey
@@ -1637,7 +1637,7 @@ export class AmmV3 extends Base {
     makeTxVersion: T
     lookupTableCache?: CacheLTA
     connection: Connection
-    poolInfo: AmmV3PoolInfo
+    poolInfo: ClmmPoolInfo
     ownerInfo: {
       feePayer: PublicKey
       wallet: PublicKey
@@ -1753,7 +1753,7 @@ export class AmmV3 extends Base {
     makeTxVersion: T
     lookupTableCache?: CacheLTA
     connection: Connection
-    poolInfo: AmmV3PoolInfo
+    poolInfo: ClmmPoolInfo
     ownerInfo: {
       feePayer: PublicKey
       wallet: PublicKey
@@ -1864,7 +1864,7 @@ export class AmmV3 extends Base {
     makeTxVersion: T
     lookupTableCache?: CacheLTA
     connection: Connection
-    poolInfo: AmmV3PoolInfo
+    poolInfo: ClmmPoolInfo
     ownerInfo: {
       feePayer: PublicKey
       wallet: PublicKey
@@ -1986,7 +1986,7 @@ export class AmmV3 extends Base {
     makeTxVersion: T
     lookupTableCache?: CacheLTA
     connection: Connection
-    poolInfo: AmmV3PoolInfo
+    poolInfo: ClmmPoolInfo
     ownerInfo: {
       feePayer: PublicKey
       wallet: PublicKey
@@ -2077,7 +2077,7 @@ export class AmmV3 extends Base {
     makeTxVersion: T
     lookupTableCache?: CacheLTA
     connection: Connection
-    poolInfo: AmmV3PoolInfo
+    poolInfo: ClmmPoolInfo
     ownerInfo: {
       feePayer: PublicKey
       wallet: PublicKey
@@ -2420,7 +2420,7 @@ export class AmmV3 extends Base {
     withMetadata,
     getEphemeralSigners,
   }: {
-    poolInfo: AmmV3PoolInfo
+    poolInfo: ClmmPoolInfo
 
     ownerInfo: {
       feePayer: PublicKey
@@ -2540,7 +2540,7 @@ export class AmmV3 extends Base {
     withMetadata,
     getEphemeralSigners,
   }: {
-    poolInfo: AmmV3PoolInfo
+    poolInfo: ClmmPoolInfo
 
     ownerInfo: {
       feePayer: PublicKey
@@ -2662,8 +2662,8 @@ export class AmmV3 extends Base {
     amountMaxA,
     amountMaxB,
   }: {
-    poolInfo: AmmV3PoolInfo
-    ownerPosition: AmmV3PoolPersonalPosition
+    poolInfo: ClmmPoolInfo
+    ownerPosition: ClmmPoolPersonalPosition
 
     ownerInfo: {
       wallet: PublicKey
@@ -2758,8 +2758,8 @@ export class AmmV3 extends Base {
     baseAmount,
     otherAmountMax,
   }: {
-    poolInfo: AmmV3PoolInfo
-    ownerPosition: AmmV3PoolPersonalPosition
+    poolInfo: ClmmPoolInfo
+    ownerPosition: ClmmPoolPersonalPosition
 
     ownerInfo: {
       wallet: PublicKey
@@ -2856,8 +2856,8 @@ export class AmmV3 extends Base {
     amountMinA,
     amountMinB,
   }: {
-    poolInfo: AmmV3PoolInfo
-    ownerPosition: AmmV3PoolPersonalPosition
+    poolInfo: ClmmPoolInfo
+    ownerPosition: ClmmPoolPersonalPosition
 
     ownerInfo: {
       wallet: PublicKey
@@ -2959,8 +2959,8 @@ export class AmmV3 extends Base {
     ownerInfo,
     ownerPosition,
   }: {
-    poolInfo: AmmV3PoolInfo
-    ownerPosition: AmmV3PoolPersonalPosition
+    poolInfo: ClmmPoolInfo
+    ownerPosition: ClmmPoolPersonalPosition
 
     ownerInfo: {
       wallet: PublicKey
@@ -3001,7 +3001,7 @@ export class AmmV3 extends Base {
     sqrtPriceLimitX64,
     remainingAccounts,
   }: {
-    poolInfo: AmmV3PoolInfo
+    poolInfo: ClmmPoolInfo
 
     ownerInfo: {
       wallet: PublicKey
@@ -3064,7 +3064,7 @@ export class AmmV3 extends Base {
     sqrtPriceLimitX64,
     remainingAccounts,
   }: {
-    poolInfo: AmmV3PoolInfo
+    poolInfo: ClmmPoolInfo
 
     ownerInfo: {
       wallet: PublicKey
@@ -3123,7 +3123,7 @@ export class AmmV3 extends Base {
     ownerInfo,
     rewardInfo,
   }: {
-    poolInfo: AmmV3PoolInfo
+    poolInfo: ClmmPoolInfo
     ownerInfo: {
       wallet: PublicKey
       tokenAccount: PublicKey
@@ -3171,7 +3171,7 @@ export class AmmV3 extends Base {
     ownerInfo,
     rewardInfo,
   }: {
-    poolInfo: AmmV3PoolInfo
+    poolInfo: ClmmPoolInfo
     ownerInfo: {
       wallet: PublicKey
       tokenAccount: PublicKey
@@ -3231,7 +3231,7 @@ export class AmmV3 extends Base {
     ownerInfo,
     rewardMint,
   }: {
-    poolInfo: AmmV3PoolInfo
+    poolInfo: ClmmPoolInfo
     ownerInfo: {
       wallet: PublicKey
       tokenAccount: PublicKey
@@ -3284,7 +3284,7 @@ export class AmmV3 extends Base {
     epochInfo,
     amountHasFee,
   }: {
-    poolInfo: AmmV3PoolInfo
+    poolInfo: ClmmPoolInfo
     inputA: boolean
     tickLower: number
     tickUpper: number
@@ -3346,7 +3346,7 @@ export class AmmV3 extends Base {
     token2022Infos,
     epochInfo,
   }: {
-    poolInfo: AmmV3PoolInfo
+    poolInfo: ClmmPoolInfo
     tickLower: number
     tickUpper: number
     amountA: BN
@@ -3393,7 +3393,7 @@ export class AmmV3 extends Base {
     token2022Infos,
     epochInfo,
   }: {
-    poolInfo: AmmV3PoolInfo
+    poolInfo: ClmmPoolInfo
     tickLower: number
     tickUpper: number
     liquidity: BN
@@ -3449,7 +3449,7 @@ export class AmmV3 extends Base {
     price,
     baseIn,
   }: {
-    poolInfo: AmmV3PoolInfo
+    poolInfo: ClmmPoolInfo
     price: Decimal
     baseIn: boolean
   }): ReturnTypeGetPriceAndTick {
@@ -3476,7 +3476,7 @@ export class AmmV3 extends Base {
     tick,
     baseIn,
   }: {
-    poolInfo: AmmV3PoolInfo
+    poolInfo: ClmmPoolInfo
     tick: number
     baseIn: boolean
   }): ReturnTypeGetTickPrice {
@@ -3501,7 +3501,7 @@ export class AmmV3 extends Base {
     currencyOut,
     slippage,
   }: {
-    poolInfo: AmmV3PoolInfo
+    poolInfo: ClmmPoolInfo
     tickArrayCache: { [key: string]: TickArray }
 
     token2022Infos: ReturnTypeFetchMultipleMintInfos
@@ -3526,7 +3526,7 @@ export class AmmV3 extends Base {
       priceImpact,
       fee,
       remainingAccounts,
-    } = AmmV3.computeAmountOut({
+    } = Clmm.computeAmountOut({
       poolInfo,
       tickArrayCache,
       baseMint: inputMint,
@@ -3619,7 +3619,7 @@ export class AmmV3 extends Base {
     priceLimit = new Decimal(0),
   }: {
     connection: Connection
-    poolInfo: AmmV3PoolInfo
+    poolInfo: ClmmPoolInfo
     tickArrayCache: { [key: string]: TickArray }
     baseMint: PublicKey
 
@@ -3656,7 +3656,7 @@ export class AmmV3 extends Base {
     slippage,
     priceLimit = new Decimal(0),
   }: {
-    poolInfo: AmmV3PoolInfo
+    poolInfo: ClmmPoolInfo
     tickArrayCache: { [key: string]: TickArray }
     baseMint: PublicKey
 
@@ -3760,7 +3760,7 @@ export class AmmV3 extends Base {
     priceLimit = new Decimal(0),
   }: {
     connection: Connection
-    poolInfo: AmmV3PoolInfo
+    poolInfo: ClmmPoolInfo
     tickArrayCache: { [key: string]: TickArray }
     baseMint: PublicKey
 
@@ -3797,7 +3797,7 @@ export class AmmV3 extends Base {
     slippage,
     priceLimit = new Decimal(0),
   }: {
-    poolInfo: AmmV3PoolInfo
+    poolInfo: ClmmPoolInfo
     tickArrayCache: { [key: string]: TickArray }
     baseMint: PublicKey
 
@@ -3897,7 +3897,7 @@ export class AmmV3 extends Base {
     positionTickLowerIndex,
     positionTickUpperIndex,
   }: {
-    poolInfo: AmmV3PoolInfo
+    poolInfo: ClmmPoolInfo
     aprType: 'day' | 'week' | 'month'
 
     positionTickLowerIndex: number
@@ -3940,7 +3940,7 @@ export class AmmV3 extends Base {
     positionTickUpperIndex,
     chainTime,
   }: {
-    poolInfo: AmmV3PoolInfo
+    poolInfo: ClmmPoolInfo
     aprType: 'day' | 'week' | 'month'
 
     mintPrice: { [mint: string]: Price }
@@ -4048,7 +4048,7 @@ export class AmmV3 extends Base {
     updateOwnerRewardAndFee = true,
   }: {
     connection: Connection
-    poolKeys: ApiAmmV3PoolsItem[]
+    poolKeys: ApiClmmPoolsItem[]
     ownerInfo?: { wallet: PublicKey; tokenAccounts: TokenAccount[] }
     chainTime: number
     batchRequest?: boolean
@@ -4081,7 +4081,7 @@ export class AmmV3 extends Base {
 
     const poolsInfo: ReturnTypeFetchMultiplePoolInfos = {}
 
-    const updateRewardInfos: AmmV3PoolRewardInfo[] = []
+    const updateRewardInfos: ClmmPoolRewardInfo[] = []
 
     for (let index = 0; index < poolKeys.length; index++) {
       const apiPoolInfo = poolKeys[index]
@@ -4326,7 +4326,7 @@ export class AmmV3 extends Base {
     batchRequest,
   }: {
     connection: Connection
-    poolKeys: AmmV3PoolInfo[]
+    poolKeys: ClmmPoolInfo[]
     batchRequest?: boolean
   }): Promise<ReturnTypeFetchMultiplePoolTickArrays> {
     const tickArraysToPoolId: { [key: string]: PublicKey } = {}
