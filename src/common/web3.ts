@@ -223,8 +223,7 @@ export function forecastTransactionSize(instructions: TransactionInstruction[], 
   transaction.add(...instructions)
 
   try {
-    transaction.serialize({ verifySignatures: false })
-    return true
+    return Buffer.from(transaction.serialize({ verifySignatures: false })).toString('base64').length < MAX_BASE64_SIZE
   } catch (error) {
     return false
   }
@@ -544,6 +543,8 @@ function checkTx({
     : _checkLegacyTx({ instructions, payer, signers })
 }
 
+export const MAX_BASE64_SIZE = 1644
+
 function _checkLegacyTx({
   instructions,
   payer,
@@ -572,8 +573,7 @@ function _checkV0Tx({
 
   const messageV0 = transactionMessage.compileToV0Message(Object.values(lookupTableAddressAccount ?? {}))
   try {
-    messageV0.serialize()
-    return true
+    return Buffer.from(messageV0.serialize()).toString('base64').length < MAX_BASE64_SIZE
   } catch (error) {
     return false
   }
