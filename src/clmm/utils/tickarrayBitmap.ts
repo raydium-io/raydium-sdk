@@ -60,27 +60,21 @@ export class TickArrayBitmap {
     const bitPos = Math.abs(compressed)
 
     if (zeroForOne) {
-      // tick from upper to lower
-      // find from highter bits to lower bits
       const offsetBitMap = bitMap.shln(1024 - bitPos - 1)
       const nextBit = mostSignificantBit(1024, offsetBitMap)
-      if (nextBit) {
+      if (nextBit !== null) {
         const nextArrayStartIndex = (bitPos - nextBit - 512) * multiplier
         return { isInit: true, tickIndex: nextArrayStartIndex }
       } else {
-        // not found til to the end
         return { isInit: false, tickIndex: -tickBoundary }
       }
     } else {
-      // tick from lower to upper
-      // find from lower bits to highter bits
       const offsetBitMap = bitMap.shrn(bitPos)
       const nextBit = leastSignificantBit(1024, offsetBitMap)
-      if (nextBit) {
+      if (nextBit !== null) {
         const nextArrayStartIndex = (bitPos + nextBit - 512) * multiplier
         return { isInit: true, tickIndex: nextArrayStartIndex }
       } else {
-        // not found til to the end
         return { isInit: false, tickIndex: tickBoundary - TickQuery.tickCount(tickSpacing) }
       }
     }
