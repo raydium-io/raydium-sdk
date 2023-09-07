@@ -26,6 +26,7 @@ import {
 import { getPdaTickArrayAddress } from './pda'
 import { PoolUtils } from './pool'
 import { Tick, TickArray, TickUtils } from './tick'
+import { TickQuery } from './tickQuery'
 
 export class MathUtil {
   public static mulDivRoundingUp(a: BN, b: BN, denominator: BN): BN {
@@ -482,7 +483,10 @@ export abstract class SwapMath {
       amountSpecifiedRemaining: amountSpecified,
       amountCalculated: ZERO,
       sqrtPriceX64: currentSqrtPriceX64,
-      tick: currentTick,
+      tick:
+        currentTick > lastSavedTickArrayStartIndex
+          ? Math.min(lastSavedTickArrayStartIndex + TickQuery.tickCount(tickSpacing) - 1, currentTick)
+          : lastSavedTickArrayStartIndex,
       accounts: [] as PublicKey[],
       liquidity,
       feeAmount: new BN(0),
