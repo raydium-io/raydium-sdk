@@ -1105,27 +1105,31 @@ export class Clmm extends Base {
     for (const itemReward of poolInfo.rewardInfos) {
       const rewardUseSOLBalance = ownerInfo.useSOLBalance && itemReward.tokenMint.equals(Token.WSOL.mint)
 
-      const ownerRewardAccount = await this._selectOrCreateTokenAccount({
-        programId: itemReward.tokenProgramId,
-        mint: itemReward.tokenMint,
-        tokenAccounts: rewardUseSOLBalance ? [] : ownerInfo.tokenAccounts,
-        owner: ownerInfo.wallet,
+      const ownerRewardAccount = itemReward.tokenMint.equals(poolInfo.mintA.mint)
+        ? ownerTokenAccountA
+        : itemReward.tokenMint.equals(poolInfo.mintB.mint)
+        ? ownerTokenAccountB
+        : await this._selectOrCreateTokenAccount({
+            programId: itemReward.tokenProgramId,
+            mint: itemReward.tokenMint,
+            tokenAccounts: rewardUseSOLBalance ? [] : ownerInfo.tokenAccounts,
+            owner: ownerInfo.wallet,
 
-        createInfo: {
-          connection,
-          payer: ownerInfo.feePayer,
-          amount: 0,
+            createInfo: {
+              connection,
+              payer: ownerInfo.feePayer,
+              amount: 0,
 
-          frontInstructions,
-          frontInstructionsType,
-          endInstructions: rewardUseSOLBalance ? endInstructions : [],
-          endInstructionsType: rewardUseSOLBalance ? endInstructionsType : [],
-          signers,
-        },
+              frontInstructions,
+              frontInstructionsType,
+              endInstructions: rewardUseSOLBalance ? endInstructions : [],
+              endInstructionsType: rewardUseSOLBalance ? endInstructionsType : [],
+              signers,
+            },
 
-        associatedOnly: rewardUseSOLBalance ? false : associatedOnly,
-        checkCreateATAOwner,
-      })
+            associatedOnly: rewardUseSOLBalance ? false : associatedOnly,
+            checkCreateATAOwner,
+          })
       rewardAccounts.push(ownerRewardAccount)
     }
 
