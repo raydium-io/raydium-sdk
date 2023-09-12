@@ -590,26 +590,21 @@ export abstract class SwapMath {
       ++loopCount
     }
 
-    // try {
-    //   console.log('state.tick', state.tick)
-    //   const { nextStartIndex: tickAarrayStartIndex } = TickQuery.nextInitializedTickArray(
-    //     state.tick,
-    //     tickSpacing,
-    //     zeroForOne,
-    //     tickArrayBitmap,
-    //     tickarrayBitmapExtension,
-    //   );
-    //   if (
-    //     lastSavedTickArrayStartIndex !== tickAarrayStartIndex
-    //   ) {
-    //     state.accounts.push(getPdaTickArrayAddress(
-    //       programId,
-    //       poolId,
-    //       tickAarrayStartIndex,
-    //     ).publicKey)
-    //     lastSavedTickArrayStartIndex = tickAarrayStartIndex;
-    //   }
-    // } catch (e) { /* empty */ }
+    try {
+      const { nextStartIndex: tickAarrayStartIndex } = TickQuery.nextInitializedTickArray(
+        state.tick,
+        tickSpacing,
+        zeroForOne,
+        tickArrayBitmap,
+        tickarrayBitmapExtension,
+      )
+      if (lastSavedTickArrayStartIndex !== tickAarrayStartIndex) {
+        state.accounts.push(getPdaTickArrayAddress(programId, poolId, tickAarrayStartIndex).publicKey)
+        lastSavedTickArrayStartIndex = tickAarrayStartIndex
+      }
+    } catch (e) {
+      /* empty */
+    }
 
     return {
       amountCalculated: state.amountCalculated,

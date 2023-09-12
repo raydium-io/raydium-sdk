@@ -30,17 +30,15 @@ export class PoolUtils {
     } = this.getFirstInitializedTickArray(poolInfo, zeroForOne)
     if (!isExist || firstTickArrayStartIndex === undefined || !nextAccountMeta) throw new Error('Invalid tick array')
 
-    // try {
-    //   const preTick = this.preInitializedTickArrayStartIndex(poolInfo, !zeroForOne)
-    //   if (preTick.isExist) {
-    //     const { publicKey: address } = getPdaTickArrayAddress(
-    //       poolInfo.programId,
-    //       poolInfo.id,
-    //       preTick.nextStartIndex
-    //     );
-    //     allNeededAccounts.push(address)
-    //   }
-    // } catch (e) { /* empty */ }
+    try {
+      const preTick = this.preInitializedTickArrayStartIndex(poolInfo, zeroForOne)
+      if (preTick.isExist) {
+        const { publicKey: address } = getPdaTickArrayAddress(poolInfo.programId, poolInfo.id, preTick.nextStartIndex)
+        allNeededAccounts.push(address)
+      }
+    } catch (e) {
+      /* empty */
+    }
 
     allNeededAccounts.push(nextAccountMeta)
     const {
@@ -91,7 +89,7 @@ export class PoolUtils {
     if (!isExist || firstTickArrayStartIndex === undefined || !nextAccountMeta) throw new Error('Invalid tick array')
 
     try {
-      const preTick = this.preInitializedTickArrayStartIndex(poolInfo, !zeroForOne)
+      const preTick = this.preInitializedTickArrayStartIndex(poolInfo, zeroForOne)
       if (preTick.isExist) {
         const { publicKey: address } = getPdaTickArrayAddress(poolInfo.programId, poolInfo.id, preTick.nextStartIndex)
         allNeededAccounts.push(address)
@@ -171,10 +169,9 @@ export class PoolUtils {
   }
 
   public static preInitializedTickArrayStartIndex(poolInfo: ClmmPoolInfo, zeroForOne: boolean) {
-    const currentOffset =
-      Math.floor(poolInfo.tickCurrent / TickQuery.tickCount(poolInfo.tickSpacing)) *
-      TickQuery.tickCount(poolInfo.tickSpacing)
-    const result: number[] = zeroForOne
+    const currentOffset = Math.floor(poolInfo.tickCurrent / TickQuery.tickCount(poolInfo.tickSpacing))
+
+    const result: number[] = !zeroForOne
       ? TickUtils.searchLowBitFromStart(
           poolInfo.tickArrayBitmap,
           poolInfo.exBitmapInfo,

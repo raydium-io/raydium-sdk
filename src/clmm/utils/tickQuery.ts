@@ -102,8 +102,8 @@ export class TickQuery {
     tickArrayBitmap: BN[],
     exBitmapInfo: TickArrayBitmapExtensionLayout,
   ) {
-    const currentOffset = Math.floor(tickIndex / TickQuery.tickCount(tickSpacing)) * TickQuery.tickCount(tickSpacing)
-    const result: number[] = !zeroForOne
+    const currentOffset = Math.floor(tickIndex / TickQuery.tickCount(tickSpacing))
+    const result: number[] = zeroForOne
       ? TickUtils.searchLowBitFromStart(tickArrayBitmap, exBitmapInfo, currentOffset - 1, 1, tickSpacing)
       : TickUtils.searchHightBitFromStart(tickArrayBitmap, exBitmapInfo, currentOffset + 1, 1, tickSpacing)
 
