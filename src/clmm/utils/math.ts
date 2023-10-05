@@ -410,8 +410,8 @@ export class LiquidityMath {
     )
     const coefficient = amountMax ? 1 + amountSlippage : 1 - amountSlippage
 
-    const amount0Slippage = amountA.muln(coefficient)
-    const amount1Slippage = amountB.muln(coefficient)
+    const amount0Slippage = new BN(new Decimal(amountA.toString()).mul(coefficient).toFixed(0))
+    const amount1Slippage = new BN(new Decimal(amountB.toString()).mul(coefficient).toFixed(0))
     return {
       amountSlippageA: amount0Slippage,
       amountSlippageB: amount1Slippage,

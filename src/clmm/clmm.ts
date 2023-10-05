@@ -3312,7 +3312,9 @@ export class Clmm extends Base {
       epochInfo,
       !amountHasFee,
     )
-    const _amount = addFeeAmount.amount.sub(addFeeAmount.fee ?? ZERO).muln(coefficient)
+    const _amount = new BN(
+      new Decimal(addFeeAmount.amount.sub(addFeeAmount.fee ?? ZERO).toString()).mul(coefficient).toFixed(0),
+    )
 
     let liquidity: BN
     if (sqrtPriceX64.lte(sqrtPriceX64A)) {
@@ -3425,13 +3427,13 @@ export class Clmm extends Base {
     ]
     const [amountSlippageA, amountSlippageB] = [
       getTransferAmountFee(
-        amounts.amountA.muln(coefficientRe),
+        new BN(new Decimal(amounts.amountA.toString()).mul(coefficientRe).toFixed(0)),
         token2022Infos[poolInfo.mintA.mint.toString()]?.feeConfig,
         epochInfo,
         true,
       ),
       getTransferAmountFee(
-        amounts.amountB.muln(coefficientRe),
+        new BN(new Decimal(amounts.amountB.toString()).mul(coefficientRe).toFixed(0)),
         token2022Infos[poolInfo.mintB.mint.toString()]?.feeConfig,
         epochInfo,
         true,
