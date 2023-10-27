@@ -2528,7 +2528,7 @@ export class Clmm extends Base {
         instructions: [ins],
         signers,
         instructionTypes: [InstructionType.clmmOpenPosition],
-        lookupTableAddress: [poolInfo.lookupTableAccount].filter((i) => !i.equals(PublicKey.default)),
+        lookupTableAddress: [poolInfo.lookupTableAccount].filter((i) => i && !i.equals(PublicKey.default)),
       } as InnerTransaction,
     }
   }
@@ -2653,7 +2653,7 @@ export class Clmm extends Base {
         instructions: [ins],
         signers,
         instructionTypes: [InstructionType.clmmOpenPosition],
-        lookupTableAddress: [poolInfo.lookupTableAccount].filter((i) => !i.equals(PublicKey.default)),
+        lookupTableAddress: [poolInfo.lookupTableAccount].filter((i) => i && !i.equals(PublicKey.default)),
       } as InnerTransaction,
     }
   }
@@ -2749,7 +2749,7 @@ export class Clmm extends Base {
         ],
         signers: [],
         instructionTypes: [InstructionType.clmmIncreasePosition],
-        lookupTableAddress: [poolInfo.lookupTableAccount].filter((i) => !i.equals(PublicKey.default)),
+        lookupTableAddress: [poolInfo.lookupTableAccount].filter((i) => i && !i.equals(PublicKey.default)),
       } as InnerTransaction,
     }
   }
@@ -2847,7 +2847,7 @@ export class Clmm extends Base {
         ],
         signers: [],
         instructionTypes: [InstructionType.clmmIncreasePosition],
-        lookupTableAddress: [poolInfo.lookupTableAccount].filter((i) => !i.equals(PublicKey.default)),
+        lookupTableAddress: [poolInfo.lookupTableAccount].filter((i) => i && !i.equals(PublicKey.default)),
       } as InnerTransaction,
     }
   }
@@ -2953,7 +2953,7 @@ export class Clmm extends Base {
         ],
         signers: [],
         instructionTypes: [InstructionType.clmmDecreasePosition],
-        lookupTableAddress: [poolInfo.lookupTableAccount].filter((i) => !i.equals(PublicKey.default)),
+        lookupTableAddress: [poolInfo.lookupTableAccount].filter((i) => i && !i.equals(PublicKey.default)),
       } as InnerTransaction,
     }
   }
@@ -2991,7 +2991,7 @@ export class Clmm extends Base {
         ],
         signers: [],
         instructionTypes: [InstructionType.clmmClosePosition],
-        lookupTableAddress: [poolInfo.lookupTableAccount].filter((i) => !i.equals(PublicKey.default)),
+        lookupTableAddress: [poolInfo.lookupTableAccount].filter((i) => i && !i.equals(PublicKey.default)),
       } as InnerTransaction,
     }
   }
@@ -3053,7 +3053,7 @@ export class Clmm extends Base {
           ),
         ],
         signers: [],
-        lookupTableAddress: [poolInfo.lookupTableAccount].filter((i) => !i.equals(PublicKey.default)),
+        lookupTableAddress: [poolInfo.lookupTableAccount].filter((i) => i && !i.equals(PublicKey.default)),
         instructionTypes: [InstructionType.clmmSwapBaseIn],
       } as InnerTransaction,
     }
@@ -3116,7 +3116,7 @@ export class Clmm extends Base {
           ),
         ],
         signers: [],
-        lookupTableAddress: [poolInfo.lookupTableAccount].filter((i) => !i.equals(PublicKey.default)),
+        lookupTableAddress: [poolInfo.lookupTableAccount].filter((i) => i && !i.equals(PublicKey.default)),
         instructionTypes: [InstructionType.clmmSwapBaseOut],
       } as InnerTransaction,
     }
@@ -3165,7 +3165,7 @@ export class Clmm extends Base {
         ],
         signers: [],
         instructionTypes: [InstructionType.clmmInitReward],
-        lookupTableAddress: [poolInfo.lookupTableAccount].filter((i) => !i.equals(PublicKey.default)),
+        lookupTableAddress: [poolInfo.lookupTableAccount].filter((i) => i && !i.equals(PublicKey.default)),
       } as InnerTransaction,
     }
   }
@@ -3225,7 +3225,7 @@ export class Clmm extends Base {
         ],
         signers: [],
         instructionTypes: [InstructionType.clmmInitReward],
-        lookupTableAddress: [poolInfo.lookupTableAccount].filter((i) => !i.equals(PublicKey.default)),
+        lookupTableAddress: [poolInfo.lookupTableAccount].filter((i) => i && !i.equals(PublicKey.default)),
       } as InnerTransaction,
     }
   }
@@ -3270,7 +3270,7 @@ export class Clmm extends Base {
         ],
         signers: [],
         instructionTypes: [InstructionType.clmmInitReward],
-        lookupTableAddress: [poolInfo.lookupTableAccount].filter((i) => !i.equals(PublicKey.default)),
+        lookupTableAddress: [poolInfo.lookupTableAccount].filter((i) => i && !i.equals(PublicKey.default)),
       } as InnerTransaction,
     }
   }
@@ -4156,7 +4156,9 @@ export class Clmm extends Base {
           week: apiPoolInfo.week,
           month: apiPoolInfo.month,
           tvl: apiPoolInfo.tvl,
-          lookupTableAccount: new PublicKey(apiPoolInfo.lookupTableAccount),
+          lookupTableAccount: apiPoolInfo.lookupTableAccount
+            ? new PublicKey(apiPoolInfo.lookupTableAccount)
+            : PublicKey.default,
 
           startTime: layoutAccountInfo.startTime.toNumber(),
 

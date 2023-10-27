@@ -634,7 +634,7 @@ export class Liquidity extends Base {
             }),
           ],
           signers: [],
-          lookupTableAddress: [poolKeys.lookupTableAccount].filter((i) => !i.equals(PublicKey.default)),
+          lookupTableAddress: [poolKeys.lookupTableAccount].filter((i) => i && !i.equals(PublicKey.default)),
           instructionTypes: [version === 4 ? InstructionType.ammV4AddLiquidity : InstructionType.ammV5AddLiquidity],
         },
       }
@@ -895,7 +895,7 @@ export class Liquidity extends Base {
             }),
           ],
           signers: [],
-          lookupTableAddress: [poolKeys.lookupTableAccount].filter((i) => !i.equals(PublicKey.default)),
+          lookupTableAddress: [poolKeys.lookupTableAccount].filter((i) => i && !i.equals(PublicKey.default)),
           instructionTypes: [
             version === 4 ? InstructionType.ammV4RemoveLiquidity : InstructionType.ammV5RemoveLiquidity,
           ],
@@ -1126,7 +1126,7 @@ export class Liquidity extends Base {
           }),
         ],
         signers: [],
-        lookupTableAddress: [poolKeys.lookupTableAccount].filter((i) => !i.equals(PublicKey.default)),
+        lookupTableAddress: [poolKeys.lookupTableAccount].filter((i) => i && !i.equals(PublicKey.default)),
         instructionTypes: [version === 4 ? InstructionType.ammV4SwapBaseIn : InstructionType.ammV5SwapBaseIn],
       },
     }
@@ -1190,7 +1190,7 @@ export class Liquidity extends Base {
           }),
         ],
         signers: [],
-        lookupTableAddress: [poolKeys.lookupTableAccount].filter((i) => !i.equals(PublicKey.default)),
+        lookupTableAddress: [poolKeys.lookupTableAccount].filter((i) => i && !i.equals(PublicKey.default)),
         instructionTypes: [version === 4 ? InstructionType.ammV4SwapBaseOut : InstructionType.ammV5SwapBaseOut],
       },
     }
@@ -1378,7 +1378,7 @@ export class Liquidity extends Base {
           }),
         ],
         signers: [],
-        lookupTableAddress: [poolKeys.lookupTableAccount].filter((i) => !i.equals(PublicKey.default)),
+        lookupTableAddress: [poolKeys.lookupTableAccount].filter((i) => i && !i.equals(PublicKey.default)),
         instructionTypes: [InstructionType.ammV4CreatePool],
       },
     }
@@ -1467,7 +1467,7 @@ export class Liquidity extends Base {
           }),
         ],
         signers: [],
-        lookupTableAddress: [poolKeys.lookupTableAccount].filter((i) => !i.equals(PublicKey.default)),
+        lookupTableAddress: [poolKeys.lookupTableAccount].filter((i) => i && !i.equals(PublicKey.default)),
         instructionTypes: [InstructionType.ammV4InitPool],
       },
     }
@@ -1671,7 +1671,7 @@ export class Liquidity extends Base {
           }),
         ],
         signers: [],
-        lookupTableAddress: [poolKeys.lookupTableAccount].filter((i) => !i.equals(PublicKey.default)),
+        lookupTableAddress: [poolKeys.lookupTableAccount].filter((i) => i && !i.equals(PublicKey.default)),
         instructionTypes: [
           poolKeys.version === 4 ? InstructionType.ammV4SimulatePoolInfo : InstructionType.ammV5SimulatePoolInfo,
         ],

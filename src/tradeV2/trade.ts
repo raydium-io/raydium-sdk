@@ -937,7 +937,10 @@ export class TradeV2 extends Base {
             ),
           ],
           signers: [],
-          lookupTableAddress: [new PublicKey(poolKey1.lookupTableAccount), new PublicKey(poolKey2.lookupTableAccount)],
+          lookupTableAddress: [
+            poolKey1.lookupTableAccount ? new PublicKey(poolKey1.lookupTableAccount) : PublicKey.default,
+            poolKey2.lookupTableAccount ? new PublicKey(poolKey2.lookupTableAccount) : PublicKey.default,
+          ],
           instructionTypes: [InstructionType.routeSwap],
         },
       }
