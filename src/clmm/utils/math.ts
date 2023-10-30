@@ -591,14 +591,14 @@ export abstract class SwapMath {
     }
 
     try {
-      const { nextStartIndex: tickAarrayStartIndex } = TickQuery.nextInitializedTickArray(
+      const { nextStartIndex: tickAarrayStartIndex, isExist } = TickQuery.nextInitializedTickArray(
         state.tick,
         tickSpacing,
         zeroForOne,
         tickArrayBitmap,
         tickarrayBitmapExtension,
       )
-      if (lastSavedTickArrayStartIndex !== tickAarrayStartIndex) {
+      if (isExist && lastSavedTickArrayStartIndex !== tickAarrayStartIndex) {
         state.accounts.push(getPdaTickArrayAddress(programId, poolId, tickAarrayStartIndex).publicKey)
         lastSavedTickArrayStartIndex = tickAarrayStartIndex
       }

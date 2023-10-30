@@ -306,9 +306,7 @@ export class Clmm extends Base {
     startTime: BN
     owner: PublicKey
   }): ClmmPoolInfo {
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
-    const [mintA, mintB, initPrice] = mint1.mint._bn.gt(mint2.mint._bn)
+    const [mintA, mintB, initPrice] = new BN(mint1.mint.toBuffer()).gt(new BN(mint2.mint.toBuffer()))
       ? [mint2, mint1, new Decimal(1).div(initialPrice)]
       : [mint1, mint2, initialPrice]
 
@@ -434,9 +432,7 @@ export class Clmm extends Base {
     startTime: BN
     computeBudgetConfig?: ComputeBudgetConfig
   }) {
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
-    const [mintA, mintB, initPrice] = mint1.mint._bn.gt(mint2.mint._bn)
+    const [mintA, mintB, initPrice] = new BN(mint1.mint.toBuffer()).gt(new BN(mint2.mint.toBuffer()))
       ? [mint2, mint1, new Decimal(1).div(initialPrice)]
       : [mint1, mint2, initialPrice]
 
