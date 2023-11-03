@@ -414,8 +414,9 @@ export async function splitTxAndSigners<T extends TxVersion>({
     const _addComputeBudgetInnerTx = addComputeBudgetInnerTx ? [addComputeBudgetInnerTx, ..._itemIns] : _itemIns
 
     if (
-      checkTx({ makeTxVersion, innerIns: _addComputeBudgetInnerTx, payer, lookupTableAddressAccount }) ||
-      checkTx({ makeTxVersion, innerIns: _itemIns, payer, lookupTableAddressAccount })
+      itemIns.length < 12 &&
+      (checkTx({ makeTxVersion, innerIns: _addComputeBudgetInnerTx, payer, lookupTableAddressAccount }) ||
+        checkTx({ makeTxVersion, innerIns: _itemIns, payer, lookupTableAddressAccount }))
     ) {
       itemIns.push(itemInnerTx)
     } else {
