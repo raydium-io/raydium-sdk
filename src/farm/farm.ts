@@ -2625,9 +2625,19 @@ export class Farm extends Base {
         computeBudgetConfig,
         payer: wallet,
         innerTransaction: [
-          { instructionTypes: frontInstructionsType.slice(0, 10), instructions: frontInstructions, signers: [] },
+          {
+            instructionTypes: frontInstructionsType.slice(0, 10),
+            instructions: frontInstructions.slice(0, 10),
+            signers: [],
+          },
           ...(frontInstructions.length > 10
-            ? [{ instructionTypes: frontInstructionsType.slice(10), instructions: frontInstructions, signers: [] }]
+            ? [
+                {
+                  instructionTypes: frontInstructionsType.slice(10),
+                  instructions: frontInstructions.slice(10),
+                  signers: [],
+                },
+              ]
             : []),
           ...instructions,
           { instructionTypes: endInstructionsType, instructions: endInstructions, signers: [] },
