@@ -2517,8 +2517,8 @@ export class Liquidity extends Base {
     anotherCurrency,
     slippage,
   }: LiquidityComputeAnotherAmountParams):
-    | { anotherAmount: CurrencyAmount; maxAnotherAmount: CurrencyAmount }
-    | { anotherAmount: TokenAmount; maxAnotherAmount: TokenAmount } {
+    | { anotherAmount: CurrencyAmount; maxAnotherAmount: CurrencyAmount; liquidity: BN }
+    | { anotherAmount: TokenAmount; maxAnotherAmount: TokenAmount; liquidity: BN } {
     const { baseReserve, quoteReserve } = poolInfo
     logger.debug('baseReserve:', baseReserve.toString())
     logger.debug('quoteReserve:', quoteReserve.toString())
@@ -2542,6 +2542,11 @@ export class Liquidity extends Base {
           : divCeil(amount.raw.mul(baseReserve), quoteReserve)
     }
 
+    const liquidity = divCeil(
+      amount.raw.mul(poolInfo.lpSupply),
+      input === 'base' ? poolInfo.baseReserve : poolInfo.quoteReserve,
+    )
+
     const _slippage = new Percent(ONE).add(slippage)
     const slippageAdjustedAmount = _slippage.mul(amountRaw).quotient
 
@@ -2559,6 +2564,7 @@ export class Liquidity extends Base {
     return {
       anotherAmount: _anotherAmount,
       maxAnotherAmount: _maxAnotherAmount,
+      liquidity,
     }
   }
 
