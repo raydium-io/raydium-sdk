@@ -61,7 +61,7 @@ import {
   TickArrayBitmapExtension,
   TickArrayLayout,
 } from './layout'
-import { MAX_SQRT_PRICE_X64, MIN_SQRT_PRICE_X64 } from './utils/constants'
+import { MAX_SQRT_PRICE_X64, MIN_SQRT_PRICE_X64, U64_IGNORE_RANGE } from './utils/constants'
 import { LiquidityMath, MathUtil, SqrtPriceMath, TickMath } from './utils/math'
 import {
   getPdaExBitmapAccount,
@@ -4293,10 +4293,13 @@ export class Clmm extends Base {
               tickUpperState,
             )
             const rewardInfos = PositionUtils.GetPositionRewards(state, itemPA, tickLowerState, tickUpperState)
-            itemPA.tokenFeeAmountA = tokenFeeAmountA.gte(ZERO) ? tokenFeeAmountA : ZERO
-            itemPA.tokenFeeAmountB = tokenFeeAmountB.gte(ZERO) ? tokenFeeAmountB : ZERO
+            itemPA.tokenFeeAmountA =
+              tokenFeeAmountA.gte(ZERO) && tokenFeeAmountA.lt(U64_IGNORE_RANGE) ? tokenFeeAmountA : ZERO
+            itemPA.tokenFeeAmountB =
+              tokenFeeAmountB.gte(ZERO) && tokenFeeAmountA.lt(U64_IGNORE_RANGE) ? tokenFeeAmountB : ZERO
             for (let i = 0; i < rewardInfos.length; i++) {
-              itemPA.rewardInfos[i].pendingReward = rewardInfos[i].gte(ZERO) ? rewardInfos[i] : ZERO
+              itemPA.rewardInfos[i].pendingReward =
+                rewardInfos[i].gte(ZERO) && rewardInfos[i].lt(U64_IGNORE_RANGE) ? rewardInfos[i] : ZERO
             }
           }
         }

@@ -39,3 +39,5 @@ export const TICK_SPACINGS: { [amount in Fee]: number } = {
   [Fee.rate_3000]: 60,
   [Fee.rate_10000]: 200,
 }
+
+export const U64_IGNORE_RANGE = new BN('18446744073700000000')
