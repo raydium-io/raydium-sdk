@@ -9,6 +9,7 @@ import {
 import BN from 'bn.js'
 
 import {
+  BNDivCeil,
   Base,
   ComputeBudgetConfig,
   InnerTransaction,
@@ -2666,7 +2667,7 @@ export class Liquidity extends Base {
 
     if (!amountInRaw.isZero()) {
       if (poolKeys.version === 4) {
-        feeRaw = amountInRaw.mul(LIQUIDITY_FEES_NUMERATOR).div(LIQUIDITY_FEES_DENOMINATOR)
+        feeRaw = BNDivCeil(amountInRaw.mul(LIQUIDITY_FEES_NUMERATOR), LIQUIDITY_FEES_DENOMINATOR)
         const amountInWithFee = amountInRaw.sub(feeRaw)
 
         const denominator = reserveIn.add(amountInWithFee)
