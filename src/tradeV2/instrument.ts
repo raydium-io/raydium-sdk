@@ -365,12 +365,12 @@ function makeInnerInsKey(
             { pubkey: baseIn ? itemPool.mintB.mint : itemPool.mintA.mint, isSigner: false, isWritable: false },
           ]
         : []),
+      ...(remainingAccount ?? []).map((i) => ({ pubkey: i, isSigner: false, isWritable: true })),
       {
         pubkey: getPdaExBitmapAccount(new PublicKey(String(itemPool.programId)), itemPool.id).publicKey,
         isSigner: false,
         isWritable: true,
       },
-      ...(remainingAccount ?? []).map((i) => ({ pubkey: i, isSigner: false, isWritable: true })),
     ]
   } else {
     throw Error('make swap ins error')
