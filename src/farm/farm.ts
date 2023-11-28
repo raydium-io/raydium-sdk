@@ -2176,8 +2176,13 @@ export class Farm extends Base {
 
     const signers: Signer[] = []
 
-    for (const { lpVault, wrapped, apiPoolInfo } of Object.values(fetchPoolInfos)) {
-      if (wrapped === undefined || wrapped.pendingRewards.find((i) => i.gt(ZERO)) === undefined) continue
+    for (const { lpVault, wrapped, apiPoolInfo, ledger } of Object.values(fetchPoolInfos)) {
+      if (
+        wrapped === undefined ||
+        ledger === undefined ||
+        !(wrapped.pendingRewards.find((i) => i.gt(ZERO)) !== undefined || ledger.deposited.isZero())
+      )
+        continue
 
       const lpMint = lpVault.mint
       const lpMintUseSOLBalance = ownerInfo.useSOLBalance && lpMint.equals(Token.WSOL.mint)

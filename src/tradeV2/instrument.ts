@@ -2,8 +2,8 @@ import { TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID } from '@solana/spl-token'
 import { PublicKey, TransactionInstruction } from '@solana/web3.js'
 import BN from 'bn.js'
 
-import { ClmmPoolInfo } from '../clmm'
-import { jsonInfo2PoolKeys, MEMO_PROGRAM_ID, SYSTEM_PROGRAM_ID } from '../common'
+import { ClmmPoolInfo, getPdaExBitmapAccount } from '../clmm'
+import { MEMO_PROGRAM_ID, SYSTEM_PROGRAM_ID, jsonInfo2PoolKeys } from '../common'
 import { LiquidityPoolKeysV4 } from '../liquidity'
 import { struct, u64, u8 } from '../marshmallow'
 
@@ -365,6 +365,11 @@ function makeInnerInsKey(
             { pubkey: baseIn ? itemPool.mintB.mint : itemPool.mintA.mint, isSigner: false, isWritable: false },
           ]
         : []),
+      {
+        pubkey: getPdaExBitmapAccount(new PublicKey(String(itemPool.programId)), itemPool.id).publicKey,
+        isSigner: false,
+        isWritable: true,
+      },
       ...(remainingAccount ?? []).map((i) => ({ pubkey: i, isSigner: false, isWritable: true })),
     ]
   } else {
