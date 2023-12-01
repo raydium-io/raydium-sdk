@@ -1,11 +1,4 @@
-import {
-  ComputeBudgetProgram,
-  Connection,
-  PublicKey,
-  Signer,
-  Transaction,
-  TransactionInstruction,
-} from '@solana/web3.js'
+import { Connection, PublicKey, Signer, Transaction, TransactionInstruction } from '@solana/web3.js'
 import BN from 'bn.js'
 
 import {
@@ -996,12 +989,12 @@ export class Liquidity extends Base {
       checkCreateATAOwner,
     })
 
-    frontInstructions.push(
-      ComputeBudgetProgram.requestUnits({
-        units: 400000,
-        additionalFee: 0,
-      }),
-    )
+    // frontInstructions.push(
+    //   ComputeBudgetProgram.requestUnits({
+    //     units: 400000,
+    //     additionalFee: 0,
+    //   }),
+    // )
 
     const ins = this.makeRemoveLiquidityInstruction({
       poolKeys,
