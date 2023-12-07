@@ -33,6 +33,7 @@ export const RAYDIUM_MAINNET = {
   farmAprLine: '/v2/main/farm-apr-tv',
   tokenInfo: '/v2/sdk/token/raydium.mainnet.json',
   poolInfo: '/v2/sdk/liquidity/mainnet.json',
+  dailyPoolInfo: '/v2/sdk/liquidity/date',
   farmInfo: '/v2/sdk/farm-v2/mainnet.json',
   idoInfo: '/v2/main/ido/pools',
   idoProjectInfo: '/v2/main/ido/project/<id>',
