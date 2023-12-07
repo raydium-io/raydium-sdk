@@ -25,7 +25,6 @@ import { Spl } from '../spl'
 import { WSOL } from '../token'
 
 import { TokenAccount } from './base'
-import { LOOKUP_TABLE_CACHE } from './lookupTableCache'
 import { InnerSimpleTransaction, InnerSimpleV0Transaction, InnerTransaction, InstructionType, TxVersion } from './type'
 
 export function getWSOLAmount({ tokenAccounts }: { tokenAccounts: TokenAccount[] }) {
@@ -84,12 +83,14 @@ export async function buildSimpleTransaction({
   payer,
   innerTransactions,
   recentBlockhash,
+  addLookupTableInfo,
 }: {
   makeTxVersion: TxVersion
   payer: PublicKey
   connection: Connection
   innerTransactions: InnerSimpleTransaction[]
   recentBlockhash?: string | undefined
+  addLookupTableInfo?: CacheLTA | undefined
 }): Promise<(VersionedTransaction | Transaction)[]> {
   if (makeTxVersion !== TxVersion.V0 && makeTxVersion !== TxVersion.LEGACY) throw Error(' make tx version args error')
 
@@ -105,7 +106,7 @@ export async function buildSimpleTransaction({
         recentBlockhash: _recentBlockhash,
         signers: itemIx.signers,
         lookupTableInfos: Object.values({
-          ...LOOKUP_TABLE_CACHE,
+          ...(addLookupTableInfo ?? {}),
           ...((itemIx as InnerSimpleV0Transaction).lookupTableAddress ?? {}),
         }),
       }),
