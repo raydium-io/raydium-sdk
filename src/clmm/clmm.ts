@@ -3334,6 +3334,7 @@ export class Clmm extends Base {
       add,
       token2022Infos,
       epochInfo,
+      amountAddFee: amountHasFee,
     })
   }
 
@@ -3347,6 +3348,7 @@ export class Clmm extends Base {
     add,
     token2022Infos,
     epochInfo,
+    amountHasFee,
   }: {
     poolInfo: ClmmPoolInfo
     tickLower: number
@@ -3358,6 +3360,7 @@ export class Clmm extends Base {
 
     token2022Infos: ReturnTypeFetchMultipleMintInfos
     epochInfo: EpochInfo
+    amountHasFee: boolean
   }): ReturnTypeGetLiquidityAmountOut {
     const [_tickLower, _tickUpper, _amountA, _amountB] =
       tickLower < tickUpper ? [tickLower, tickUpper, amountA, amountB] : [tickUpper, tickLower, amountB, amountA]
@@ -3365,12 +3368,27 @@ export class Clmm extends Base {
     const sqrtPriceX64A = SqrtPriceMath.getSqrtPriceX64FromTick(_tickLower)
     const sqrtPriceX64B = SqrtPriceMath.getSqrtPriceX64FromTick(_tickUpper)
 
+    const [amountFeeA, amountFeeB] = [
+      getTransferAmountFee(
+        _amountA,
+        token2022Infos[poolInfo.mintA.mint.toString()]?.feeConfig,
+        epochInfo,
+        !amountHasFee,
+      ),
+      getTransferAmountFee(
+        _amountB,
+        token2022Infos[poolInfo.mintB.mint.toString()]?.feeConfig,
+        epochInfo,
+        !amountHasFee,
+      ),
+    ]
+
     const liquidity = LiquidityMath.getLiquidityFromTokenAmounts(
       sqrtPriceX64,
       sqrtPriceX64A,
       sqrtPriceX64B,
-      _amountA,
-      _amountB,
+      amountFeeA.amount.sub(amountFeeA.fee ?? ZERO),
+      amountFeeB.amount.sub(amountFeeB.fee ?? ZERO),
     )
 
     return this.getAmountsFromLiquidity({
@@ -3382,6 +3400,7 @@ export class Clmm extends Base {
       add,
       token2022Infos,
       epochInfo,
+      amountAddFee: !amountHasFee,
     })
   }
 
@@ -3394,6 +3413,7 @@ export class Clmm extends Base {
     add,
     token2022Infos,
     epochInfo,
+    amountAddFee,
   }: {
     poolInfo: ClmmPoolInfo
     tickLower: number
@@ -3404,6 +3424,7 @@ export class Clmm extends Base {
 
     token2022Infos: ReturnTypeFetchMultipleMintInfos
     epochInfo: EpochInfo
+    amountAddFee: boolean
   }): ReturnTypeGetLiquidityAmountOut {
     const sqrtPriceX64A = SqrtPriceMath.getSqrtPriceX64FromTick(tickLower)
     const sqrtPriceX64B = SqrtPriceMath.getSqrtPriceX64FromTick(tickUpper)
@@ -3418,21 +3439,31 @@ export class Clmm extends Base {
       add,
     )
     const [amountA, amountB] = [
-      getTransferAmountFee(amounts.amountA, token2022Infos[poolInfo.mintA.mint.toString()]?.feeConfig, epochInfo, true),
-      getTransferAmountFee(amounts.amountB, token2022Infos[poolInfo.mintB.mint.toString()]?.feeConfig, epochInfo, true),
+      getTransferAmountFee(
+        amounts.amountA,
+        token2022Infos[poolInfo.mintA.mint.toString()]?.feeConfig,
+        epochInfo,
+        amountAddFee,
+      ),
+      getTransferAmountFee(
+        amounts.amountB,
+        token2022Infos[poolInfo.mintB.mint.toString()]?.feeConfig,
+        epochInfo,
+        amountAddFee,
+      ),
     ]
     const [amountSlippageA, amountSlippageB] = [
       getTransferAmountFee(
         new BN(new Decimal(amounts.amountA.toString()).mul(coefficientRe).toFixed(0)),
         token2022Infos[poolInfo.mintA.mint.toString()]?.feeConfig,
         epochInfo,
-        true,
+        amountAddFee,
       ),
       getTransferAmountFee(
         new BN(new Decimal(amounts.amountB.toString()).mul(coefficientRe).toFixed(0)),
         token2022Infos[poolInfo.mintB.mint.toString()]?.feeConfig,
         epochInfo,
-        true,
+        amountAddFee,
       ),
     ]
 
