@@ -225,6 +225,7 @@ export interface ReturnTypeGetTickPrice {
   tickSqrtPriceX64: BN
 }
 export interface ReturnTypeComputeAmountOutFormat {
+  allTrade: boolean
   realAmountIn: TransferAmountFee
   amountOut: TransferAmountFee
   minAmountOut: TransferAmountFee
@@ -236,6 +237,7 @@ export interface ReturnTypeComputeAmountOutFormat {
   remainingAccounts: PublicKey[]
 }
 export interface ReturnTypeComputeAmountOut {
+  allTrade: boolean
   realAmountIn: GetTransferAmountFee
   amountOut: GetTransferAmountFee
   minAmountOut: GetTransferAmountFee
@@ -3533,6 +3535,7 @@ export class Clmm extends Base {
     amountIn,
     currencyOut,
     slippage,
+    catchLiquidityInsufficient = false,
   }: {
     poolInfo: ClmmPoolInfo
     tickArrayCache: { [key: string]: TickArray }
@@ -3543,6 +3546,7 @@ export class Clmm extends Base {
     amountIn: CurrencyAmount | TokenAmount
     currencyOut: Token | Currency
     slippage: Percent
+    catchLiquidityInsufficient: boolean
   }): ReturnTypeComputeAmountOutFormat {
     const amountInIsTokenAmount = amountIn instanceof TokenAmount
     const inputMint = (amountInIsTokenAmount ? amountIn.token : Token.WSOL).mint
@@ -3550,6 +3554,7 @@ export class Clmm extends Base {
     const _slippage = slippage.numerator.toNumber() / slippage.denominator.toNumber()
 
     const {
+      allTrade,
       realAmountIn: _realAmountIn,
       amountOut: _amountOut,
       minAmountOut: _minAmountOut,
@@ -3559,7 +3564,7 @@ export class Clmm extends Base {
       priceImpact,
       fee,
       remainingAccounts,
-    } = Clmm.computeAmountOut({
+    } = this.computeAmountOut({
       poolInfo,
       tickArrayCache,
       baseMint: inputMint,
@@ -3568,6 +3573,7 @@ export class Clmm extends Base {
 
       token2022Infos,
       epochInfo,
+      catchLiquidityInsufficient,
     })
 
     const realAmountIn = {
@@ -3630,6 +3636,7 @@ export class Clmm extends Base {
       : new CurrencyAmount(amountIn.currency, fee)
 
     return {
+      allTrade,
       realAmountIn,
       amountOut,
       minAmountOut,
@@ -3650,6 +3657,7 @@ export class Clmm extends Base {
     amountIn,
     slippage,
     priceLimit = new Decimal(0),
+    catchLiquidityInsufficient = false,
   }: {
     connection: Connection
     poolInfo: ClmmPoolInfo
@@ -3659,6 +3667,7 @@ export class Clmm extends Base {
     amountIn: BN
     slippage: number
     priceLimit?: Decimal
+    catchLiquidityInsufficient: boolean
   }) {
     const epochInfo = await connection.getEpochInfo()
     const token2022Infos = await fetchMultipleMintInfos({
@@ -3676,6 +3685,7 @@ export class Clmm extends Base {
       priceLimit,
       token2022Infos,
       epochInfo,
+      catchLiquidityInsufficient,
     })
   }
 
@@ -3688,6 +3698,7 @@ export class Clmm extends Base {
     amountIn,
     slippage,
     priceLimit = new Decimal(0),
+    catchLiquidityInsufficient = false,
   }: {
     poolInfo: ClmmPoolInfo
     tickArrayCache: { [key: string]: TickArray }
@@ -3699,6 +3710,7 @@ export class Clmm extends Base {
     amountIn: BN
     slippage: number
     priceLimit?: Decimal
+    catchLiquidityInsufficient: boolean
   }): ReturnTypeComputeAmountOut {
     let sqrtPriceLimitX64: BN
     if (priceLimit.equals(new Decimal(0))) {
@@ -3713,7 +3725,7 @@ export class Clmm extends Base {
       )
     }
 
-    const realAmountIn = getTransferAmountFee(
+    const _inputRealAmountIn = getTransferAmountFee(
       amountIn,
       token2022Infos[baseMint.toString()]?.feeConfig,
       epochInfo,
@@ -3721,6 +3733,8 @@ export class Clmm extends Base {
     )
 
     const {
+      allTrade,
+      realTradeAmountIn,
       expectedAmountOut: _expectedAmountOut,
       remainingAccounts,
       executionPrice: _executionPriceX64,
@@ -3729,8 +3743,16 @@ export class Clmm extends Base {
       poolInfo,
       tickArrayCache,
       baseMint,
-      realAmountIn.amount.sub(realAmountIn.fee ?? ZERO),
+      _inputRealAmountIn.amount.sub(_inputRealAmountIn.fee ?? ZERO),
       sqrtPriceLimitX64,
+      catchLiquidityInsufficient,
+    )
+
+    const realAmountIn = getTransferAmountFee(
+      realTradeAmountIn,
+      token2022Infos[baseMint.toString()]?.feeConfig,
+      epochInfo,
+      true,
     )
 
     const outMint = poolInfo.mintA.mint.equals(baseMint) ? poolInfo.mintB.mint : poolInfo.mintA.mint
@@ -3770,6 +3792,7 @@ export class Clmm extends Base {
     )
 
     return {
+      allTrade,
       realAmountIn,
       amountOut,
       minAmountOut,

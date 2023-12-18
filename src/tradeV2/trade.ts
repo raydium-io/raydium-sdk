@@ -71,6 +71,8 @@ export interface ComputeAmountOutAmmLayout {
   }
 
   expirationTime: number | undefined
+
+  allTrade: boolean
 }
 export interface ComputeAmountOutRouteLayout {
   amountIn: TransferAmountFee
@@ -94,6 +96,8 @@ export interface ComputeAmountOutRouteLayout {
   }
 
   expirationTime: number | undefined
+
+  allTrade: boolean
 }
 type ComputeAmountOutLayout = ComputeAmountOutAmmLayout | ComputeAmountOutRouteLayout
 
@@ -528,346 +532,202 @@ export class TradeV2 extends Base {
     const outRoute: ComputeAmountOutLayout[] = []
 
     for (const itemPool of directPath) {
-      if (itemPool.version === 6) {
-        try {
-          const {
-            realAmountIn,
-            amountOut,
-            minAmountOut,
-            expirationTime,
-            currentPrice,
-            executionPrice,
-            priceImpact,
-            fee,
-            remainingAccounts,
-          } = Clmm.computeAmountOutFormat({
-            poolInfo: itemPool as ClmmPoolInfo,
-            tickArrayCache: tickCache[itemPool.id.toString()],
-            amountIn,
-            currencyOut: outputToken,
-            slippage,
-
-            token2022Infos: mintInfos,
+      try {
+        outRoute.push({
+          ...this.computeAmountOut1({
+            itemPool,
+            tickCache,
+            simulateCache,
+            chainTime,
             epochInfo,
-          })
-          outRoute.push({
-            amountIn: realAmountIn,
-            amountOut,
-            minAmountOut,
-            currentPrice,
-            executionPrice,
-            priceImpact,
-            fee: [fee],
-            remainingAccounts: [remainingAccounts],
-            routeType: 'amm',
-            poolKey: [itemPool],
-            poolReady: itemPool.startTime < chainTime,
-            poolType: 'CLMM',
-            feeConfig: _inFeeConfig,
-            expirationTime: minExpirationTime(realAmountIn.expirationTime, expirationTime),
-          })
-        } catch (e) {
-          //
-        }
-      } else {
-        try {
-          if (![1, 6, 7].includes(simulateCache[itemPool.id as string].status.toNumber())) continue
-          const { amountOut, minAmountOut, currentPrice, executionPrice, priceImpact, fee } =
-            Liquidity.computeAmountOut({
-              poolKeys: jsonInfo2PoolKeys(itemPool) as LiquidityPoolKeys,
-              poolInfo: simulateCache[itemPool.id as string],
-              amountIn,
-              currencyOut: outputToken,
-              slippage,
-            })
-          outRoute.push({
-            amountIn: { amount: amountIn, fee: undefined, expirationTime: undefined },
-            amountOut: { amount: amountOut, fee: undefined, expirationTime: undefined },
-            minAmountOut: { amount: minAmountOut, fee: undefined, expirationTime: undefined },
-            currentPrice,
-            executionPrice,
-            priceImpact,
-            fee: [fee],
-            routeType: 'amm',
-            poolKey: [itemPool],
-            remainingAccounts: [],
-            poolReady: simulateCache[itemPool.id as string].startTime.toNumber() < chainTime,
-            poolType: itemPool.version === 5 ? 'STABLE' : undefined,
-            feeConfig: _inFeeConfig,
-            expirationTime: undefined,
-          })
-        } catch (e) {
-          //
-        }
+            mintInfos,
+            slippage,
+            outputToken,
+            amountIn,
+          }),
+          feeConfig: _inFeeConfig,
+        })
+      } catch (e) {
+        /* empty */
       }
     }
     for (const [routeMint, info] of Object.entries(routePathDict)) {
-      for (const iFromPool of info.in) {
-        if (!simulateCache[iFromPool.id as string] && !tickCache[iFromPool.id.toString()]) continue
-        if (iFromPool.version !== 6 && ![1, 6, 7].includes(simulateCache[iFromPool.id as string].status.toNumber()))
-          continue
-        for (const iOutPool of info.out) {
-          if (!simulateCache[iOutPool.id as string] && !tickCache[iOutPool.id.toString()]) continue
-          if (iOutPool.version !== 6 && ![1, 6, 7].includes(simulateCache[iOutPool.id as string].status.toNumber()))
-            continue
+      const routeToken = new Token(info.mintProgram, routeMint, info.mDecimals)
+      const maxFirstIn = info.in
+        .map((i) => {
           try {
-            const {
-              amountOut,
-              minAmountOut,
-              executionPrice,
-              priceImpact,
-              fee,
-              remainingAccounts,
-              minMiddleAmountFee,
-              expirationTime,
-              realAmountIn,
-              middleToken,
-            } = TradeV2.computeAmountOut({
-              middleMintInfo: { programId: info.mintProgram, mint: new PublicKey(routeMint), decimals: info.mDecimals },
-              amountIn,
-              currencyOut: outputToken,
-              slippage,
-
-              fromPool: iFromPool,
-              toPool: iOutPool,
-              simulateCache,
-              tickCache,
-
-              epochInfo,
-              mintInfos,
-            })
-            const infoAPoolOpen =
-              iFromPool.version === 6
-                ? iFromPool.startTime < chainTime
-                : simulateCache[iFromPool.id as string].startTime.toNumber() < chainTime
-            const infoBPoolOpen =
-              iOutPool.version === 6
-                ? iOutPool.startTime < chainTime
-                : simulateCache[iOutPool.id as string].startTime.toNumber() < chainTime
-
-            const poolTypeA = iFromPool.version === 6 ? 'CLMM' : iFromPool.version === 5 ? 'STABLE' : undefined
-            const poolTypeB = iOutPool.version === 6 ? 'CLMM' : iOutPool.version === 5 ? 'STABLE' : undefined
-
-            outRoute.push({
-              amountIn: realAmountIn,
-              amountOut,
-              minAmountOut,
-              currentPrice: undefined,
-              executionPrice,
-              priceImpact,
-              fee,
-              routeType: 'route',
-              poolKey: [iFromPool, iOutPool],
-              remainingAccounts,
-              minMiddleAmountFee,
-              middleToken,
-              poolReady: infoAPoolOpen && infoBPoolOpen,
-              poolType: [poolTypeA, poolTypeB],
-              feeConfig: _inFeeConfig,
-              expirationTime,
-            })
+            return {
+              pool: i,
+              data: this.computeAmountOut1({
+                itemPool: i,
+                tickCache,
+                simulateCache,
+                chainTime,
+                epochInfo,
+                mintInfos,
+                slippage,
+                outputToken: routeToken,
+                amountIn,
+              }),
+            }
           } catch (e) {
-            //
+            return undefined
           }
+        })
+        .sort((_a, _b) => {
+          const a = _a === undefined ? ZERO : _a.data.amountOut.amount.raw.sub(_a.data.amountOut.fee?.raw ?? ZERO)
+          const b = _b === undefined ? ZERO : _b.data.amountOut.amount.raw.sub(_b.data.amountOut.fee?.raw ?? ZERO)
+
+          return a.lt(b) ? 1 : -1
+        })[0]
+
+      if (maxFirstIn === undefined) continue
+
+      const routeAmountIn = new TokenAmount(
+        routeToken,
+        maxFirstIn.data.amountOut.amount.raw.sub(maxFirstIn.data.amountOut.fee?.raw ?? ZERO),
+      )
+      for (const iOutPool of info.out) {
+        try {
+          const outC = this.computeAmountOut1({
+            itemPool: iOutPool,
+            tickCache,
+            simulateCache,
+            chainTime,
+            epochInfo,
+            mintInfos,
+            slippage,
+            outputToken,
+            amountIn: routeAmountIn,
+          })
+
+          outRoute.push({
+            allTrade: maxFirstIn.data.allTrade && outC.allTrade ? true : false,
+            amountIn: maxFirstIn.data.amountIn,
+            amountOut: outC.amountOut,
+            minAmountOut: outC.minAmountOut,
+            currentPrice: undefined,
+            executionPrice: new Price(
+              (maxFirstIn.data.amountIn.amount as TokenAmount).token,
+              maxFirstIn.data.amountIn.amount.raw,
+              (outC.amountOut.amount as TokenAmount).token,
+              outC.amountOut.amount.raw.sub(outC.amountOut.fee?.raw ?? ZERO),
+            ),
+            priceImpact: maxFirstIn.data.priceImpact.add(outC.priceImpact),
+            fee: [maxFirstIn.data.fee[0], outC.fee[0]],
+            routeType: 'route',
+            poolKey: [maxFirstIn.pool, iOutPool],
+            remainingAccounts: [maxFirstIn.data.remainingAccounts[0], outC.remainingAccounts[0]],
+            minMiddleAmountFee: outC.amountOut.fee?.raw
+              ? new TokenAmount(
+                  (maxFirstIn.data.amountOut.amount as TokenAmount).token,
+                  (maxFirstIn.data.amountOut.fee?.raw ?? ZERO).add(outC.amountOut.fee?.raw ?? ZERO),
+                )
+              : undefined,
+            middleToken: (maxFirstIn.data.amountOut.amount as TokenAmount).token,
+            poolReady: maxFirstIn.data.poolReady && outC.poolReady,
+            poolType: [maxFirstIn.data.poolType, outC.poolType],
+            feeConfig: _inFeeConfig,
+            expirationTime: minExpirationTime(maxFirstIn.data.expirationTime, outC.expirationTime),
+          })
+        } catch (e) {
+          /* empty */
         }
       }
     }
 
     outRoute.sort((a, b) => (a.amountOut.amount.raw.sub(b.amountOut.amount.raw).gt(ZERO) ? -1 : 1))
 
+    if (!outRoute[0]?.allTrade) return []
+
     return outRoute
   }
 
-  private static computeAmountOut({
-    middleMintInfo,
-    amountIn,
-    currencyOut,
-    slippage,
-
-    fromPool,
-    toPool,
-    simulateCache,
+  private static computeAmountOut1({
+    itemPool,
     tickCache,
-
+    simulateCache,
+    chainTime,
     epochInfo,
     mintInfos,
+    slippage,
+    outputToken,
+    amountIn,
   }: {
-    middleMintInfo: { programId: PublicKey; mint: PublicKey; decimals: number }
-    amountIn: TokenAmountType
-    currencyOut: Currency | Token
-    slippage: Percent
-
-    fromPool: PoolType
-    toPool: PoolType
-    simulateCache: ReturnTypeFetchMultipleInfo
+    itemPool: PoolType
     tickCache: ReturnTypeFetchMultiplePoolTickArrays
-
+    simulateCache: ReturnTypeFetchMultipleInfo
+    chainTime: number
     epochInfo: EpochInfo
+    amountIn: TokenAmount | CurrencyAmount
+    outputToken: Token | Currency
+    slippage: Percent
     mintInfos: ReturnTypeFetchMultipleMintInfos
-  }): {
-    minMiddleAmountFee: TokenAmount | undefined
-    middleToken: Token
-    realAmountIn: TransferAmountFee
-    amountOut: TransferAmountFee
-    minAmountOut: TransferAmountFee
-    executionPrice: Price | null
-    priceImpact: Percent
-    fee: [TokenAmountType, TokenAmountType]
-    remainingAccounts: [PublicKey[] | undefined, PublicKey[] | undefined]
-    expirationTime: number | undefined
-  } {
-    const middleToken = new Token(middleMintInfo.programId, middleMintInfo.mint, middleMintInfo.decimals)
-
-    let firstPriceImpact: Percent
-    let firstFee: TokenAmountType
-    let firstRemainingAccounts: PublicKey[] | undefined = undefined
-    let minMiddleAmountOut: TransferAmountFee
-    let firstExpirationTime: number | undefined = undefined
-    let realAmountIn: TransferAmountFee = {
-      amount: amountIn,
-      fee: undefined,
-      expirationTime: undefined,
-    }
-
-    const _slippage = new Percent(0, 100)
-
-    if (fromPool.version === 6) {
+  }): ComputeAmountOutAmmLayout {
+    if (itemPool.version === 6) {
       const {
-        minAmountOut: _minMiddleAmountOut,
-        priceImpact: _firstPriceImpact,
-        fee: _firstFee,
-        remainingAccounts: _firstRemainingAccounts,
-        expirationTime: _expirationTime,
-        realAmountIn: _realAmountIn,
+        allTrade,
+        realAmountIn,
+        amountOut,
+        minAmountOut,
+        expirationTime,
+        currentPrice,
+        executionPrice,
+        priceImpact,
+        fee,
+        remainingAccounts,
       } = Clmm.computeAmountOutFormat({
-        poolInfo: fromPool as ClmmPoolInfo,
-        tickArrayCache: tickCache[fromPool.id.toString()],
+        poolInfo: itemPool as ClmmPoolInfo,
+        tickArrayCache: tickCache[itemPool.id.toString()],
         amountIn,
-        currencyOut: middleToken,
-        slippage: _slippage,
-
-        token2022Infos: mintInfos,
-        epochInfo,
-      })
-      minMiddleAmountOut = _minMiddleAmountOut
-      firstPriceImpact = _firstPriceImpact
-      firstFee = _firstFee
-      firstRemainingAccounts = _firstRemainingAccounts
-      firstExpirationTime = _expirationTime
-      realAmountIn = _realAmountIn
-    } else {
-      const {
-        minAmountOut: _minMiddleAmountOut,
-        priceImpact: _firstPriceImpact,
-        fee: _firstFee,
-      } = Liquidity.computeAmountOut({
-        poolKeys: jsonInfo2PoolKeys(fromPool) as LiquidityPoolKeys,
-        poolInfo: simulateCache[fromPool.id as string],
-        amountIn,
-        currencyOut: middleToken,
-        slippage: _slippage,
-      })
-      minMiddleAmountOut = {
-        amount: _minMiddleAmountOut,
-        fee: undefined,
-        expirationTime: undefined,
-      }
-      firstPriceImpact = _firstPriceImpact
-      firstFee = _firstFee
-    }
-
-    let amountOut: TransferAmountFee
-    let minAmountOut: TransferAmountFee
-    let secondPriceImpact: Percent
-    let secondFee: TokenAmountType
-    let secondRemainingAccounts: PublicKey[] | undefined = undefined
-    let secondExpirationTime: number | undefined = undefined
-    let realAmountRouteIn: TransferAmountFee = minMiddleAmountOut
-
-    if (toPool.version === 6) {
-      const {
-        amountOut: _amountOut,
-        minAmountOut: _minAmountOut,
-        priceImpact: _secondPriceImpact,
-        fee: _secondFee,
-        remainingAccounts: _secondRemainingAccounts,
-        expirationTime: _expirationTime,
-        realAmountIn: _realAmountIn,
-      } = Clmm.computeAmountOutFormat({
-        poolInfo: toPool as ClmmPoolInfo,
-        tickArrayCache: tickCache[toPool.id.toString()],
-        amountIn: new TokenAmount(
-          (minMiddleAmountOut.amount as TokenAmount).token,
-          minMiddleAmountOut.amount.raw.sub(minMiddleAmountOut.fee === undefined ? ZERO : minMiddleAmountOut.fee.raw),
-        ),
-        currencyOut,
+        currencyOut: outputToken,
         slippage,
 
         token2022Infos: mintInfos,
         epochInfo,
+        catchLiquidityInsufficient: true,
       })
-      amountOut = _amountOut
-      minAmountOut = _minAmountOut
-      secondPriceImpact = _secondPriceImpact
-      secondFee = _secondFee
-      secondRemainingAccounts = _secondRemainingAccounts
-      secondExpirationTime = _expirationTime
-      realAmountRouteIn = _realAmountIn
+      return {
+        allTrade,
+        amountIn: realAmountIn,
+        amountOut,
+        minAmountOut,
+        currentPrice,
+        executionPrice,
+        priceImpact,
+        fee: [fee],
+        remainingAccounts: [remainingAccounts],
+        routeType: 'amm',
+        poolKey: [itemPool],
+        poolReady: itemPool.startTime < chainTime,
+        poolType: 'CLMM',
+        expirationTime: minExpirationTime(realAmountIn.expirationTime, expirationTime),
+      }
     } else {
-      const {
-        amountOut: _amountOut,
-        minAmountOut: _minAmountOut,
-        priceImpact: _secondPriceImpact,
-        fee: _secondFee,
-      } = Liquidity.computeAmountOut({
-        poolKeys: jsonInfo2PoolKeys(toPool) as LiquidityPoolKeys,
-        poolInfo: simulateCache[toPool.id as string],
-        amountIn: new TokenAmount(
-          (minMiddleAmountOut.amount as TokenAmount).token,
-          minMiddleAmountOut.amount.raw.sub(minMiddleAmountOut.fee === undefined ? ZERO : minMiddleAmountOut.fee.raw),
-        ),
-        currencyOut,
+      if (![1, 6, 7].includes(simulateCache[itemPool.id as string].status.toNumber())) throw Error('swap error')
+      const { amountOut, minAmountOut, currentPrice, executionPrice, priceImpact, fee } = Liquidity.computeAmountOut({
+        poolKeys: jsonInfo2PoolKeys(itemPool) as LiquidityPoolKeys,
+        poolInfo: simulateCache[itemPool.id as string],
+        amountIn,
+        currencyOut: outputToken,
         slippage,
       })
-      amountOut = {
-        amount: _amountOut,
-        fee: undefined,
+      return {
+        amountIn: { amount: amountIn, fee: undefined, expirationTime: undefined },
+        amountOut: { amount: amountOut, fee: undefined, expirationTime: undefined },
+        minAmountOut: { amount: minAmountOut, fee: undefined, expirationTime: undefined },
+        currentPrice,
+        executionPrice,
+        priceImpact,
+        fee: [fee],
+        routeType: 'amm',
+        poolKey: [itemPool],
+        remainingAccounts: [],
+        poolReady: simulateCache[itemPool.id as string].startTime.toNumber() < chainTime,
+        poolType: itemPool.version === 5 ? 'STABLE' : undefined,
         expirationTime: undefined,
+        allTrade: true,
       }
-      minAmountOut = {
-        amount: _minAmountOut,
-        fee: undefined,
-        expirationTime: undefined,
-      }
-      secondPriceImpact = _secondPriceImpact
-      secondFee = _secondFee
-    }
-
-    let executionPrice: Price | null = null
-    const amountInRaw = amountIn.raw
-    const amountOutRaw = amountOut.amount.raw
-    const currencyIn = amountIn instanceof TokenAmount ? amountIn.token : amountIn.currency
-    if (!amountInRaw.isZero() && !amountOutRaw.isZero()) {
-      executionPrice = new Price(currencyIn, amountInRaw, currencyOut, amountOutRaw)
-    }
-
-    return {
-      minMiddleAmountFee:
-        minMiddleAmountOut.fee !== undefined
-          ? new TokenAmount(
-              middleToken,
-              (minMiddleAmountOut.fee?.raw ?? new BN(0)).add(realAmountRouteIn.fee?.raw ?? new BN(0)),
-            )
-          : undefined,
-      middleToken,
-      realAmountIn,
-      amountOut,
-      minAmountOut,
-      executionPrice,
-      priceImpact: firstPriceImpact.add(secondPriceImpact),
-      fee: [firstFee, secondFee],
-      remainingAccounts: [firstRemainingAccounts, secondRemainingAccounts],
-      expirationTime: minExpirationTime(firstExpirationTime, secondExpirationTime),
     }
   }
 

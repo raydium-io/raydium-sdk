@@ -19,7 +19,15 @@ export class PoolUtils {
     inputTokenMint: PublicKey,
     inputAmount: BN,
     sqrtPriceLimitX64?: BN,
-  ) {
+    catchLiquidityInsufficient: boolean = false,
+  ): {
+    allTrade: boolean
+    realTradeAmountIn: BN
+    expectedAmountOut: BN
+    remainingAccounts: PublicKey[]
+    executionPrice: BN
+    feeAmount: BN
+  } {
     const zeroForOne = inputTokenMint.equals(poolInfo.mintA.mint)
 
     const allNeededAccounts: PublicKey[] = []
@@ -42,6 +50,8 @@ export class PoolUtils {
 
     allNeededAccounts.push(nextAccountMeta)
     const {
+      allTrade,
+      amountSpecifiedRemaining,
       amountCalculated: outputAmount,
       accounts: reaminAccounts,
       sqrtPriceX64: executionPrice,
@@ -61,9 +71,12 @@ export class PoolUtils {
       inputAmount,
       firstTickArrayStartIndex,
       sqrtPriceLimitX64,
+      catchLiquidityInsufficient,
     )
     allNeededAccounts.push(...reaminAccounts)
     return {
+      allTrade,
+      realTradeAmountIn: inputAmount.sub(amountSpecifiedRemaining),
       expectedAmountOut: outputAmount.mul(NEGATIVE_ONE),
       remainingAccounts: allNeededAccounts,
       executionPrice,

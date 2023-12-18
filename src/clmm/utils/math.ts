@@ -454,7 +454,17 @@ export abstract class SwapMath {
     amountSpecified: BN,
     lastSavedTickArrayStartIndex: number,
     sqrtPriceLimitX64?: BN,
-  ) {
+    catchLiquidityInsufficient: boolean = false,
+  ): {
+    allTrade: boolean
+    amountSpecifiedRemaining: BN
+    amountCalculated: BN
+    feeAmount: BN
+    sqrtPriceX64: BN
+    liquidity: BN
+    tickCurrent: number
+    accounts: PublicKey[]
+  } {
     if (amountSpecified.eq(ZERO)) {
       throw new Error('amountSpecified must not be 0')
     }
@@ -501,7 +511,7 @@ export abstract class SwapMath {
       // state.tick > MIN_TICK
     ) {
       if (loopCount > 10) {
-        throw Error('liquidity limit')
+        // throw Error('liquidity limit')
       }
       const step: Partial<StepComputations> = {}
       step.sqrtPriceStartX64 = state.sqrtPriceX64
@@ -523,6 +533,18 @@ export abstract class SwapMath {
           zeroForOne,
         )
         if (!nextInitTickArrayIndex.isExist) {
+          if (catchLiquidityInsufficient) {
+            return {
+              allTrade: false,
+              amountSpecifiedRemaining: state.amountSpecifiedRemaining,
+              amountCalculated: state.amountCalculated,
+              feeAmount: state.feeAmount,
+              sqrtPriceX64: state.sqrtPriceX64,
+              liquidity: state.liquidity,
+              tickCurrent: state.tick,
+              accounts: state.accounts,
+            }
+          }
           throw Error('swapCompute LiquidityInsufficient')
         }
         tickAarrayStartIndex = nextInitTickArrayIndex.nextStartIndex
@@ -535,7 +557,11 @@ export abstract class SwapMath {
         tickArrayAddress = expectedNextTickArrayAddress
         tickArrayCurrent = tickArrayCache[tickAarrayStartIndex]
 
-        nextInitTick = TickUtils.firstInitializedTick(tickArrayCurrent, zeroForOne)
+        try {
+          nextInitTick = TickUtils.firstInitializedTick(tickArrayCurrent, zeroForOne)
+        } catch (e) {
+          throw Error('not found next tick info')
+        }
       }
 
       step.tickNext = nextInitTick.tick
@@ -607,6 +633,8 @@ export abstract class SwapMath {
     }
 
     return {
+      allTrade: true,
+      amountSpecifiedRemaining: ZERO,
       amountCalculated: state.amountCalculated,
       feeAmount: state.feeAmount,
       sqrtPriceX64: state.sqrtPriceX64,
