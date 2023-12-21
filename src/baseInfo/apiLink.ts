@@ -34,6 +34,10 @@ export const RAYDIUM_MAINNET = {
   tokenInfo: '/v2/sdk/token/raydium.mainnet.json',
   poolInfo: '/v2/sdk/liquidity/mainnet.json',
   dailyPoolInfo: '/v2/sdk/liquidity/date',
+
+  uiPoolInfo: '/v2/sdk/liquidity/mainnet.ui.json',
+  searchPool: '/v2/sdk/liquidity/mint/',
+
   farmInfo: '/v2/sdk/farm-v2/mainnet.json',
   idoInfo: '/v2/main/ido/pools',
   idoProjectInfo: '/v2/main/ido/project/<id>',
