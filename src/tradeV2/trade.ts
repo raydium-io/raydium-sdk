@@ -800,7 +800,7 @@ export class TradeV2 extends Base {
           lookupTableAddress: [
             poolKey1.lookupTableAccount ? new PublicKey(poolKey1.lookupTableAccount) : PublicKey.default,
             poolKey2.lookupTableAccount ? new PublicKey(poolKey2.lookupTableAccount) : PublicKey.default,
-          ],
+          ].filter((i) => i && !i.equals(PublicKey.default)),
           instructionTypes: [InstructionType.routeSwap],
         },
       }
