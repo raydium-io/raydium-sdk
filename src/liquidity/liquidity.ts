@@ -1,4 +1,4 @@
-import { Connection, PublicKey, Signer, Transaction, TransactionInstruction } from '@solana/web3.js'
+import { Connection, PublicKey, Signer, TransactionInstruction } from '@solana/web3.js'
 import BN from 'bn.js'
 
 import {
@@ -23,7 +23,6 @@ import {
   Logger,
   RENT_PROGRAM_ID,
   SYSTEM_PROGRAM_ID,
-  SYSVAR_RENT_PUBKEY,
   TOKEN_PROGRAM_ID,
   findProgramAddress,
   getMultipleAccountsInfo,
@@ -48,7 +47,6 @@ import {
 import { Farm, FarmPoolKeys } from '../farm'
 import { struct, u64, u8 } from '../marshmallow'
 import { MARKET_STATE_LAYOUT_V3, Market, MarketState } from '../serum'
-import { Spl } from '../spl'
 
 import { LIQUIDITY_VERSION_TO_STATE_LAYOUT, LiquidityStateV4, LiquidityStateV5 } from './layout'
 import {
@@ -111,7 +109,7 @@ export interface LiquidityAssociatedPoolKeysV4
  * @remarks
  * without partial markets keys
  */
-export type LiquidityAssociatedPoolKeys = LiquidityAssociatedPoolKeysV4
+export type LiquidityAssociatedPoolKeys = LiquidityAssociatedPoolKeysV4 & { configId: PublicKey }
 
 export enum LiquidityPoolStatus {
   Uninitialized,
@@ -282,23 +280,6 @@ export interface LiquiditySwapInstructionSimpleParams {
     checkCreateATAOwner?: boolean
   }
 }
-
-export interface LiquidityCreatePoolInstructionParamsV4 {
-  poolKeys: LiquidityAssociatedPoolKeysV4
-  userKeys: {
-    payer: PublicKey
-  }
-}
-
-/**
- * Create pool instruction params
- */
-export type LiquidityCreatePoolInstructionParams = LiquidityCreatePoolInstructionParamsV4
-
-/**
- * Create pool transaction params
- */
-export type LiquidityCreatePoolInstructionSimpleParams = LiquidityCreatePoolInstructionParams
 
 export interface LiquidityInitPoolInstructionParamsV4 {
   poolKeys: LiquidityAssociatedPoolKeysV4
@@ -504,6 +485,11 @@ export class Liquidity extends Base {
     return publicKey
   }
 
+  static getAssociatedConfigId({ programId }: { programId: PublicKey }) {
+    const { publicKey } = findProgramAddress([Buffer.from('amm_config_account_seed', 'utf-8')], programId)
+    return publicKey
+  }
+
   static getAssociatedPoolKeys({
     version,
     marketVersion,
@@ -568,6 +554,7 @@ export class Liquidity extends Base {
       marketId,
       marketAuthority,
       lookupTableAccount: PublicKey.default,
+      configId: this.getAssociatedConfigId({ programId }),
     }
   }
 
@@ -1318,318 +1305,6 @@ export class Liquidity extends Base {
     }
   }
 
-  static makeCreatePoolInstruction(params: LiquidityCreatePoolInstructionParams) {
-    const { poolKeys } = params
-    const { version } = poolKeys
-
-    if (version === 4) {
-      return this.makeCreatePoolInstructionV4(params)
-    }
-
-    return logger.throwArgumentError('invalid version', 'poolKeys.version', version)
-  }
-
-  static makeCreatePoolInstructionV4({ poolKeys, userKeys }: LiquidityCreatePoolInstructionParamsV4) {
-    const LAYOUT = struct([u8('instruction'), u8('nonce')])
-    const data = Buffer.alloc(LAYOUT.span)
-    LAYOUT.encode(
-      {
-        instruction: 10,
-        nonce: poolKeys.nonce,
-      },
-      data,
-    )
-
-    const keys = [
-      // system
-      AccountMetaReadonly(TOKEN_PROGRAM_ID, false),
-      AccountMetaReadonly(SYSTEM_PROGRAM_ID, false),
-      AccountMetaReadonly(SYSVAR_RENT_PUBKEY, false),
-      // amm
-      AccountMeta(poolKeys.targetOrders, false),
-      AccountMeta(poolKeys.withdrawQueue, false),
-      AccountMetaReadonly(poolKeys.authority, false),
-      AccountMeta(poolKeys.lpMint, false),
-      AccountMetaReadonly(poolKeys.baseMint, false),
-      AccountMetaReadonly(poolKeys.quoteMint, false),
-      AccountMeta(poolKeys.baseVault, false),
-      AccountMeta(poolKeys.quoteVault, false),
-      AccountMeta(poolKeys.lpVault, false),
-      // serum
-      AccountMetaReadonly(poolKeys.marketId, false),
-      // user
-      AccountMeta(userKeys.payer, true),
-    ]
-
-    return {
-      address: {},
-      innerTransaction: {
-        instructions: [
-          new TransactionInstruction({
-            programId: poolKeys.programId,
-            keys,
-            data,
-          }),
-        ],
-        signers: [],
-        lookupTableAddress: [poolKeys.lookupTableAccount].filter((i) => i && !i.equals(PublicKey.default)),
-        instructionTypes: [InstructionType.ammV4CreatePool],
-      },
-    }
-  }
-
-  static async makeCreatePoolInstructionSimple<T extends TxVersion>(
-    params: LiquidityCreatePoolInstructionSimpleParams & {
-      makeTxVersion: T
-      lookupTableCache?: CacheLTA
-      computeBudgetConfig?: ComputeBudgetConfig
-      connection: Connection
-      payer: PublicKey
-    },
-  ) {
-    const { makeTxVersion, lookupTableCache, computeBudgetConfig, connection, payer } = params
-    const ins = this.makeCreatePoolInstruction(params)
-    return {
-      address: ins.address,
-      innerTransactions: await splitTxAndSigners({
-        connection,
-        makeTxVersion,
-        computeBudgetConfig,
-        payer,
-        innerTransaction: [ins.innerTransaction],
-        lookupTableCache,
-      }),
-    }
-  }
-
-  static makeInitPoolInstruction(params: LiquidityInitPoolInstructionParams) {
-    const { poolKeys } = params
-    const { version } = poolKeys
-
-    if (version === 4) {
-      return this.makeInitPoolInstructionV4(params)
-    }
-
-    return logger.throwArgumentError('invalid version', 'poolKeys.version', version)
-  }
-
-  static makeInitPoolInstructionV4({ poolKeys, userKeys, startTime }: LiquidityInitPoolInstructionParamsV4) {
-    const LAYOUT = struct([u8('instruction'), u8('nonce'), u64('startTime')])
-    const data = Buffer.alloc(LAYOUT.span)
-    LAYOUT.encode(
-      {
-        instruction: 0,
-        nonce: poolKeys.nonce,
-        startTime: parseBigNumberish(startTime),
-      },
-      data,
-    )
-
-    const keys = [
-      // system
-      AccountMetaReadonly(TOKEN_PROGRAM_ID, false),
-      AccountMetaReadonly(SYSTEM_PROGRAM_ID, false),
-      AccountMetaReadonly(SYSVAR_RENT_PUBKEY, false),
-      // amm
-      AccountMeta(poolKeys.id, false),
-      AccountMetaReadonly(poolKeys.authority, false),
-      AccountMeta(poolKeys.openOrders, false),
-      AccountMeta(poolKeys.lpMint, false),
-      AccountMetaReadonly(poolKeys.baseMint, false),
-      AccountMetaReadonly(poolKeys.quoteMint, false),
-      AccountMetaReadonly(poolKeys.baseVault, false),
-      AccountMetaReadonly(poolKeys.quoteVault, false),
-      AccountMeta(poolKeys.withdrawQueue, false),
-      AccountMeta(poolKeys.targetOrders, false),
-      AccountMeta(userKeys.lpTokenAccount, false),
-      AccountMetaReadonly(poolKeys.lpVault, false),
-      // serum
-      AccountMetaReadonly(poolKeys.marketProgramId, false),
-      AccountMetaReadonly(poolKeys.marketId, false),
-      // user
-      AccountMeta(userKeys.payer, true),
-    ]
-
-    return {
-      address: {},
-      innerTransaction: {
-        instructions: [
-          new TransactionInstruction({
-            programId: poolKeys.programId,
-            keys,
-            data,
-          }),
-        ],
-        signers: [],
-        lookupTableAddress: [poolKeys.lookupTableAccount].filter((i) => i && !i.equals(PublicKey.default)),
-        instructionTypes: [InstructionType.ammV4InitPool],
-      },
-    }
-  }
-
-  static async makeInitPoolInstructionSimple<T extends TxVersion>(
-    params: LiquidityInitPoolTransactionParams & {
-      makeTxVersion: T
-      lookupTableCache?: CacheLTA
-      computeBudgetConfig?: ComputeBudgetConfig
-    },
-  ) {
-    const {
-      connection,
-      poolKeys,
-      userKeys,
-      baseAmount,
-      quoteAmount,
-      startTime = 0,
-      config,
-      makeTxVersion,
-      lookupTableCache,
-      computeBudgetConfig,
-    } = params
-    const { baseMint, quoteMint, lpMint, baseVault, quoteVault } = poolKeys
-    const { tokenAccounts, owner, payer = owner } = userKeys
-
-    const { bypassAssociatedCheck, checkCreateATAOwner } = {
-      // default
-      ...{ bypassAssociatedCheck: false, checkCreateATAOwner: false },
-      // custom
-      ...config,
-    }
-
-    const baseTokenAccount = this._selectTokenAccount({
-      programId: TOKEN_PROGRAM_ID,
-      tokenAccounts,
-      mint: baseMint,
-      owner,
-      config: { associatedOnly: false },
-    })
-    const quoteTokenAccount = this._selectTokenAccount({
-      programId: TOKEN_PROGRAM_ID,
-      tokenAccounts,
-      mint: quoteMint,
-      owner,
-      config: { associatedOnly: false },
-    })
-    logger.assertArgument(
-      !!baseTokenAccount || !!quoteTokenAccount,
-      'cannot found target token accounts',
-      'tokenAccounts',
-      tokenAccounts,
-    )
-    const lpTokenAccount = this._selectTokenAccount({
-      programId: TOKEN_PROGRAM_ID,
-      tokenAccounts,
-      mint: lpMint,
-      owner,
-    })
-
-    const frontInstructions: TransactionInstruction[] = []
-    const endInstructions: TransactionInstruction[] = []
-    const frontInstructionsType: InstructionType[] = []
-    const endInstructionsType: InstructionType[] = []
-    const signers: Signer[] = []
-
-    const _baseTokenAccount = await this._handleTokenAccount({
-      programId: TOKEN_PROGRAM_ID,
-      connection,
-      side: 'in',
-      amount: baseAmount.raw,
-      mint: baseMint,
-      tokenAccount: baseTokenAccount,
-      owner,
-      payer,
-      frontInstructions,
-      endInstructions,
-      signers,
-      bypassAssociatedCheck,
-      frontInstructionsType,
-      checkCreateATAOwner,
-    })
-    const _quoteTokenAccount = await this._handleTokenAccount({
-      programId: TOKEN_PROGRAM_ID,
-      connection,
-      side: 'in',
-      amount: quoteAmount.raw,
-      mint: quoteMint,
-      tokenAccount: quoteTokenAccount,
-      owner,
-      payer,
-      frontInstructions,
-      endInstructions,
-      signers,
-      bypassAssociatedCheck,
-      frontInstructionsType,
-      checkCreateATAOwner,
-    })
-    const _lpTokenAccount = await this._handleTokenAccount({
-      programId: TOKEN_PROGRAM_ID,
-      connection,
-      side: 'out',
-      amount: 0,
-      mint: lpMint,
-      tokenAccount: lpTokenAccount,
-      owner,
-      payer,
-      frontInstructions,
-      endInstructions,
-      signers,
-      bypassAssociatedCheck,
-      frontInstructionsType,
-      checkCreateATAOwner,
-    })
-
-    frontInstructions.push(
-      Spl.makeTransferInstruction({
-        programId: TOKEN_PROGRAM_ID,
-        source: _baseTokenAccount,
-        destination: baseVault,
-        owner,
-        amount: baseAmount.raw,
-        instructionsType: frontInstructionsType,
-      }),
-    )
-    frontInstructions.push(
-      Spl.makeTransferInstruction({
-        programId: TOKEN_PROGRAM_ID,
-        source: _quoteTokenAccount,
-        destination: quoteVault,
-        owner,
-        amount: quoteAmount.raw,
-        instructionsType: frontInstructionsType,
-      }),
-    )
-
-    const ins = this.makeInitPoolInstruction({
-      poolKeys,
-      userKeys: {
-        lpTokenAccount: _lpTokenAccount,
-        payer,
-      },
-      startTime,
-    })
-
-    const transaction = new Transaction()
-    transaction.add(...[...frontInstructions, ...endInstructions])
-
-    return {
-      address: {
-        lpTokenAccount: _lpTokenAccount,
-      },
-      innerTransactions: await splitTxAndSigners({
-        connection,
-        makeTxVersion,
-        computeBudgetConfig,
-        payer,
-        innerTransaction: [
-          { instructionTypes: frontInstructionsType, instructions: frontInstructions, signers },
-          ins.innerTransaction,
-          { instructionTypes: endInstructionsType, instructions: endInstructions, signers: [] },
-        ],
-        lookupTableCache,
-      }),
-    }
-  }
-
   static makeSimulatePoolInfoInstruction({ poolKeys }: { poolKeys: LiquidityPoolKeys }) {
     const LAYOUT = struct([u8('instruction'), u8('simulateType')])
     const data = Buffer.alloc(LAYOUT.span)
@@ -1692,6 +1367,7 @@ export class Liquidity extends Base {
     checkCreateATAOwner = false,
     makeTxVersion,
     lookupTableCache,
+    feeDestinationId,
   }: {
     connection: Connection
     programId: PublicKey
@@ -1724,6 +1400,7 @@ export class Liquidity extends Base {
   } & {
     makeTxVersion: T
     lookupTableCache?: CacheLTA
+    feeDestinationId: PublicKey
   }) {
     const frontInstructions: TransactionInstruction[] = []
     const endInstructions: TransactionInstruction[] = []
@@ -1807,15 +1484,15 @@ export class Liquidity extends Base {
       pcMint: poolInfo.quoteMint,
       coinVault: poolInfo.baseVault,
       pcVault: poolInfo.quoteVault,
-      withdrawQueue: poolInfo.withdrawQueue,
       ammTargetOrders: poolInfo.targetOrders,
-      poolTempLp: poolInfo.lpVault,
       marketProgramId: poolInfo.marketProgramId,
       marketId: poolInfo.marketId,
       userWallet: ownerInfo.wallet,
       userCoinVault: ownerTokenAccountBase,
       userPcVault: ownerTokenAccountQuote,
       userLpVault: getATAAddress(ownerInfo.wallet, poolInfo.lpMint, TOKEN_PROGRAM_ID).publicKey,
+      ammConfigId: poolInfo.configId,
+      feeDestinationId,
 
       nonce: poolInfo.nonce,
       openTime: startTime,
@@ -1865,9 +1542,7 @@ export class Liquidity extends Base {
     pcMint,
     coinVault,
     pcVault,
-    withdrawQueue,
     ammTargetOrders,
-    poolTempLp,
     marketProgramId,
     marketId,
     userWallet,
@@ -1879,6 +1554,8 @@ export class Liquidity extends Base {
     coinAmount,
     pcAmount,
     lookupTableAddress,
+    ammConfigId,
+    feeDestinationId,
   }: {
     programId: PublicKey
     ammId: PublicKey
@@ -1889,9 +1566,7 @@ export class Liquidity extends Base {
     pcMint: PublicKey
     coinVault: PublicKey
     pcVault: PublicKey
-    withdrawQueue: PublicKey
     ammTargetOrders: PublicKey
-    poolTempLp: PublicKey
     marketProgramId: PublicKey
     marketId: PublicKey
     userWallet: PublicKey
@@ -1900,6 +1575,8 @@ export class Liquidity extends Base {
     userLpVault: PublicKey
 
     lookupTableAddress?: PublicKey
+    ammConfigId: PublicKey
+    feeDestinationId: PublicKey
 
     nonce: number
     openTime: BN
@@ -1921,9 +1598,9 @@ export class Liquidity extends Base {
       { pubkey: pcMint, isSigner: false, isWritable: false },
       { pubkey: coinVault, isSigner: false, isWritable: true },
       { pubkey: pcVault, isSigner: false, isWritable: true },
-      { pubkey: withdrawQueue, isSigner: false, isWritable: true },
       { pubkey: ammTargetOrders, isSigner: false, isWritable: true },
-      { pubkey: poolTempLp, isSigner: false, isWritable: true },
+      { pubkey: ammConfigId, isSigner: false, isWritable: false },
+      { pubkey: feeDestinationId, isSigner: false, isWritable: true },
       { pubkey: marketProgramId, isSigner: false, isWritable: false },
       { pubkey: marketId, isSigner: false, isWritable: false },
       { pubkey: userWallet, isSigner: true, isWritable: true },
