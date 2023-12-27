@@ -534,7 +534,7 @@ export class TradeV2 extends Base {
     for (const itemPool of directPath) {
       try {
         outRoute.push({
-          ...this.computeAmountOut1({
+          ...this.computeAmountOut({
             itemPool,
             tickCache,
             simulateCache,
@@ -558,7 +558,7 @@ export class TradeV2 extends Base {
           try {
             return {
               pool: i,
-              data: this.computeAmountOut1({
+              data: this.computeAmountOut({
                 itemPool: i,
                 tickCache,
                 simulateCache,
@@ -589,7 +589,7 @@ export class TradeV2 extends Base {
       )
       for (const iOutPool of info.out) {
         try {
-          const outC = this.computeAmountOut1({
+          const outC = this.computeAmountOut({
             itemPool: iOutPool,
             tickCache,
             simulateCache,
@@ -636,14 +636,12 @@ export class TradeV2 extends Base {
       }
     }
 
-    outRoute.sort((a, b) => (a.amountOut.amount.raw.sub(b.amountOut.amount.raw).gt(ZERO) ? -1 : 1))
-
-    if (!outRoute[0]?.allTrade) return []
-
     return outRoute
+      .filter((i) => i.allTrade)
+      .sort((a, b) => (a.amountOut.amount.raw.sub(b.amountOut.amount.raw).gt(ZERO) ? -1 : 1))
   }
 
-  private static computeAmountOut1({
+  private static computeAmountOut({
     itemPool,
     tickCache,
     simulateCache,
