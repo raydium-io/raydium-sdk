@@ -608,9 +608,10 @@ export class TradeV2 extends Base {
             minAmountOut: outC.minAmountOut,
             currentPrice: undefined,
             executionPrice: new Price(
-              (maxFirstIn.data.amountIn.amount as TokenAmount).token,
+              (maxFirstIn.data.amountIn.amount as TokenAmount).token ??
+                (maxFirstIn.data.amountIn.amount as CurrencyAmount).currency,
               maxFirstIn.data.amountIn.amount.raw,
-              (outC.amountOut.amount as TokenAmount).token,
+              (outC.amountOut.amount as TokenAmount).token ?? (outC.amountOut.amount as CurrencyAmount).currency,
               outC.amountOut.amount.raw.sub(outC.amountOut.fee?.raw ?? ZERO),
             ),
             priceImpact: maxFirstIn.data.priceImpact.add(outC.priceImpact),
@@ -620,7 +621,8 @@ export class TradeV2 extends Base {
             remainingAccounts: [maxFirstIn.data.remainingAccounts[0], outC.remainingAccounts[0]],
             minMiddleAmountFee: outC.amountOut.fee?.raw
               ? new TokenAmount(
-                  (maxFirstIn.data.amountOut.amount as TokenAmount).token,
+                  (maxFirstIn.data.amountOut.amount as TokenAmount).token ??
+                    (maxFirstIn.data.amountOut.amount as CurrencyAmount).currency,
                   (maxFirstIn.data.amountOut.fee?.raw ?? ZERO).add(outC.amountOut.fee?.raw ?? ZERO),
                 )
               : undefined,
