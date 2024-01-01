@@ -558,6 +558,16 @@ export class Liquidity extends Base {
     }
   }
 
+  static async getCreatePoolFee({ connection, programId }: { connection: Connection; programId: PublicKey }) {
+    const configId = this.getAssociatedConfigId({ programId })
+
+    const layout = struct([u64('fee')])
+    const account = await connection.getAccountInfo(configId, { dataSlice: { offset: 536, length: 8 } })
+    if (account === null) throw Error('get config account error')
+
+    return layout.decode(account.data).fee
+  }
+
   /* ================= make instruction and transaction ================= */
   static makeAddLiquidityInstruction(params: LiquidityAddInstructionParams) {
     const { poolKeys, userKeys, baseAmountIn, quoteAmountIn, fixedSide } = params
