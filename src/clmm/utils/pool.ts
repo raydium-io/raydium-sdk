@@ -3,7 +3,7 @@ import BN from 'bn.js'
 
 import { ApiClmmPoolsItem } from '../../baseInfo'
 import { ZERO } from '../../entity'
-import { ClmmPoolInfo, ClmmPoolRewardInfo, ClmmPoolRewardLayoutInfo, TickArrayBitmapExtensionLayout } from '../clmm'
+import { ClmmPoolInfo, ClmmPoolRewardInfo, ClmmPoolRewardLayoutInfo, TickArrayBitmapExtensionType } from '../clmm'
 
 import { MAX_TICK, MIN_TICK, NEGATIVE_ONE, Q64 } from './constants'
 import { MathUtil, SwapMath } from './math'
@@ -209,7 +209,7 @@ export class PoolUtils {
           tickCurrent: number
           tickSpacing: number
           tickArrayBitmap: BN[]
-          exBitmapInfo: TickArrayBitmapExtensionLayout
+          exBitmapInfo: TickArrayBitmapExtensionType
         }
       | ClmmPoolInfo,
     lastTickArrayStartIndex: number,

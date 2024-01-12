@@ -3,7 +3,7 @@ import BN from 'bn.js'
 import Decimal from 'decimal.js'
 
 import { ONE, ZERO } from '../../entity'
-import { TickArrayBitmapExtensionLayout } from '../clmm'
+import { TickArrayBitmapExtensionType } from '../clmm'
 
 import {
   BIT_PRECISION,
@@ -444,7 +444,7 @@ export abstract class SwapMath {
     poolId: PublicKey,
     tickArrayCache: { [key: string]: TickArray },
     tickArrayBitmap: BN[],
-    tickarrayBitmapExtension: TickArrayBitmapExtensionLayout,
+    tickarrayBitmapExtension: TickArrayBitmapExtensionType,
     zeroForOne: boolean,
     fee: number,
     liquidity: BN,

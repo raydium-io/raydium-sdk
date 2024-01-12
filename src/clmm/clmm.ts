@@ -58,7 +58,7 @@ import {
   OperationLayout,
   PoolInfoLayout,
   PositionInfoLayout,
-  TickArrayBitmapExtension,
+  TickArrayBitmapExtensionLayout,
   TickArrayLayout,
 } from './layout'
 import { MAX_SQRT_PRICE_X64, MIN_SQRT_PRICE_X64, U64_IGNORE_RANGE } from './utils/constants'
@@ -172,7 +172,7 @@ export interface ClmmPoolInfo {
 
   startTime: number
 
-  exBitmapInfo: TickArrayBitmapExtensionLayout
+  exBitmapInfo: TickArrayBitmapExtensionType
 }
 export interface ClmmPoolPersonalPosition {
   poolId: PublicKey
@@ -269,13 +269,13 @@ export interface ReturnTypeFetchMultiplePoolTickArrays {
   [poolId: string]: { [key: string]: TickArray }
 }
 
-export interface TickArrayBitmapExtensionLayout {
+export interface TickArrayBitmapExtensionType {
   poolId: PublicKey
   positiveTickArrayBitmap: BN[][]
   negativeTickArrayBitmap: BN[][]
 }
 export interface ReturnTypeFetchExBitmaps {
-  [exBitmapId: string]: TickArrayBitmapExtensionLayout
+  [exBitmapId: string]: TickArrayBitmapExtensionType
 }
 
 export class Clmm extends Base {
@@ -4454,7 +4454,7 @@ export class Clmm extends Base {
     for (const item of fetchedBitmapAccount) {
       if (item.accountInfo === null) continue
 
-      returnTypeFetchExBitmaps[item.pubkey.toString()] = TickArrayBitmapExtension.decode(item.accountInfo.data)
+      returnTypeFetchExBitmaps[item.pubkey.toString()] = TickArrayBitmapExtensionLayout.decode(item.accountInfo.data)
     }
     return returnTypeFetchExBitmaps
   }

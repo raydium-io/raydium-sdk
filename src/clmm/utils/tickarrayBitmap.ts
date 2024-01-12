@@ -1,6 +1,6 @@
 import BN from 'bn.js'
 
-import { TickArrayBitmapExtensionLayout } from '../clmm'
+import { TickArrayBitmapExtensionType } from '../clmm'
 
 import { MAX_TICK, MIN_TICK } from './constants'
 import { TICK_ARRAY_BITMAP_SIZE, TICK_ARRAY_SIZE, TickUtils } from './tick'
@@ -98,7 +98,7 @@ export class TickArrayBitmapExtension {
   public static getBitmap(
     tickIndex: number,
     tickSpacing: number,
-    tickArrayBitmapExtension: TickArrayBitmapExtensionLayout,
+    tickArrayBitmapExtension: TickArrayBitmapExtensionType,
   ): { offset: number; tickarrayBitmap: BN[] } {
     const offset = this.getBitmapOffset(tickIndex, tickSpacing)
     if (tickIndex < 0) {
@@ -135,7 +135,7 @@ export class TickArrayBitmapExtension {
   public static checkTickArrayIsInit(
     tickArrayStartIndex: number,
     tickSpacing: number,
-    tickArrayBitmapExtension: TickArrayBitmapExtensionLayout,
+    tickArrayBitmapExtension: TickArrayBitmapExtensionType,
   ) {
     const { tickarrayBitmap } = this.getBitmap(tickArrayStartIndex, tickSpacing, tickArrayBitmapExtension)
 
@@ -151,7 +151,7 @@ export class TickArrayBitmapExtension {
     lastTickArrayStartIndex: number,
     tickSpacing: number,
     zeroForOne: boolean,
-    tickArrayBitmapExtension: TickArrayBitmapExtensionLayout,
+    tickArrayBitmapExtension: TickArrayBitmapExtensionType,
   ) {
     const multiplier = TickQuery.tickCount(tickSpacing)
     const nextTickArrayStartIndex = zeroForOne

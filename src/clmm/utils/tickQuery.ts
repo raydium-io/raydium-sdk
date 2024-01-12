@@ -2,7 +2,7 @@ import { Connection, PublicKey } from '@solana/web3.js'
 import BN from 'bn.js'
 
 import { getMultipleAccountsInfo } from '../../common'
-import { TickArrayBitmapExtensionLayout } from '../clmm'
+import { TickArrayBitmapExtensionType } from '../clmm'
 import { TickArrayLayout } from '../layout'
 
 import { MAX_TICK, MIN_TICK } from './constants'
@@ -26,7 +26,7 @@ export class TickQuery {
     tickCurrent: number,
     tickSpacing: number,
     tickArrayBitmapArray: BN[],
-    exTickArrayBitmap: TickArrayBitmapExtensionLayout,
+    exTickArrayBitmap: TickArrayBitmapExtensionType,
   ) {
     const tickArraysToFetch: PublicKey[] = []
     const currentTickArrayStartIndex = TickUtils.getTickArrayStartIndexByTick(tickCurrent, tickSpacing)
@@ -100,7 +100,7 @@ export class TickQuery {
     tickSpacing: number,
     zeroForOne: boolean,
     tickArrayBitmap: BN[],
-    exBitmapInfo: TickArrayBitmapExtensionLayout,
+    exBitmapInfo: TickArrayBitmapExtensionType,
   ) {
     const currentOffset = Math.floor(tickIndex / TickQuery.tickCount(tickSpacing))
     const result: number[] = zeroForOne

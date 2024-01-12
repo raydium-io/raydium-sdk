@@ -1,7 +1,7 @@
 import { PublicKey } from '@solana/web3.js'
 import BN from 'bn.js'
 
-import { TickArrayBitmapExtensionLayout } from '../clmm'
+import { TickArrayBitmapExtensionType } from '../clmm'
 
 import { MAX_TICK, MIN_TICK } from './constants'
 import { getPdaTickArrayAddress } from './pda'
@@ -134,7 +134,7 @@ export class TickUtils {
 
   public static getInitializedTickArrayInRange(
     tickArrayBitmap: BN[],
-    exTickArrayBitmap: TickArrayBitmapExtensionLayout,
+    exTickArrayBitmap: TickArrayBitmapExtensionType,
     tickSpacing: number,
     tickArrayStartIndex: number,
     expectedCount: number,
@@ -163,7 +163,7 @@ export class TickUtils {
 
   public static getAllInitializedTickArrayStartIndex(
     tickArrayBitmap: BN[],
-    exTickArrayBitmap: TickArrayBitmapExtensionLayout,
+    exTickArrayBitmap: TickArrayBitmapExtensionType,
     tickSpacing: number,
   ) {
     // find from offset 0 to 1024
@@ -174,7 +174,7 @@ export class TickUtils {
     programId: PublicKey,
     poolId: PublicKey,
     tickArrayBitmap: BN[],
-    exTickArrayBitmap: TickArrayBitmapExtensionLayout,
+    exTickArrayBitmap: TickArrayBitmapExtensionType,
     tickSpacing: number,
   ) {
     const result: {
@@ -202,7 +202,7 @@ export class TickUtils {
 
   public static searchLowBitFromStart(
     tickArrayBitmap: BN[],
-    exTickArrayBitmap: TickArrayBitmapExtensionLayout,
+    exTickArrayBitmap: TickArrayBitmapExtensionType,
     currentTickArrayBitStartIndex: number,
     expectedCount: number,
     tickSpacing: number,
@@ -230,7 +230,7 @@ export class TickUtils {
 
   public static searchHightBitFromStart(
     tickArrayBitmap: BN[],
-    exTickArrayBitmap: TickArrayBitmapExtensionLayout,
+    exTickArrayBitmap: TickArrayBitmapExtensionType,
     currentTickArrayBitStartIndex: number,
     expectedCount: number,
     tickSpacing: number,
