@@ -265,6 +265,7 @@ export class TickUtils {
     currentTickIndex: number,
     tickSpacing: number,
     zeroForOne: boolean,
+    t: boolean,
   ) {
     const currentTickArrayStartIndex = TickQuery.getArrayStartIndex(currentTickIndex, tickSpacing)
     if (currentTickArrayStartIndex != tickArrayCurrent.startTickIndex) {
@@ -280,7 +281,7 @@ export class TickUtils {
         offsetInArray = offsetInArray - 1
       }
     } else {
-      offsetInArray = offsetInArray + 1
+      if (!t) offsetInArray = offsetInArray + 1
       while (offsetInArray < TICK_ARRAY_SIZE) {
         if (tickArrayCurrent.ticks[offsetInArray].liquidityGross.gtn(0)) {
           return tickArrayCurrent.ticks[offsetInArray]
