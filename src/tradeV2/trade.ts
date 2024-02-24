@@ -73,6 +73,8 @@ export interface ComputeAmountOutAmmLayout {
   expirationTime: number | undefined
 
   allTrade: boolean
+  slippage: Percent
+  clmmExPriceX64: (BN | undefined)[]
 }
 export interface ComputeAmountOutRouteLayout {
   amountIn: TransferAmountFee
@@ -98,6 +100,8 @@ export interface ComputeAmountOutRouteLayout {
   expirationTime: number | undefined
 
   allTrade: boolean
+  slippage: Percent
+  clmmExPriceX64: (BN | undefined)[]
 }
 type ComputeAmountOutLayout = ComputeAmountOutAmmLayout | ComputeAmountOutRouteLayout
 
@@ -631,6 +635,8 @@ export class TradeV2 extends Base {
             poolType: [maxFirstIn.data.poolType, outC.poolType],
             feeConfig: _inFeeConfig,
             expirationTime: minExpirationTime(maxFirstIn.data.expirationTime, outC.expirationTime),
+            slippage: outC.slippage,
+            clmmExPriceX64: [maxFirstIn.data.clmmExPriceX64[0], outC.clmmExPriceX64[0]],
           })
         } catch (e) {
           /* empty */
@@ -676,6 +682,7 @@ export class TradeV2 extends Base {
         priceImpact,
         fee,
         remainingAccounts,
+        executionPriceX64,
       } = Clmm.computeAmountOutFormat({
         poolInfo: itemPool as ClmmPoolInfo,
         tickArrayCache: tickCache[itemPool.id.toString()],
@@ -702,6 +709,8 @@ export class TradeV2 extends Base {
         poolReady: itemPool.startTime < chainTime,
         poolType: 'CLMM',
         expirationTime: minExpirationTime(realAmountIn.expirationTime, expirationTime),
+        slippage,
+        clmmExPriceX64: [executionPriceX64],
       }
     } else {
       if (![1, 6, 7].includes(simulateCache[itemPool.id as string].status.toNumber())) throw Error('swap error')
@@ -727,17 +736,24 @@ export class TradeV2 extends Base {
         poolType: itemPool.version === 5 ? 'STABLE' : undefined,
         expirationTime: undefined,
         allTrade: true,
+        slippage,
+        clmmExPriceX64: [undefined],
       }
     }
   }
 
   static makeSwapInstruction({ routeProgram, ownerInfo, inputMint, swapInfo }: makeSwapInstructionParam) {
+    const slippage = swapInfo.slippage.numerator.toNumber() / swapInfo.slippage.denominator.toNumber()
     if (swapInfo.routeType === 'amm') {
       if (swapInfo.poolKey[0].version === 6) {
         const _poolKey = swapInfo.poolKey[0] as ClmmPoolInfo
         const sqrtPriceLimitX64 = inputMint.equals(_poolKey.mintA.mint)
-          ? MIN_SQRT_PRICE_X64.add(ONE)
-          : MAX_SQRT_PRICE_X64.sub(ONE)
+          ? slippage > 0.5 || MIN_SQRT_PRICE_X64.add(ONE).gt(swapInfo.clmmExPriceX64[0]!.div(new BN(10)))
+            ? MIN_SQRT_PRICE_X64.add(ONE)
+            : swapInfo.clmmExPriceX64[0]!.div(new BN(10))
+          : slippage > 0.5 || MAX_SQRT_PRICE_X64.sub(ONE).lt(swapInfo.clmmExPriceX64[0]!.mul(new BN(10)))
+          ? MAX_SQRT_PRICE_X64.sub(ONE)
+          : swapInfo.clmmExPriceX64[0]!.mul(new BN(10))
 
         return Clmm.makeSwapBaseInInstructions({
           poolInfo: _poolKey,

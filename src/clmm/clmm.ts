@@ -235,6 +235,7 @@ export interface ReturnTypeComputeAmountOutFormat {
   priceImpact: Percent
   fee: CurrencyAmount
   remainingAccounts: PublicKey[]
+  executionPriceX64: BN
 }
 export interface ReturnTypeComputeAmountOut {
   allTrade: boolean
@@ -247,6 +248,7 @@ export interface ReturnTypeComputeAmountOut {
   priceImpact: Percent
   fee: BN
   remainingAccounts: PublicKey[]
+  executionPriceX64: BN
 }
 export interface ReturnTypeComputeAmountOutBaseOut {
   amountIn: GetTransferAmountFee
@@ -3564,6 +3566,7 @@ export class Clmm extends Base {
       priceImpact,
       fee,
       remainingAccounts,
+      executionPriceX64,
     } = this.computeAmountOut({
       poolInfo,
       tickArrayCache,
@@ -3646,6 +3649,7 @@ export class Clmm extends Base {
       priceImpact,
       fee: _fee,
       remainingAccounts,
+      executionPriceX64,
     }
   }
 
@@ -3803,6 +3807,8 @@ export class Clmm extends Base {
       fee: feeAmount,
 
       remainingAccounts,
+
+      executionPriceX64: _executionPriceX64,
     }
   }
 
