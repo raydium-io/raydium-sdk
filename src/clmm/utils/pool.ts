@@ -339,10 +339,10 @@ export class PoolUtils {
     let minTickBoundary = -maxTickBoundary
 
     if (maxTickBoundary > MAX_TICK) {
-      maxTickBoundary = MAX_TICK
+      maxTickBoundary = TickQuery.getArrayStartIndex(MAX_TICK, tickSpacing) + TickQuery.tickCount(tickSpacing)
     }
     if (minTickBoundary < MIN_TICK) {
-      minTickBoundary = MIN_TICK
+      minTickBoundary = TickQuery.getArrayStartIndex(MIN_TICK, tickSpacing)
     }
     return { maxTickBoundary, minTickBoundary }
   }
