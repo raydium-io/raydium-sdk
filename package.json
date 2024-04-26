@@ -8,12 +8,10 @@
     "src"
   ],
   "main": "./lib/cjs/index.js",
-  "module": "./lib/esm/index.js",
   "types": "./lib/types/index.d.ts",
   "exports": {
     "require": "./lib/cjs/index.js",
-    "import": "./lib/esm/index.js",
-    "types": "./lib/types/index.d.ts"
+    "import": "./lib/esm/index.js"
   },
   "repository": "https://github.com/raydium-io/raydium-sdk",
   "keywords": [
@@ -31,8 +29,9 @@
     "build-docs": "typedoc",
     "build-docs-watch": "typedoc --watch",
     "build-dist": "shx rm -rf dist && mkdir dist && yarn build-docs",
-    "build-lib": "shx rm -rf lib && tsc --build --verbose && yarn run package",
-    "package": "shx mkdir -p lib/cjs && shx echo '{ \"type\": \"commonjs\" }' > lib/cjs/package.json",
+    "build-lib": "shx rm -rf lib && yarn build:cjs && yarn build:esm",
+    "build:cjs": "tsc -p tsconfig.cjs.json",
+    "build:esm": "tsc -p tsconfig.esm.json",
     "build-all": "yarn build-dist && yarn build-lib",
     "install-peers": "ts-node ./misc/install-peers.ts",
     "build": "yarn build-lib",
