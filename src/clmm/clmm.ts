@@ -4065,7 +4065,7 @@ export class Clmm extends Base {
           .mul(mintPriceB.toFixed(mintDecimalsB)),
       )
 
-    const p = userTvl.div(poolTvl.add(userTvl)).div(userTvl)
+    const p = new Decimal(1).div(poolTvl.add(userTvl))
 
     const feesPerYear = new Decimal(aprInfo.volumeFee).mul(365).div(aprTypeDay)
     const feeApr = feesPerYear.mul(p).mul(100).toNumber()
