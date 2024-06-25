@@ -24,7 +24,7 @@ export class BNLayout<P extends string = ''> extends Layout<BN, P> {
   signed: boolean
 
   constructor(span: number, signed: boolean, property?: P) {
-    //@ts-expect-error type wrong for super()'s type different from extends, but it desn't matter
+    //@ts-expect-error type wrong for super()'s type different from extends, but it doesn't matter
     super(span, property)
     this.blob = blob(span)
     this.signed = signed
@@ -41,7 +41,7 @@ export class BNLayout<P extends string = ''> extends Layout<BN, P> {
 
   /** @override */
   encode(src: BN, b: Buffer, offset = 0) {
-    if (typeof src === 'number') src = new BN(src) // src will pass a number accidently in union
+    if (typeof src === 'number') src = new BN(src) // src will pass a number accidentally in union
     if (this.signed) {
       src = src.toTwos(this.span * 8)
     }
@@ -54,7 +54,7 @@ export class WideBits<P extends string = ''> extends Layout<Record<string, boole
   _upper: any
   // TODO: unknown
   constructor(property?: P) {
-    //@ts-expect-error type wrong for super()'s type different from extends , but it desn't matter
+    //@ts-expect-error type wrong for super()'s type different from extends , but it doesn't matter
     super(8, property)
     this._lower = bits(_u32(), false)
     this._upper = bits(_u32(), false)
@@ -113,7 +113,7 @@ export class WrappedLayout<T, U, P extends string = ''> extends Layout<U, P> {
   encoder: (src: U) => T
 
   constructor(layout: Layout<T>, decoder: (data: T) => U, encoder: (src: U) => T, property?: P) {
-    //@ts-expect-error type wrong for super()'s type different from extends , but it desn't matter
+    //@ts-expect-error type wrong for super()'s type different from extends , but it doesn't matter
     super(layout.span, property)
     this.layout = layout
     this.decoder = decoder
@@ -147,7 +147,7 @@ export class OptionLayout<T, P> extends Layout<T | null, P> {
   discriminator: Layout<number>
 
   constructor(layout: Layout<T>, property?: P) {
-    //@ts-expect-error type wrong for super()'s type different from extends , but it desn't matter
+    //@ts-expect-error type wrong for super()'s type different from extends , but it doesn't matter
     super(-1, property)
     this.layout = layout
     this.discriminator = _u8()
