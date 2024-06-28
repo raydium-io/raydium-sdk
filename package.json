@@ -11,7 +11,8 @@
   "types": "./lib/types/index.d.ts",
   "exports": {
     "require": "./lib/cjs/index.js",
-    "import": "./lib/esm/index.js"
+    "import": "./lib/esm/index.js",
+    "types": "./lib/types/index.d.ts"
   },
   "repository": "https://github.com/raydium-io/raydium-sdk",
   "keywords": [
