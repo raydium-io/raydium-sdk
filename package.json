@@ -1,18 +1,14 @@
 {
   "name": "@raydium-io/raydium-sdk",
-  "version": "1.3.1-beta.57",
+  "version": "1.3.1-beta.58",
   "description": "An SDK for building applications on top of Raydium.",
   "license": "GPL-3.0",
   "files": [
-    "lib",
-    "src"
+    "dist"
   ],
-  "main": "./lib/cjs/index.js",
-  "types": "./lib/types/index.d.ts",
-  "exports": {
-    "require": "./lib/cjs/index.js",
-    "import": "./lib/esm/index.js"
-  },
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "typings": "./dist/index.d.ts",
   "repository": "https://github.com/raydium-io/raydium-sdk",
   "keywords": [
     "raydium",
@@ -28,13 +24,7 @@
     "test": "jest",
     "build-docs": "typedoc",
     "build-docs-watch": "typedoc --watch",
-    "build-dist": "shx rm -rf dist && mkdir dist && yarn build-docs",
-    "build-lib": "shx rm -rf lib && yarn build:cjs && yarn build:esm",
-    "build:cjs": "tsc -p tsconfig.cjs.json",
-    "build:esm": "tsc -p tsconfig.esm.json",
-    "build-all": "yarn build-dist && yarn build-lib",
-    "install-peers": "ts-node ./misc/install-peers.ts",
-    "build": "yarn build-lib",
+    "build": "tsup src/index.ts --dts --format esm,cjs",
     "push": "yarn build && yarn publish",
     "prepare": "husky install"
   },
@@ -51,7 +41,8 @@
     "decimal.js-light": "^2.5.1",
     "fecha": "^4.2.3",
     "lodash": "^4.17.21",
-    "toformat": "^2.0.0"
+    "toformat": "^2.0.0",
+    "tsup": "^8.1.0"
   },
   "devDependencies": {
     "@babel/core": "^7.23.3",

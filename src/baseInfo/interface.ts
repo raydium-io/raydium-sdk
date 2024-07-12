@@ -364,7 +364,7 @@ export interface ApiClmmPoolsItem {
   day: ApiClmmPoolsItemStatistics
   week: ApiClmmPoolsItemStatistics
   month: ApiClmmPoolsItemStatistics
-  lookupTableAccount: string
+  lookupTableAccount: string | undefined
 }
 
 export interface ApiClmmPools {
