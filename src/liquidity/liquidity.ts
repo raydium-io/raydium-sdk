@@ -1470,7 +1470,7 @@ export class Liquidity extends Base {
     })
 
     if (ownerTokenAccountBase === undefined || ownerTokenAccountQuote === undefined)
-      throw Error("you don't has some token account")
+      throw Error("you don't have a token account for this token")
 
     const poolInfo = Liquidity.getAssociatedPoolKeys({
       version: 4,
