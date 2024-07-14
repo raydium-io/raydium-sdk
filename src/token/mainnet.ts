@@ -1095,6 +1095,15 @@ export const MAINNET_SPL_TOKENS: SplTokens = {
       coingeckoId: 'solice',
     },
   },
+  rSPD: {
+    symbol: 'rSPD',
+    name: 'rSPD Token',
+    mint: 'AjQAzNbvJwoQCM8ztvAdjxhwLK4ZhWQ4JcyCV2GeLqUY',
+    decimals: 9,
+    extensions: {
+      coingeckoId: 'solrspd',
+    },
+  },
 }
 
 export const MAINNET_LP_TOKENS: LpTokens = {
@@ -2713,6 +2722,17 @@ export const MAINNET_LP_TOKENS: LpTokens = {
     base: MAINNET_SPL_TOKENS.SCY,
     quote: MAINNET_SPL_TOKENS.USDC,
     decimals: MAINNET_SPL_TOKENS.SCY.decimals,
+
+    version: 4,
+  },
+  rSPD_SOL_V4: {
+    symbol: 'rSPD-SOL',
+    name: 'SOL-rSPD V4 LP',
+    mint: '7ruaCTXp7p2jV3guXez74N7yyWv9Sae8NzLi2ZztmTjd',
+
+    base: MAINNET_SPL_TOKENS.rSPD,
+    quote: MAINNET_SPL_TOKENS.USDC,
+    decimals: MAINNET_SPL_TOKENS.rSPD.decimals,
 
     version: 4,
   },
