@@ -1,5 +1,5 @@
 import {
-  createAssociatedTokenAccountInstruction,
+  createAssociatedTokenAccountIdempotentInstruction,
   createCloseAccountInstruction,
   createInitializeAccountInstruction,
   createInitializeMintInstruction,
@@ -49,7 +49,7 @@ export class Spl {
     instructionsType: InstructionType[]
   }) {
     instructionsType.push(InstructionType.createATA)
-    return createAssociatedTokenAccountInstruction(payer, associatedAccount, owner, mint, programId)
+    return createAssociatedTokenAccountIdempotentInstruction(payer, associatedAccount, owner, mint, programId)
   }
 
   // https://github.com/solana-labs/solana-program-library/blob/master/token/js/client/token.js
